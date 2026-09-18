@@ -73,6 +73,21 @@ Tracked as GitHub issues on the project board; the phases, roughly in order:
 5. **Astrophotography** — Canon EOS capture over USB, image queue to a bigger machine, plate solving, autoguiding, one-button alignment.
 6. **Observatory** — several telescopes, workload placement by latency (USB / LAN / Starlink / 5G).
 
+## Topology
+
+Many small apps, a few named ways to run them (#25):
+
+| Configuration | What runs | Where |
+|---|---|---|
+| **Pi** (firmware) | networking, ssh, mount driver | next to the scope |
+| **Desktop** | web UI + cluster client, one binary (Burrito) | a laptop on the LAN or over USB |
+| **Server** | many Pis dialing in, multi-telescope UI, heavy services | the cloud |
+
+On a LAN the nodes find each other by multicast and talk plain Erlang
+distribution. Across Starlink/5G the Pi is behind NAT, so it has to dial out:
+an overlay network (Tailscale) first, a small dedicated uplink later (#24).
+Wire format stays Erlang terms end to end; JSON only at the browser.
+
 ## Hardware notes
 
 * EQ6-R power: 11–16 V DC, 4 A, **center-positive** on the GX12 locking plug.

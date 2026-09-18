@@ -1,0 +1,82 @@
+import Config
+
+config :logger, backends: [RingLogger]
+
+# Bring up networking + ssh (nerves_pack) before the app so a broken driver
+# never locks us out of the box.
+config :shoehorn, init: [:nerves_runtime, :nerves_pack]
+
+# Bad firmware that can't finish booting rolls back to the previous one.
+config :nerves_runtime, startup_guard_enabled: true
+
+config :nerves, :erlinit, update_clock: true
+
+# ---- ssh ---------------------------------------------------------------------
+keys =
+  System.user_home!()
+  |> Path.join(".ssh/id_{rsa,ecdsa,ed25519}.pub")
+  |> Path.wildcard()
+
+if keys == [],
+  do: Mix.raise("No SSH public key in ~/.ssh — needed to log into the Pi and push firmware.")
+
+config :nerves_ssh, authorized_keys: Enum.map(keys, &File.read!/1)
+
+# ---- networking -----------------------------------------------------------------
+# Initial Wi-Fi is baked in at build time from the environment:
+#
+#     WIFI_SSID="Home" WIFI_PSK="secret" mix firmware
+#
+# Extra networks can be added later without a rebuild: `Firmware.add_wifi/2`
+# over ssh, or the captive portal (see wizard below).
+wifi =
+  case System.get_env("WIFI_SSID") do
+    nil ->
+      %{type: VintageNetWiFi}
+
+    ssid ->
+      %{
+        type: VintageNetWiFi,
+        vintage_net_wifi: %{
+          networks: [%{key_mgmt: :wpa_psk, ssid: ssid, psk: System.fetch_env!("WIFI_PSK")}]
+        },
+        ipv4: %{method: :dhcp}
+      }
+  end
+
+config :vintage_net,
+  regulatory_domain: System.get_env("WIFI_COUNTRY", "US"),
+  config: [
+    # Pi plugged into a laptop's USB port shows up as a network link: telescope.local over the cable.
+    {"usb0", %{type: VintageNetDirect}},
+    {"eth0", %{type: VintageNetEthernet, ipv4: %{method: :dhcp}}},
+    {"wlan0", wifi}
+  ]
+
+# No usable Wi-Fi for a minute → the Pi opens its own "telescope-setup"
+# hotspot with a web page to pick a network. Config persists across reboots.
+config :vintage_net_wizard,
+  ssid: "telescope-setup",
+  dns_name: "telescope.setup",
+  captive_portal: true
+
+config :mdns_lite,
+  hosts: [:hostname, "telescope"],
+  ttl: 120,
+  services: [
+    %{protocol: "ssh", transport: "tcp", port: 22},
+    %{protocol: "sftp-ssh", transport: "tcp", port: 22},
+    %{protocol: "epmd", transport: "tcp", port: 4369}
+  ]
+
+# ---- observatory ------------------------------------------------------------------
+# Watch USB for EQDIR cables; one driver per mount, none when unplugged.
+config :mount, mounts: :auto, simulate_when_empty: false
+
+# Nodes find each other over Erlang distribution; the laptop connects with
+# `Node.connect(:"telescope@telescope.local")` (see Firmware.Distribution).
+config :libcluster, topologies: []
+
+config :firmware,
+  node_name: System.get_env("OBSERVATORY_NODE", "telescope"),
+  wizard_after_ms: 60_000

@@ -125,7 +125,9 @@ defmodule Mount.Server do
   end
 
   def handle_call(:emergency_stop, _from, state) do
-    state = state |> send!("L", :both) |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds)})
+    state =
+      state |> send!("L", :both) |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds)})
+
     {:reply, :ok, broadcast(refresh(state))}
   end
 
@@ -175,15 +177,14 @@ defmodule Mount.Server do
   # -- motion ------------------------------------------------------------------------
 
   defp goto(state, axis, steps, dir) do
-    state =
-      state
-      |> stop_axis(axis)
-      |> send!("G", axis, P.motion_mode(:goto, dir))
-      |> send!("H", axis, P.from_int(steps))
-      |> send!("M", axis, P.from_int(min(3_500, div(steps, 2))))
-      |> send!("J", axis)
-      |> put_axis(axis, :goto_pending, true)
-      |> refresh_axis(axis)
+    state
+    |> stop_axis(axis)
+    |> send!("G", axis, P.motion_mode(:goto, dir))
+    |> send!("H", axis, P.from_int(steps))
+    |> send!("M", axis, P.from_int(min(3_500, div(steps, 2))))
+    |> send!("J", axis)
+    |> put_axis(axis, :goto_pending, true)
+    |> refresh_axis(axis)
   end
 
   defp start_slew(state, axis, rate) do
@@ -216,8 +217,12 @@ defmodule Mount.Server do
     state = refresh_axis(state, axis)
 
     cond do
-      not state.axes[axis].running -> state
-      System.monotonic_time(:millisecond) > deadline -> state
+      not state.axes[axis].running ->
+        state
+
+      System.monotonic_time(:millisecond) > deadline ->
+        state
+
       true ->
         Process.sleep(50)
         wait_stopped(state, axis, deadline)
@@ -405,8 +410,12 @@ defmodule Mount.Server do
       ax = state.axes[axis]
       ahead = ax.degrees + (ax[:deg_per_s] || 0.0) * @lookahead_s
 
-      if ax.running and (at_limit?(state, axis, ax.direction) or not within_limits?(state, axis, ahead)) do
-        Logger.warning("mount #{state.id}: #{axis} hit soft limit at #{Float.round(ax.degrees, 2)}°, stopping")
+      if ax.running and
+           (at_limit?(state, axis, ax.direction) or not within_limits?(state, axis, ahead)) do
+        Logger.warning(
+          "mount #{state.id}: #{axis} hit soft limit at #{Float.round(ax.degrees, 2)}°, stopping"
+        )
+
         state = stop_axis(state, axis)
         if axis == :ra, do: %{state | tracking: :off}, else: state
       else

@@ -1,10 +1,50 @@
 # Observatory
 
-Software for running a telescope — starting with a Sky-Watcher EQ6-R on a
-Raspberry Pi and growing into star maps, voice control, and astrophotography.
-Everything is Elixir: small OTP apps that can run on the Pi next to the mount
-or on a bigger machine across the network, moved around as compute and
-latency dictate.
+Astronomy software that is modular underneath and polished on top — good
+enough for someone doing real science with a mount, a camera and an
+autoguider, and easy enough that you can hand a phone to a kid at a star
+party and say "pick something."
+
+It starts with a Sky-Watcher EQ6-R on a Raspberry Pi and grows into star
+maps, voice control, astrophotography, and running more than one telescope.
+Everything is Elixir: small OTP apps that run on the Pi next to the mount or
+on a bigger machine across the network, moved around as compute and latency
+dictate.
+
+## What we're building
+
+**For the serious observer.** Accurate pointing and tracking you can trust,
+an alignment model that gets better the more you use it, plate solving,
+autoguiding, PEC, session planning, observation logs, and raw data (FITS)
+out the other end. No black boxes: every number the mount reports is
+inspectable, every command is a plain function call.
+
+**For the star party.** Power it on, it finds itself. A phone in anyone's
+hand shows what the scope is looking at and what else is up tonight; tap a
+thing, the scope goes there, and the screen tells you what you're seeing.
+Voice works when hands are cold. Nothing to install, nothing to configure,
+nothing that can drive the scope into the tripod.
+
+**For both.** One system. The star-party UI and the science tools sit on the
+same `Mount`, catalog, and alignment model, so a casual night can turn into a
+serious one without switching software.
+
+## Principles
+
+* **Modular, not fragmented.** Small apps with sharp boundaries (mount, catalog,
+  camera, solver, UI), but shipped as a few named configurations that just run.
+  Nobody assembles modules by hand.
+* **Polished.** The UI is a product, not a debug panel. Latency, failure, and
+  "what is it doing right now?" are designed for, not patched.
+* **Boring wire.** Erlang terms end to end, JSON only at the browser edge. No
+  serialization layer to maintain.
+* **Safe by default.** Held slews self-stop, soft limits from home, emergency
+  stop is one call and one button. Losing the network stops the scope, it
+  never runs it away.
+* **Runs where it makes sense.** The Pi does the minimum; heavy work moves to a
+  laptop or the cloud based on the link (USB, LAN, Starlink, 5G).
+* **Hardware-agnostic eventually.** The EQ6-R is first. The mount API is written
+  so NexStar, LX200, and INDI/ASCOM bridges slot in behind it.
 
 ## Layout
 

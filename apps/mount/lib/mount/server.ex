@@ -47,6 +47,10 @@ defmodule Mount.Server do
     state = %{
       id: Keyword.fetch!(opts, :id),
       tracking_direction: Keyword.get(opts, :tracking_direction, :forward),
+      # Soft limits in degrees from home, per axis. Only enforced once someone
+      # has called set_home — before that the counts mean nothing.
+      limits: Keyword.get(opts, :limits, Application.get_env(:mount, :limits)),
+      homed: false,
       mod: mod,
       topts: topts,
       tstate: nil,
@@ -78,7 +82,7 @@ defmodule Mount.Server do
   end
 
   def handle_info(:poll, state) do
-    state = state |> refresh() |> maybe_resume_tracking()
+    state = state |> refresh() |> enforce_limits() |> maybe_resume_tracking()
     Process.send_after(self(), :poll, @poll_ms)
     {:noreply, broadcast(state)}
   end
@@ -96,14 +100,17 @@ defmodule Mount.Server do
     do: {:reply, {:error, :not_connected}, state}
 
   def handle_call({:slew, axis, rate, opts}, _from, state) when axis in [:ra, :dec] do
-    state =
-      if rate == 0 do
-        stop_axis(state, axis)
-      else
-        state |> start_slew(axis, rate) |> arm_hold(axis, Keyword.get(opts, :hold, false))
-      end
+    cond do
+      rate == 0 ->
+        {:reply, :ok, broadcast(stop_axis(state, axis))}
 
-    {:reply, :ok, broadcast(state)}
+      at_limit?(state, axis, dir_of(rate)) ->
+        {:reply, {:error, :limit}, state}
+
+      true ->
+        state = state |> start_slew(axis, rate) |> arm_hold(axis, Keyword.get(opts, :hold, false))
+        {:reply, :ok, broadcast(state)}
+    end
   end
 
   def handle_call({:stop, :both}, _from, state) do
@@ -127,23 +134,22 @@ defmodule Mount.Server do
     steps = abs(P.degrees_to_steps(degrees, ax.steps_per_rev))
     dir = if degrees >= 0, do: :forward, else: :reverse
 
-    state =
-      state
-      |> stop_axis(axis)
-      |> send!("G", axis, P.motion_mode(:goto, dir))
-      |> send!("H", axis, P.from_int(steps))
-      |> send!("M", axis, P.from_int(min(3_500, div(steps, 2))))
-      |> send!("J", axis)
-      |> put_axis(axis, :goto_pending, true)
-      |> refresh_axis(axis)
-
-    {:reply, :ok, broadcast(state)}
+    if within_limits?(state, axis, ax.degrees + degrees) do
+      {:reply, :ok, broadcast(goto(state, axis, steps, dir))}
+    else
+      {:reply, {:error, :limit}, state}
+    end
   end
 
   def handle_call({:track, mode}, _from, state) when is_map_key(@tracking_rates, mode) do
     rate = signed(@tracking_rates[mode], state.tracking_direction)
-    state = %{start_slew(state, :ra, rate) | tracking: mode}
-    {:reply, :ok, broadcast(state)}
+
+    if at_limit?(state, :ra, dir_of(rate)) do
+      {:reply, {:error, :limit}, state}
+    else
+      state = %{start_slew(state, :ra, rate) | tracking: mode}
+      {:reply, :ok, broadcast(state)}
+    end
   end
 
   def handle_call({:track, :off}, _from, state) do
@@ -156,7 +162,7 @@ defmodule Mount.Server do
       |> stop_axis(:ra)
       |> stop_axis(:dec)
       |> send!("E", :both, P.from_int(P.center()))
-      |> Map.put(:tracking, :off)
+      |> Map.merge(%{tracking: :off, homed: true})
 
     {:reply, :ok, broadcast(refresh(state))}
   end
@@ -167,6 +173,18 @@ defmodule Mount.Server do
   end
 
   # -- motion ------------------------------------------------------------------------
+
+  defp goto(state, axis, steps, dir) do
+    state =
+      state
+      |> stop_axis(axis)
+      |> send!("G", axis, P.motion_mode(:goto, dir))
+      |> send!("H", axis, P.from_int(steps))
+      |> send!("M", axis, P.from_int(min(3_500, div(steps, 2))))
+      |> send!("J", axis)
+      |> put_axis(axis, :goto_pending, true)
+      |> refresh_axis(axis)
+  end
 
   defp start_slew(state, axis, rate) do
     ax = state.axes[axis]
@@ -291,11 +309,21 @@ defmodule Mount.Server do
          {:ok, status, state} <- query(state, "f", axis) do
       ax = state.axes[axis]
       steps = P.to_int(pos)
+      degrees = P.steps_to_degrees(steps, ax.steps_per_rev)
+      now = System.monotonic_time(:millisecond)
+
+      # Observed velocity, so limits can be applied with lookahead.
+      deg_per_s =
+        case ax[:seen_at] do
+          nil -> 0.0
+          t when now - t < 50 -> ax[:deg_per_s] || 0.0
+          t -> (degrees - ax.degrees) * 1000 / (now - t)
+        end
 
       ax =
         ax
         |> Map.merge(P.decode_status(status))
-        |> Map.merge(%{steps: steps, degrees: P.steps_to_degrees(steps, ax.steps_per_rev)})
+        |> Map.merge(%{steps: steps, degrees: degrees, deg_per_s: deg_per_s, seen_at: now})
 
       %{state | axes: Map.put(state.axes, axis, ax)}
     else
@@ -337,6 +365,56 @@ defmodule Mount.Server do
   defp put_axis(state, axis, key, value),
     do: %{state | axes: Map.update!(state.axes, axis, &Map.put(&1, key, value))}
 
+  # -- soft limits ----------------------------------------------------------------------------------
+  # Degrees from home per axis, e.g. %{ra: {-100.0, 100.0}, dec: {-95.0, 95.0}}.
+  # Nothing is enforced until set_home has been called: before that the counts
+  # are wherever the mount happened to be at power-on.
+
+  defp limits_for(%{homed: true, limits: limits}, axis) when is_map(limits), do: limits[axis]
+  defp limits_for(_state, _axis), do: nil
+
+  defp within_limits?(state, axis, degrees) do
+    case limits_for(state, axis) do
+      {lo, hi} -> degrees >= lo and degrees <= hi
+      nil -> true
+    end
+  end
+
+  # Already at/over the edge and asked to keep going that way?
+  defp at_limit?(state, axis, dir) do
+    case limits_for(state, axis) do
+      {lo, hi} ->
+        deg = state.axes[axis].degrees
+        (dir == :forward and deg >= hi) or (dir == :reverse and deg <= lo)
+
+      nil ->
+        false
+    end
+  end
+
+  defp dir_of(rate) when rate >= 0, do: :forward
+  defp dir_of(_), do: :reverse
+
+  # Runs every poll: a slew about to cross a limit is stopped. Looks one
+  # second ahead at the observed velocity — a full-speed slew covers ~3° in
+  # that time and the real mount needs most of it to ramp down.
+  @lookahead_s 1.0
+
+  defp enforce_limits(state) do
+    Enum.reduce([:ra, :dec], state, fn axis, state ->
+      ax = state.axes[axis]
+      ahead = ax.degrees + (ax[:deg_per_s] || 0.0) * @lookahead_s
+
+      if ax.running and (at_limit?(state, axis, ax.direction) or not within_limits?(state, axis, ahead)) do
+        Logger.warning("mount #{state.id}: #{axis} hit soft limit at #{Float.round(ax.degrees, 2)}°, stopping")
+        state = stop_axis(state, axis)
+        if axis == :ra, do: %{state | tracking: :off}, else: state
+      else
+        state
+      end
+    end)
+  end
+
   # -- snapshot ----------------------------------------------------------------------------------------
 
   defp snapshot(state) do
@@ -347,6 +425,8 @@ defmodule Mount.Server do
       error: state.error,
       firmware: state.firmware,
       tracking: state.tracking,
+      homed: state.homed,
+      limits: if(state.homed, do: state.limits),
       axes:
         Map.new(state.axes, fn {k, ax} ->
           {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked])}

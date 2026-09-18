@@ -53,7 +53,12 @@ defmodule Mount do
   @doc "`:sidereal`, `:lunar`, `:solar` or `:off`."
   def track(ref, mode), do: call(ref, {:track, mode})
 
-  @doc "Declare the current pointing to be the home position (counterweight down, scope at the pole)."
+  @doc """
+  Declare the current pointing to be home (counterweight down, scope at the
+  pole). Zeroes both axes and arms the soft limits (`config :mount, :limits`):
+  from here on a goto past a limit returns `{:error, :limit}` and a slew that
+  reaches one is stopped there.
+  """
   def set_home(ref), do: call(ref, :set_home)
 
   @doc "Send a raw protocol frame, e.g. `Mount.raw(m, \":e1\\r\")`. For poking."

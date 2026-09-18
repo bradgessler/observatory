@@ -63,11 +63,14 @@ Nerves recommends).
 The loop we're building first:
 
 1. Plug a Raspberry Pi's SD card into the laptop.
-2. `WIFI_SSID=… WIFI_PSK=… MIX_TARGET=rpi4 mix firmware && mix burn`
+2. `cd firmware && mix observatory.flash` — asks which Pi and which Wi-Fi,
+   builds, burns. (Or by hand: `WIFI_SSID=… WIFI_PSK=… MIX_TARGET=rpi4 mix firmware && mix burn`.)
 3. Move the card to the Pi, plug the Pi into the mount's HAND CONTROL port
    with the EQDIR cable, power up.
 4. From any machine on the network: `Node.connect(:"telescope@telescope.local")`
    and drive it with `Mount.slew/3`, `Mount.goto_relative/3`, `Mount.track/2`.
+
+Later updates go over the network: `mix observatory.flash --upload telescope.local`.
 
 The Pi does three things and nothing more: manage network connections
 (Wi-Fi, ethernet, and the USB cable to a laptop), watch USB for mounts, and
@@ -136,6 +139,8 @@ Wire format stays Erlang terms end to end; JSON only at the browser.
 * HAND CONTROL port is 3.3 V TTL at 9600 baud; any FTDI "EQDIR" cable works.
 * No absolute encoders: the mount reports `0x800000` on both axes at power-on
   wherever it happens to be. Power on in the home position (counterweight
-  down, scope at the pole) and `Mount.set_home/1`.
+  down, scope at the pole) and `Mount.set_home/1`. That also arms the soft
+  limits (`config :mount, :limits`, default RA ±100°, Dec ±95° from home): a
+  goto past one is refused, a slew heading for one is stopped a second early.
 * The mount's `:f` status, `:j` position, and `:e/:a/:b/:g` constants are
   documented in `Mount.Protocol`.

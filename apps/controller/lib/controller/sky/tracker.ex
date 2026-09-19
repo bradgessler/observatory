@@ -40,6 +40,7 @@ defmodule Controller.Sky.Tracker do
 
   @impl true
   def init(_) do
+    Telescope.Events.tag("tracker")
     :timer.send_interval(@tick_ms, :tick)
     {:ok, %{}}
   end
@@ -60,6 +61,7 @@ defmodule Controller.Sky.Tracker do
         end
 
         entry = %{ref: ref, obj: obj, cmd: %{ra: 0.0, dec: 0.0}, paused: false, since: DateTime.utc_now(), started_ms: System.os_time(:millisecond)}
+        Telescope.Events.emit(:tracker, :start, %{id: id, target: obj.name})
         publish(id, entry, nil)
         send(self(), {:tick_one, id})
         {:noreply, Map.put(s, id, entry)}
@@ -151,6 +153,7 @@ defmodule Controller.Sky.Tracker do
 
   defp drop(s, id, why) do
     if entry = s[id] do
+      Telescope.Events.emit(:tracker, :end, %{id: id, target: entry.obj.name, why: why})
       if why == :stop, do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
       :persistent_term.erase({__MODULE__, id})
       Telescope.broadcast("tracker", {:tracker, id, nil})

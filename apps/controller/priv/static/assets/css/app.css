@@ -564,3 +564,11 @@ a.banner strong { color: var(--warn); }
 .home-btn span { color: var(--dim); font-size: 13px; line-height: 1.3; }
 .home-more { display: grid; place-items: center; width: 40px; border: 1px solid var(--edge); border-radius: var(--r); color: var(--dim); text-decoration: none; font-weight: 700; }
 @media (min-width: 700px) { .home-list { grid-template-columns: 1fr 1fr; } }
+
+/* ---- events ---- */
+.events { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.events li { display: grid; grid-template-columns: 64px 130px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--edge); align-items: baseline; }
+.events li:first-child { border-top: none; }
+.events time { color: var(--dim); }
+.ev-by { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 420px) { .events li { grid-template-columns: 56px 1fr; } .events .ev-what { grid-column: 1 / -1; } }

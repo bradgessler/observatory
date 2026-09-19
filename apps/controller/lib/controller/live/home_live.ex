@@ -44,6 +44,7 @@ defmodule Controller.HomeLive do
      "what is plugged in and how to reach this machine",
      [
        {"Devices", ~p"/devices", "the telescope cable, the mount answering or not, the addresses", ~p"/docs/devices"},
+       {"Events", ~p"/events", "what happened and who did it: every move, stop, star and stream, newest first", nil},
        {"Bench", ~p"/bench", "every surface side by side with the live scope state; where new things get tried", nil}
      ]}
     ]

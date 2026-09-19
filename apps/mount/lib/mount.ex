@@ -40,21 +40,40 @@ defmodule Mount do
   def snapshot(ref), do: call(ref, :snapshot)
 
   @doc "Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it self-stop unless refreshed."
-  def slew(ref, axis, rate, opts \\ []), do: call(ref, {:slew, axis, rate / 1, opts})
+  def slew(ref, axis, rate, opts \\ []) do
+    Telescope.Events.emit(:mount, :slew, %{id: id_of(ref), axis: axis, rate: rate / 1, hold: Keyword.get(opts, :hold, false)})
+    call(ref, {:slew, axis, rate / 1, opts})
+  end
 
   @doc "Ramped stop of an axis (or both). `instant: true` halts one axis with no ramp — for dead-man releases."
   def stop(ref, axis \\ :both, opts \\ [])
-  def stop(ref, axis, instant: true) when axis in [:ra, :dec], do: call(ref, {:stop, axis, :instant})
-  def stop(ref, axis, _opts), do: call(ref, {:stop, axis})
+  def stop(ref, axis, instant: true) when axis in [:ra, :dec] do
+    Telescope.Events.emit(:mount, :stop, %{id: id_of(ref), axis: axis, instant: true})
+    call(ref, {:stop, axis, :instant})
+  end
+
+  def stop(ref, axis, _opts) do
+    Telescope.Events.emit(:mount, :stop, %{id: id_of(ref), axis: axis})
+    call(ref, {:stop, axis})
+  end
 
   @doc "Instant stop of both axes, no ramp-down."
-  def emergency_stop(ref), do: call(ref, :emergency_stop)
+  def emergency_stop(ref) do
+    Telescope.Events.emit(:mount, :emergency_stop, %{id: id_of(ref)})
+    call(ref, :emergency_stop)
+  end
 
   @doc "Move an axis by `degrees` at full goto speed (mount-managed ramps)."
-  def goto_relative(ref, axis, degrees), do: call(ref, {:goto_relative, axis, degrees / 1})
+  def goto_relative(ref, axis, degrees) do
+    Telescope.Events.emit(:mount, :goto, %{id: id_of(ref), axis: axis, degrees: degrees / 1})
+    call(ref, {:goto_relative, axis, degrees / 1})
+  end
 
   @doc "`:sidereal`, `:lunar`, `:solar` or `:off`."
-  def track(ref, mode), do: call(ref, {:track, mode})
+  def track(ref, mode) do
+    Telescope.Events.emit(:mount, :track, %{id: id_of(ref), mode: mode})
+    call(ref, {:track, mode})
+  end
 
   @doc """
   Declare the current pointing to be home (counterweight down, scope at the
@@ -62,7 +81,10 @@ defmodule Mount do
   from here on a goto past a limit returns `{:error, :limit}` and a slew that
   reaches one is stopped there.
   """
-  def set_home(ref), do: call(ref, :set_home)
+  def set_home(ref) do
+    Telescope.Events.emit(:mount, :set_home, %{id: id_of(ref)})
+    call(ref, :set_home)
+  end
 
   @doc "Send a raw protocol frame, e.g. `Mount.raw(m, \":e1\\r\")`. For poking."
   def raw(ref, frame), do: call(ref, {:raw, frame})
@@ -89,6 +111,9 @@ defmodule Mount do
 
   def subscribe(%{id: id}), do: Telescope.subscribe("mount:#{id}")
   def subscribe(id), do: Telescope.subscribe("mount:#{id}")
+
+  defp id_of(%{id: id}), do: id
+  defp id_of(id) when is_binary(id), do: id
 
   defp call(%{id: id, node: n}, msg) when n == node(), do: Server.call(id, msg)
   defp call(%{id: id, node: n}, msg), do: :erpc.call(n, Server, :call, [id, msg], 15_000)

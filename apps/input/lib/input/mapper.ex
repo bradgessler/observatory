@@ -40,6 +40,7 @@ defmodule Input.Mapper do
   @impl true
   def init(_) do
     Telescope.subscribe("input")
+    Telescope.Events.tag("game pad")
     # monotonic time can be negative; "long ago" must be relative to now, not 0
     long_ago = System.monotonic_time(:millisecond) - 60_000
     s = %{armed: false, target: nil, map: %{}, device_map: %{}, held: [], action: :idle, last_cmd: long_ago, last_fresh: long_ago, failures: 0, off_reason: nil}

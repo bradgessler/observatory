@@ -105,6 +105,17 @@ defmodule Controller.PagesTest do
     end
   end
 
+  describe "events" do
+    test "commands to the mount show up with their source", %{conn: conn, id: id} do
+      {:ok, view, _} = live(conn, "/controls/nudge/#{id}")
+      render_click(view, "nudge", %{"dir" => "right"})
+      Process.sleep(100)
+      {:ok, _view, html} = live(conn, "/events")
+      assert html =~ "page · Nudge"
+      assert html =~ "#{id} · ra by"
+    end
+  end
+
   describe "docs" do
     test "markdown pages render", %{conn: conn} do
       assert get(conn, "/docs/magnitude") |> html_response(200) =~ "<h1>"

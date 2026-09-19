@@ -45,6 +45,7 @@ defmodule Controller.Sky.Lineup do
     }
 
     put_samples(id, samples(id) ++ [sample])
+    Telescope.Events.emit(:lineup, :star, %{id: id, name: obj.name, theta_ra: sample["theta_ra"], theta_dec: sample["theta_dec"]})
     refit(id)
   end
 

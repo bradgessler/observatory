@@ -117,7 +117,10 @@ defmodule Video.HLS do
     end
   end
 
-  def handle_call(:stop, _from, s), do: {:reply, :ok, s |> kill() |> Map.merge(%{state: :off, error: nil, fell_back_from: nil}) |> announce()}
+  def handle_call(:stop, _from, s) do
+    Telescope.Events.emit(:video, :stop, %{quality: s.quality})
+    {:reply, :ok, s |> kill() |> Map.merge(%{state: :off, error: nil, fell_back_from: nil}) |> announce()}
+  end
 
   @impl true
   def handle_info({port, {:data, data}}, %{port: port} = s) do
@@ -196,6 +199,7 @@ defmodule Video.HLS do
         [Path.join(out, @still)]
 
     Logger.info("video: starting #{quality} via #{encoder}: ffmpeg #{Enum.join(args, " ")}")
+    Telescope.Events.emit(:video, :start, %{quality: quality, encoder: encoder, fps: s.fps})
 
     port =
       Port.open({:spawn_executable, wrapper()}, [

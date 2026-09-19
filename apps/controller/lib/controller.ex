@@ -49,6 +49,8 @@ defmodule Controller do
   def live_view do
     quote do
       use Phoenix.LiveView
+      # every command this page sends to the mount is logged under its name
+      on_mount Controller.Source
 
       unquote(html_helpers())
     end

@@ -15,6 +15,7 @@ defmodule Controller.Application do
       Controller.Sky.Catalog,
       Controller.Settings,
       Controller.Sky.Tracker,
+      Controller.Optical.AxisScan,
       Controller.Endpoint
     ]
 

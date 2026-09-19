@@ -21,7 +21,8 @@ defmodule Controller.HomeLive do
      [
        {"Line Up", ~p"/bench/lineup", "name a few stars; the software works out how the mount really sits", ~p"/docs/lineup"},
        {"Sky", ~p"/bench/sky", "the sky right now, tonight's targets, your tree line; tap and slew", ~p"/docs/sky"},
-       {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"}
+       {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"},
+       {"Optical Axes", ~p"/controls/watch/axes", "experiment: turn each axis a little with the camera watching, find where it pivots in the picture", ~p"/docs/axes"}
      ]},
     {"Controls",
      "ways to move the scope; each is an experiment in what feels right in the dark",

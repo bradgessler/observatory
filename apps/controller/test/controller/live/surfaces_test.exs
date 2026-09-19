@@ -137,6 +137,14 @@ defmodule Controller.SurfacesTest do
     assert Controller.Sky.Tracker.status(id) == nil
   end
 
+  test "optical axes page renders idle and refuses a scan without a camera or with one running", %{conn: conn, id: id} do
+    {:ok, view, html} = live(conn, "/controls/watch/axes/#{id}")
+    assert html =~ "Find the axes"
+    assert html =~ "idle"
+    # no camera tool in CI: the button is disabled, and the scan says why
+    assert Controller.Optical.AxisScan.status().running == false
+  end
+
   test "watch: history frames are served by name only when they exist", %{conn: conn} do
     assert conn |> get("/watch/frames/1758300000000.jpg") |> response(404)
     assert conn |> get("/watch/frames/..%2F..%2Fetc%2Fpasswd") |> response(404)

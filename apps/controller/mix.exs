@@ -40,6 +40,8 @@ defmodule Controller.MixProject do
     [
       {:telescope, in_umbrella: true},
       {:mount, in_umbrella: true},
+      # JPEG in, grey pixels out, for the optical axis finder; a tiny C NIF, no Python
+      {:stb_image, "~> 1.0"},
       {:input, in_umbrella: true},
       {:watch, in_umbrella: true},
       {:video, in_umbrella: true},

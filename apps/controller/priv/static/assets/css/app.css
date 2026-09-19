@@ -222,3 +222,4 @@ a.target { text-decoration: none; color: var(--text); }
 .object .actions { display: grid; gap: 8px; margin-top: auto; }
 .object .go.big { padding: 18px; font-size: 18px; font-weight: 800; letter-spacing: .06em; }
 button:disabled { opacity: .4; }
+.object .go { border-color: var(--on); color: var(--on); }

@@ -91,7 +91,8 @@ defmodule Controller.Sky.Catalog do
         }
       end
 
-    messier_ids = MapSet.new(messier, & &1.id)
+    # Same object under two catalog numbers (M13 / NGC 6205): dedupe by sky position.
+    messier_cells = MapSet.new(messier, &cell(&1.ra_deg, &1.dec_deg))
 
     # Named non-Messier showpieces from the bright list (skip dark nebulae / unknown mags).
     extras =
@@ -104,10 +105,10 @@ defmodule Controller.Sky.Catalog do
           not big?(p["dim"]),
           n = names[to_string(f["id"])],
           is_binary(n["name"]) and n["name"] != "",
-          id = f["id"] |> String.downcase() |> String.replace(~r/\s+/, ""),
-          not MapSet.member?(messier_ids, id) do
-        [ra, dec] = f["geometry"]["coordinates"]
-        %{id: id, name: "#{n["name"]} (#{f["id"]})", ra_deg: ra360(ra), dec_deg: dec, mag: mag, kind: dso_kind(p["type"])}
+          [ra, dec] = f["geometry"]["coordinates"],
+          not MapSet.member?(messier_cells, cell(ra360(ra), dec)) do
+        id = f["id"] |> String.downcase() |> String.replace(~r/\s+/, "")
+        %{id: id, name: n["name"], desig: f["id"], ra_deg: ra360(ra), dec_deg: dec, mag: mag, kind: dso_kind(p["type"])}
       end
 
     Enum.sort_by(messier ++ extras, & &1.mag)
@@ -140,6 +141,9 @@ defmodule Controller.Sky.Catalog do
         nil
     end
   end
+
+  # ~0.2° grid cell for "same object" checks.
+  defp cell(ra, dec), do: {round(ra * 5), round(dec * 5)}
 
   # Anything over ~2° across is a binocular/naked-eye object, not an eyepiece target.
   defp big?(dim) when is_binary(dim) do

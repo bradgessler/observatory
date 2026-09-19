@@ -129,3 +129,10 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .target.top .k { border-color: var(--on); color: var(--on); font-weight: 700; font-size: 15px; }
 .target.top .t strong { font-size: 16px; }
 .map .obj circle.hit, .map .obj.faint circle.hit, .map .obj.hidden circle.hit { fill: transparent !important; opacity: 1; }
+.map .obj.planet rect { fill: #ffd27a; stroke: #ffd27a; width: 3.4px; height: 3.4px; }
+.map .obj.moon rect { fill: #f4f1e6; stroke: #f4f1e6; width: 5px; height: 5px; }
+.map .obj.planet text, .map .obj.moon text { fill: var(--text); font-size: 4px; }
+.night .map .obj.planet rect, .night .map .obj.moon rect { fill: #ff7a7a; stroke: #ff7a7a; }
+.sky header { justify-content: space-between; }
+.sky header h1 { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.sky header a.ghost { white-space: nowrap; }

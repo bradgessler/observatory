@@ -11,7 +11,7 @@ defmodule Controller.SkyLive do
   use Controller, :live_view
 
   alias Controller.Settings
-  alias Controller.Sky.{Astro, Catalog}
+  alias Controller.Sky.{Astro, Catalog, Ephemeris}
 
   @tick_ms 15_000
   @mag_limit 5.0
@@ -36,6 +36,8 @@ defmodule Controller.SkyLive do
        offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
        search: nil,
        night: Settings.get("night", false),
+       # Aperture of the scope in use, mm. 0 = naked eye. Drives limiting magnitude.
+       aperture: Settings.get("aperture_mm", 100),
        now: DateTime.utc_now(),
        refs: %{},
        snap: nil,
@@ -112,7 +114,8 @@ defmodule Controller.SkyLive do
 
   @impl true
   def handle_event("pick", %{"id" => id}, socket) do
-    {:noreply, assign(socket, target: Catalog.object(id), notice: nil, tab: "map")}
+    target = Catalog.object(id) || Enum.find(Ephemeris.objects(socket.assigns.now), &(&1.id == id))
+    {:noreply, assign(socket, target: target, notice: nil, tab: "map")}
   end
 
   def handle_event("clear", _, socket), do: {:noreply, assign(socket, target: nil, notice: nil)}
@@ -123,6 +126,17 @@ defmodule Controller.SkyLive do
     {:noreply, assign(socket, night: night)}
   end
   def handle_event("tab", %{"tab" => tab}, socket), do: {:noreply, assign(socket, tab: tab)}
+
+  def handle_event("equipment", %{"aperture" => a}, socket) do
+    aperture =
+      case Integer.parse(a) do
+        {n, _} -> n |> max(0) |> min(1_000)
+        :error -> socket.assigns.aperture
+      end
+
+    Settings.put("aperture_mm", aperture)
+    {:noreply, socket |> assign(aperture: aperture) |> compute()}
+  end
 
   def handle_event("horizon", params, socket) do
     horizon =
@@ -255,8 +269,10 @@ defmodule Controller.SkyLive do
       Map.merge(o, %{alt: alt, az: az, x: x * 100, y: y * 100, hidden: alt < Settings.horizon_at(horizon, az)})
     end
 
+    aperture = socket.assigns.aperture
     stars = for o <- Catalog.stars(@mag_limit), o = place.(o), o.alt > -1, do: o
-    dsos = for o <- Catalog.dsos(), o.mag < 10, o = place.(o), o.alt > -1, do: o
+    sol = for o <- Ephemeris.objects(now), o = place.(o), o.alt > -1, do: o
+    dsos = sol ++ for(o <- Catalog.dsos(), o.mag < 10, o = place.(o), o.alt > -1, do: o)
 
     lines =
       for line <- Catalog.lines(),
@@ -280,19 +296,26 @@ defmodule Controller.SkyLive do
       dsos: dsos,
       lines: lines,
       treeline: treeline,
-      targets: targets(now, site, horizon)
+      lim: limiting_mag(aperture),
+      moon: moon_state(now, site, lst),
+      targets: targets(now, site, horizon, aperture)
     )
   end
 
-  # What's worth looking at from this spot over the next two hours.
-  defp targets(now, site, horizon) do
+  # What's worth looking at from this spot, with this scope, over the next two hours.
+  defp targets(now, site, horizon, aperture_mm) do
     lsts = for h <- [0, 1, 2], do: Astro.lst_deg(DateTime.add(now, h * 3600), site.lon)
+    lim = limiting_mag(aperture_mm)
+    moon = moon_state(now, site, hd(lsts))
 
     candidates =
-      Catalog.dsos() ++
+      Ephemeris.objects(now) ++
+        Catalog.dsos() ++
         Enum.filter(Catalog.stars(2.6), &(&1.proper != nil))
 
     for o <- candidates,
+        o.id != "sol-sun",
+        showable?(o, lim, moon),
         [a0, a1, a2] = Enum.map(lsts, &Astro.alt_az(o.ra_deg, o.dec_deg, site.lat, &1)),
         {alt0, az0} = a0,
         tree0 = Settings.horizon_at(horizon, az0),
@@ -309,10 +332,11 @@ defmodule Controller.SkyLive do
         end
 
       wow =
-        -o.mag + kind_bonus(o.kind) + min(alt0 - tree0, 30) / 30 +
-          if(status == :good, do: 1.0, else: 0.0) - if(status == :rising, do: 1.5, else: 0.0)
+        -min(o.mag, 2.0) + kind_bonus(o.kind) + min(alt0 - tree0, 30) / 30 +
+          if(status == :good, do: 1.0, else: 0.0) - if(status == :rising, do: 1.5, else: 0.0) -
+          moon_penalty(o, moon)
 
-      Map.merge(o, %{alt: alt0, az: az0, status: status, wow: wow})
+      Map.merge(o, %{alt: alt0, az: az0, status: status, wow: wow, words: words(o, lim, moon)})
     end
     |> Enum.sort_by(& &1.wow, :desc)
     |> diversify()
@@ -328,10 +352,60 @@ defmodule Controller.SkyLive do
     Enum.sort_by(top, & &1.wow, :desc) ++ Enum.reject(ranked, &MapSet.member?(top_ids, &1.id))
   end
 
+  defp kind_bonus(:moon), do: 6.0
+  defp kind_bonus(:planet), do: 5.0
   defp kind_bonus(:galaxy), do: 1.5
   defp kind_bonus(:nebula), do: 1.5
   defp kind_bonus(:cluster), do: 1.0
   defp kind_bonus(_), do: 0.0
+
+  # -- equipment & sky conditions (the parameters behind the casual list) --------------------------
+
+  # Faintest star a scope shows under a suburban sky: 7.5 + 5·log10(D cm), minus ~1.5 for the
+  # sky glow you get in a driveway. 0 mm means naked eye.
+  def limiting_mag(aperture_mm) when aperture_mm <= 0, do: 4.5
+  def limiting_mag(aperture_mm), do: 7.5 + 5 * :math.log10(aperture_mm / 10) - 1.5
+
+  # Galaxies and nebulae are spread out: they need ~3 magnitudes of headroom.
+  defp extended_margin(:galaxy), do: 3.5
+  defp extended_margin(:nebula), do: 3.0
+  defp extended_margin(:cluster), do: 1.5
+  defp extended_margin(_), do: 0.0
+
+  defp showable?(%{kind: k, mag: m}, lim, _moon), do: m <= lim - extended_margin(k)
+
+  defp moon_state(now, site, lst) do
+    p = Ephemeris.position(:moon, now)
+    {alt, _az} = Astro.alt_az(p.ra_deg, p.dec_deg, site.lat, lst)
+    %{up: alt > 0, illumination: p.illumination}
+  end
+
+  # A bright Moon washes out the faint fuzzies, not the planets or clusters.
+  defp moon_penalty(%{kind: k}, %{up: true, illumination: i}) when k in [:galaxy, :nebula], do: 3.0 * i
+  defp moon_penalty(_, _), do: 0.0
+
+  # Magnitude translated for this scope and this sky. Nobody remembers the scale.
+  defp words(%{kind: :moon}, _lim, _moon), do: "can't miss it"
+  defp words(%{kind: :planet}, _lim, _moon), do: "bright, easy"
+
+  defp words(%{kind: k, mag: m}, lim, moon) do
+    headroom = lim - extended_margin(k) - m
+
+    base =
+      cond do
+        m <= 1.5 -> "naked eye, obvious"
+        m <= 4.0 and k == :star -> "naked eye"
+        m <= 4.5 and k != :star -> "naked eye, faint smudge · great in the scope"
+        headroom >= 3 -> "easy in the scope"
+        headroom >= 1 -> "in the scope"
+        headroom >= 0 -> "faint, needs dark-adapted eyes"
+        true -> "too faint for this scope"
+      end
+
+    if k in [:galaxy, :nebula] and moon.up and moon.illumination > 0.5,
+      do: base <> " · washed out by the Moon",
+      else: base
+  end
 
   # -- render ------------------------------------------------------------------------------------------
 
@@ -386,7 +460,7 @@ defmodule Controller.SkyLive do
           <g :for={o <- @dsos} phx-click="pick" phx-value-id={o.id} class={["obj", o.kind, o.hidden && "hidden", @target && @target.id == o.id && "picked"]}>
             <circle class="hit" cx={o.x} cy={o.y} r="4.5" />
             <rect x={o.x - 1.5} y={o.y - 1.5} width="3" height="3" transform={"rotate(45 #{o.x} #{o.y})"} />
-            <text :if={o.mag < 6.5 and String.starts_with?(o.id, "m")} x={o.x + 2.2} y={o.y + 1}>{short(o.name)}</text>
+            <text :if={String.starts_with?(o.id, "sol-") or (o.mag < 6.5 and String.starts_with?(o.id, "m"))} x={o.x + 2.6} y={o.y + 1}>{short(o.name)}</text>
           </g>
 
           <path d={"M100,0 A100,100 0 1,1 -100,0 A100,100 0 1,1 100,0 Z M#{@treeline} Z"} fill-rule="evenodd" class="treeline" pointer-events="none" />
@@ -408,7 +482,7 @@ defmodule Controller.SkyLive do
         <p class="horizon-hint">Above your tree line now, ranked by how good they look and how long they stay up.</p>
         <button :for={{o, i} <- Enum.with_index(@targets, 1)} class={["target", i <= 5 && "top", @target && @target.id == o.id && "picked"]} phx-click="pick" phx-value-id={o.id}>
           <span class="k">{if i <= 5, do: "#{i}", else: glyph(o.kind)}</span>
-          <span class="t"><strong>{o.name}</strong><span>alt {fmt0(o.alt)}° · {compass(o.az)} · mag {o.mag}</span></span>
+          <span class="t"><strong>{o.name}</strong><span>alt {fmt0(o.alt)}° · {compass(o.az)} · {o.words}</span></span>
           <span class={["when", when_class(o.status)]}>{when_text(o.status)}</span>
         </button>
         <p :if={@targets == []} class="horizon-hint">Nothing above the tree line. Lower it on the Horizon tab if that's wrong.</p>
@@ -419,12 +493,17 @@ defmodule Controller.SkyLive do
         <form phx-change="horizon" class="horizon">
           <label :for={s <- Settings.sectors()}>{s}<input name={s} inputmode="numeric" value={@horizon[s]} /></label>
         </form>
+        <p class="horizon-hint">What are you looking through? Aperture in mm (0 = just eyes, 50 = binoculars, 100 = 4-inch refractor, 203 = NexStar 8SE). Sets the faintest thing worth suggesting: mag {fmt1(@lim)} tonight.</p>
+        <form phx-change="equipment" class="horizon">
+          <label>aperture mm<input name="aperture" inputmode="numeric" value={@aperture} /></label>
+        </form>
+        <p class="horizon-hint">Moon: {if @moon.up, do: "up, #{fmt0(@moon.illumination * 100)}% lit", else: "down"}. Bright Moon knocks galaxies and nebulae down the list.</p>
       </section>
 
       <section class="pick" :if={@target}>
         <div>
           <strong>{@target.name}</strong>
-          <span class="dim">{describe(@target, @stars ++ @dsos)}</span>
+          <span class="dim">{describe(@target, @stars ++ @dsos, @lim, @moon)}</span>
         </div>
         <button class="go" phx-click="goto">Slew</button>
         <button :if={!@search} phx-click="search" title="spiral around the target until you see it">Search</button>
@@ -449,16 +528,19 @@ defmodule Controller.SkyLive do
 
   defp short(name), do: name |> String.split(" ") |> List.first()
 
-  defp describe(t, placed) do
+  defp describe(t, placed, lim, moon) do
     case Enum.find(placed, &(&1.id == t.id)) do
       %{alt: alt, az: az, hidden: hidden} ->
-        "alt #{fmt0(alt)}° · #{compass(az)} (#{fmt0(az)}°) · mag #{t.mag}" <> if(hidden, do: " · below your tree line", else: "")
+        "alt #{fmt0(alt)}° · #{compass(az)} (#{fmt0(az)}°) · mag #{t.mag} · #{words(t, lim, moon)}" <>
+          if(hidden, do: " · below your tree line", else: "")
 
       _ ->
         "below the horizon · mag #{t.mag}"
     end
   end
 
+  defp glyph(:moon), do: "☾"
+  defp glyph(:planet), do: "pl"
   defp glyph(:galaxy), do: "gal"
   defp glyph(:nebula), do: "neb"
   defp glyph(:cluster), do: "cl"

@@ -42,7 +42,10 @@ defmodule Mount do
   @doc "Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it self-stop unless refreshed."
   def slew(ref, axis, rate, opts \\ []), do: call(ref, {:slew, axis, rate / 1, opts})
 
-  def stop(ref, axis \\ :both), do: call(ref, {:stop, axis})
+  @doc "Ramped stop of an axis (or both). `instant: true` halts one axis with no ramp — for dead-man releases."
+  def stop(ref, axis \\ :both, opts \\ [])
+  def stop(ref, axis, instant: true) when axis in [:ra, :dec], do: call(ref, {:stop, axis, :instant})
+  def stop(ref, axis, _opts), do: call(ref, {:stop, axis})
 
   @doc "Instant stop of both axes, no ramp-down."
   def emergency_stop(ref), do: call(ref, :emergency_stop)

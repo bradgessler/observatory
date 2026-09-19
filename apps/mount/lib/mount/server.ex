@@ -143,6 +143,18 @@ defmodule Mount.Server do
     {:reply, :ok, broadcast(state)}
   end
 
+  # Dead-man release: no ramp. :L halts the axis where it is.
+  def handle_call({:stop, axis, :instant}, _from, state) when axis in [:ra, :dec] do
+    state =
+      state
+      |> put_axis(axis, :pending, nil)
+      |> send!("L", axis)
+      |> refresh_axis(axis)
+
+    state = if axis == :ra, do: %{state | tracking: :off}, else: state
+    {:reply, :ok, broadcast(state)}
+  end
+
   def handle_call(:emergency_stop, _from, state) do
     state =
       state

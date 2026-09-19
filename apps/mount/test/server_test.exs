@@ -28,6 +28,13 @@ defmodule Mount.ServerTest do
     refute Mount.snapshot(id).axes.ra.running
   end
 
+  test "instant stop halts one axis without a ramp", %{id: id} do
+    :ok = Mount.slew(id, :ra, 800)
+    assert Mount.snapshot(id).axes.ra.running
+    :ok = Mount.stop(id, :ra, instant: true)
+    refute Mount.snapshot(id).axes.ra.running
+  end
+
   test "held slews stop on their own", %{id: id} do
     :ok = Mount.slew(id, :ra, 64, hold: true)
     assert Mount.snapshot(id).axes.ra.running

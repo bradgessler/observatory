@@ -150,10 +150,11 @@ defmodule Input.Mapper do
       ref ->
         snap = safe(fn -> Mount.snapshot(ref) end)
 
+        # the trigger is a dead-man switch: release = halt now, no ramp
         for axis <- s.held do
           if axis == :ra and is_map(snap) and snap.tracking != :off,
             do: safe(fn -> Mount.track(ref, snap.tracking) end),
-            else: safe(fn -> Mount.stop(ref, axis) end)
+            else: safe(fn -> Mount.stop(ref, axis, instant: true) end)
         end
     end
 
@@ -169,8 +170,18 @@ defmodule Input.Mapper do
     end
   end
 
-  defp ref(%{target: nil}), do: Mount.list() |> List.first()
-  defp ref(%{target: id}), do: Enum.find(Mount.list(), &(&1.id == id))
+  # The mount API can be momentarily missing (a code reload swapping the mount
+  # app, or the app restarting). That is "no mount right now", not a crash.
+  defp ref(%{target: nil}), do: mounts() |> List.first()
+  defp ref(%{target: id}), do: Enum.find(mounts(), &(&1.id == id))
+
+  defp mounts do
+    Mount.list()
+  rescue
+    _ -> []
+  catch
+    _, _ -> []
+  end
 
   defp device_defaults(%{parser_mod: mod}) when is_atom(mod) and not is_nil(mod) do
     if function_exported?(mod, :default_map, 0), do: mod.default_map(), else: %{}

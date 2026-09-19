@@ -17,7 +17,7 @@ mystery.
   match where you are in the yard).
 * The **polar axis** (blue) tilted by the latitude knob and turned by the
   heading you set on Setup — or by the line-up, once you have one.
-* The **Dec axis** (green) and the **tube** (red) at the current encoder angles.
+* The **Dec axis** (green) and the **tube** (red) at the current encoder angles. The red crosshair is where the tube points on the sky; at home it sits on the pole mark, because at home the tube lies along the polar axis.
 * Arrowheads chase around an axis while it is running.
 
 ## Notes

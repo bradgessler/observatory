@@ -216,7 +216,7 @@ defmodule Controller.OrbLive do
               <span class="orb-motion">{motion(@scene.dec)}</span>
             </div>
             <div class="orb-key scope">
-              <span class="orb-k">⌖ scope</span>
+              <span class="orb-k">⌖ tube</span>
               <b>alt {fmt0(@scene.scope.alt)}° · az {fmt0(@scene.scope.az)}°</b>
               <span class="orb-motion">{if @scene.radec, do: fmt_radec(@scene.radec), else: "unhomed"}</span>
             </div>
@@ -315,7 +315,9 @@ defmodule Controller.OrbLive do
         <line x1="-8" y1="0" x2="-3" y2="0" /><line x1="3" y1="0" x2="8" y2="0" />
         <line x1="0" y1="-8" x2="0" y2="-3" /><line x1="0" y1="3" x2="0" y2="8" />
       </g>
-      <text x={px(@scene.scope.pt) + 9} y={py(@scene.scope.pt) + 11} class="lbl lbl-scope">scope</text>
+      <%!-- the label steps aside when the tube sits on the pole (home), where the two marks coincide --%>
+      <% on_pole = abs(px(@scene.scope.pt) - px(@scene.ra.head)) < 12 and abs(py(@scene.scope.pt) - py(@scene.ra.head)) < 12 %>
+      <text x={px(@scene.scope.pt) + if(on_pole, do: -9, else: 9)} y={py(@scene.scope.pt) + if(on_pole, do: 20, else: 11)} class="lbl lbl-scope" text-anchor={if on_pole, do: "end", else: "start"}>{if on_pole, do: "tube · at the pole", else: "tube points here"}</text>
 
       <text :if={!@scene.radec} x="0" y={@scene.r + 16} class="note">unhomed — assuming home</text>
     </svg>

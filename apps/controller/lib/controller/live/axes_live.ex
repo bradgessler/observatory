@@ -155,7 +155,8 @@ defmodule Controller.AxesLive do
             spin {Float.round(ax["fit"]["quality"] / 1, 2)} · slide {Float.round(ax["fit"]["coherence"] / 1, 2)}
           </span>
           <span :if={!ax["fit"]} class="dim">nothing moved enough to measure</span>
-          <span :if={ax["line"] && @predicted} class="dim">
+          <%!-- the line only means something for a slide; a turn has a pivot, not a direction --%>
+          <span :if={ax["line"] && @predicted && ax["fit"] && ax["fit"]["coherence"] > 0.5} class="dim">
             camera sees this axis at {round(measured(ax))}° · the orb, viewed from {@predicted["from"]}°, draws it at {round(@predicted[axis])}° · {apart(measured(ax), @predicted[axis])}° apart
           </span>
         </div>

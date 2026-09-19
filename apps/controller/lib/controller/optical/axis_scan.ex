@@ -102,6 +102,10 @@ defmodule Controller.Optical.AxisScan do
     end
   end
 
+  defp streaming? do
+    match?(%{source: :stream}, Watch.status())
+  end
+
   defp camera_ready do
     case Watch.status() do
       %{tool: nil} -> {:error, "no camera tool on this machine"}
@@ -117,7 +121,7 @@ defmodule Controller.Optical.AxisScan do
         cond do
           # while video runs, stills come from the encoder every few seconds:
           # make sure this one was taken after the move, not before it
-          after_at && DateTime.compare(at, after_at) != :gt && tries < 12 ->
+          after_at && DateTime.compare(at, after_at) != :gt && tries < 20 ->
             Process.sleep(1_000)
             capture(parent, step, after_at, tries + 1)
 
@@ -143,11 +147,13 @@ defmodule Controller.Optical.AxisScan do
   defp axis(parent, ref, axis, delta, before) do
     send(parent, {:step, {:move, axis}})
 
-    moved_at = DateTime.utc_now()
-
     with :ok <- Mount.goto_relative(ref, axis, delta),
          :ok <- settle(ref, axis),
-         {:ok, after_frame, after_name, _} <- capture(parent, {:capture, axis}, moved_at),
+         # the encoder's still is one frame every five seconds and its file time
+         # can lead its content: when stills come from the stream, insist on
+         # one taken a full period after the tube stopped
+         after_at = DateTime.add(DateTime.utc_now(), if(streaming?(), do: 5, else: 0), :second),
+         {:ok, after_frame, after_name, _} <- capture(parent, {:capture, axis}, after_at),
          :ok <- Mount.goto_relative(ref, axis, -delta),
          :ok <- settle(ref, axis) do
       send(parent, {:step, {:analyse, axis}})

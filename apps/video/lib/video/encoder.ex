@@ -23,16 +23,21 @@ defmodule Video.Encoder do
     end
   end
 
-  @doc "Output-side arguments for an encoder at a bitrate, tuned for low delay."
+  @doc """
+  Output-side arguments for an encoder at a bitrate, tuned for low delay.
+  Pixel format is set with a `format` filter, never `-pix_fmt`: on macOS
+  ffmpeg lets `-pix_fmt` reach the avfoundation *input*, which corrupts the
+  frames. The source names its own input format.
+  """
   def args("h264_videotoolbox", kbps),
-    do: ~w(-c:v h264_videotoolbox -realtime 1 -b:v #{kbps}k -maxrate #{kbps}k -bufsize #{kbps}k -pix_fmt yuv420p)
+    do: ~w(-c:v h264_videotoolbox -realtime 1 -b:v #{kbps}k -maxrate #{kbps}k -bufsize #{kbps}k -vf format=nv12)
 
-  def args("h264_v4l2m2m", kbps), do: ~w(-c:v h264_v4l2m2m -b:v #{kbps}k -pix_fmt yuv420p)
+  def args("h264_v4l2m2m", kbps), do: ~w(-c:v h264_v4l2m2m -b:v #{kbps}k -vf format=yuv420p)
 
   def args("libx264", kbps),
-    do: ~w(-c:v libx264 -preset veryfast -tune zerolatency -b:v #{kbps}k -maxrate #{kbps}k -bufsize #{kbps * 2}k -pix_fmt yuv420p)
+    do: ~w(-c:v libx264 -preset veryfast -tune zerolatency -b:v #{kbps}k -maxrate #{kbps}k -bufsize #{kbps * 2}k -vf format=yuv420p)
 
-  def args(other, kbps), do: ~w(-c:v #{other} -b:v #{kbps}k -pix_fmt yuv420p)
+  def args(other, kbps), do: ~w(-c:v #{other} -b:v #{kbps}k -vf format=yuv420p)
 
   defp encoders(nil), do: []
 

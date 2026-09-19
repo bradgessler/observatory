@@ -53,7 +53,7 @@ defmodule Watch.Camera do
     # while video streams, the encoder's still is free: keep the history
     # filling whether or not timed stills are switched on
     Telescope.subscribe("video")
-    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0, streaming: false}}
+    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0, streaming: false, video: :free}}
   end
 
   @impl true
@@ -87,7 +87,8 @@ defmodule Watch.Camera do
   def handle_info({:video, %{state: state}}, s) do
     streaming? = state == :streaming
     if streaming? and not s.streaming, do: send(self(), :stream_tick)
-    {:noreply, %{s | streaming: streaming?}}
+    busy? = state in [:starting, :streaming, :restarting]
+    {:noreply, %{s | streaming: streaming?, video: if(busy?, do: :busy, else: :free)}}
   end
 
   # the stream's own cadence; stops by itself when the stream does
@@ -102,9 +103,18 @@ defmodule Watch.Camera do
   # While the encoder holds the camera it also writes a still every few
   # seconds; take that rather than fight it for the device.
   defp do_capture(s) do
-    case streamed_still() do
-      {:ok, jpeg} -> keep(s, jpeg, "stream")
-      :none -> grab(s)
+    case {streamed_still(), s.video} do
+      {{:ok, jpeg}, _} ->
+        keep(s, jpeg, "stream")
+
+      # never open the camera with a second process while the encoder has it:
+      # macOS renegotiates the shared capture format and the stream comes out
+      # as interleaved garbage. Wait for the encoder's still instead.
+      {:none, :busy} ->
+        %{s | last_error: nil}
+
+      {:none, :free} ->
+        grab(s)
     end
   end
 

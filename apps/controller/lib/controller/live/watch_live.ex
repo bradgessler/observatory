@@ -121,18 +121,25 @@ defmodule Controller.WatchLive do
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
-  defp video_words(%{state: :off}), do: "off"
-  defp video_words(%{state: :starting}), do: "starting"
-  defp video_words(%{state: :restarting}), do: "restarting"
-  defp video_words(%{state: :streaming, quality: q}), do: "live · #{q}"
-  defp video_words(%{state: :error}), do: "error"
-  defp video_words(_), do: "?"
+  defp video_words(%{state: :off}), do: nil
+  defp video_words(%{state: :starting}), do: "warming up the encoder…"
+  defp video_words(%{state: :restarting}), do: "encoder dropped out — restarting…"
+  defp video_words(%{state: :streaming, quality: q}), do: "live video · #{q}"
+  defp video_words(%{state: :error, error: e}), do: e
+  defp video_words(_), do: nil
 
-  defp pinned_entry(nil, _), do: nil
-  defp pinned_entry(name, history), do: Enum.find(history, &(&1.name == name))
+  defp busy?(video), do: video.state in [:starting, :streaming, :restarting]
+
+  defp rungs(assigns) do
+    if assigns.rungs == [],
+      do: Enum.map(Video.Ladder.rungs(), &Map.put(&1, :available?, true)),
+      else: assigns.rungs
+  end
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, ladder: rungs(assigns), busy: busy?(assigns.video))
+
     ~H"""
     <.page id="watch" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
@@ -142,74 +149,60 @@ defmodule Controller.WatchLive do
       </:header>
 
       <.card>
-        <:aside>
-          <.badge on={@status.enabled}>{if @status.enabled, do: "live · every #{div(@status.interval, 1000)} s", else: "paused"}</.badge>
-        </:aside>
-        <% pin = pinned_entry(@pinned, @history) %>
+        <%!-- one picture: the latest still, or the video once it plays. Play sits on top. --%>
         <div class="watch-frame">
-          <img :if={pin} src={~p"/watch/frames/#{pin.name}"} alt={"frame of the telescope from #{Calendar.strftime(pin.at, "%H:%M:%S")} UTC"} />
-          <img :if={!pin and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
-          <.hint :if={!pin and !@frame}>No frame yet. {if @status.tool, do: "Tap Capture.", else: "No capture tool on this machine (brew install imagesnap)."}</.hint>
-        </div>
-        <.hint :if={pin}><b>held on</b> {Calendar.strftime(pin.at, "%H:%M:%S")} UTC · {div(pin.bytes, 1024)} KB · <a href="#" phx-click="pin">back to live</a></.hint>
-        <.hint :if={!pin and @frame}>{Calendar.strftime(@frame.at, "%H:%M:%S")} UTC · {@frame.device} · {div(@frame.bytes, 1024)} KB</.hint>
+          <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
+          <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
+          <div :if={!@video.playlist and !@frame} class="watch-empty">
+            <.hint>{if @status.tool, do: "No frame yet — tap Capture, or Play.", else: "No capture tool on this machine (brew install imagesnap / ffmpeg)."}</.hint>
+          </div>
 
-        <%!-- the recent past, newest first; tap one to hold it, tap again for live --%>
-        <nav :if={@history != []} class="watch-strip" aria-label="recent frames">
-          <a :for={e <- @history} href="#" class={e.name == @pinned && "on"} phx-click="pin" phx-value-name={if e.name == @pinned, do: nil, else: e.name}>
-            <img src={~p"/watch/frames/#{e.name}"} alt="" loading="lazy" />
-            <time datetime={DateTime.to_iso8601(e.at)}>{Calendar.strftime(e.at, "%H:%M:%S")}</time>
-          </a>
-        </nav>
-        <.hint :if={@summary.count > 0}>
-          keeping {@summary.count} frames · {div(@summary.bytes, 1_048_576)} MB · back to {Calendar.strftime(@summary.oldest, "%H:%M:%S")} UTC
-          (up to {@summary.policy.max_frames} frames or {div(@summary.policy.max_age_s, 60)} min, on disk)
+          <span class={["watch-live", (@video.state == :streaming or @status.enabled) && "on"]}>
+            {cond do
+              @video.state == :streaming -> "live · #{@video.quality}"
+              @busy -> "starting"
+              @status.enabled -> "stills · every #{div(@status.interval, 1000)} s"
+              @frame -> "still · #{Calendar.strftime(@frame.at, "%H:%M:%S")} UTC"
+              true -> "idle"
+            end}
+          </span>
+
+          <div :if={!@busy} class="play-over">
+            <button class="play-btn" phx-click="stream" phx-value-on="true" aria-label="play live video">▶</button>
+            <div class="chips" role="radiogroup" aria-label="video quality">
+              <button :for={r <- @ladder} class={["chip", Atom.to_string(r.id) == @quality && "on"]} phx-click="quality" phx-value-q={r.id} disabled={!r.available?} role="radio" aria-checked={to_string(Atom.to_string(r.id) == @quality)} title={Video.Ladder.size_string(r.size)}>{r.label}</button>
+            </div>
+          </div>
+          <div :if={@busy} class="play-over playing">
+            <button class="chip stop-chip" phx-click="stream" phx-value-on="false">Stop video</button>
+            <div class="chips" role="radiogroup" aria-label="video quality">
+              <button :for={r <- @ladder} class={["chip", Atom.to_string(r.id) == @quality && "on"]} phx-click="quality" phx-value-q={r.id} disabled={!r.available?} role="radio" aria-checked={to_string(Atom.to_string(r.id) == @quality)} title={Video.Ladder.size_string(r.size)}>{r.label}</button>
+            </div>
+          </div>
+        </div>
+
+        <.hint :if={video_words(@video)} class={@video.state == :error && "err"}>{video_words(@video)}</.hint>
+        <.hint :if={@player && elem(@player, 0) == "unsupported"}>This browser can't play HLS, even with hls.js. Safari, Chrome, Firefox and Edge all can.</.hint>
+        <.hint :if={@player && elem(@player, 0) == "error"}>Player error: {elem(@player, 1)}</.hint>
+        <.hint :if={is_list(@video.supported_modes) and Enum.any?(@ladder, &(!&1.available?))}>
+          This camera tops out at {@video.supported_modes |> Enum.max_by(&elem(&1, 0)) |> Video.Ladder.size_string()}; greyed rungs aren't offered.
         </.hint>
+        <pre :if={@video.state == :error and @video.log != []} class="video-log">{Enum.join(Enum.reverse(@video.log), "\n")}</pre>
+
         <.row>
-          <.btn phx-click="capture" disabled={is_nil(@status.tool)}>Capture</.btn>
-          <.btn phx-click="live" on={@status.enabled} disabled={is_nil(@status.tool)}>{if @status.enabled, do: "Pause", else: "Live"}</.btn>
+          <.btn phx-click="capture" disabled={is_nil(@status.tool) or @busy}>Capture a still</.btn>
+          <.btn phx-click="live" on={@status.enabled} disabled={is_nil(@status.tool)}>{if @status.enabled, do: "Timed stills: on", else: "Timed stills: off"}</.btn>
+        </.row>
+        <.row>
+          <.btn navigate={~p"/controls/watch/frames"}>Recent frames{if @summary.count > 0, do: " · #{@summary.count}"} →</.btn>
         </.row>
         <form :if={@devices != []} phx-change="select" class="row">
-          <select name="device" class="field">
+          <select name="device" class="field" disabled={@busy}>
             <option :for={d <- @devices} value={d} selected={d == @status.device}>{d}</option>
           </select>
         </form>
         <.hint :if={@status.last_error}>last error: {@status.last_error}</.hint>
-      </.card>
-
-      <.card title="Video">
-        <:aside>
-          <.badge on={@video.state == :streaming} warn={@video.state == :error}>{video_words(@video)}</.badge>
-        </:aside>
-        <div class="video-frame">
-          <%!-- data-src appears only once the playlist exists; the hook follows it --%>
-          <video id="video-feed" phx-hook="Hls" data-src={@video.playlist && "/video/#{@video.playlist}"} playsinline muted autoplay controls={@video.ready}></video>
-          <.hint :if={@video.state == :off}>Off. Stills above keep coming either way.</.hint>
-          <.hint :if={@video.state in [:starting, :restarting]}>Warming up the encoder…</.hint>
-          <.hint :if={@video.state == :error}>{@video.error}</.hint>
-          <.hint :if={@player && elem(@player, 0) == "unsupported"}>This browser can't play HLS, even with hls.js. Safari, Chrome, Firefox and Edge all can.</.hint>
-          <.hint :if={@player && elem(@player, 0) == "error"}>Player error: {elem(@player, 1)}</.hint>
-        </div>
-        <div class="seg seg-2" role="radiogroup" aria-label="video feed">
-          <button class={["seg-opt", @video.state == :off && "on"]} phx-click="stream" phx-value-on="false" aria-checked={to_string(@video.state == :off)} role="radio">Off</button>
-          <button class={["seg-opt", @video.state != :off && "on"]} phx-click="stream" phx-value-on="true" aria-checked={to_string(@video.state != :off)} role="radio">Stream</button>
-        </div>
-        <div class="seg seg-3" role="radiogroup" aria-label="quality">
-          <button
-            :for={r <- (if @rungs == [], do: Video.Ladder.rungs() |> Enum.map(&Map.put(&1, :available?, true)), else: @rungs)}
-            class={["seg-opt", Atom.to_string(r.id) == @quality && "on"]}
-            phx-click="quality"
-            phx-value-q={r.id}
-            disabled={!r.available?}
-            role="radio"
-            aria-checked={to_string(Atom.to_string(r.id) == @quality)}
-          >{r.label}<small>{Video.Ladder.size_string(r.size)}</small></button>
-        </div>
-        <.hint :if={is_list(@video.supported_modes) and Enum.any?(@rungs, &(!&1.available?))}>
-          This camera tops out at {@video.supported_modes |> Enum.max_by(&elem(&1, 0)) |> Video.Ladder.size_string()}; greyed rungs aren't offered.
-        </.hint>
-        <.hint>HLS from FFmpeg on the server{if @video.encoder, do: " (#{@video.encoder})"}; about 6–10 s behind. Heavy: on a Pi, run this on a bigger machine.</.hint>
-        <pre :if={@video.state == :error and @video.log != []} class="video-log">{Enum.join(Enum.reverse(@video.log), "\n")}</pre>
+        <.hint>Video is HLS from FFmpeg on the server{if @video.encoder, do: " (#{@video.encoder})"}, 6–10 s behind. While it runs, stills come from the encoder and the history keeps filling.</.hint>
       </.card>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>

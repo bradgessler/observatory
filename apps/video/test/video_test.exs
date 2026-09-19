@@ -21,7 +21,9 @@ defmodule VideoTest do
       args = Encoder.args(enc, 3_000)
       assert "-c:v" in args and enc in args
       assert "3000k" in args
-      assert "yuv420p" in args
+      # never -pix_fmt: on macOS it leaks into the avfoundation input and corrupts frames
+      refute "-pix_fmt" in args
+      assert Enum.any?(args, &String.starts_with?(&1, "format="))
     end
   end
 

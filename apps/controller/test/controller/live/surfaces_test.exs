@@ -72,12 +72,18 @@ defmodule Controller.SurfacesTest do
     assert conn |> get("/video/1k/seg00001.ts") |> response(200)
   end
 
-  test "watch page shows the video card, off, with the ladder", %{conn: conn} do
+  test "watch page: play sits on the frame, video only appears once a playlist exists", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/controls/watch")
-    assert html =~ "video-feed"
+    assert html =~ "play live video"
     assert html =~ "1280x720"
     assert html =~ "3840x2160"
-    refute html =~ "data-src="
+    refute html =~ "video-feed"
+    assert html =~ "Recent frames"
+  end
+
+  test "recent frames page renders without frames", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/controls/watch/frames")
+    assert html =~ "Nothing kept yet"
   end
 
   test "watch: history frames are served by name only when they exist", %{conn: conn} do

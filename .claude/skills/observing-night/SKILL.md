@@ -25,11 +25,22 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 2. Polar align with the polar scope.
 3. Home position: counterweight **down**, scope pointing at the pole.
    Keypad → **Set home** (this arms soft limits and the pointing model).
-4. First light: Tonight → pick a bright star near the zenith → **Slew**.
+4. **Direction check before anything else** (10 seconds, saves the night):
+   on the keypad hold **RA +** at 64× and watch which way the tube moves, then
+   **Dec +**. Then Sky → Horizon → tap **Flip RA** / **Flip Dec** until a slew
+   to a bright star goes the right way (a wrong sign sends the scope to the
+   mirror image of the target). Do this on the Moon or Vega: big, obvious.
+5. First light: Tonight → pick a bright star near the zenith → **Slew**.
    - Lowest-power eyepiece, defocus so the star is a big disk.
    - Not in the field? **Search** (spiral); **Stop** when it appears.
    - Center with the keypad at 8× then 1×. **Sync**.
-5. Now the Top 5. Tour order: brightest/easiest first.
+   - Watch it for 30 s. Drifting out *fast*? **Flip tracking** (Horizon tab).
+     Drifting slowly = normal (polar alignment); re-center and move on.
+6. Now the Top 5. Tour order: brightest/easiest first. Auto-track is on by
+   default after every slew from the sky page.
+7. **If the scope heads somewhere alarming: the STOP button is in the sky
+   page header and the middle of the keypad; EMERGENCY STOP is the red bar.**
+   Soft limits stop RA at ±100° from home only after Set home.
 
 ## Record as you go (a note on the phone is fine)
 

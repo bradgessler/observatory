@@ -9,9 +9,10 @@ defmodule Controller.Sky.Tracker do
   target with a crooked polar axis.
 
   Stays out of the way: while someone else is driving (a held slew, a goto)
-  it pauses; when both axes are found stopped after it asked for motion, it
-  assumes a STOP and ends. State is per mount; the current readout is in
-  `:persistent_term` so status strips can show it for free.
+  it pauses and resumes when they let go; an emergency stop on the driver
+  (`estop_at` in the snapshot, from any surface or the pad) ends it. State is
+  per mount; the current readout is in `:persistent_term` so status strips
+  can show it for free.
   """
   use GenServer
   require Logger
@@ -50,9 +51,15 @@ defmodule Controller.Sky.Tracker do
         {:noreply, s}
 
       ref ->
-        # the driver's own tracking would fight ours
-        safe(fn -> Mount.track(ref, :off) end)
-        entry = %{ref: ref, obj: obj, cmd: %{ra: 0.0, dec: 0.0}, paused: false, since: DateTime.utc_now(), stopped_ticks: 0}
+        # the driver's own sidereal tracking would fight ours — but turning it
+        # off stops the RA axis, which would kill a goto in flight, so only
+        # do it when it is actually on
+        case safe(fn -> Mount.snapshot(ref) end) do
+          %{tracking: mode} when mode != :off -> safe(fn -> Mount.track(ref, :off) end)
+          _ -> :ok
+        end
+
+        entry = %{ref: ref, obj: obj, cmd: %{ra: 0.0, dec: 0.0}, paused: false, since: DateTime.utc_now(), started_ms: System.os_time(:millisecond)}
         publish(id, entry, nil)
         send(self(), {:tick_one, id})
         {:noreply, Map.put(s, id, entry)}
@@ -73,20 +80,19 @@ defmodule Controller.Sky.Tracker do
     case safe(fn -> Mount.snapshot(entry.ref) end) do
       %{connected: true, axes: axes} = snap ->
         cond do
+          # STOP was pressed somewhere since we started: that is the end of it
+          is_integer(snap[:estop_at]) and snap.estop_at >= entry.started_ms ->
+            Logger.info("tracker: #{id} emergency stop — ending")
+            drop(s, id, :estop)
+
           busy?(axes) ->
             {:noreply_entry, %{entry | paused: true}} |> commit(id, s, nil)
 
           driven_by_someone_else?(axes, entry.cmd) ->
             {:noreply_entry, %{entry | paused: true}} |> commit(id, s, nil)
 
-          stopped_after_command?(axes, entry.cmd) and entry.stopped_ticks >= 1 ->
-            Logger.info("tracker: #{id} found stopped — ending")
-            drop(s, id, :stopped)
-
-          stopped_after_command?(axes, entry.cmd) ->
-            {:noreply_entry, %{entry | stopped_ticks: entry.stopped_ticks + 1}} |> commit(id, s, nil)
-
           true ->
+            # a keypad release leaves an axis stopped: re-command as needed
             {entry, readout} = drive(id, entry, snap)
             {:noreply_entry, entry} |> commit(id, s, readout)
         end
@@ -117,18 +123,22 @@ defmodule Controller.Sky.Tracker do
     rate_dec = ((d2 - d1) / @lookahead_s + err_dec / @correct_s) / @sidereal_deg_s
     cmd = %{ra: clamp(rate_ra), dec: clamp(rate_dec)}
 
-    for {axis, rate} <- cmd, abs(rate - Map.get(entry.cmd, axis)) > 0.02 do
+    # re-issue when the wanted rate changed, or when an axis that should be
+    # running has been stopped by a hand (release after a nudge)
+    for {axis, rate} <- cmd,
+        abs(rate - Map.get(entry.cmd, axis)) > 0.02 or (abs(rate) >= 0.02 and not snap.axes[axis].running) do
       if abs(rate) < 0.02,
         do: safe(fn -> Mount.stop(entry.ref, axis) end),
         else: safe(fn -> Mount.slew(entry.ref, axis, rate) end)
     end
 
     error_arcmin = :math.sqrt(err_ra * err_ra + err_dec * err_dec) * 60
-    {%{entry | cmd: cmd, paused: false, stopped_ticks: 0}, %{error_arcmin: error_arcmin}}
+    {%{entry | cmd: cmd, paused: false}, %{error_arcmin: error_arcmin}}
   end
 
   defp clamp(r), do: r |> max(-@max_rate) |> min(@max_rate)
 
+  # a goto still in flight: the driver clears the flag once it has landed
   defp busy?(axes), do: Enum.any?(axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) end)
 
   # an axis moving at a rate we did not ask for means a hand on a control
@@ -137,12 +147,6 @@ defmodule Controller.Sky.Tracker do
       actual = Map.get(ax, :deg_per_s, 0.0) / @sidereal_deg_s
       ax.running and abs(abs(actual) - abs(Map.get(cmd, axis))) > 3.0
     end)
-  end
-
-  # both axes still, after we asked for motion: STOP was pressed somewhere
-  defp stopped_after_command?(axes, cmd) do
-    asked = Enum.any?(cmd, fn {_, r} -> abs(r) > 0.5 end)
-    asked and Enum.all?(axes, fn {_, ax} -> not ax.running end)
   end
 
   defp drop(s, id, why) do

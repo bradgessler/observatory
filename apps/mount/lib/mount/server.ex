@@ -59,7 +59,10 @@ defmodule Mount.Server do
       firmware: nil,
       axes: %{},
       tracking: :off,
-      holds: %{}
+      holds: %{},
+      # wall-clock ms of the last emergency stop; anything tracking through
+      # the model reads it and stands down
+      estop_at: nil
     }
 
     # so terminate/2 runs on supervisor shutdown and we can stop the motors
@@ -101,7 +104,7 @@ defmodule Mount.Server do
   end
 
   def handle_info(:poll, state) do
-    state = state |> refresh() |> start_pending() |> enforce_limits() |> maybe_resume_tracking()
+    state = state |> refresh() |> start_pending() |> enforce_limits() |> maybe_resume_tracking() |> settle_gotos()
     Process.send_after(self(), :poll, @poll_ms)
     {:noreply, broadcast(state)}
   end
@@ -160,7 +163,7 @@ defmodule Mount.Server do
       state
       |> send!("L", :ra)
       |> send!("L", :dec)
-      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds)})
+      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds), estop_at: System.os_time(:millisecond)})
 
     {:reply, :ok, broadcast(refresh(state))}
   end
@@ -240,6 +243,7 @@ defmodule Mount.Server do
     |> send!("M", axis, P.from_int(min(3_500, div(steps, 2))))
     |> send!("J", axis)
     |> put_axis(axis, :goto_pending, true)
+    |> put_axis(axis, :goto_at, System.monotonic_time(:millisecond))
     |> refresh_axis(axis)
   end
 
@@ -352,6 +356,19 @@ defmodule Mount.Server do
   end
 
   defp maybe_resume_tracking(state), do: state
+
+  # A goto that has landed is no longer pending, whether or not tracking
+  # resumes — anything waiting for the mount to be free (the model tracker)
+  # reads this flag. Give a fresh goto a couple of polls to start moving.
+  defp settle_gotos(state) do
+    now = System.monotonic_time(:millisecond)
+
+    Enum.reduce(state.axes, state, fn {axis, ax}, st ->
+      if ax[:goto_pending] and not ax.running and now - (ax[:goto_at] || now) > 600,
+        do: put_axis(st, axis, :goto_pending, false),
+        else: st
+    end)
+  end
 
   defp arm_hold(state, _axis, false), do: state
 
@@ -559,10 +576,11 @@ defmodule Mount.Server do
       firmware: state.firmware,
       tracking: state.tracking,
       homed: state.homed,
+      estop_at: Map.get(state, :estop_at),
       limits: if(state.homed, do: state.limits),
       axes:
         Map.new(state.axes, fn {k, ax} ->
-          {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked, :deg_per_s])}
+          {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked, :deg_per_s, :goto_pending])}
         end)
     }
   end

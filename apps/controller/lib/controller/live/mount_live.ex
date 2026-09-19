@@ -248,6 +248,7 @@ defmodule Controller.MountLive do
         <h1 :if={map_size(@refs) <= 1}>{@selected || "no mount"}</h1>
         <span>
           <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">✦ sky</.link>
+          <.link navigate={~p"/input?#{[mount: @selected]}"} class="ghost" aria-label="game controller">🎮</.link>
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
           <.link href={~p"/docs/keypad"} class="ghost help">?</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>

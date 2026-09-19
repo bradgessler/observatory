@@ -4,6 +4,7 @@
 //   SkyZoom   pinch-to-zoom is a gesture; the map itself is server-rendered SVG
 //   SkyPhoto  reads pixels from a photo on the phone (candidate to move server-side)
 //   Geo       the browser only gives location to JS
+//   Gamepad   USB pads are only readable from the browser on macOS/Windows
 // Arrow keys use phx-window-keydown/keyup, not a hook.
 
 // No bundler: phoenix.min.js and phoenix_live_view.min.js are loaded from
@@ -200,6 +201,58 @@ Hooks.Geo = {
       );
     });
   },
+};
+
+
+// Gamepad: the browser is the only way to read a USB pad on macOS/Windows.
+// Polls navigator.getGamepads() ~20×/s and sends the raw state while a button
+// is held or the hat is off centre (plus a heartbeat so the server's deadman
+// keeps the mount moving); sends gamepad_idle when everything is released.
+// The mapping to mount motion lives on the server.
+Hooks.Gamepad = {
+  mounted() {
+    let lastActive = false, lastSig = "";
+    const hat = (gp) => {
+      // standard mapping: D-pad on buttons 12-15; some pads expose a hat as axes[9]
+      if (gp.buttons.length >= 16 && gp.mapping === "standard") {
+        return [ (gp.buttons[15].pressed ? 1 : 0) - (gp.buttons[14].pressed ? 1 : 0),
+                 (gp.buttons[12].pressed ? 1 : 0) - (gp.buttons[13].pressed ? 1 : 0) ];
+      }
+      const v = gp.axes[9];
+      if (typeof v === "number" && v > -1.05 && v < 1.05 && Math.abs(v) < 1.0 + 1e-6) {
+        const d = Math.round((v + 1) * 3.5); // 0..7, 8 = centred (v≈3.28..)
+        const table = [[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]];
+        if (d >= 0 && d <= 7 && v < 1.0) return table[d];
+      }
+      return [0, 0];
+    };
+    const announce = () => {
+      const pads = [...navigator.getGamepads()].filter(Boolean).map(gp => ({ id: gp.id, axes: gp.axes.length, buttons: gp.buttons.length, mapping: gp.mapping }));
+      this.pushEvent("pads", { pads });
+    };
+    window.addEventListener("gamepadconnected", announce);
+    window.addEventListener("gamepaddisconnected", announce);
+    announce();
+    const tick = () => {
+      const gp = [...navigator.getGamepads()].filter(Boolean)[0];
+      if (gp) {
+        const buttons = gp.buttons.map(b => ({ pressed: b.pressed, value: Math.round(b.value * 100) / 100 }));
+        const axes = gp.axes.map(a => Math.round(a * 1000) / 1000);
+        const h = hat(gp);
+        const active = buttons.some(b => b.pressed) || h[0] !== 0 || h[1] !== 0;
+        const sig = JSON.stringify([axes, buttons.map(b => b.pressed), h]);
+        if (active) {
+          this.pushEvent("gamepad", { axes, buttons, hat: h });
+          lastSig = sig;
+        } else if (lastActive) {
+          this.pushEvent("gamepad_idle", {});
+        }
+        lastActive = active;
+      }
+    };
+    this.timer = setInterval(tick, 50);
+  },
+  destroyed() { clearInterval(this.timer); },
 };
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");

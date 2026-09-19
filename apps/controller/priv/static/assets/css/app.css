@@ -346,3 +346,14 @@ a.banner strong { color: var(--warn); }
 .strip-mid b { color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
 .knob-h { width: 56px; height: 56px; margin: -28px 0 0 -28px; z-index: 0; opacity: .9; }
 .strip .knob.live { border-color: var(--accent); }
+/* ---- input page ---- */
+.axes { display: grid; gap: 6px; }
+.axis-bar { display: grid; grid-template-columns: 20px 1fr 52px; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px; }
+.axis-i { color: var(--dim); }
+.bar { position: relative; height: 10px; background: var(--btn); border: 1px solid var(--edge); border-radius: 5px; overflow: hidden; }
+.bar::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--edge); }
+.fill { position: absolute; top: 0; bottom: 0; background: var(--accent); }
+.axis-v { text-align: right; color: var(--dim); }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn-dot { width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--edge); display: grid; place-items: center; font-size: 12px; color: var(--dim); }
+.btn-dot.on { border-color: var(--on); color: var(--on); background: var(--btn-press); }

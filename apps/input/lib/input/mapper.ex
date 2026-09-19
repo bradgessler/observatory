@@ -30,7 +30,7 @@ defmodule Input.Mapper do
 
   @doc "Last published status; never blocks on a busy mapper."
   def status do
-    :persistent_term.get({__MODULE__, :status}, %{armed: false, target: nil, action: :idle, action_text: Gamepad.describe(:idle), held: [], map: Gamepad.defaults()})
+    :persistent_term.get({__MODULE__, :status}, %{armed: false, target: nil, action: :idle, action_text: Gamepad.describe(:idle), held: [], map: Gamepad.defaults(), off_reason: nil, ignoring: false})
   end
 
   def arm(on?) when is_boolean(on?), do: GenServer.call(__MODULE__, {:arm, on?})
@@ -77,7 +77,18 @@ defmodule Input.Mapper do
       true ->
         action = Gamepad.interpret(info.state, Map.merge(device_defaults(info), s.map))
         s = %{s | action: action, device_map: device_defaults(info), last_fresh: now}
-        s = if s.armed, do: act(s, action, now), else: s
+
+        s =
+          cond do
+            s.armed -> act(s, action, now)
+            # a hand on a pad that is off: say so once per hold, in the log and on the page
+            action != :idle and not Map.get(s, :ignoring, false) ->
+              Telescope.Events.emit(:input, :ignored, %{action: Gamepad.describe(action), why: "pad is off (watch only)"})
+              Map.put(s, :ignoring, true)
+            action == :idle -> Map.put(s, :ignoring, false)
+            true -> s
+          end
+
         {:noreply, announce(s)}
     end
   end
@@ -198,6 +209,7 @@ defmodule Input.Mapper do
       action_text: Gamepad.describe(s.action),
       held: s.held,
       off_reason: Map.get(s, :off_reason),
+      ignoring: Map.get(s, :ignoring, false),
       map: Gamepad.defaults() |> Map.merge(s.device_map) |> Map.merge(s.map)
     }
   end

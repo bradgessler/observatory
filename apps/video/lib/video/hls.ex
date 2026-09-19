@@ -119,7 +119,8 @@ defmodule Video.HLS do
         # :starting, and a grab already in flight needs a couple of seconds
         # to let go of the camera — two processes on it at once corrupts the
         # stream for its whole life
-        s = %{s | fps: fps, fell_back_from: nil, quality: quality.id, state: :starting, error: nil} |> kill() |> announce()
+        # a fresh Play gets a fresh restart budget
+        s = %{s | fps: fps, fell_back_from: nil, quality: quality.id, state: :starting, error: nil, restarts: 0} |> kill() |> announce()
         Process.send_after(self(), {:launch, quality.id}, @camera_handoff_ms)
         {:reply, :ok, s}
     end

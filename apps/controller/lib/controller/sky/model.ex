@@ -20,6 +20,10 @@ defmodule Controller.Sky.Model do
 
   alias Controller.Sky.Astro
 
+  # centring by eye in a low-power eyepiece: a few arcminutes (residuals are
+  # unit-vector differences, so this is in radians)
+  @noise_rad 5.0 / 60 * :math.pi() / 180
+
   @deg :math.pi() / 180
   @type params :: %{axis_alt: float, axis_az: float, off_ra: float, off_dec: float}
   @type signs :: %{ha_sign: integer, dec_sign: integer}
@@ -79,7 +83,17 @@ defmodule Controller.Sky.Model do
   ±90° of home (counterweight below the mount), else the one nearer `near`
   (the current encoders) when given, else the smaller RA swing.
   """
-  def encoders(params, signs, alt, az, near \\ nil) do
+  def encoders(params, signs, alt, az, near \\ nil)
+
+  # `{:stay, {ra, dec}}`: tracking. Never change sides of the pier on its own —
+  # the two solutions differ by 180° in RA, and chasing that at 16× is a flip
+  # nobody asked for. The nearest solution wins; the soft limits end it.
+  def encoders(params, signs, alt, az, {:stay, near}) do
+    solutions(params, signs, alt, az)
+    |> Enum.min_by(fn {r, d} -> abs(Astro.norm180(r - elem(near, 0))) + abs(d - elem(near, 1)) end)
+  end
+
+  def encoders(params, signs, alt, az, near) do
     [a, b] = solutions(params, signs, alt, az)
 
     cond do
@@ -114,12 +128,18 @@ defmodule Controller.Sky.Model do
         do: for(az <- [start.axis_az, 45, 90, 135, 180, 225, 270, 315], alt <- Enum.uniq([start.axis_alt, 30.0, 60.0]), do: %{start | axis_az: az / 1, axis_alt: alt / 1}),
         else: [start]
 
-    # two stars can be satisfied exactly by more than one geometry; among
-    # fits that are equally good, take the one nearest the ideal set-up
+    # two stars can be satisfied exactly by more than one geometry, and a
+    # couple of arcminutes of centring noise makes the wrong one "win" on
+    # cost alone; among fits within centring noise of the best, take the one
+    # nearest the ideal set-up
+    fits = Enum.map(starts, &lm(samples, signs, &1, free))
+    best = fits |> Enum.map(&elem(&1, 1)) |> Enum.min()
+    tol = length(samples) * @noise_rad * @noise_rad
+
     {params, _} =
-      starts
-      |> Enum.map(&lm(samples, signs, &1, free))
-      |> Enum.min_by(fn {p, cost} -> {Float.round(cost * 1.0e8), axis_distance(p, start)} end)
+      fits
+      |> Enum.filter(fn {_, cost} -> cost <= best + tol end)
+      |> Enum.min_by(fn {p, _} -> axis_distance(p, start) end)
 
     res = Enum.map(samples, &(residual_deg(params, signs, &1) * 60))
     rms = :math.sqrt(Enum.sum(Enum.map(res, &(&1 * &1))) / length(res))

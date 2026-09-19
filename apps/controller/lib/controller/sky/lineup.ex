@@ -30,7 +30,7 @@ defmodule Controller.Sky.Lineup do
   # -- samples ------------------------------------------------------------------------------
 
   @doc "Record that the tube is centred on `obj` (`%{ra_deg, dec_deg, name}`) right now; refits."
-  def add(%{id: id, axes: axes}, obj, now \\ DateTime.utc_now()) do
+  def add(%{id: id, axes: axes} = snap, obj, now \\ DateTime.utc_now()) do
     site = Pointing.site()
     lst = Astro.lst_deg(now, site.lon)
     {alt, az} = Astro.alt_az(obj.ra_deg, obj.dec_deg, site.lat, lst)
@@ -40,14 +40,28 @@ defmodule Controller.Sky.Lineup do
       "at" => DateTime.to_iso8601(now),
       "theta_ra" => axes.ra.degrees / 1,
       "theta_dec" => axes.dec.degrees / 1,
+      "ra_deg" => obj.ra_deg / 1,
+      "dec_deg" => obj.dec_deg / 1,
       "alt" => alt,
       "az" => az
     }
 
-    put_samples(id, samples(id) ++ [sample])
+    # the encoders were re-zeroed since the last star: those samples belong
+    # to another reference and would poison this one
+    home_at = Map.get(snap, :homed_at)
+    stale = samples(id) != [] and home_at != nil and entry(id)["home_at"] != home_at
+
+    if stale do
+      Telescope.Events.emit(:lineup, :reset, %{id: id, why: "axes re-zeroed"})
+      put_samples(id, [])
+    end
+
+    put_samples(id, samples(id) ++ [sample], home_at)
     Telescope.Events.emit(:lineup, :star, %{id: id, name: obj.name, theta_ra: sample["theta_ra"], theta_dec: sample["theta_dec"]})
     refit(id)
   end
+
+  defp entry(id), do: Settings.get(@key, %{}) |> Map.get(id, %{})
 
   @doc "Forget one sample by index; refits."
   def drop(id, index) do
@@ -64,24 +78,62 @@ defmodule Controller.Sky.Lineup do
 
   def samples(id), do: Settings.get(@key, %{}) |> Map.get(id, %{}) |> Map.get("samples", [])
 
-  @doc "The fitted model for a mount, as atom-keyed params, or nil."
+  @doc """
+  The fitted model for a mount, as atom-keyed params (with the axis signs it
+  was fitted under), or nil — also nil when the axes were re-zeroed since the
+  stars were taken: the model counts from the old zero.
+  """
   def model(id) do
-    case Settings.get(@key, %{}) |> Map.get(id, %{}) |> Map.get("model") do
-      %{"axis_alt" => a, "axis_az" => z, "off_ra" => r, "off_dec" => d} -> %{axis_alt: a / 1, axis_az: z / 1, off_ra: r / 1, off_dec: d / 1}
-      _ -> nil
+    e = entry(id)
+
+    case e["model"] do
+      %{"axis_alt" => a, "axis_az" => z, "off_ra" => r, "off_dec" => d} ->
+        if stale?(id, e),
+          do: nil,
+          else: %{axis_alt: a / 1, axis_az: z / 1, off_ra: r / 1, off_dec: d / 1, signs: signs_of(e)}
+
+      _ ->
+        nil
     end
+  end
+
+  @doc "Were the axes zeroed again after these stars were taken?"
+  def stale?(id, e \\ nil) do
+    e = e || entry(id)
+
+    case {e["home_at"], safe_snapshot(id)} do
+      {nil, _} -> false
+      {_, nil} -> false
+      {at, %{homed_at: now_at}} when is_integer(now_at) -> at != now_at
+      _ -> false
+    end
+  end
+
+  defp signs_of(e) do
+    case e["signs"] do
+      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] -> %{ha_sign: h, dec_sign: d}
+      _ -> Pointing.pointing()
+    end
+  end
+
+  defp safe_snapshot(id) do
+    Mount.snapshot(id)
+  catch
+    :exit, _ -> nil
   end
 
   @doc "Numbers for the page and the mode chip."
   def status(id) do
-    entry = Settings.get(@key, %{}) |> Map.get(id, %{})
-    n = length(Map.get(entry, "samples", []))
+    entry = entry(id)
+    stale = stale?(id, entry)
+    n = if stale, do: 0, else: length(Map.get(entry, "samples", []))
     rms = Map.get(entry, "rms_arcmin")
     lat = Pointing.site().lat
     m = model(id)
 
     %{
       n: n,
+      stale?: stale,
       rms_arcmin: rms,
       worst_arcmin: Map.get(entry, "worst_arcmin"),
       residuals_arcmin: Map.get(entry, "residuals_arcmin", []),
@@ -95,22 +147,41 @@ defmodule Controller.Sky.Lineup do
   end
 
   defp refit(id) do
-    samples = samples(id)
-    signs = Pointing.pointing()
-    start = Model.ideal(Pointing.site().lat)
-
-    fit_samples =
-      Enum.map(samples, fn s -> %{theta_ra: s["theta_ra"], theta_dec: s["theta_dec"], alt: s["alt"], az: s["az"]} end)
-
     all = Settings.get(@key, %{})
+    old = Map.get(all, id, %{})
+    samples = Map.get(old, "samples", [])
+    signs = signs_of(old)
+    site = Pointing.site()
+    start = Model.ideal(site.lat)
+
+    # alt/az are recomputed from RA/Dec and the time for the site in force
+    # now, so setting the site after the first star does not strand it
+    fit_samples =
+      Enum.map(samples, fn s ->
+        {alt, az} =
+          with ra when is_number(ra) <- s["ra_deg"],
+               dec when is_number(dec) <- s["dec_deg"],
+               {:ok, at, _} <- DateTime.from_iso8601(s["at"] || "") do
+            Astro.alt_az(ra, dec, site.lat, Astro.lst_deg(at, site.lon))
+          else
+            _ -> {s["alt"], s["az"]}
+          end
+
+        %{theta_ra: s["theta_ra"], theta_dec: s["theta_dec"], alt: alt, az: az}
+      end)
+
     # once a sign was corrected during this star alignment, keep saying so
-    corrected_before = get_in(all, [id, "signs_corrected"]) == true
+    corrected_before = old["signs_corrected"] == true
 
     entry =
       case fit_with_signs(fit_samples, signs, start) do
         {:ok, p, q} ->
+          used = q[:signs_corrected] || signs
+
           %{
             "samples" => samples,
+            "home_at" => old["home_at"],
+            "signs" => %{"ha_sign" => used.ha_sign, "dec_sign" => used.dec_sign},
             "model" => %{"axis_alt" => p.axis_alt, "axis_az" => p.axis_az, "off_ra" => p.off_ra, "off_dec" => p.off_dec},
             "rms_arcmin" => q.rms_arcmin,
             "worst_arcmin" => q.worst_arcmin,
@@ -120,7 +191,7 @@ defmodule Controller.Sky.Lineup do
           }
 
         {:error, _} ->
-          %{"samples" => samples}
+          %{"samples" => samples, "home_at" => old["home_at"]}
       end
 
     Settings.put(@key, Map.put(all, id, entry))
@@ -175,7 +246,10 @@ defmodule Controller.Sky.Lineup do
 
         case best do
           {sg, {:ok, p, q}} when q.rms_arcmin < rms / 5 ->
-            Settings.put("pointing", %{"ha_sign" => sg.ha_sign, "dec_sign" => sg.dec_sign})
+            # three stars with one mis-named can look like a flipped axis:
+            # the model uses the better signs either way, the global setting
+            # only changes once a fourth star agrees
+            if length(fit_samples) >= 4, do: Settings.put("pointing", %{"ha_sign" => sg.ha_sign, "dec_sign" => sg.dec_sign})
             {:ok, p, q, sg}
 
           _ ->
@@ -195,9 +269,10 @@ defmodule Controller.Sky.Lineup do
     end
   end
 
-  defp put_samples(id, samples) do
+  defp put_samples(id, samples, home_at \\ :keep) do
     all = Settings.get(@key, %{})
     entry = Map.get(all, id, %{}) |> Map.put("samples", samples)
+    entry = if home_at == :keep, do: entry, else: Map.put(entry, "home_at", home_at)
     Settings.put(@key, Map.put(all, id, entry))
   end
 

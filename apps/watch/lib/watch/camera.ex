@@ -53,8 +53,10 @@ defmodule Watch.Camera do
     # while video streams, the encoder's still is free: keep the history
     # filling whether or not timed stills are switched on
     Telescope.subscribe("video")
-    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0, streaming: false, video: :free}}
+    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0, streaming: false, video: :free, video_state: :off, video_free_timer: nil}}
   end
+
+  @video_busy [:starting, :streaming, :restarting]
 
   @impl true
   def handle_call(:status, _from, s) do
@@ -66,7 +68,17 @@ defmodule Watch.Camera do
      }), s}
   end
 
-  def handle_call(:capture, _from, s), do: do_capture(s) |> then(fn s -> {:reply, meta(latest()) || {:error, s.last_error}, s} end)
+  # success means a frame that was not there before the call: a stale one is
+  # never reported as fresh (the axis scan waits on exactly this)
+  def handle_call(:capture, _from, s) do
+    before = latest()
+    s = do_capture(s)
+
+    case latest() do
+      %{} = frame when frame != before -> {:reply, meta(frame), s}
+      _ -> {:reply, {:error, s.last_error || "no new frame"}, s}
+    end
+  end
 
   def handle_call({:enable, on?}, _from, s) do
     if on? and not s.enabled, do: send(self(), :tick)
@@ -87,13 +99,17 @@ defmodule Watch.Camera do
   def handle_info({:video, %{state: state}}, s) do
     streaming? = state == :streaming
     if streaming? and not s.streaming, do: send(self(), :stream_tick)
-    busy? = state in [:starting, :streaming, :restarting]
-    # the encoder takes a moment to release the camera after it is told to stop
-    if not busy? and s.video == :busy, do: Process.send_after(self(), :video_free, 3_000)
-    {:noreply, %{s | streaming: streaming?, video: if(busy?, do: :busy, else: s.video)}}
+    busy? = state in @video_busy
+    # the encoder takes a moment to release the camera after it is told to
+    # stop; a Play that lands inside that moment cancels the release
+    if s.video_free_timer, do: Process.cancel_timer(s.video_free_timer)
+    timer = if not busy? and s.video == :busy, do: Process.send_after(self(), :video_free, 3_000)
+    {:noreply, %{s | streaming: streaming?, video: if(busy?, do: :busy, else: s.video), video_state: state, video_free_timer: timer}}
   end
 
-  def handle_info(:video_free, s), do: {:noreply, %{s | video: :free}}
+  # a cancelled timer may already be in the mailbox: never free the camera under a running encoder
+  def handle_info(:video_free, %{video_state: st} = s) when st in @video_busy, do: {:noreply, %{s | video_free_timer: nil}}
+  def handle_info(:video_free, s), do: {:noreply, %{s | video: :free, video_free_timer: nil}}
 
   # the stream's own cadence; stops by itself when the stream does
   def handle_info(:stream_tick, %{streaming: false} = s), do: {:noreply, s}

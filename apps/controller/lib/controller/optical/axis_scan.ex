@@ -11,6 +11,11 @@ defmodule Controller.Optical.AxisScan do
   Runs on demand only, one at a time, as a supervised task; progress and the
   result are broadcast on `"optical"` and kept in Settings under
   `optical_axes` per mount. Moves are ±3° — nothing a cable minds.
+
+  The scan owns the mount while it runs: it refuses to start unless the mount
+  is homed (soft limits armed), at rest and not tracking, and whatever
+  happens — a capture that fails, a camera that hangs, a task that crashes —
+  every degree it applied is undone and the axes end where they began.
   """
   use GenServer
   require Logger
@@ -24,51 +29,88 @@ defmodule Controller.Optical.AxisScan do
   @factor 3
   @settle_ms 1_500
   @topic "optical"
+  @stopped_words "STOP was pressed — scan abandoned; the mount stays where it is"
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc "Start a scan of both axes on mount `id`. `{:error, :busy}` if one is running."
+  @doc """
+  Start a scan of both axes on mount `id`. `{:error, :busy}` if one is running,
+  `{:error, words}` if the mount is not ready to be moved (not homed, moving,
+  tracking). Options: `delta_deg:`; `capture:` a 0-arity fun returning
+  `{:ok, frame, name} | {:error, why}` in place of the camera (tests).
+  """
   def run(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, opts})
 
   @doc """
   The sweep: five positions per axis (−6°, −3°, 0°, +3°, +6°), a still at rest
   at each, spots tracked through the sequence, the axis fitted in 3-D with
   its margins. Two to three minutes. `{:error, :busy}` if anything is running.
+  Options: `range:` (a half-angle from `ranges/0`), `capture:` as in `run/2`.
   """
   def sweep(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, Keyword.put(opts, :mode, :sweep)})
 
   @doc "Sweep ranges offered: half-angle in degrees. ±6° is gentle; ±20° bows the arcs enough to see depth."
   def ranges, do: [6.0, 20.0]
 
+  @doc """
+  End a running scan now: the task is killed, the mount stopped and — unless
+  `return: false` — taken back to where the scan began. A STOP pressed
+  anywhere passes `return: false`: after a STOP the scan touches nothing.
+  """
+  def cancel(opts \\ []), do: GenServer.call(__MODULE__, {:cancel, opts})
+
   def status, do: GenServer.call(__MODULE__, :status)
+
+  @doc "Forget the last scan's outcome (back to idle); no-op while one is running."
+  def reset, do: GenServer.call(__MODULE__, :reset)
   def subscribe, do: Telescope.subscribe(@topic)
 
-  @doc "The last result for a mount, or nil."
-  def result(id), do: Settings.get("optical_axes", %{}) |> Map.get(id)
+  @doc "The last result for a mount, or nil — with every key the page draws from present, whatever version wrote it."
+  def result(id) do
+    case Settings.get("optical_axes", %{}) |> Map.get(id) do
+      %{} = r -> normalise(r)
+      _ -> nil
+    end
+  end
 
   def clear(id), do: Settings.put("optical_axes", Map.delete(Settings.get("optical_axes", %{}), id))
 
   @impl true
   def init(_) do
     Process.flag(:trap_exit, true)
-    {:ok, %{task: nil, id: nil, step: nil, error: nil}}
+    {:ok, %{task: nil, id: nil, ref: nil, start: nil, step: nil, error: nil}}
   end
 
   @impl true
   def handle_call(:status, _from, s), do: {:reply, Map.take(s, [:id, :step, :error]) |> Map.put(:running, s.task != nil), s}
+  def handle_call(:reset, _from, %{task: nil} = s), do: {:reply, :ok, announce(%{s | step: nil, error: nil, id: nil})}
+  def handle_call(:reset, _from, s), do: {:reply, {:error, :busy}, s}
 
   def handle_call({:run, _id, _}, _from, %{task: t} = s) when t != nil, do: {:reply, {:error, :busy}, s}
 
   def handle_call({:run, id, opts}, _from, s) do
-    case Enum.find(Mount.list(), &(&1.id == id)) do
-      nil ->
-        {:reply, {:error, :no_mount}, s}
-
-      ref ->
-        parent = self()
-        task = Task.async(fn -> if(opts[:mode] == :sweep, do: sweep_scan(parent, ref, opts), else: scan(parent, ref, id, opts)) end)
-        {:reply, :ok, announce(%{s | task: task, id: id, step: :starting, error: nil})}
+    with {:mount, ref} when not is_nil(ref) <- {:mount, Enum.find(Mount.list(), &(&1.id == id))},
+         {:ok, start} <- ready_to_move(ref, id) do
+      parent = self()
+      # a STOP pressed anywhere after this moment ends the scan (estop_at is monotonic ms)
+      opts = Keyword.put(opts, :started_at, System.monotonic_time(:millisecond))
+      task = Task.async(fn -> if(opts[:mode] == :sweep, do: sweep_scan(parent, ref, opts), else: scan(parent, ref, id, opts)) end)
+      {:reply, :ok, announce(%{s | task: task, id: id, ref: ref, start: start, step: :starting, error: nil})}
+    else
+      {:mount, nil} -> {:reply, {:error, :no_mount}, s}
+      {:error, _} = e -> {:reply, e, s}
     end
+  end
+
+  def handle_call({:cancel, _}, _from, %{task: nil} = s), do: {:reply, :ok, s}
+
+  def handle_call({:cancel, opts}, _from, %{task: task} = s) do
+    _ = Task.shutdown(task, :brutal_kill)
+    return? = Keyword.get(opts, :return, true)
+    Telescope.Events.emit(:optical, :scan_cancelled, %{id: s.id, returning_to: if(return?, do: s.start)})
+    recover(s.ref, if(return?, do: s.start))
+    words = if return?, do: "cancelled — stopping the mount and going back to where the scan began", else: "cancelled by STOP — the mount stays where it is"
+    {:reply, :ok, announce(%{s | task: nil, step: :cancelled, error: words})}
   end
 
   @impl true
@@ -104,11 +146,64 @@ defmodule Controller.Optical.AxisScan do
     {:noreply, announce(s)}
   end
 
-  def handle_info({:DOWN, _ref, :process, _pid, reason}, s) do
-    {:noreply, announce(%{s | task: nil, step: :failed, error: "scan crashed: #{inspect(reason)}"})}
+  # The task died without unwinding its own moves (a kill, an exit signal):
+  # stop the mount and take it back to the encoder reading we noted before
+  # the first move. Best effort, off this process, so the page hears at once.
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{task: %{ref: ref}} = s) do
+    Logger.warning("optical: scan crashed: #{inspect(reason)}")
+    Telescope.Events.emit(:optical, :scan_crashed, %{id: s.id, reason: inspect(reason), returning_to: s.start})
+    recover(s.ref, s.start)
+    {:noreply, announce(%{s | task: nil, step: :failed, error: "scan crashed: #{inspect(reason)} — stopping the mount and going back to where it started"})}
   end
 
   def handle_info(_, s), do: {:noreply, s}
+
+  # -- may we move? ----------------------------------------------------------------------
+
+  # The scan owns the mount while it runs: nothing else may be moving it, and
+  # the soft limits (armed by set_home) must be there to catch a bad step.
+  # Returns the encoder reading to go back to if the task dies mid-scan.
+  defp ready_to_move(ref, id) do
+    snap = driver(fn -> Mount.snapshot(ref) end)
+
+    cond do
+      not match?(%{connected: true, axes: %{ra: %{}, dec: %{}}}, snap) -> {:error, "the mount is not connected"}
+      snap.homed != true -> {:error, "set home first — the soft limits that keep a scan safe are only armed once the mount knows where it is"}
+      snap.tracking != :off -> {:error, "the mount is tracking — stop tracking first"}
+      Controller.Sky.Tracker.active?(id) -> {:error, "the tracker is following an object — stop it first"}
+      snap.axes.ra.running or snap.axes.dec.running -> {:error, "the mount is moving — stop it first"}
+      true -> {:ok, %{ra: snap.axes.ra.degrees / 1, dec: snap.axes.dec.degrees / 1}}
+    end
+  end
+
+  defp recover(nil, _), do: :ok
+
+  # stop; then, given a start reading, back to it
+  defp recover(ref, start) do
+    Task.start(fn ->
+      Telescope.Events.tag("axis scan")
+      _ = driver(fn -> Mount.stop(ref) end)
+      if is_map(start), do: wait_still(ref)
+
+      for axis <- [:ra, :dec], is_map(start) do
+        case driver(fn -> Mount.snapshot(ref) end) do
+          %{axes: %{^axis => %{degrees: now}}} -> driver(fn -> Mount.goto_relative(ref, axis, start[axis] - now) end)
+          _ -> :ok
+        end
+      end
+    end)
+  end
+
+  # after a ramped stop, a beat until neither axis reports running (10 s at most)
+  defp wait_still(ref, waited \\ 0) do
+    Process.sleep(250)
+
+    case driver(fn -> Mount.snapshot(ref) end) do
+      %{axes: %{ra: %{running: false}, dec: %{running: false}}} -> :ok
+      _ when waited >= 10_000 -> :ok
+      _ -> wait_still(ref, waited + 250)
+    end
+  end
 
   # -- the procedure, in the task ------------------------------------------------------
 
@@ -116,10 +211,10 @@ defmodule Controller.Optical.AxisScan do
     delta = opts[:delta_deg] || @delta_deg
     Telescope.Events.tag("axis scan")
 
-    with :ok <- camera_ready(),
-         {:ok, before, before_name, _} <- capture(parent, :capture_before),
-         {:ok, ra} <- axis(parent, ref, :ra, delta, before),
-         {:ok, dec} <- axis(parent, ref, :dec, delta, before) do
+    with :ok <- camera_ready(opts),
+         {:ok, before, before_name} <- capture(parent, :capture_before, opts, false),
+         {:ok, ra} <- axis(parent, ref, :ra, delta, before, opts),
+         {:ok, dec} <- axis(parent, ref, :dec, delta, before, opts) do
       {:ok, %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "frame" => before_name, "delta_deg" => delta, "scale" => before.scale, "w" => before.w, "h" => before.h, ra: ra, dec: dec}}
     end
   end
@@ -134,14 +229,14 @@ defmodule Controller.Optical.AxisScan do
 
     # the encoders at the sweep's centre position: the live overlay rotates from here
     ref_enc =
-      case Mount.snapshot(ref) do
+      case driver(fn -> Mount.snapshot(ref) end) do
         %{axes: %{ra: %{degrees: r}, dec: %{degrees: d}}} -> %{"ra" => r / 1, "dec" => d / 1}
         _ -> %{"ra" => 0.0, "dec" => 0.0}
       end
 
-    with :ok <- camera_ready(),
-         {:ok, ra} <- sweep_axis(parent, ref, :ra, hfov, angles),
-         {:ok, dec} <- sweep_axis(parent, ref, :dec, hfov, angles) do
+    with :ok <- camera_ready(opts),
+         {:ok, ra} <- sweep_axis(parent, ref, :ra, hfov, angles, opts),
+         {:ok, dec} <- sweep_axis(parent, ref, :dec, hfov, angles, opts) do
       between =
         case {ra["fit"], dec["fit"]} do
           {%{} = a, %{} = b} -> Float.round(Controller.Optical.Axis3D.angle_between(%{dir: List.to_tuple(a["dir"])}, %{dir: List.to_tuple(b["dir"])}), 1)
@@ -155,29 +250,31 @@ defmodule Controller.Optical.AxisScan do
     end
   end
 
-  # to −half, then +half/2 four times with a still at rest at each, then back to where we started
-  defp sweep_axis(parent, ref, axis, hfov, angles) do
+  # to −half, then +half/2 four times with a still at rest at each, then back
+  # by exactly what was applied — whatever happened, crash included
+  defp sweep_axis(parent, ref, axis, hfov, angles, opts) do
     half = -hd(angles)
     steps = [-half, half / 2, half / 2, half / 2, half / 2]
+    n = length(steps)
 
     result =
-      Enum.reduce_while(Enum.with_index(steps), {:ok, []}, fn {step, i}, {:ok, frames} ->
-        send(parent, {:step, {:sweep, axis, i + 1, length(steps)}})
+      try do
+        Enum.reduce_while(Enum.with_index(steps), {:ok, []}, fn {step, i}, {:ok, frames} ->
+          send(parent, {:step, {:sweep, axis, i + 1, n}})
 
-        with :ok <- Mount.goto_relative(ref, axis, step),
-             :ok <- settle(ref, axis),
-             after_at = DateTime.add(DateTime.utc_now(), if(streaming?(), do: 5, else: 0), :second),
-             {:ok, frame, name, _} <- capture(parent, {:sweep, axis, i + 1, length(steps)}, after_at) do
-          {:cont, {:ok, [{frame, name} | frames]}}
-        else
-          {:error, :limit} -> {:halt, {:error, "#{axis}: soft limit during the sweep"}}
-          {:error, e} -> {:halt, {:error, "#{axis}: #{inspect(e)}"}}
-        end
-      end)
-
-    # back to where we started whatever happened
-    _ = Mount.goto_relative(ref, axis, -half)
-    _ = settle(ref, axis)
+          with :ok <- move(ref, axis, step, opts),
+               :ok <- settle(ref, axis),
+               {:ok, frame, name} <- capture(parent, {:sweep, axis, i + 1, n}, opts) do
+            {:cont, {:ok, [{frame, name} | frames]}}
+          else
+            {:error, :limit} -> {:halt, {:error, "#{axis}: soft limit during the sweep"}}
+            {:error, :stopped} -> {:halt, {:error, @stopped_words}}
+            {:error, e} -> {:halt, {:error, "#{axis}: #{inspect(e)}"}}
+          end
+        end)
+      after
+        unwind(ref, axis)
+      end
 
     with {:ok, frames_rev} <- result,
          frames = Enum.reverse(frames_rev),
@@ -211,6 +308,67 @@ defmodule Controller.Optical.AxisScan do
   defp frames_alive(frames) do
     hashes = Enum.map(frames, fn {f, _} -> :erlang.phash2(f.pixels) end)
     if length(Enum.uniq(hashes)) <= 1, do: {:error, "the camera is frozen — every picture is identical; stop and restart the video, or replug the camera"}, else: :ok
+  end
+
+  # -- moving, and undoing it -----------------------------------------------------------
+
+  # A goto counts as applied the moment the driver accepts it. The tally lives in
+  # this process's dictionary so an `after` can read it whatever crashed on the way.
+  # A STOP pressed anywhere since the scan began (the driver stamps `estop_at`)
+  # ends the scan before the next move: the person wins, and nothing moves after.
+  defp move(ref, axis, degrees, opts) do
+    if stopped_since?(ref, opts[:started_at]) do
+      Process.put(:stopped, true)
+      {:error, :stopped}
+    else
+      case driver(fn -> Mount.goto_relative(ref, axis, degrees) end) do
+        :ok ->
+          Process.put({:applied, axis}, applied(axis) + degrees)
+          :ok
+
+        other ->
+          other
+      end
+    end
+  end
+
+  defp stopped_since?(ref, started_at) do
+    case driver(fn -> Mount.snapshot(ref) end) do
+      %{estop_at: t} when is_integer(t) and is_integer(started_at) and t >= started_at -> true
+      _ -> false
+    end
+  end
+
+  defp applied(axis), do: Process.get({:applied, axis}, 0.0)
+
+  # back by exactly what was applied, then a stop as the last word: a return
+  # goto that was refused or never landed must not leave anything running.
+  # After a STOP, nothing: the mount stays where the person stopped it.
+  defp unwind(ref, axis) do
+    applied = applied(axis)
+    Process.put({:applied, axis}, 0.0)
+
+    cond do
+      Process.get(:stopped, false) ->
+        :ok
+
+      true ->
+        if abs(applied) > 1.0e-6 do
+          _ = driver(fn -> Mount.goto_relative(ref, axis, -applied) end)
+          _ = settle(ref, axis)
+        end
+
+        _ = driver(fn -> Mount.stop(ref, axis) end)
+        :ok
+    end
+  end
+
+  # Every call into another process can exit — a driver restarting on a lost
+  # cable, a camera that hangs past its timeout. Make that an error, not a crash.
+  defp driver(fun) do
+    fun.()
+  catch
+    :exit, why -> {:error, "no answer: #{inspect(why)}"}
   end
 
   # Both axes at once, perpendicular by construction, started from the single
@@ -293,28 +451,54 @@ defmodule Controller.Optical.AxisScan do
   defp sweep_words(%{"fit" => f}), do: "#{f["n"]} spots · in picture #{f["image_angle_deg"]}° · tilt #{f["tilt_deg"]}° · ±#{f["bootstrap_sd_deg"] || f["tilt_sd_deg"]}° · rms #{f["rms_px"]} px"
   defp sweep_words(_), do: "?"
 
+  # -- the camera -----------------------------------------------------------------------
+
   defp streaming? do
-    match?(%{source: :stream}, Watch.status())
+    match?(%{source: :stream}, driver(fn -> Watch.status() end))
   end
 
-  defp camera_ready do
-    case Watch.status() do
-      %{tool: nil} -> {:error, "no camera tool on this machine"}
-      _ -> :ok
+  defp camera_ready(opts) do
+    cond do
+      is_function(opts[:capture], 0) -> :ok
+      match?(%{tool: nil}, driver(fn -> Watch.status() end)) -> {:error, "no camera tool on this machine"}
+      true -> :ok
     end
   end
 
-  defp capture(parent, step, after_at \\ nil, tries \\ 0) do
+  # A still, after the move when `moved?`. Every frame of one scan must be the
+  # same size: a camera that changed size half-way (the encoder came back at
+  # another rung) would make the later pictures lie about the earlier ones.
+  defp capture(parent, step, opts, moved? \\ true) do
     send(parent, {:step, step})
 
-    case Watch.capture() do
-      %{at: at} ->
-        cond do
+    got =
+      case opts[:capture] do
+        fun when is_function(fun, 0) ->
+          fun.()
+
+        _ ->
           # while video runs, stills come from the encoder every few seconds:
           # make sure this one was taken after the move, not before it
+          after_at = if moved?, do: DateTime.add(DateTime.utc_now(), if(streaming?(), do: 5, else: 0), :second)
+          camera(after_at, 0)
+      end
+
+    with {:ok, %{w: w, h: h} = frame, name} <- got do
+      case Process.get(:frame_size) do
+        nil -> Process.put(:frame_size, {w, h}); {:ok, frame, name}
+        {^w, ^h} -> {:ok, frame, name}
+        _ -> {:error, "camera size changed mid-scan"}
+      end
+    end
+  end
+
+  defp camera(after_at, tries) do
+    case driver(fn -> Watch.capture() end) do
+      %{at: at} ->
+        cond do
           after_at && DateTime.compare(at, after_at) != :gt && tries < 20 ->
             Process.sleep(1_000)
-            capture(parent, step, after_at, tries + 1)
+            camera(after_at, tries + 1)
 
           after_at && DateTime.compare(at, after_at) != :gt ->
             {:error, "camera gave no new frame"}
@@ -323,40 +507,56 @@ defmodule Controller.Optical.AxisScan do
             case Watch.latest() do
               %{jpeg: jpeg} ->
                 name = Watch.history(limit: 1) |> List.first() |> then(&(&1 && &1.name))
-                with {:ok, frame} <- Frame.from_binary(jpeg, @factor), do: {:ok, frame, name, at}
+                with {:ok, frame} <- Frame.from_binary(jpeg, @factor), do: {:ok, frame, name}
 
               _ ->
                 {:error, "no frame"}
             end
         end
 
+      # the encoder's still has not turned over yet: its next one is seconds away
+      {:error, "no new frame"} when after_at != nil and tries < 20 ->
+        Process.sleep(1_000)
+        camera(after_at, tries + 1)
+
       {:error, why} ->
         {:error, "capture failed: #{why}"}
     end
   end
 
-  defp axis(parent, ref, axis, delta, before) do
+  # -- the quick look, one axis ---------------------------------------------------------
+
+  defp axis(parent, ref, axis, delta, before, opts) do
     send(parent, {:step, {:move, axis}})
 
-    with :ok <- Mount.goto_relative(ref, axis, delta),
-         :ok <- settle(ref, axis),
-         # the encoder's still is one frame every five seconds and its file time
-         # can lead its content: when stills come from the stream, insist on
-         # one taken a full period after the tube stopped
-         after_at = DateTime.add(DateTime.utc_now(), if(streaming?(), do: 5, else: 0), :second),
-         {:ok, after_frame, after_name, _} <- capture(parent, {:capture, axis}, after_at),
-         :ok <- Mount.goto_relative(ref, axis, -delta),
-         :ok <- settle(ref, axis) do
-      send(parent, {:step, {:analyse, axis}})
-      raw = Flow.between(before, after_frame, search: 8)
-      # only a slide has a "crowd" to disagree with; a turn fans out on purpose
-      raw_fit = Pivot.fit(raw)
-      vectors = if raw_fit && raw_fit.coherence > 0.6, do: Pivot.coherent(raw), else: raw
-      fit = Pivot.fit(vectors)
-      {:ok, %{vectors: vectors, dropped: length(raw) - length(vectors), fit: fit, line: Pivot.axis_line(vectors), frame_after: after_name, words: Pivot.words(fit)}}
-    else
-      {:error, :limit} -> {:error, "#{axis}: soft limit — move the mount away from a limit and try again"}
-      {:error, e} -> {:error, "#{axis}: #{inspect(e)}"}
+    # the still after the turn; the turn is undone whatever happened
+    taken =
+      try do
+        with :ok <- move(ref, axis, delta, opts),
+             :ok <- settle(ref, axis),
+             do: capture(parent, {:capture, axis}, opts)
+      after
+        unwind(ref, axis)
+      end
+
+    case taken do
+      {:ok, after_frame, after_name} ->
+        send(parent, {:step, {:analyse, axis}})
+        raw = Flow.between(before, after_frame, search: 8)
+        # only a slide has a "crowd" to disagree with; a turn fans out on purpose
+        raw_fit = Pivot.fit(raw)
+        vectors = if raw_fit && raw_fit.coherence > 0.6, do: Pivot.coherent(raw), else: raw
+        fit = Pivot.fit(vectors)
+        {:ok, %{vectors: vectors, dropped: length(raw) - length(vectors), fit: fit, line: Pivot.axis_line(vectors), frame_after: after_name, words: Pivot.words(fit)}}
+
+      {:error, :limit} ->
+        {:error, "#{axis}: soft limit — move the mount away from a limit and try again"}
+
+      {:error, :stopped} ->
+        {:error, @stopped_words}
+
+      {:error, e} ->
+        {:error, "#{axis}: #{inspect(e)}"}
     end
   end
 
@@ -367,7 +567,7 @@ defmodule Controller.Optical.AxisScan do
   defp settle(ref, axis, waited \\ 0) do
     Process.sleep(250)
 
-    case Mount.snapshot(ref) do
+    case driver(fn -> Mount.snapshot(ref) end) do
       %{axes: axes} ->
         ax = axes[axis]
         busy = ax.running or Map.get(ax, :goto_pending, false)
@@ -377,6 +577,9 @@ defmodule Controller.Optical.AxisScan do
           busy -> {:error, "#{axis} still moving after 40 s"}
           true -> Process.sleep(@settle_ms); :ok
         end
+
+      {:error, why} ->
+        {:error, why}
 
       _ ->
         {:error, "no snapshot"}
@@ -404,6 +607,42 @@ defmodule Controller.Optical.AxisScan do
       "frame_after" => fa,
       "words" => words
     }
+  end
+
+  # -- reading a result back ------------------------------------------------------------
+
+  # Results were written by whichever version ran that night, and settings are
+  # a JSON file anyone can edit: fill in every key the page draws from, once,
+  # here, so the page never asks a map for something it has not got.
+  @quick_axis %{"vectors" => [], "dropped" => 0, "line" => nil, "fit" => nil, "frame_after" => nil, "words" => ""}
+  @sweep_axis %{"frames" => [], "tracks" => [], "fit" => nil, "w" => 0, "h" => 0, "scale" => 1}
+
+  defp normalise(r) do
+    r = Map.merge(%{"at" => "", "frame" => nil, "scale" => 1, "w" => 0, "h" => 0}, r)
+
+    r =
+      if is_map(r["ra"]) or is_map(r["dec"]),
+        do: Enum.reduce(["ra", "dec"], r, fn k, r -> Map.put(r, k, Map.merge(@quick_axis, r[k] || %{})) end),
+        else: r
+
+    case r["sweep"] do
+      %{} = sw -> Map.put(r, "sweep", normalise_sweep(sw))
+      _ -> Map.delete(r, "sweep")
+    end
+  end
+
+  defp normalise_sweep(sw) do
+    sw = Map.merge(%{"at" => "", "angles" => [], "hfov_deg" => nil, "between_deg" => nil, "pair" => nil, "history_n" => 0, "history_spread_deg" => nil}, sw)
+    sw = Enum.reduce(["ra", "dec"], sw, fn k, sw -> Map.put(sw, k, Map.merge(@sweep_axis, sw[k] || %{})) end)
+
+    case sw["pair"] do
+      %{"polar" => %{}, "dec" => %{}} = p ->
+        steps = Map.merge(%{"ra" => [], "dec" => []}, p["steps"] || %{})
+        Map.put(sw, "pair", Map.merge(%{"rms_px" => nil, "step_error_deg" => %{}}, p) |> Map.put("steps", steps))
+
+      _ ->
+        Map.put(sw, "pair", nil)
+    end
   end
 
   defp announce(s) do

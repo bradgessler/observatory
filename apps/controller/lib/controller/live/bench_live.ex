@@ -91,6 +91,13 @@ defmodule Controller.BenchLive do
 
     Input.arm(false)
     Controller.Sky.Tracker.stop_all()
+    # a scan in progress ends where it stands: after a STOP nothing moves the mount
+    try do
+      Controller.Optical.AxisScan.cancel(return: false)
+    catch
+      :exit, _ -> :ok
+    end
+
     {:noreply, socket}
   end
 

@@ -14,7 +14,9 @@ defmodule Controller.Router do
     pipe_through :browser
 
     # the front door: a grouped list of everything, one line each
-    live "/", HomeLive, :index
+    live "/", StartLive, :index
+    live "/start/:id", StartLive, :show
+    live "/all", HomeLive, :index
     live "/keypad", MountLive, :index
     live "/keypad/:id", MountLive, :show
     live "/sky", SkyLive, :index

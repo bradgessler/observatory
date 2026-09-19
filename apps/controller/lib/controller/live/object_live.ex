@@ -47,8 +47,13 @@ defmodule Controller.ObjectLive do
 
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
 
-  def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n}}} = socket) do
-    case Enum.at(steps, n) do
+  def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket) do
+    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at >= Map.get(search, :started, 0)
+
+    case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
+      :stopped ->
+        {:noreply, assign(socket, search: nil, notice: "search stopped")}
+
       nil ->
         {:noreply, assign(socket, search: nil, notice: "search finished")}
 
@@ -57,7 +62,7 @@ defmodule Controller.ObjectLive do
         safe(fn -> if dra != 0, do: Mount.goto_relative(ref, :ra, dra * @spiral_step) end)
         safe(fn -> if ddec != 0, do: Mount.goto_relative(ref, :dec, ddec * @spiral_step) end)
         Process.send_after(self(), :search_step, @spiral_pause_ms)
-        {:noreply, assign(socket, search: %{steps: steps, n: n + 1})}
+        {:noreply, assign(socket, search: %{search | n: n + 1})}
     end
   end
 
@@ -74,7 +79,7 @@ defmodule Controller.ObjectLive do
 
   defp compute(socket) do
     %{obj: obj, now: now} = socket.assigns
-    ctx = Pointing.context(now)
+    ctx = Pointing.context(now, socket.assigns.selected)
     lst = Astro.lst_deg(now, ctx.site.lon)
     {alt, az} = Astro.alt_az(obj.ra_deg, obj.dec_deg, ctx.site.lat, lst)
     horizon = Settings.horizon()
@@ -114,6 +119,7 @@ defmodule Controller.ObjectLive do
   end
 
   def handle_event("stop", _, socket) do
+    Controller.Sky.Tracker.stop(socket.assigns.selected)
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.stop(ref) end)
     {:noreply, assign(socket, notice: "stopped", search: nil)}
   end
@@ -132,7 +138,7 @@ defmodule Controller.ObjectLive do
       {:noreply, socket}
     else
       Process.send_after(self(), :search_step, @spiral_pause_ms)
-      {:noreply, assign(socket, search: %{steps: spiral(), n: 0}, notice: "searching… Stop when you see it")}
+      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "searching… Stop when you see it")}
     end
   end
 
@@ -196,7 +202,7 @@ defmodule Controller.ObjectLive do
           <button :if={@search} class="on" phx-click="stop">Stop search</button>
           <button phx-click="sync" disabled={!@snap || !@snap.homed}>Sync</button>
         </div>
-        <p :if={@snap && !@snap.homed} class="horizon-hint">Set home on the keypad before slewing.</p>
+        <p :if={@snap && !@snap.homed} class="horizon-hint">Zero the axes first (Setup, mount upright) before slewing.</p>
         <p :if={!@snap} class="horizon-hint">No mount connected.</p>
       </section>
 

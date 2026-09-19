@@ -18,9 +18,10 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 ## Star-align night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
-2. Power on, plug in, open the bench. **Zero the axes here** (mount upright: counterweight down, tube along the axis) — this arms the limits.
-3. Bench › **Star Align**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
-4. Sky › Tonight: tap Saturn / the Pleiades → Slew. Tracking follows through the model; STOP ends it.
+2. Power on, plug in, open `/` on the phone. It is a flow: **Plug in → Zero → Stars → Look**; it moves on by itself.
+   **Zero the axes here** (mount upright: counterweight down, tube along the axis) — this arms the limits.
+3. Stars: *Slew near it* (first one is a guess — watch the cable), centre it with any control, *That's it*. Buttons grey out while a slew is in flight; wait. Three stars that agree to under half a degree **lock** the page.
+4. Locked: **Look At** › Go on Saturn / the Pleiades. Both motors hold it through the model; nudge to centre and the hold keeps where you left it. STOP on any page ends it. Setup › *How It's Steered* has the numbers (law, offsets, axis error, rates).
 5. If a goto misses by more than an eyepiece field, add the object as a star (Sync) and go on.
 6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — zero the axes and align again.
 
@@ -60,9 +61,11 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 
 ## Game controller (bench › Game controller, or /input)
 
-- The pad starts in **watch only** every time the server starts. Move the ball
-  and press buttons first; the page shows exactly what it reads. Turn **Pad
-  moves scope** on only when that looks right.
+- The pad starts in **watch only** every time the server starts, and turns
+  itself off when the mount driver restarts (cable hiccup). A held trigger
+  while it is off does nothing except a line on the page and in `/events`
+  ("pad is off"). Turn **Pad moves scope** on from the locked front page or the
+  Game Controller page; move the ball first and check what it reads.
 - SideWinder Dual Strike: hold **button 7** (right trigger) and tilt; more tilt
   is faster, up to 800× at full tilt. **Button 6** (left trigger) is STOP.
 - If the mount ever moves with nothing held: STOP on any page, then turn the

@@ -51,6 +51,7 @@ defmodule Mount.Server do
       # has called set_home — before that the counts mean nothing.
       limits: Keyword.get(opts, :limits, Application.get_env(:mount, :limits)),
       homed: false,
+      homed_at: nil,
       mod: mod,
       topts: topts,
       tstate: nil,
@@ -136,13 +137,15 @@ defmodule Mount.Server do
     end
   end
 
+  # A page-level STOP of both axes is a "stop, whoever you are": it stamps
+  # `estop_at` like the emergency stop so the model tracker ends too.
   def handle_call({:stop, :both}, _from, state) do
-    state = state |> stop_axis(:ra) |> stop_axis(:dec) |> Map.put(:tracking, :off)
+    state = state |> stop_axis(:ra) |> stop_axis(:dec) |> Map.merge(%{tracking: :off, estop_at: System.monotonic_time(:millisecond)})
     {:reply, :ok, broadcast(state)}
   end
 
   def handle_call({:stop, axis}, _from, state) do
-    state = stop_axis(state, axis)
+    state = %{stop_axis(state, axis) | holds: cancel_hold(state.holds, axis)}
     state = if axis == :ra, do: %{state | tracking: :off}, else: state
     {:reply, :ok, broadcast(state)}
   end
@@ -164,7 +167,7 @@ defmodule Mount.Server do
       state
       |> send!("L", :ra)
       |> send!("L", :dec)
-      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds), estop_at: System.os_time(:millisecond)})
+      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds), estop_at: System.monotonic_time(:millisecond)})
 
     {:reply, :ok, broadcast(refresh(state))}
   end
@@ -187,13 +190,19 @@ defmodule Mount.Server do
     if at_limit?(state, :ra, dir_of(rate)) do
       {:reply, {:error, :limit}, state}
     else
-      state = %{start_slew(state, :ra, rate) | tracking: mode}
+      # tracking is not a held slew: a hold left over from a pull that was
+      # just released would stop the axis 900 ms later and leave the badge lying
+      state = %{start_slew(state, :ra, rate) | tracking: mode, holds: cancel_hold(state.holds, :ra)}
       {:reply, :ok, broadcast(state)}
     end
   end
 
+  # Turning tracking off while a goto is in flight must not kill the goto:
+  # just forget the mode, so the poll won't resume it when the goto lands.
   def handle_call({:track, :off}, _from, state) do
-    {:reply, :ok, broadcast(%{stop_axis(state, :ra) | tracking: :off})}
+    if state.axes.ra[:goto_pending],
+      do: {:reply, :ok, broadcast(%{state | tracking: :off})},
+      else: {:reply, :ok, broadcast(%{stop_axis(state, :ra) | tracking: :off})}
   end
 
   def handle_call(:set_home, _from, state) do
@@ -203,10 +212,10 @@ defmodule Mount.Server do
       |> stop_axis(:dec)
       |> send!("E", :ra, P.from_int(P.center()))
       |> send!("E", :dec, P.from_int(P.center()))
-      |> Map.merge(%{tracking: :off, homed: true})
+      |> Map.merge(%{tracking: :off, homed: true, homed_at: System.os_time(:millisecond)})
 
     # Survives a driver restart (USB hiccup) within this VM; see connect/1.
-    :persistent_term.put({__MODULE__, state.id, :homed}, true)
+    :persistent_term.put({__MODULE__, state.id, :homed}, state.homed_at)
     {:reply, :ok, broadcast(refresh(state))}
   end
 
@@ -237,7 +246,9 @@ defmodule Mount.Server do
   # -- motion ------------------------------------------------------------------------
 
   defp goto(state, axis, steps, dir) do
-    state
+    # a goto is not a held slew: a dead-man left armed by the last hold
+    # (a tracker's, a pad's) would stop it a second in
+    %{state | holds: cancel_hold(state.holds, axis)}
     |> stop_axis(axis)
     |> send!("G", axis, P.motion_mode(:goto, dir))
     |> send!("H", axis, P.from_int(steps))
@@ -373,12 +384,18 @@ defmodule Mount.Server do
     end)
   end
 
-  defp arm_hold(state, _axis, false), do: state
+  # an un-held slew replaces a held one: its dead-man must not outlive it
+  defp arm_hold(state, axis, false), do: %{state | holds: cancel_hold(state.holds, axis)}
 
   defp arm_hold(state, axis, true) do
     if ref = state.holds[axis], do: Process.cancel_timer(ref)
     ref = Process.send_after(self(), {:hold_expired, axis}, @hold_grace_ms)
     %{state | holds: Map.put(state.holds, axis, ref)}
+  end
+
+  defp cancel_hold(holds, axis) do
+    if ref = holds[axis], do: Process.cancel_timer(ref)
+    Map.delete(holds, axis)
   end
 
   defp cancel_holds(holds) do
@@ -408,8 +425,8 @@ defmodule Mount.Server do
       # If we were homed before a driver restart and the mount still counts from
       # somewhere other than its power-on value, it wasn't power-cycled: keep home.
       fresh_boot? = state.axes.ra.steps == P.center() and state.axes.dec.steps == P.center()
-      was_homed? = :persistent_term.get({__MODULE__, state.id, :homed}, false)
-      state = if was_homed? and not fresh_boot?, do: %{state | homed: true}, else: state
+      was_homed = :persistent_term.get({__MODULE__, state.id, :homed}, false)
+      state = if was_homed && not fresh_boot?, do: %{state | homed: true, homed_at: if(is_integer(was_homed), do: was_homed)}, else: state
       if fresh_boot?, do: :persistent_term.erase({__MODULE__, state.id, :homed})
 
       {:ok, state}
@@ -581,6 +598,7 @@ defmodule Mount.Server do
       firmware: state.firmware,
       tracking: state.tracking,
       homed: state.homed,
+      homed_at: Map.get(state, :homed_at),
       estop_at: Map.get(state, :estop_at),
       limits: if(state.homed, do: state.limits),
       axes:

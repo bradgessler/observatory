@@ -41,6 +41,31 @@ defmodule Mount.ServerTest do
     assert_eventually(fn -> Mount.snapshot(id).axes.ra end, &(not &1.running), 3_000)
   end
 
+  test "a goto after a held slew is not killed by the old dead-man", %{id: id} do
+    # the night the third alignment star landed 9° short: the tracker's held
+    # slews left a hold timer armed, and it stopped the goto a second in
+    :ok = Mount.slew(id, :ra, 16, hold: true)
+    :ok = Mount.goto_relative(id, :ra, 12.0)
+    Process.sleep(1_500)
+    assert Mount.snapshot(id).axes.ra.running, "goto stopped early"
+    assert_eventually(fn -> Mount.snapshot(id).axes.ra end, &(not &1.running and abs(&1.degrees - 12.0) < 0.05), 8_000)
+  end
+
+  test "an un-held slew replaces a held one and keeps running", %{id: id} do
+    :ok = Mount.slew(id, :dec, 16, hold: true)
+    :ok = Mount.slew(id, :dec, 16)
+    Process.sleep(1_500)
+    assert Mount.snapshot(id).axes.dec.running
+    :ok = Mount.stop(id, :dec)
+  end
+
+  test "STOP of both axes stamps estop_at so a tracker ends", %{id: id} do
+    before = Mount.snapshot(id).estop_at
+    :ok = Mount.stop(id)
+    assert is_integer(Mount.snapshot(id).estop_at)
+    assert Mount.snapshot(id).estop_at != before
+  end
+
   test "tracking survives a goto", %{id: id} do
     :ok = Mount.track(id, :sidereal)
     :ok = Mount.goto_relative(id, :ra, 1.0)

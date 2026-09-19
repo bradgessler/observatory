@@ -220,14 +220,14 @@ defmodule Controller.SetupLive do
           <li :for={c <- @steering.corrections}>{c}</li>
         </ul>
         <.kv label="tracking" value={@steering.tracking || (if @snap && @snap.tracking != :off, do: "mount's own #{@snap.tracking} rate on RA (law 2)", else: "not tracking")} />
-        <.hint>Law 1 is the raw axes (keypad, nudge, position — no correction). Law 2 is the sky through an ideal mount. Law 3 is the sky through this mount as the stars measured it. <.link navigate={~p"/bench/align?#{[mount: @id]}"}>Star Align</.link> raises it; <.link href={~p"/docs/align"}>the doc</.link> explains the numbers.</.hint>
+        <.hint>1 raw axes · 2 ideal mount · 3 this mount, as the stars measured it. <.link navigate={~p"/controls/align/#{@id}"}>Star Align</.link> · <.link href={~p"/docs/align"}>?</.link></.hint>
       </.card>
 
       <.card title="Zero the Axes">
         <:aside>
           <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "zeroed · limits armed", else: "not zeroed"}</.badge>
         </:aside>
-        <.hint>The mount has no absolute encoders: it doesn't know which way it is turned until you tell it. Put it upright — counterweight straight down, tube along the polar axis — and zero the axes here. That is the software's reference for the axis angles and arms the cable-safety limits. It has nothing to do with the sky; the star alignment does that.</.hint>
+        <.hint>Counterweight straight down, tube along the polar axis, by eye. Arms the cable-safety limits; the stars do the sky.</.hint>
         <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
       </.card>
 
@@ -237,7 +237,7 @@ defmodule Controller.SetupLive do
 
       <.card title="Modes">
         <:aside><.badge :if={@modes == []} on>all stock</.badge><.badge :if={@modes != []} warn>{length(@modes)} on</.badge></:aside>
-        <.hint>Anything here changes where the scope goes. Each shows on every page while it's on.</.hint>
+        <.hint>Each of these changes where the scope goes and shows on every page while on.</.hint>
 
         <.setting label="Sync offset" value={"RA #{fmt(@offset["ra"])}° · Dec #{fmt(@offset["dec"])}°"}>
           <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01}>Clear</.btn>

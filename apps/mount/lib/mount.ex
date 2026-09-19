@@ -39,40 +39,47 @@ defmodule Mount do
 
   def snapshot(ref), do: call(ref, :snapshot)
 
-  @doc "Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it self-stop unless refreshed."
+  @doc """
+  Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it
+  self-stop unless refreshed. `quiet: true` skips the event (for a refresh of a
+  slew already reported, e.g. the tracker feeding its dead-man).
+  """
   def slew(ref, axis, rate, opts \\ []) do
-    Telescope.Events.emit(:mount, :slew, %{id: id_of(ref), axis: axis, rate: rate / 1, hold: Keyword.get(opts, :hold, false)})
-    call(ref, {:slew, axis, rate / 1, opts})
+    call(ref, {:slew, axis, rate / 1, Keyword.delete(opts, :quiet)})
+    |> logged(opts[:quiet] != true, :slew, %{id: id_of(ref), axis: axis, rate: rate / 1, hold: Keyword.get(opts, :hold, false)})
   end
+
+  # events say what the scope did, so a refused command (limit, not connected) is not one
+  defp logged(result, true, what, data) do
+    if result == :ok, do: Telescope.Events.emit(:mount, what, data)
+    result
+  end
+
+  defp logged(result, _, _, _), do: result
 
   @doc "Ramped stop of an axis (or both). `instant: true` halts one axis with no ramp — for dead-man releases."
   def stop(ref, axis \\ :both, opts \\ [])
   def stop(ref, axis, instant: true) when axis in [:ra, :dec] do
-    Telescope.Events.emit(:mount, :stop, %{id: id_of(ref), axis: axis, instant: true})
-    call(ref, {:stop, axis, :instant})
+    call(ref, {:stop, axis, :instant}) |> logged(true, :stop, %{id: id_of(ref), axis: axis, instant: true})
   end
 
   def stop(ref, axis, _opts) do
-    Telescope.Events.emit(:mount, :stop, %{id: id_of(ref), axis: axis})
-    call(ref, {:stop, axis})
+    call(ref, {:stop, axis}) |> logged(true, :stop, %{id: id_of(ref), axis: axis})
   end
 
   @doc "Instant stop of both axes, no ramp-down."
   def emergency_stop(ref) do
-    Telescope.Events.emit(:mount, :emergency_stop, %{id: id_of(ref)})
-    call(ref, :emergency_stop)
+    call(ref, :emergency_stop) |> logged(true, :emergency_stop, %{id: id_of(ref)})
   end
 
   @doc "Move an axis by `degrees` at full goto speed (mount-managed ramps)."
   def goto_relative(ref, axis, degrees) do
-    Telescope.Events.emit(:mount, :goto, %{id: id_of(ref), axis: axis, degrees: degrees / 1})
-    call(ref, {:goto_relative, axis, degrees / 1})
+    call(ref, {:goto_relative, axis, degrees / 1}) |> logged(true, :goto, %{id: id_of(ref), axis: axis, degrees: degrees / 1})
   end
 
   @doc "`:sidereal`, `:lunar`, `:solar` or `:off`."
   def track(ref, mode) do
-    Telescope.Events.emit(:mount, :track, %{id: id_of(ref), mode: mode})
-    call(ref, {:track, mode})
+    call(ref, {:track, mode}) |> logged(true, :track, %{id: id_of(ref), mode: mode})
   end
 
   @doc """
@@ -82,8 +89,7 @@ defmodule Mount do
   reaches one is stopped there.
   """
   def set_home(ref) do
-    Telescope.Events.emit(:mount, :set_home, %{id: id_of(ref)})
-    call(ref, :set_home)
+    call(ref, :set_home) |> logged(true, :set_home, %{id: id_of(ref)})
   end
 
   @doc "Send a raw protocol frame, e.g. `Mount.raw(m, \":e1\\r\")`. For poking."

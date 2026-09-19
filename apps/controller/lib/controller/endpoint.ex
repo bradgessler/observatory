@@ -23,6 +23,8 @@ defmodule Controller.Endpoint do
   # LiveView's JS straight from the deps — no bundler on this project.
   plug Plug.Static, at: "/vendor/phoenix", from: {:phoenix, "priv/static"}, gzip: false
   plug Plug.Static, at: "/vendor/live_view", from: {:phoenix_live_view, "priv/static"}, gzip: false
+  # data-confirm ("Zero both axes?") lives in phoenix_html.js, not in LiveView's bundle
+  plug Plug.Static, at: "/vendor/phoenix_html", from: {:phoenix_html, "priv/static"}, gzip: false
 
   plug Plug.Static,
     at: "/",

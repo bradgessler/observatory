@@ -19,6 +19,10 @@ defmodule Controller.Sky.Pointing do
   alias Controller.Settings
   alias Controller.Sky.{Astro, Lineup, Model}
 
+  # EQ6-R goto: 800× sidereal, plus ramps
+  @goto_deg_s 360.0 / 86_164.0905 * 800
+  @goto_ramp_s 3.0
+
   @type ctx :: %{now: DateTime.t(), site: map, pointing: map, offset: map, model: map | nil, mount: String.t() | nil}
 
   @doc """
@@ -36,9 +40,12 @@ defmodule Controller.Sky.Pointing do
     }
   end
 
+  # No id: only when exactly one mount is connected does its alignment apply.
+  # (Never "whichever mount has one" — a simulator's alignment must not steer
+  # the real mount.)
   defp model_for(nil) do
-    case Settings.get("lineup", %{}) |> Map.keys() do
-      [only] -> Lineup.model(only)
+    case safe(fn -> Mount.list() end) do
+      [%{id: only}] -> Lineup.model(only)
       _ -> nil
     end
   end
@@ -91,7 +98,7 @@ defmodule Controller.Sky.Pointing do
 
   def axes_for(obj, %{model: m, pointing: p, site: site, now: now}, opts) when is_map(m) do
     lst = Astro.lst_deg(now, site.lon)
-    Model.encoders_radec(m, p, obj.ra_deg, obj.dec_deg, site.lat, lst, opts[:near])
+    Model.encoders_radec(m, signs_of(m, p), obj.ra_deg, obj.dec_deg, site.lat, lst, opts[:near])
   end
 
   def axes_for(obj, %{offset: off} = ctx, _opts) do
@@ -102,7 +109,7 @@ defmodule Controller.Sky.Pointing do
   @doc "Where the scope points now (RA/Dec degrees). nil until homed (first-order) or lined up."
   def scope_radec(%{axes: %{ra: ra, dec: dec}}, %{model: m, pointing: p, site: site, now: now}) when is_map(m) do
     lst = Astro.lst_deg(now, site.lon)
-    Model.radec(m, p, ra.degrees, dec.degrees, site.lat, lst)
+    Model.radec(m, signs_of(m, p), ra.degrees, dec.degrees, site.lat, lst)
   end
 
   def scope_radec(%{homed: true, axes: %{ra: ra, dec: dec}}, %{now: now, site: site, pointing: p, offset: off}) do
@@ -113,6 +120,10 @@ defmodule Controller.Sky.Pointing do
   end
 
   def scope_radec(_, _), do: nil
+
+  # a fitted model only means something under the axis signs it was fitted with
+  defp signs_of(%{signs: %{ha_sign: _, dec_sign: _} = sg}, _p), do: sg
+  defp signs_of(_, p), do: p
 
   @doc """
   Slew `ref` to `obj`. Home must be set (that is what arms the soft limits that
@@ -133,20 +144,51 @@ defmodule Controller.Sky.Pointing do
         {ra_axis, dec_axis} = axes_for(obj, ctx, near: near)
         d_ra = ra_axis - snap.axes.ra.degrees
         d_dec = dec_axis - snap.axes.dec.degrees
+
+        # aim at where the object will be when the goto lands, not where it
+        # is now: a 30 s slew is 7′ of sky, which is the difference between
+        # "in the eyepiece" and "hunt for it"
+        flight_s = max(abs(d_ra), abs(d_dec)) / @goto_deg_s + @goto_ramp_s
+        later = %{ctx | now: DateTime.add(ctx.now, round(flight_s), :second)}
+        {ra_axis, dec_axis} = axes_for(obj, later, near: near)
+        d_ra = ra_axis - snap.axes.ra.degrees
+        d_dec = dec_axis - snap.axes.dec.degrees
         track? = Keyword.get(opts, :track, true)
 
-        # a running model tracker would fight the goto; it is restarted below
-        Controller.Sky.Tracker.stop(snap.id)
+        cond do
+          # both legs checked before either moves: never half a slew
+          not within?(snap, :ra, ra_axis) or not within?(snap, :dec, dec_axis) ->
+            {:error, :limit}
 
-        if track? and not lined_up?(ctx) and snap.tracking == :off, do: safe(fn -> Mount.track(ref, :sidereal) end)
+          true ->
+            # a running model tracker would fight the goto (and its stop would
+            # kill it): drop it synchronously first; it is restarted below
+            Controller.Sky.Tracker.stop(snap.id, halt: false)
 
-        with :ok <- safe(fn -> Mount.goto_relative(ref, :ra, d_ra) end),
-             :ok <- safe(fn -> Mount.goto_relative(ref, :dec, d_dec) end) do
-          if track? and lined_up?(ctx), do: Controller.Sky.Tracker.track(snap.id, obj)
-          {:ok, d_ra, d_dec}
+            if lined_up?(ctx) do
+              # the driver's sidereal mode would restart RA under the tracker
+              if snap.tracking != :off, do: safe(fn -> Mount.track(ref, :off) end)
+            else
+              if track? and snap.tracking == :off, do: safe(fn -> Mount.track(ref, :sidereal) end)
+            end
+
+            with :ok <- safe(fn -> Mount.goto_relative(ref, :ra, d_ra) end),
+                 :ok <- safe(fn -> Mount.goto_relative(ref, :dec, d_dec) end) do
+              if track? and lined_up?(ctx), do: Controller.Sky.Tracker.track(snap.id, obj)
+              {:ok, d_ra, d_dec}
+            end
         end
     end
   end
+
+  defp within?(%{limits: %{} = limits}, axis, degrees) do
+    case limits[axis] do
+      {lo, hi} -> degrees >= lo and degrees <= hi
+      _ -> true
+    end
+  end
+
+  defp within?(_, _, _), do: true
 
   @doc """
   "The scope is centred on `obj` right now." Adds a star alignment sample (one sample

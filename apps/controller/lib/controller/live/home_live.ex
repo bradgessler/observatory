@@ -81,8 +81,8 @@ defmodule Controller.HomeLive do
     ~H"""
     <.page id="home" night={@night}>
       <:header>
-        <span class="home-brand">Observatory</span>
-        <.title>Workbench</.title>
+        <.back navigate={~p"/"} label="Start" />
+        <.title>Everything</.title>
         <.actions><button class="ghost" phx-click="night" aria-label="night mode">◐</button></.actions>
       </:header>
 

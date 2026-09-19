@@ -93,7 +93,12 @@ phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any s
   *Tilt* (hold the dead-man, tilt the phone; needs HTTPS), *Position* (type an
   axis angle, go home), *Game controller* (a USB pad read by the server —
   see `apps/input`), *Watch* and *Sky*.
-* **Star Align** (`/bench/align`) — no Polaris needed. Zero the axes (mount
+* **Start** (`/`) — the front door is a flow, not a menu: *Plug in → Zero →
+  Stars 0/3 → Look*. It shows the step you are on and moves on by itself; once
+  three stars agree it becomes the control surface (tonight's targets with Go,
+  what the tube is holding, the ways to centre, the pad switch, STOP). The
+  menu of everything else is `/all`.
+* **Star Align** (`/controls/align`) — no Polaris needed. Zero the axes (mount
   upright; it arms the limits), then centre the star the page names and tap
   *that's it*; a second star far from the first is enough to steer, a third
   says how well they agree. Behind it is a real geometric model of the mount

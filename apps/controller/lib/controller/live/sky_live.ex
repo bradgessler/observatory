@@ -122,8 +122,13 @@ defmodule Controller.SkyLive do
 
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
 
-  def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n}}} = socket) do
-    case Enum.at(steps, n) do
+  def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket) do
+    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at >= Map.get(search, :started, 0)
+
+    case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
+      :stopped ->
+        {:noreply, assign(socket, search: nil, notice: "search stopped")}
+
       nil ->
         {:noreply, assign(socket, search: nil, notice: "search finished; nothing? try a wider eyepiece or re-check home")}
 
@@ -138,7 +143,7 @@ defmodule Controller.SkyLive do
         end
 
         Process.send_after(self(), :search_step, @spiral_pause_ms)
-        {:noreply, assign(socket, search: %{steps: steps, n: n + 1})}
+        {:noreply, assign(socket, search: %{search | n: n + 1})}
     end
   end
 
@@ -394,7 +399,7 @@ defmodule Controller.SkyLive do
       {:noreply, socket}
     else
       Process.send_after(self(), :search_step, @spiral_pause_ms)
-      {:noreply, assign(socket, search: %{steps: spiral(), n: 0}, notice: "searching around #{t.name}… Stop when you see it")}
+      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "searching around #{t.name}… Stop when you see it")}
     end
   end
 
@@ -713,7 +718,7 @@ defmodule Controller.SkyLive do
       <section class="pick hint" :if={!@target and @tab == "map"}>
         <span class="dim">
           Tap to pick · pinch to zoom
-          <span :if={@snap && !@snap.homed}> · set home to see the scope</span>
+          <span :if={@snap && !@snap.homed}> · zero the axes to see the scope</span>
           <span :if={!@snap}> · no mount</span>
         </span>
       </section>

@@ -98,8 +98,17 @@ defmodule Controller.PagesTest do
   end
 
   describe "home" do
-    test "the front door lists every group with one line each", %{conn: conn} do
+    test "the front door is the flow: four steps, the current one first", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
+      for step <- ["Plug in", "Zero", "Stars 0/3", "Look"], do: assert(html =~ step)
+      # a simulated mount is connected but not zeroed: step 2 is on
+      assert html =~ "Zero the axes here"
+      refute html =~ "Look At"
+      assert html =~ "Everything else"
+    end
+
+    test "everything else lists every group with one line each", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/all")
       for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Star Align", "Orb", "Bench"], do: assert(html =~ name)
       assert html =~ "name a few stars"
     end

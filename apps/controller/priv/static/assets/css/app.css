@@ -587,3 +587,14 @@ a.banner strong { color: var(--warn); }
 .ax-dec { color: #2ec27e; }
 .live-axes { pointer-events: none; }
 .ax-tube { color: #ff5a5a; }
+
+/* start flow: the four steps as a strip; the current one lit, done ones quiet */
+.flow-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.flow-steps li { counter-increment: step; padding: 8px 0 6px; text-align: center; font-size: 13px; border-top: 2px solid var(--edge); color: var(--dim); }
+.flow-steps li::before { content: counter(step) " "; font-weight: 700; }
+.flow-steps li.now { border-top-color: var(--accent); color: var(--text); font-weight: 700; }
+.flow-steps li.done { border-top-color: var(--on); color: var(--on); }
+.flow-nested .page { padding: 0; }
+.flow-modes b { color: var(--warn); }
+.flow-more { margin: 8px 0 0; text-align: center; color: var(--dim); font-size: 13px; }
+.flow-more a { color: var(--dim); }

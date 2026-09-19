@@ -120,12 +120,12 @@ defmodule Controller.PositionLive do
       <.card title="Axes, Degrees From Zero">
         <form phx-change="targets" class="pos-grid">
           <span class="pos-k">RA</span>
-          <span class="pos-now">{if @snap, do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
+          <span class="pos-now">{if @snap && @snap.axes[:ra], do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
           <input name="ra" inputmode="decimal" value={@ra_target} class="field" aria-label="RA target degrees" />
           <.btn type="button" phx-click="go" phx-value-axis="ra">Go</.btn>
 
           <span class="pos-k">Dec</span>
-          <span class="pos-now">{if @snap, do: fmt(@snap.axes.dec.degrees), else: "—"}</span>
+          <span class="pos-now">{if @snap && @snap.axes[:dec], do: fmt(@snap.axes.dec.degrees), else: "—"}</span>
           <input name="dec" inputmode="decimal" value={@dec_target} class="field" aria-label="Dec target degrees" />
           <.btn type="button" phx-click="go" phx-value-axis="dec">Go</.btn>
         </form>

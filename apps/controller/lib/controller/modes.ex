@@ -24,9 +24,20 @@ defmodule Controller.Modes do
       if(is_map(Settings.get("site")), do: {"site override", "lat/lon set by hand or phone"}),
       mount_tilt_mode(),
       mount_heading_mode(),
-      lineup_mode()
+      lineup_mode(),
+      axis_scan_mode()
     ]
     |> Enum.reject(&is_nil/1)
+  end
+
+  # the optical axis scan drives the mount by itself for a few minutes: say so everywhere
+  defp axis_scan_mode do
+    case Controller.Optical.AxisScan.status() do
+      %{running: true, id: id} -> {"axis scan running", "#{id} is being moved by the camera scan · Watch › Axes"}
+      _ -> nil
+    end
+  catch
+    :exit, _ -> nil
   end
 
   # The mount as it stands vs. the ideal: a latitude knob that isn't the site

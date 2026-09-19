@@ -116,7 +116,9 @@ Hooks.Stick = {
       timer = setInterval(send, 250);
       try { navigator.vibrate && navigator.vibrate(6); } catch (_) {}
     };
-    const move = (e) => { if (e.pointerId !== active) return; e.preventDefault(); update(e.clientX, e.clientY); send(); };
+    // the 250 ms interval carries the latest vector; pushing on every
+    // pointermove (60-120 Hz) floods the server and stale reports outlive the release
+    const move = (e) => { if (e.pointerId !== active) return; e.preventDefault(); update(e.clientX, e.clientY); };
     const end = (e) => {
       if (active === null || (e && e.pointerId !== undefined && e.pointerId !== active)) return;
       clearInterval(timer); timer = null; active = null; origin = null;
@@ -244,19 +246,24 @@ Hooks.Tilt = {
       state("ok");
       return true;
     };
+    let down = false;
     const start = async (e) => {
       if (timer) return;
       e.preventDefault();
       id = e.pointerId;
+      down = true;
       if (!(await ready())) return;
+      // the permission prompt lifts the finger: never arm with nobody holding on
+      if (!down) return;
       el.classList.add("pressed");
       base = cur; // may be null for a beat; vec() treats that as still
       const arm = () => { if (!base) base = cur; send(); };
       timer = setInterval(arm, 250);
     };
     const stop = (e) => {
-      if (!timer) return;
       if (e && e.pointerId !== undefined && e.pointerId !== id) return;
+      down = false;
+      if (!timer) return;
       clearInterval(timer); timer = null; base = null;
       el.classList.remove("pressed");
       if (dot) dot.style.transform = "";

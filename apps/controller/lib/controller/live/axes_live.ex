@@ -36,7 +36,17 @@ defmodule Controller.AxesLive do
 
   defp load(socket) do
     id = socket.assigns.selected
-    assign(socket, result: id && AxisScan.result(id), camera: Watch.status(), predicted: id && predicted(id))
+    assign(socket, result: id && AxisScan.result(id), camera: Watch.status(), predicted: id && predicted(id), homed: id != nil and homed?(id))
+  end
+
+  # the soft limits that keep a scan honest are only armed once home is set
+  defp homed?(id) do
+    case Enum.find(Mount.list(), &(&1.id == id)) do
+      nil -> false
+      ref -> match?(%{homed: true}, Mount.snapshot(ref))
+    end
+  catch
+    :exit, _ -> false
   end
 
   # What the orb's geometry says each axis should look like from where the
@@ -91,18 +101,22 @@ defmodule Controller.AxesLive do
   def handle_event("run", _, socket) do
     case AxisScan.run(socket.assigns.selected) do
       :ok -> {:noreply, assign(socket, notice: "scanning — the mount will move ±3° on each axis")}
-      {:error, :busy} -> {:noreply, assign(socket, notice: "a scan is already running")}
-      {:error, why} -> {:noreply, assign(socket, notice: inspect(why))}
+      {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
 
   def handle_event("sweep", %{"range" => range}, socket) do
-    half = String.to_float(range)
+    # the range comes from the browser: only one we offer
+    half =
+      case Float.parse(range) do
+        {h, _} -> Enum.find(AxisScan.ranges(), &(&1 == h))
+        :error -> nil
+      end
 
-    case AxisScan.sweep(socket.assigns.selected, range: half) do
+    case half && AxisScan.sweep(socket.assigns.selected, range: half) do
+      nil -> {:noreply, assign(socket, notice: "that sweep range is not one on offer")}
       :ok -> {:noreply, assign(socket, notice: "sweeping — five positions per axis, ±#{round(half)}°, about three minutes")}
-      {:error, :busy} -> {:noreply, assign(socket, notice: "a scan is already running")}
-      {:error, why} -> {:noreply, assign(socket, notice: inspect(why))}
+      {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
 
@@ -112,6 +126,11 @@ defmodule Controller.AxesLive do
   end
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
+
+  defp refused(:busy), do: "a scan is already running"
+  defp refused(:no_mount), do: "no mount to scan"
+  defp refused(why) when is_binary(why), do: why
+  defp refused(why), do: inspect(why)
 
   @impl true
   def render(assigns) do
@@ -124,17 +143,19 @@ defmodule Controller.AxesLive do
       </:header>
 
       <.card title="Find the axes in the picture">
-        <:aside><.badge on={@scan.running} warn={@scan.step == :failed}>{step_words(@scan)}</.badge></:aside>
+        <:aside><.badge on={@scan.running} warn={@scan.step in [:failed, :cancelled]}>{step_words(@scan)}</.badge></:aside>
         <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
+        <% cannot = @scan.running or is_nil(@selected) or is_nil(@camera.tool) or not @homed %>
         <.row>
-          <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Quick look</.btn>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Sweep ±6°</.btn>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Wide ±20°</.btn>
+          <.btn variant="primary" phx-click="run" disabled={cannot}>Quick look</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Sweep ±6°</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide ±20°</.btn>
         </.row>
         <.row :if={@result}>
           <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
+        <.hint :if={@selected && !@homed}>Set home first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>) — the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
         <.hint :if={@scan.error} class="err">{@scan.error}</.hint>
       </.card>
 
@@ -190,7 +211,7 @@ defmodule Controller.AxesLive do
         </div>
         <div :if={sw["between_deg"] && ambiguous} class="axes-row">
           <strong>Between the two axes</strong>
-          <span class="dim">not known yet — with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]), 0)}° up; a wider sweep settles it</span>
+          <span class="dim">not known yet — with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]) / 1, 0)}° up; a wider sweep settles it</span>
         </div>
         <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored — both bias the tilt more than the in-picture direction.</.hint>
       </.card>
@@ -240,12 +261,14 @@ defmodule Controller.AxesLive do
     """
   end
 
+  # settings come back from JSON: a whole number may be an integer by the time it is here
   defp margin(a, b) do
-    [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Float.round(1)
+    [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Kernel./(1) |> Float.round(1)
   end
 
   defp step_words(%{running: false, step: :done}), do: "done"
   defp step_words(%{running: false, step: :failed}), do: "failed"
+  defp step_words(%{running: false, step: :cancelled}), do: "cancelled"
   defp step_words(%{running: false}), do: "idle"
   defp step_words(%{step: :capture_before}), do: "first picture"
   defp step_words(%{step: {:move, ax}}), do: "turning #{ax}"

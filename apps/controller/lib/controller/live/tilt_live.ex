@@ -157,7 +157,7 @@ defmodule Controller.TiltLive do
 
       <.hint :if={@sensor == :ok}>Hold the button. The way you hold the phone at that moment is "still"; tilt away from it to move, more tilt is faster (up to {@rate}×). Let go: it stops.</.hint>
       <.hint :if={@sensor == :unknown}>Hold the button once to ask the phone for its tilt sensor.</.hint>
-      <.hint :if={@sensor == :denied}>The phone said no to the tilt sensor. On iPhone that prompt appears once; Settings › Safari › Motion &amp; Orientation Access turns it back on.</.hint>
+      <.hint :if={@sensor == :denied}>The phone said no to the tilt sensor. On iPhone the prompt is per site and remembered: close this tab and open the page again to be asked once more; if it still says no, Settings › Safari › Advanced › Website Data → remove this site.</.hint>
       <.hint :if={@sensor == :insecure}>Tilt needs HTTPS — the browser only exposes the orientation sensor on a secure page. Open this over the tunnel URL (Devices shows it).</.hint>
       <.hint :if={@sensor == :none}>No orientation sensor here. This surface is for a phone in the hand; on a laptop use the keypad or nudge.</.hint>
 

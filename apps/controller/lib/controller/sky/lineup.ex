@@ -208,6 +208,7 @@ defmodule Controller.Sky.Lineup do
   """
   def candidates(id, %{now: now, site: site}, limit \\ 6) do
     lst = Astro.lst_deg(now, site.lon)
+    horizon = Settings.horizon()
     done = samples(id)
     done_vecs = Enum.map(done, &Astro.altaz_vec(&1["alt"], &1["az"]))
     done_names = Enum.map(done, & &1["name"])
@@ -222,7 +223,9 @@ defmodule Controller.Sky.Lineup do
       alt_score = 1.0 - abs(alt - 50) / 50
       Map.merge(s, %{alt: alt, az: az, spread: spread, score: min(spread, 90) / 90 * 0.7 + alt_score * 0.3 - s.mag * 0.05, where: where_words(alt, az)})
     end)
-    |> Enum.filter(&(&1.alt > 20))
+    # above 20° and clear of the tree line by a margin — a star behind the
+    # oaks is no use for lining up
+    |> Enum.filter(&(&1.alt > 20 and &1.alt > Settings.horizon_at(horizon, &1.az) + 5))
     |> Enum.sort_by(&(-&1.score))
     |> Enum.take(limit)
   end

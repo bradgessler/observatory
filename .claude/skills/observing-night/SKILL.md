@@ -42,6 +42,18 @@ Keep the loop cheap: same setup order, same checks, same debrief.
    page header and the middle of the keypad; EMERGENCY STOP is the red bar.**
    Soft limits stop RA at ±100° from home only after Set home.
 
+## Game controller (bench › Game controller, or /input)
+
+- The pad starts in **watch only** every time the server starts. Move the ball
+  and press buttons first; the page shows exactly what it reads. Turn **Pad
+  moves scope** on only when that looks right.
+- SideWinder Dual Strike: hold **button 7** (right trigger) and tilt; more tilt
+  is faster, up to 800× at full tilt. **Button 6** (left trigger) is STOP.
+- If the mount ever moves with nothing held: STOP on any page, then turn the
+  pad off. Then tell the log what happened (`git log` has the post-mortem of
+  the first time).
+- After playing on the bench, **re-home** before slewing from the sky page.
+
 ## Record as you go (a note on the phone is fine)
 
 - Where each slew landed vs. where the target was (eyepiece fields off, and which way).

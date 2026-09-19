@@ -49,7 +49,19 @@ override) is reported by `Controller.Modes.active/0` and shown on every page.
 
 **Safety in the driver, not the UI.** Held slews self-stop unless refreshed
 (`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. Every
-page has STOP. The driver exits and restarts on a lost serial link.
+page has STOP. The driver exits and restarts on a lost serial link, and stops
+both axes on every (re)connect and in `terminate/2`, so a restart can never
+inherit motion.
+
+**Only fresh intent moves the scope.** (From the night the pad kept the mount
+moving after the hand let go: a mapper fell behind and replayed a mailbox of
+stale "trigger held" reports, each one re-feeding the deadman.) Every input
+path — pad, stick, keyboard, future voice — must: stamp each report with
+monotonic time and drop anything older than ~250 ms; coalesce backlogs to the
+newest report; run its own watchdog that releases when input goes quiet;
+bound every call into the driver; start disarmed and disarm itself on any
+error. A deadman that is fed by stale commands is not a deadman. Remember that
+BEAM monotonic time is negative: never compare against 0.
 
 **The mount is the source of truth for position.** No absolute encoders:
 power-on = `0x800000` on both axes wherever it is. `Mount.set_home/1` defines

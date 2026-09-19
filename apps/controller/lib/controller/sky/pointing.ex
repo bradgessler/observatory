@@ -10,7 +10,7 @@ defmodule Controller.Sky.Pointing do
   * the **lined-up** model (`Controller.Sky.Model`, fitted by
     `Controller.Sky.Lineup`) — the polar axis wherever it really is, plus
     encoder offsets, from a few stars centred by eye. Used automatically
-    whenever a line-up exists for the mount.
+    whenever a star alignment exists for the mount.
 
   A German equatorial reaches every point two ways; both models pick the one
   that keeps the RA axis within ±90° of home so the counterweight stays below.
@@ -23,7 +23,7 @@ defmodule Controller.Sky.Pointing do
 
   @doc """
   Model context from config + persisted settings. Pass the mount id to pick up
-  its line-up; without one, a line-up is used only if exactly one mount has one.
+  its star alignment; without one, a star alignment is used only if exactly one mount has one.
   """
   def context(now \\ DateTime.utc_now(), mount_id \\ nil) do
     %{
@@ -83,7 +83,7 @@ defmodule Controller.Sky.Pointing do
   end
 
   @doc """
-  Axis targets for an object. With a line-up, through the fitted geometry
+  Axis targets for an object. With a star alignment, through the fitted geometry
   (`near:` the current encoders keeps the same side of the pier when both
   solutions are legal); otherwise first-order plus the sync offset.
   """
@@ -149,9 +149,9 @@ defmodule Controller.Sky.Pointing do
   end
 
   @doc """
-  "The scope is centred on `obj` right now." Adds a line-up sample (one sample
+  "The scope is centred on `obj` right now." Adds a star alignment sample (one sample
   behaves like the old one-star sync; more make the geometry). Returns the
-  line-up status.
+  star alignment status.
   """
   def sync(snap, obj, _ctx), do: Lineup.add(snap, obj)
 

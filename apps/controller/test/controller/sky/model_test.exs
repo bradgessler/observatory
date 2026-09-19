@@ -1,6 +1,6 @@
 defmodule Controller.Sky.ModelTest do
   @moduledoc """
-  The line-up loop, without a sky: a hidden "true" mount geometry stands in for
+  The star alignment loop, without a sky: a hidden "true" mount geometry stands in for
   a mount set down anyhow. We centre stars on it by maths (true encoders for
   the star), hand the model only what a person would — encoders plus which
   star — and check the fit recovers the truth and a goto to something else
@@ -65,7 +65,7 @@ defmodule Controller.Sky.ModelTest do
     end
   end
 
-  describe "line-up" do
+  describe "star alignment" do
     test "one star: offsets only, like the old one-star sync" do
       truth = %{Model.ideal(@lat) | off_ra: 3.0, off_dec: -2.0}
       {:ok, p, q} = Model.fit([centre(truth, "Vega")], @signs, Model.ideal(@lat))

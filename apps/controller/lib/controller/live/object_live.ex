@@ -121,7 +121,7 @@ defmodule Controller.ObjectLive do
   def handle_event("sync", _, %{assigns: %{obj: obj, snap: snap}} = socket) do
     if snap && snap.homed do
       st = Pointing.sync(snap, obj, socket.assigns.ctx)
-      {:noreply, socket |> assign(notice: "lined up on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
+      {:noreply, socket |> assign(notice: "aligned on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
     else
       {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
     end

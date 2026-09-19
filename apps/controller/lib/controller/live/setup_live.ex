@@ -168,7 +168,7 @@ defmodule Controller.SetupLive do
         <:aside>
           <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "zeroed · limits armed", else: "not zeroed"}</.badge>
         </:aside>
-        <.hint>The mount has no absolute encoders: it doesn't know which way it is turned until you tell it. Put it upright — counterweight straight down, tube along the polar axis — and zero the axes here. That is the software's reference for the axis angles and arms the cable-safety limits. It has nothing to do with the sky; the line-up does that.</.hint>
+        <.hint>The mount has no absolute encoders: it doesn't know which way it is turned until you tell it. Put it upright — counterweight straight down, tube along the polar axis — and zero the axes here. That is the software's reference for the axis angles and arms the cable-safety limits. It has nothing to do with the sky; the star alignment does that.</.hint>
         <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
       </.card>
 

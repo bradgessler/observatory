@@ -1,6 +1,6 @@
 defmodule Controller.Sky.Model do
   @moduledoc """
-  A mount that was set down anyhow: the geometric model behind the line-up.
+  A mount that was set down anyhow: the geometric model behind the star alignment.
 
   The polar axis points *somewhere* (alt/az, not assumed to be the pole), each
   encoder has a zero offset, and the axis signs come from config. Given that,

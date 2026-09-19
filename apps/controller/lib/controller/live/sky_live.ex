@@ -374,11 +374,11 @@ defmodule Controller.SkyLive do
   end
 
   # "The scope is centred on the target right now." One tap is a one-star sync;
-  # each further star tightens the line-up (Controller.Sky.Lineup).
+  # each further star tightens the alignment (Controller.Sky.Lineup).
   def handle_event("sync", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
     if snap && snap.homed do
       st = Pointing.sync(snap, t, ctx(socket.assigns))
-      {:noreply, assign(socket, notice: "lined up on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
+      {:noreply, assign(socket, notice: "aligned on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
     else
       {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
     end

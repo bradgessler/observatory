@@ -15,14 +15,14 @@ Keep the loop cheap: same setup order, same checks, same debrief.
   bigger than a few degrees without a camera check**, and the person at the
   scope watches the cable during gotos. Soft limits stay armed (zero the axes).
 
-## Line-up night (no Polaris needed)
+## Star-align night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
 2. Power on, plug in, open the bench. **Zero the axes here** (mount upright: counterweight down, tube along the axis) — this arms the limits.
-3. Bench › **Line up**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
+3. Bench › **Star Align**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
 4. Sky › Tonight: tap Saturn / the Pleiades → Slew. Tracking follows through the model; STOP ends it.
 5. If a goto misses by more than an eyepiece field, add the object as a star (Sync) and go on.
-6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — zero the axes and line up again.
+6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — zero the axes and align again.
 
 ## Before dark (laptop, indoors)
 

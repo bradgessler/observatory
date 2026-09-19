@@ -1,6 +1,6 @@
 defmodule Controller.LineupLive do
   @moduledoc """
-  Line up: set the mount down anyhow, name a few stars, and the software
+  Star Align: set the mount down anyhow, name a few stars, and the software
   works out how it is really sitting. One star at a time: we suggest one and
   say where to look, you centre it with any control surface, you tap
   "that's it". After two the mount can be steered in the sky; after three we
@@ -136,7 +136,7 @@ defmodule Controller.LineupLive do
   def handle_event("clear", _, socket) do
     Tracker.stop(socket.assigns.selected)
     Lineup.clear(socket.assigns.selected)
-    {:noreply, socket |> compute() |> put_notice("line-up cleared")}
+    {:noreply, socket |> compute() |> put_notice("alignment cleared")}
   end
 
   # Hold whatever the tube is on right now — centred by hand, no goto needed.
@@ -198,17 +198,17 @@ defmodule Controller.LineupLive do
     ~H"""
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/lineup?#{[mount: @selected]}"} label="Bench" />
-        <.title>{@selected} · Line Up</.title>
-        <.actions><.help href={~p"/docs/lineup"} /></.actions>
+        <.back navigate={~p"/bench/align?#{[mount: @selected]}"} label="Bench" />
+        <.title>{@selected} · Star Align</.title>
+        <.actions><.help href={~p"/docs/align"} /></.actions>
       </:header>
 
       <%!-- where we stand, in one line --%>
       <.card :if={@status} class={"lineup-status#{if @status.solved?, do: " ok", else: ""}"}>
         <div class="state-line">
-          <strong :if={!@status.solved?}>Not lined up</strong>
+          <strong :if={!@status.solved?}>Not aligned</strong>
           <strong :if={@status.solved? and @status.n >= 3}>{@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
-          <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · lined up, not yet checked</strong>
+          <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · aligned, not yet checked</strong>
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.n < 3} class="dim">{if @status.n == 1, do: "one star sets the offsets; a second, far away, pins the axis; a third says how good it is", else: "two stars: the mount can be steered now; a third tells you how well"}</span>

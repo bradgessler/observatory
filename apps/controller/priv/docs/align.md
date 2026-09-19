@@ -1,4 +1,4 @@
-# Line up
+# Star Align
 
 You don't need to see Polaris. Set the mount down roughly — the latitude knob
 near your latitude, the polar axis pointed vaguely north — and let a few stars
@@ -51,4 +51,4 @@ Harmless for looking; it limits long exposures.
 * Nothing here corrects a tube that isn't square to the Dec axis (cone error)
   or axes that aren't perpendicular. Those come with more stars later.
 * The zero still matters for the limits. If you move the mount by hand with
-  the power off, zero the axes again and start the line-up over.
+  the power off, zero the axes again and start the alignment over.

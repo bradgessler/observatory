@@ -1,6 +1,6 @@
 defmodule Controller.Sky.Lineup do
   @moduledoc """
-  The line-up: set the mount down anyhow, centre a few stars you can name,
+  The star alignment: set the mount down anyhow, centre a few stars you can name,
   and the software works out how the mount is really sitting. Holds the
   samples (encoders + what the tube was on, when) and the fitted model, per
   mount, in Settings; says which star to do next and how good things are.
@@ -103,7 +103,7 @@ defmodule Controller.Sky.Lineup do
       Enum.map(samples, fn s -> %{theta_ra: s["theta_ra"], theta_dec: s["theta_dec"], alt: s["alt"], az: s["az"]} end)
 
     all = Settings.get(@key, %{})
-    # once a sign was corrected during this line-up, keep saying so
+    # once a sign was corrected during this star alignment, keep saying so
     corrected_before = get_in(all, [id, "signs_corrected"]) == true
 
     entry =

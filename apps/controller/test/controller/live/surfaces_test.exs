@@ -11,7 +11,7 @@ defmodule Controller.SurfacesTest do
   end
 
   test "every bench surface renders nested", %{conn: conn, id: id} do
-    for surface <- ~w(strips lineup dpad nudge orb tilt position gamepad watch sky) do
+    for surface <- ~w(strips align dpad nudge orb tilt position gamepad watch sky) do
       {:ok, _view, html} = live(conn, "/bench/#{surface}?mount=#{id}")
       assert html =~ "bench-stage", surface
     end
@@ -99,7 +99,7 @@ defmodule Controller.SurfacesTest do
 
   test "line up: asks for home, then names a star; that's it records a sample", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
-    {:ok, view, html} = live(conn, "/controls/lineup/#{id}")
+    {:ok, view, html} = live(conn, "/controls/align/#{id}")
     assert html =~ "First: Zero the Axes"
     render_click(view, "home", %{})
     html = render(view)
@@ -114,7 +114,7 @@ defmodule Controller.SurfacesTest do
 
   test "line up: the forget button really forgets (clicked through the DOM, not the handler)", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
-    {:ok, view, _} = live(conn, "/controls/lineup/#{id}")
+    {:ok, view, _} = live(conn, "/controls/align/#{id}")
     render_click(view, "home", %{})
     [c | _] = Controller.Sky.Lineup.candidates(id, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
     render_click(view, "centred", %{"id" => c.id})
@@ -126,7 +126,7 @@ defmodule Controller.SurfacesTest do
 
   test "line up: hold what I'm on starts the tracker, stop holding ends it", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
-    {:ok, view, _} = live(conn, "/controls/lineup/#{id}")
+    {:ok, view, _} = live(conn, "/controls/align/#{id}")
     render_click(view, "home", %{})
     html = render_click(view, "hold", %{})
     assert html =~ "holding"

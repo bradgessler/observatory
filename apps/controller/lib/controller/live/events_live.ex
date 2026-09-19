@@ -68,7 +68,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :mount, name: :limit_stop, data: d}), do: "#{d.id} · #{d.axis} stopped at the soft limit (#{d.degrees}°)"
   defp words(%{module: :tracker, name: :start, data: d}), do: "holding #{d.target}"
   defp words(%{module: :tracker, name: :end, data: d}), do: "stopped holding #{d.target} (#{d.why})"
-  defp words(%{module: :lineup, name: :star, data: d}), do: "line-up star: #{d.name} at RA #{fmt(d.theta_ra)}° Dec #{fmt(d.theta_dec)}°"
+  defp words(%{module: :lineup, name: :star, data: d}), do: "alignment star: #{d.name} at RA #{fmt(d.theta_ra)}° Dec #{fmt(d.theta_dec)}°"
   defp words(%{module: :optical, name: :axes_found, data: d}), do: "#{d.id} · axes scanned · RA #{d.ra} · Dec #{d.dec}"
   defp words(%{module: :optical, name: :sweep_done, data: d}), do: "#{d.id} · axes swept · RA #{d.ra} · Dec #{d.dec} · #{d.between}° between"
   defp words(%{module: :video, name: :start, data: d}), do: "video #{d.quality} · #{d.encoder} · #{d.fps} fps"

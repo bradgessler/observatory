@@ -1,7 +1,7 @@
 defmodule Controller.HomeLive do
   @moduledoc """
   The front door: a short, grouped list of everything you can open, each a
-  button with a name and one line saying what it is. Controls, the line-up
+  button with a name and one line saying what it is. Controls, the star alignment
   and sky ("Star Lock"), the camera, and the plumbing. The bench (where the
   experiments live side by side) is one of the entries, not the front door.
 
@@ -19,7 +19,7 @@ defmodule Controller.HomeLive do
     {"Star Lock",
      "getting a mount that was set down anyhow onto the sky, and keeping it there",
      [
-       {"Line Up", ~p"/bench/lineup", "name a few stars; the software works out how the mount really sits", ~p"/docs/lineup"},
+       {"Star Align", ~p"/bench/align", "name a few stars; the software works out how the mount really sits", ~p"/docs/align"},
        {"Sky", ~p"/bench/sky", "the sky right now, tonight's targets, your tree line; tap and slew", ~p"/docs/sky"},
        {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"},
        {"Optical Axes", ~p"/controls/watch/axes", "experiment: turn each axis a little with the camera watching, find where it pivots in the picture", ~p"/docs/axes"}

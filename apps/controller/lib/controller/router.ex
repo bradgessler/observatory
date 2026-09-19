@@ -39,8 +39,8 @@ defmodule Controller.Router do
     live "/controls/nudge/:id", NudgeLive, :show
     live "/controls/position", PositionLive, :index
     live "/controls/position/:id", PositionLive, :show
-    live "/controls/lineup", LineupLive, :index
-    live "/controls/lineup/:id", LineupLive, :show
+    live "/controls/align", LineupLive, :index
+    live "/controls/align/:id", LineupLive, :show
     live "/controls/tilt", TiltLive, :index
     live "/controls/tilt/:id", TiltLive, :show
     get "/watch/frames/:name", WatchController, :frame

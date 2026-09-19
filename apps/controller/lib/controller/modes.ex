@@ -48,7 +48,7 @@ defmodule Controller.Modes do
     end
   end
 
-  # A line-up replaces the first-order model entirely: every goto and readout
+  # A star alignment replaces the first-order model entirely: every goto and readout
   # goes through the fitted geometry.
   defp lineup_mode do
     case Settings.get("lineup", %{}) do
@@ -57,7 +57,7 @@ defmodule Controller.Modes do
         st = Controller.Sky.Lineup.status(id)
 
         if st.solved?,
-          do: {"lined up · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
+          do: {"star-aligned · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
           else: nil
 
       _ ->

@@ -34,3 +34,10 @@ config :libcluster,
 config :logger, :default_formatter, format: "$time $metadata[$level] $message\n"
 
 import_config "#{config_env()}.exs"
+
+# Where the scope is; used by the sky map for alt/az and sidereal time.
+config :controller,
+  site: %{name: "Orinda", lat: 37.877, lon: -122.180},
+  # First-order pointing model for the sky map (axis degrees from home → sky).
+  # Signs are a guess until verified on a star; plate solving replaces this.
+  pointing: %{ha_sign: 1, dec_sign: -1}

@@ -161,7 +161,10 @@ defmodule Controller.MountLive do
           </select>
         </form>
         <h1 :if={map_size(@refs) <= 1}>{@selected || "no mount"}</h1>
-        <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+        <span>
+          <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">✦ sky</.link>
+          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+        </span>
       </header>
 
       <%= if @snap && @snap.connected do %>

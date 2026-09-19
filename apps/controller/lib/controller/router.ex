@@ -14,6 +14,8 @@ defmodule Controller.Router do
     pipe_through :browser
 
     live "/", MountLive, :index
+    live "/sky", SkyLive, :index
+    live "/sky/:id", SkyLive, :show
     live "/:id", MountLive, :show
   end
 end

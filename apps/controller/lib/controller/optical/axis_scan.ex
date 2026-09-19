@@ -10,7 +10,7 @@ defmodule Controller.Optical.AxisScan do
 
   Runs on demand only, one at a time, as a supervised task; progress and the
   result are broadcast on `"optical"` and kept in Settings under
-  `optical_axes` per mount. Moves are ±#{1.5}° — nothing a cable minds.
+  `optical_axes` per mount. Moves are ±3° — nothing a cable minds.
   """
   use GenServer
   require Logger
@@ -18,7 +18,10 @@ defmodule Controller.Optical.AxisScan do
   alias Controller.Optical.{Flow, Frame, Pivot}
   alias Controller.Settings
 
-  @delta_deg 1.5
+  # 3° moves the tube end ~15 px at 1920 wide: enough to measure, nothing a cable minds
+  @delta_deg 3.0
+  # grey frames at a third of the size: 640×360 from a 1080p still
+  @factor 3
   @settle_ms 1_500
   @topic "optical"
 
@@ -125,7 +128,7 @@ defmodule Controller.Optical.AxisScan do
             case Watch.latest() do
               %{jpeg: jpeg} ->
                 name = Watch.history(limit: 1) |> List.first() |> then(&(&1 && &1.name))
-                with {:ok, frame} <- Frame.from_binary(jpeg), do: {:ok, frame, name, at}
+                with {:ok, frame} <- Frame.from_binary(jpeg, @factor), do: {:ok, frame, name, at}
 
               _ ->
                 {:error, "no frame"}
@@ -148,7 +151,7 @@ defmodule Controller.Optical.AxisScan do
          :ok <- Mount.goto_relative(ref, axis, -delta),
          :ok <- settle(ref, axis) do
       send(parent, {:step, {:analyse, axis}})
-      vectors = Flow.between(before, after_frame)
+      vectors = Flow.between(before, after_frame, search: 8)
       fit = Pivot.fit(vectors)
       {:ok, %{vectors: vectors, fit: fit, frame_after: after_name, words: Pivot.words(fit)}}
     else

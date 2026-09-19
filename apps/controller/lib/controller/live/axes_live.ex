@@ -52,7 +52,7 @@ defmodule Controller.AxesLive do
   @impl true
   def handle_event("run", _, socket) do
     case AxisScan.run(socket.assigns.selected) do
-      :ok -> {:noreply, assign(socket, notice: "scanning — the mount will move ±1.5° on each axis")}
+      :ok -> {:noreply, assign(socket, notice: "scanning — the mount will move ±3° on each axis")}
       {:error, :busy} -> {:noreply, assign(socket, notice: "a scan is already running")}
       {:error, why} -> {:noreply, assign(socket, notice: inspect(why))}
     end
@@ -77,7 +77,7 @@ defmodule Controller.AxesLive do
 
       <.card title="Find the axes in the picture">
         <:aside><.badge on={@scan.running} warn={@scan.step == :failed}>{step_words(@scan)}</.badge></:aside>
-        <.hint>Turns each axis 1.5° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
+        <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <.row>
           <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Find the axes</.btn>
           <.btn :if={@result} class="btn-ghost" phx-click="clear">Forget this result</.btn>
@@ -90,13 +90,17 @@ defmodule Controller.AxesLive do
         <div class="axes-pic">
           <img :if={@result["frame"]} src={~p"/watch/frames/#{@result["frame"]}"} alt="the frame before any move" />
           <svg viewBox={"0 0 #{@result["w"]} #{@result["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
+            <defs>
+              <marker id="ah-ra" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#4f8cff" /></marker>
+              <marker id="ah-dec" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2ec27e" /></marker>
+            </defs>
             <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
               <% ax = @result[axis] %>
-              <line :for={v <- ax["vectors"]} x1={v["x"]} y1={v["y"]} x2={v["x"] + v["dx"] * 3} y2={v["y"] + v["dy"] * 3} stroke={colour} stroke-width="0.6" stroke-linecap="round" opacity="0.9" />
+              <line :for={v <- ax["vectors"]} x1={v["x"]} y1={v["y"]} x2={v["x"] + v["dx"] * 4} y2={v["y"] + v["dy"] * 4} stroke={colour} stroke-width="1.6" stroke-linecap="round" opacity="0.95" marker-end={"url(#ah-#{axis})"} />
               <g :if={ax["fit"] && ax["fit"]["cx"]}>
-                <circle cx={ax["fit"]["cx"]} cy={ax["fit"]["cy"]} r="4" fill="none" stroke={colour} stroke-width="1.2" />
-                <line x1={ax["fit"]["cx"] - 7} y1={ax["fit"]["cy"]} x2={ax["fit"]["cx"] + 7} y2={ax["fit"]["cy"]} stroke={colour} stroke-width="1" />
-                <line x1={ax["fit"]["cx"]} y1={ax["fit"]["cy"] - 7} x2={ax["fit"]["cx"]} y2={ax["fit"]["cy"] + 7} stroke={colour} stroke-width="1" />
+                <circle cx={ax["fit"]["cx"]} cy={ax["fit"]["cy"]} r="9" fill="none" stroke={colour} stroke-width="2" />
+                <line x1={ax["fit"]["cx"] - 16} y1={ax["fit"]["cy"]} x2={ax["fit"]["cx"] + 16} y2={ax["fit"]["cy"]} stroke={colour} stroke-width="1.6" />
+                <line x1={ax["fit"]["cx"]} y1={ax["fit"]["cy"] - 16} x2={ax["fit"]["cx"]} y2={ax["fit"]["cy"] + 16} stroke={colour} stroke-width="1.6" />
               </g>
             <% end %>
           </svg>
@@ -112,7 +116,7 @@ defmodule Controller.AxesLive do
           </span>
           <span :if={!ax["fit"]} class="dim">nothing moved enough to measure</span>
         </div>
-        <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 3×. A cross is the best-fit pivot when the motion looks like a spin. The numbers are in the original frame's pixels.</.hint>
+        <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A cross is the best-fit pivot when the motion looks like a spin. The numbers are in the original frame's pixels.</.hint>
       </.card>
 
       <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>

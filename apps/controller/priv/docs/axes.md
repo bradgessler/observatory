@@ -12,7 +12,7 @@ be written from data. This page is the first, deliberately simple step.
 ## What it does
 
 1. Takes a still.
-2. Turns the RA axis 1.5°, takes another still, turns back.
+2. Turns the RA axis 3°, takes another still, turns back.
 3. Does the same for Dec.
 4. For each axis, cuts the two stills into small blocks and finds where each
    block went (block matching, plain arithmetic, no learned model). Blocks
@@ -25,7 +25,7 @@ be written from data. This page is the first, deliberately simple step.
 ## Reading the result
 
 * **Arrows**: where the picture moved when that axis turned (blue RA, green
-  Dec), drawn 3× long.
+  Dec), drawn 4× long.
 * **Cross**: the best-fit pivot, shown only when the motion looks like a spin.
 * **spin / slide**: how much the arrows fan out around a point (spin, 1 = all
   of them) versus all point the same way (slide, 1 = parallel). An axis that

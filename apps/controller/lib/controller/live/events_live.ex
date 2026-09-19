@@ -69,6 +69,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :tracker, name: :start, data: d}), do: "holding #{d.target}"
   defp words(%{module: :tracker, name: :end, data: d}), do: "stopped holding #{d.target} (#{d.why})"
   defp words(%{module: :lineup, name: :star, data: d}), do: "line-up star: #{d.name} at RA #{fmt(d.theta_ra)}° Dec #{fmt(d.theta_dec)}°"
+  defp words(%{module: :optical, name: :axes_found, data: d}), do: "#{d.id} · axes scanned · RA #{d.ra} · Dec #{d.dec}"
   defp words(%{module: :video, name: :start, data: d}), do: "video #{d.quality} · #{d.encoder} · #{d.fps} fps"
   defp words(%{module: :video, name: :stop, data: d}), do: "video stopped (#{d.quality})"
   defp words(e), do: "#{e.module} · #{e.name} · #{inspect(e.data)}"

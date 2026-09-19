@@ -55,12 +55,14 @@ defmodule Controller.Sky.Solve do
       downsample_factor: 2
     }
 
+    content_type = if String.ends_with?(String.downcase(path), ".png"), do: "image/png", else: "image/jpeg"
+
     multipart =
-      Req.new(url: "#{@base}/upload")
+      Req.new(url: "#{@base}/upload", receive_timeout: 120_000)
       |> Req.merge(
         form_multipart: [
           {"request-json", Jason.encode!(params)},
-          file: File.stream!(path, 65_536) |> Enum.to_list() |> IO.iodata_to_binary()
+          {"file", {File.read!(path), filename: Path.basename(path), content_type: content_type}}
         ]
       )
 

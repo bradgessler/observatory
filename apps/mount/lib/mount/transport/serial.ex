@@ -67,6 +67,9 @@ defmodule Mount.Transport.Serial do
   def detect do
     Circuits.UART.enumerate()
     |> Enum.filter(fn {_name, info} -> info[:vendor_id] == 0x0403 end)
+    # macOS lists the same adapter as cu.* and tty.*; one device, one driver.
+    |> Enum.reject(fn {name, _} -> String.starts_with?(name, "tty.") end)
+    |> Enum.uniq_by(fn {name, info} -> info[:serial_number] || name end)
     |> Enum.map(fn {name, _} -> device_path(name) end)
     |> Enum.sort()
   end

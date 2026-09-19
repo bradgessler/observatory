@@ -164,3 +164,8 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .dpad, .rates, .row, .tabs, .targets { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 @media (hover: hover) { button:hover { border-color: var(--dim); } }
 .photo input[type=file]::file-selector-button { background: var(--btn); color: var(--text); border: 1px solid var(--edge); border-radius: 10px; padding: 10px 14px; margin-right: 10px; font: inherit; }
+/* iOS: no long-press callouts on controls; everything is press-and-hold territory */
+button, .map, .dpad { -webkit-touch-callout: none; }
+.hdr-actions { display: flex; align-items: center; gap: 6px; }
+.stop-mini { border: 2px solid var(--warn); color: var(--warn); font-weight: 800; letter-spacing: .08em; padding: 8px 14px; border-radius: 999px; font-size: 13px; }
+.stop-mini:active { background: var(--warn); color: var(--bg); }

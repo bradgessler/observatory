@@ -64,6 +64,9 @@ defmodule Mount do
   @doc "Send a raw protocol frame, e.g. `Mount.raw(m, \":e1\\r\")`. For poking."
   def raw(ref, frame), do: call(ref, {:raw, frame})
 
+  @doc "Runtime knobs: `tracking_direction: :forward | :reverse`, `limits: map | nil`."
+  def configure(ref, opts), do: call(ref, {:configure, opts})
+
   def subscribe(%{id: id}), do: Telescope.subscribe("mount:#{id}")
   def subscribe(id), do: Telescope.subscribe("mount:#{id}")
 

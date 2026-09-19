@@ -25,7 +25,10 @@ config :mount,
   simulate_when_empty: false,
   # Soft limits, degrees from home (counterweight down, scope at the pole).
   # Armed by Mount.set_home/1; a slew that reaches one is stopped there.
-  limits: %{ra: {-100.0, 100.0}, dec: {-95.0, 95.0}}
+  # RA: past ±100° the counterweight is above the mount and the tube is heading
+  # for the tripod. Dec: a full swing either way is legitimate on a GEM (that's
+  # how the "other side of the pier" works), so only guard against wrap-around.
+  limits: %{ra: {-100.0, 100.0}, dec: {-175.0, 175.0}}
 
 # Nodes on the same LAN find each other by multicast; nothing to configure.
 config :libcluster,

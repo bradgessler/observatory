@@ -166,12 +166,33 @@ defmodule Mount.Server do
       |> send!("E", :both, P.from_int(P.center()))
       |> Map.merge(%{tracking: :off, homed: true})
 
+    # Survives a driver restart (USB hiccup) within this VM; see connect/1.
+    :persistent_term.put({__MODULE__, state.id, :homed}, true)
     {:reply, :ok, broadcast(refresh(state))}
   end
 
   def handle_call({:raw, frame}, _from, state) do
     {reply, state} = exchange(state, frame)
     {:reply, reply, state}
+  end
+
+  # Runtime knobs (tracking direction, limits) so a wrong guess can be fixed
+  # from the UI in the field instead of restarting with new config.
+  def handle_call({:configure, opts}, _from, state) do
+    state =
+      Enum.reduce(opts, state, fn
+        {:tracking_direction, d}, s when d in [:forward, :reverse] -> %{s | tracking_direction: d}
+        {:limits, l}, s when is_map(l) or is_nil(l) -> %{s | limits: l}
+        _, s -> s
+      end)
+
+    # tracking is running the old way? re-issue it
+    state =
+      if state.tracking != :off and Keyword.has_key?(opts, :tracking_direction),
+        do: start_slew(state, :ra, signed(@tracking_rates[state.tracking], state.tracking_direction)),
+        else: state
+
+    {:reply, :ok, broadcast(state)}
   end
 
   # -- motion ------------------------------------------------------------------------
@@ -268,7 +289,16 @@ defmodule Mount.Server do
          {:ok, dec, state} <- read_axis_constants(state, :dec),
          {:ok, _, state} <- query(state, "F", :both) do
       state = %{state | connected: true, error: nil, firmware: fw, axes: %{ra: ra, dec: dec}}
-      {:ok, refresh(state)}
+      state = refresh(state)
+
+      # If we were homed before a driver restart and the mount still counts from
+      # somewhere other than its power-on value, it wasn't power-cycled: keep home.
+      fresh_boot? = state.axes.ra.steps == P.center() and state.axes.dec.steps == P.center()
+      was_homed? = :persistent_term.get({__MODULE__, state.id, :homed}, false)
+      state = if was_homed? and not fresh_boot?, do: %{state | homed: true}, else: state
+      if fresh_boot?, do: :persistent_term.erase({__MODULE__, state.id, :homed})
+
+      {:ok, state}
     else
       {:error, reason, state} ->
         safe_close(state)

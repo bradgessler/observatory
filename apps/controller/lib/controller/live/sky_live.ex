@@ -32,8 +32,10 @@ defmodule Controller.SkyLive do
     {:ok,
      socket
      |> assign(
-       site: Application.get_env(:controller, :site, %{lat: 0.0, lon: 0.0, name: "nowhere"}),
-       pointing: Application.get_env(:controller, :pointing, %{ha_sign: 1, dec_sign: -1}),
+       site: site_setting(),
+       pointing: pointing_setting(),
+       # After a slew from this page, start sidereal tracking so the target stays put.
+       auto_track: Settings.get("auto_track", true),
        horizon: Settings.horizon(),
        # One-star sync: degrees added to the model's axis targets. Persisted.
        offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
@@ -54,7 +56,9 @@ defmodule Controller.SkyLive do
        notice: nil,
        tab: "map"
      )
-     |> allow_upload(:photo, accept: ~w(.jpg .jpeg .png .heic .heif), max_entries: 1, max_file_size: 30_000_000, auto_upload: true)
+     # JPEG/PNG only: iOS converts HEIC to JPEG when HEIC isn't in the accept list,
+     # and the solver can't read HEIC anyway.
+     |> allow_upload(:photo, accept: ~w(.jpg .jpeg .png), max_entries: 1, max_file_size: 30_000_000, auto_upload: true)
      |> rescan()
      |> compute()}
   end
@@ -120,7 +124,14 @@ defmodule Controller.SkyLive do
 
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
-    for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
+    for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id) do
+      Mount.subscribe(ref)
+      # a tracking-direction flip made in the field applies to mounts that appear later, too
+      case Settings.get("tracking_direction") do
+        d when d in ["forward", "reverse"] -> safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(d)) end)
+        _ -> :ok
+      end
+    end
     socket = assign(socket, refs: refs)
     selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: first_id(socket)
     snap = if ref = refs[selected], do: safe_snapshot(ref)
@@ -128,6 +139,46 @@ defmodule Controller.SkyLive do
   end
 
   defp first_id(socket), do: socket.assigns.refs |> Map.keys() |> Enum.sort() |> List.first()
+
+  # Config gives the defaults; anything changed from the Horizon tab overrides them.
+  defp site_setting do
+    base = Application.get_env(:controller, :site, %{lat: 0.0, lon: 0.0, name: "nowhere"})
+
+    case Settings.get("site") do
+      %{"lat" => lat, "lon" => lon} when is_number(lat) and is_number(lon) -> %{base | lat: lat / 1, lon: lon / 1}
+      _ -> base
+    end
+  end
+
+  defp pointing_setting do
+    base = Application.get_env(:controller, :pointing, %{ha_sign: 1, dec_sign: -1})
+
+    case Settings.get("pointing") do
+      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] -> %{ha_sign: h, dec_sign: d}
+      _ -> base
+    end
+  end
+
+  defp flip_pointing(socket, key) do
+    p = Map.update!(socket.assigns.pointing, key, &(-&1))
+    Settings.put("pointing", %{"ha_sign" => p.ha_sign, "dec_sign" => p.dec_sign})
+    # the sync offset was measured under the old signs; it's meaningless now
+    Settings.put("pointing_offset", %{"ra" => 0.0, "dec" => 0.0})
+    assign(socket, pointing: p, offset: %{"ra" => 0.0, "dec" => 0.0}, notice: "#{key} flipped; sync offset cleared — re-Sync on a star")
+  end
+
+  defp safe(fun) do
+    try do
+      fun.()
+    catch
+      :exit, _ -> :error
+    end
+  end
+
+  defp upload_in_progress?(socket) do
+    {_done, in_progress} = uploaded_entries(socket, :photo)
+    in_progress != []
+  end
 
   defp safe_snapshot(ref) do
     try do
@@ -170,6 +221,9 @@ defmodule Controller.SkyLive do
       socket.assigns.solving ->
         {:noreply, socket}
 
+      upload_in_progress?(socket) ->
+        {:noreply, assign(socket, solve_note: "still uploading the photo… try again in a moment")}
+
       true ->
         paths =
           consume_uploaded_entries(socket, :photo, fn %{path: path}, entry ->
@@ -205,6 +259,33 @@ defmodule Controller.SkyLive do
   end
 
   def handle_event("solve", _params, socket), do: {:noreply, assign(socket, solve_note: "pick a photo first")}
+
+  # Field calibration without a rebuild: flip an axis sign if the map slews to the
+  # mirror image; flip tracking if a star drifts out faster with tracking on.
+  def handle_event("flip", %{"what" => "ra"}, socket), do: {:noreply, flip_pointing(socket, :ha_sign)}
+  def handle_event("flip", %{"what" => "dec"}, socket), do: {:noreply, flip_pointing(socket, :dec_sign)}
+
+  def handle_event("flip", %{"what" => "tracking"}, socket) do
+    dir = if Settings.get("tracking_direction", "forward") == "forward", do: "reverse", else: "forward"
+    Settings.put("tracking_direction", dir)
+    for {_id, ref} <- socket.assigns.refs, do: safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(dir)) end)
+    {:noreply, assign(socket, notice: "tracking direction now #{dir}")}
+  end
+
+  def handle_event("auto_track", _, socket) do
+    v = !socket.assigns.auto_track
+    Settings.put("auto_track", v)
+    {:noreply, assign(socket, auto_track: v)}
+  end
+
+  def handle_event("site", %{"lat" => lat, "lon" => lon}, socket) do
+    with {la, _} <- Float.parse(lat), {lo, _} <- Float.parse(lon), true <- abs(la) <= 90 and abs(lo) <= 180 do
+      Settings.put("site", %{"lat" => la, "lon" => lo})
+      {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo}) |> compute()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
 
   def handle_event("equipment", %{"aperture" => a}, socket) do
     aperture =
@@ -246,6 +327,15 @@ defmodule Controller.SkyLive do
         ref = socket.assigns.refs[socket.assigns.selected]
         d_ra = ra_axis - snap.axes.ra.degrees
         d_dec = dec_axis - snap.axes.dec.degrees
+
+        # Arm tracking first: the driver pauses it for the RA goto and re-arms it on landing.
+        if socket.assigns.auto_track and snap.tracking == :off do
+          try do
+            Mount.track(ref, :sidereal)
+          catch
+            :exit, _ -> :ok
+          end
+        end
 
         result =
           try do
@@ -316,10 +406,24 @@ defmodule Controller.SkyLive do
   # -- pointing model ------------------------------------------------------------------------------
 
   # Model without the sync offset: where the axes "should" be for an object.
-  defp raw_axes_for(obj, %{now: now, site: site, pointing: p}) do
+  #
+  # A German equatorial reaches every point two ways: the normal side
+  # (RA axis = hour angle, Dec axis = pole-to-target) or "through the pole"
+  # (RA axis ±180°, Dec axis negated). Pick the one that keeps the RA axis
+  # within ±90° of home so the counterweight stays below the mount; that is
+  # also what keeps the tube off the tripod.
+  def raw_axes_for(obj, %{now: now, site: site, pointing: p}) do
     lst = Astro.lst_deg(now, site.lon)
     ha = Astro.hour_angle(lst, obj.ra_deg)
-    {ha / p.ha_sign, (90 - obj.dec_deg) / p.dec_sign}
+    normal = {ha / p.ha_sign, (90 - obj.dec_deg) / p.dec_sign}
+    flipped = {Astro.norm180(ha + 180) / p.ha_sign, -(90 - obj.dec_deg) / p.dec_sign}
+
+    cond do
+      abs(elem(normal, 0)) <= 90 -> normal
+      abs(elem(flipped, 0)) <= 90 -> flipped
+      abs(elem(normal, 0)) <= abs(elem(flipped, 0)) -> normal
+      true -> flipped
+    end
   end
 
   defp axes_for(obj, %{offset: off} = a) do
@@ -327,11 +431,17 @@ defmodule Controller.SkyLive do
     {ra + off["ra"], dec + off["dec"]}
   end
 
+  # Inverse of the above, including which side of the pier the Dec axis says we're on.
   defp scope_radec(%{homed: true, axes: %{ra: ra, dec: dec}}, %{now: now, site: site, pointing: p, offset: off}) do
     lst = Astro.lst_deg(now, site.lon)
     ra_axis = ra.degrees - off["ra"]
     dec_axis = dec.degrees - off["dec"]
-    {Astro.norm360(lst - ra_axis * p.ha_sign), 90 - dec_axis * p.dec_sign}
+    d = dec_axis * p.dec_sign
+    ha = ra_axis * p.ha_sign
+
+    if d >= 0,
+      do: {Astro.norm360(lst - ha), 90 - d},
+      else: {Astro.norm360(lst - ha - 180), 90 + d}
   end
 
   defp scope_radec(_, _), do: nil
@@ -521,7 +631,10 @@ defmodule Controller.SkyLive do
       <header>
         <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ keypad</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
-        <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+        <span class="hdr-actions">
+          <button class="stop-mini" phx-click="stop" aria-label="stop the mount">STOP</button>
+          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+        </span>
       </header>
 
       <nav class="tabs">
@@ -591,10 +704,26 @@ defmodule Controller.SkyLive do
         </form>
         <p class="horizon-hint">Moon: {if @moon.up, do: "up, #{fmt0(@moon.illumination * 100)}% lit", else: "down"}. Bright Moon knocks galaxies and nebulae down the list.</p>
 
+        <div class="photo">
+          <p class="horizon-hint"><strong>Field calibration.</strong> If a slew lands on the mirror image of the target, flip that axis. If a star drifts out <em>faster</em> with tracking on, flip tracking. Re-Sync after flipping.</p>
+          <div class="row">
+            <button phx-click="flip" phx-value-what="ra">Flip RA ({@pointing.ha_sign})</button>
+            <button phx-click="flip" phx-value-what="dec">Flip Dec ({@pointing.dec_sign})</button>
+            <button phx-click="flip" phx-value-what="tracking">Flip tracking</button>
+          </div>
+          <div class="row">
+            <button class={@auto_track && "on"} phx-click="auto_track">{if @auto_track, do: "Auto-track after slew: on", else: "Auto-track after slew: off"}</button>
+          </div>
+          <form phx-change="site" class="horizon">
+            <label>lat<input name="lat" inputmode="decimal" value={@site.lat} /></label>
+            <label>lon<input name="lon" inputmode="decimal" value={@site.lon} /></label>
+          </form>
+        </div>
+
         <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
           <p class="horizon-hint"><strong>Map obstructions from a photo.</strong> Stand at the scope, take a Night-mode shot of the sky with the tree line in frame, and pick it here. The tree line is traced on your phone; the photo is plate-solved to learn which way it faced, and that direction's horizon is updated.</p>
           <form phx-change="validate" phx-submit="solve">
-            <.live_file_input upload={@uploads.photo} capture="environment" />
+            <.live_file_input upload={@uploads.photo} />
             <button :if={@photo_cols && !@solving} class="go">Solve &amp; apply</button>
             <span :if={@solving} class="dim">solving… (30–90 s)</span>
           </form>

@@ -11,14 +11,14 @@ defmodule Controller.BenchLive do
   alias Controller.Settings
 
   @surfaces [
-    {"strips", "Axis strips", Controller.MountLive, "one pull-to-speed strip per mount axis; the field keypad"},
-    {"lineup", "Line up", Controller.LineupLive, "name a few stars; the software works out how the mount sits"},
-    {"dpad", "Plain keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
+    {"strips", "Axis Strips", Controller.MountLive, "one pull-to-speed strip per mount axis; the field keypad"},
+    {"lineup", "Line Up", Controller.LineupLive, "name a few stars; the software works out how the mount sits"},
+    {"dpad", "Plain Keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
     {"nudge", "Nudge", Controller.NudgeLive, "tap to move an exact step: 1′, 5′, 30′, 2°; for centering"},
     {"orb", "Orb", Controller.OrbLive, "the equatorial geometry as a 3-D gizmo, with analog strips"},
     {"tilt", "Tilt", Controller.TiltLive, "eyepiece mode: hold the button, tilt the phone"},
     {"position", "Position", Controller.PositionLive, "set an axis angle, go home; the put-it-back tool"},
-    {"gamepad", "Game controller", Controller.InputLive, "a USB pad read by the server"},
+    {"gamepad", "Game Controller", Controller.InputLive, "a USB pad read by the server"},
     {"watch", "Watch", Controller.WatchLive, "a camera on the mount, read by the server"},
     {"sky", "Sky", Controller.SkyLive, "map, tonight's targets, horizon"}
   ]
@@ -107,7 +107,7 @@ defmodule Controller.BenchLive do
     ~H"""
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
-        <span class="bench-brand">bench</span>
+        <span class="bench-brand">Bench</span>
         <span class="hdr-actions">
           <%!-- one STOP, always visible, whatever surface is up --%>
           <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>

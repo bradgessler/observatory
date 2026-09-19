@@ -80,8 +80,8 @@ defmodule Controller.CameraLive do
     ~H"""
     <.page id="camera" night={@night}>
       <:header>
-        <.back navigate={~p"/controls/watch"} label="watch" />
-        <.title>camera</.title>
+        <.back navigate={~p"/controls/watch"} label="Watch" />
+        <.title>Camera</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
@@ -95,7 +95,7 @@ defmodule Controller.CameraLive do
         <.hint :if={@video.state != :off}>Stop the video to change camera.</.hint>
       </.card>
 
-      <.card title="Timed stills">
+      <.card title="Timed Stills">
         <div class="seg" role="radiogroup" aria-label="timed stills">
           <button class={["seg-opt", !@status.enabled && "on"]} phx-click="timed" phx-value-on="false" role="radio" aria-checked={to_string(!@status.enabled)}>Off</button>
           <button class={["seg-opt", @status.enabled && "on"]} phx-click="timed" phx-value-on="true" role="radio" aria-checked={to_string(@status.enabled)}>Every {div(@status.interval, 1000)} s</button>

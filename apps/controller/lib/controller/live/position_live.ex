@@ -112,12 +112,12 @@ defmodule Controller.PositionLive do
     ~H"""
     <.page id="position" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/position?#{[mount: @selected]}"} label="bench" />
-        <.title>{@selected} · position</.title>
+        <.back navigate={~p"/bench/position?#{[mount: @selected]}"} label="Bench" />
+        <.title>{@selected} · Position</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
 
-      <.card title="Axes, degrees from home">
+      <.card title="Axes, Degrees From Home">
         <form phx-change="targets" class="pos-grid">
           <span class="pos-k">RA</span>
           <span class="pos-now">{if @snap, do: fmt(@snap.axes.ra.degrees), else: "—"}</span>

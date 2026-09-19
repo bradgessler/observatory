@@ -97,8 +97,8 @@ defmodule Controller.DevicesLive do
     ~H"""
     <.page id="devices" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="bench" />
-        <.title>devices</.title>
+        <.back navigate={~p"/"} label="Bench" />
+        <.title>Devices</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
@@ -126,7 +126,7 @@ defmodule Controller.DevicesLive do
       <.hint :if={@mounts == []}>No drivers running.</.hint>
 
       <% likely = Enum.filter(@ports, &(&1.looks_like_mount or &1.mount_id)) %>
-      <.card title="Telescope cable">
+      <.card title="Telescope Cable">
         <div :for={p <- likely} class="port">
           <div class="line">
             <strong>{Path.basename(p.path)}</strong>
@@ -144,7 +144,7 @@ defmodule Controller.DevicesLive do
         </.row>
       </.card>
 
-      <.card title="Reach this machine">
+      <.card title="Reach This Machine">
         <.kv label="Wi-Fi"><span :for={h <- @host} class="mono">http://{h}:4000 </span></.kv>
         <.kv :if={@tunnel} label="anywhere"><a class="mono" href={@tunnel}>{@tunnel}</a></.kv>
         <.kv :if={node() != :nonode@nohost} label="node" value={to_string(node())} />

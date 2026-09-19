@@ -600,7 +600,7 @@ defmodule Controller.SkyLive do
     <main class={["sky", @night && "night", @nested && "nested"]} id="sky">
       <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
       <header :if={!@nested}>
-        <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ keypad</.link>
+        <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ Keypad</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
           <button class="stop-mini" phx-click="stop" aria-label="stop the mount">STOP</button>

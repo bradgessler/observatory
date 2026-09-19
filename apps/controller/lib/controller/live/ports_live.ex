@@ -44,12 +44,12 @@ defmodule Controller.PortsLive do
     ~H"""
     <.page id="ports" night={@night}>
       <:header>
-        <.back navigate={~p"/devices"} label="devices" />
-        <.title>serial ports</.title>
+        <.back navigate={~p"/devices"} label="Devices" />
+        <.title>Serial Ports</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
-      <.card title="On this machine">
+      <.card title="On This Machine">
         <div :for={p <- @ports} class="port">
           <div class="line">
             <strong>{Path.basename(p.path)}</strong>

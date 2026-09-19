@@ -172,8 +172,8 @@ defmodule Controller.LineupLive do
     ~H"""
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/lineup?#{[mount: @selected]}"} label="bench" />
-        <.title>{@selected} · line up</.title>
+        <.back navigate={~p"/bench/lineup?#{[mount: @selected]}"} label="Bench" />
+        <.title>{@selected} · Line Up</.title>
         <.actions><.help href={~p"/docs/lineup"} /></.actions>
       </:header>
 
@@ -197,7 +197,7 @@ defmodule Controller.LineupLive do
       </.hint>
 
       <%!-- step 0: home, for the limits --%>
-      <.card :if={@snap && !@snap.homed} title="First: set home">
+      <.card :if={@snap && !@snap.homed} title="First: Set Home">
         <.hint>Counterweight down, tube roughly toward the pole — by eye is fine. This only arms the cable-safety limits; the stars do the aligning.</.hint>
         <.btn variant="primary" phx-click="home" data-confirm="Set the current position as home?">Set home</.btn>
       </.card>
@@ -218,7 +218,7 @@ defmodule Controller.LineupLive do
         <.hint>Centre it in the eyepiece with any control — keypad, nudge, pad, tilt — then tap <b>that's it</b>. {if @samples == [], do: "The first star fixes the offsets.", else: "Pick stars far apart in the sky; that is what pins the axis down."}</.hint>
       </.card>
 
-      <.card :if={@snap && @snap.homed && @next && @picking} title="Which star?">
+      <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">
         <div :for={c <- @candidates} class="star-row">
           <div><strong>{c.name}</strong><span class="dim"> · {c.where}</span></div>
           <.btn phx-click="slew" phx-value-id={c.id}>Slew</.btn>
@@ -227,12 +227,12 @@ defmodule Controller.LineupLive do
         <.row><.btn class="btn-ghost" phx-click="pick">Back</.btn></.row>
       </.card>
 
-      <.card :if={@snap && @snap.homed && !@next} title="Nothing bright enough is up">
+      <.card :if={@snap && @snap.homed && !@next} title="Nothing Bright Enough Is Up">
         <.hint>No named star above 20° right now. Try again in a while, or use Sync on the Sky page with anything you can identify.</.hint>
       </.card>
 
       <%!-- what am I on? --%>
-      <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably pointing at">
+      <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably Pointing At">
         <div :for={g <- @guesses} class="star-row">
           <div><strong>{g.name}</strong><span class="dim"> · {fmt(g.away_deg)}° away · {g.where}</span></div>
           <.btn phx-click="centred" phx-value-id={g.id}>On it</.btn>
@@ -241,7 +241,7 @@ defmodule Controller.LineupLive do
       </.card>
 
       <%!-- the stars so far --%>
-      <.card :if={@samples != []} title="Stars so far">
+      <.card :if={@samples != []} title="Stars So Far">
         <div :for={{s, i} <- Enum.with_index(@samples)} class="star-row">
           <div>
             <strong>{s["name"]}</strong>

@@ -159,8 +159,8 @@ defmodule Controller.SetupLive do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
-        <.back navigate={~p"/#{@id}"} label="keypad" />
-        <.title>{@id} · setup</.title>
+        <.back navigate={~p"/#{@id}"} label="Keypad" />
+        <.title>{@id} · Setup</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
 
@@ -199,7 +199,7 @@ defmodule Controller.SetupLive do
         <.btn variant="ghost" phx-click="reset_pointing">Reset pointing to defaults</.btn>
       </.card>
 
-      <.card title="Mount as it stands">
+      <.card title="Mount As It Stands">
         <.hint>What the orb draws. Tilt is the latitude knob on the mount (30° on the bench); heading is where the tripod's north leg points, degrees east of true north. Defaults: site latitude, 0.</.hint>
         <form phx-change="mount_geom" class="horizon">
           <label>tilt °<input name="tilt" inputmode="decimal" value={@mount_tilt} class="field" /></label>

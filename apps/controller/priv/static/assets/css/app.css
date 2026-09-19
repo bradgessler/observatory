@@ -33,7 +33,7 @@ button.ghost { background: transparent; border: none; font-size: 22px; padding: 
 
 .pad { max-width: 440px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; min-height: 100dvh; }
 header { display: flex; align-items: center; justify-content: space-between; }
-header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 0; }
+header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; color: var(--dim); margin: 0; }
 header select { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; }
 
 .readout { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px; }
@@ -247,9 +247,9 @@ a.banner strong { color: var(--warn); }
 /* ---- setup + devices pages ---- */
 .setup, .devices { max-width: 560px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100dvh; }
 .setup header, .devices header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.setup header h1 { font-size: 13px; font-weight: 600; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin: 0; }
+.setup header h1 { font-size: 13px; font-weight: 600; color: var(--dim); letter-spacing: .04em; margin: 0; }
 .setup .card, .devices .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
-.setup h2, .devices h2 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 8px 0 -4px; }
+.setup h2, .devices h2 { font-size: 12px; color: var(--dim); letter-spacing: .06em; margin: 8px 0 -4px; }
 .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mode { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--edge); }
 .mode > div { display: flex; flex-direction: column; gap: 2px; }
@@ -274,7 +274,7 @@ a.banner strong { color: var(--warn); }
 .page-title { font-size: 13px; font-weight: 600; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page .card { background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-lg); padding: var(--s3); display: grid; gap: var(--s2); }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); }
-.card-title { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 0; }
+.card-title { font-size: 12px; color: var(--dim); letter-spacing: .06em; margin: 0; }
 .card-aside { display: flex; gap: 6px; }
 .kv { display: grid; grid-template-columns: 96px 1fr; gap: var(--s2); align-items: baseline; }
 .kv-k { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }

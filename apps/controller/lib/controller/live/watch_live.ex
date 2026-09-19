@@ -149,8 +149,8 @@ defmodule Controller.WatchLive do
     ~H"""
     <.page id="watch" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/watch"} label="bench" />
-        <.title>watch</.title>
+        <.back navigate={~p"/bench/watch"} label="Bench" />
+        <.title>Watch</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
@@ -187,7 +187,7 @@ defmodule Controller.WatchLive do
       </div>
 
       <p class="watch-links">
-        <.link navigate={~p"/controls/watch/frames"}>Recent frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>
+        <.link navigate={~p"/controls/watch/frames"}>Recent Frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>
         <.link navigate={~p"/controls/watch/camera"}>Camera</.link>
       </p>
 

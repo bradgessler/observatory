@@ -32,7 +32,7 @@ defmodule Controller.SurfacesTest do
     Mount.goto_relative(id, :ra, 3.0)
     Process.sleep(300)
     {:ok, view, html} = live(conn, "/controls/position/#{id}")
-    assert html =~ "degrees from home"
+    assert html =~ "Degrees From Home"
     render_click(view, "home", %{})
     Process.sleep(1_500)
     assert abs(Mount.snapshot(id).axes.ra.degrees) < 0.6
@@ -79,7 +79,7 @@ defmodule Controller.SurfacesTest do
     refute html =~ ">1K<"
     refute html =~ "video-feed"
     assert html =~ "watch-cap"
-    assert html =~ "Recent frames"
+    assert html =~ "Recent Frames"
   end
 
   test "recent frames page renders without frames", %{conn: conn} do
@@ -90,7 +90,7 @@ defmodule Controller.SurfacesTest do
 
   test "camera page carries the technical detail, not the watch page", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/controls/watch/camera")
-    assert html =~ "Timed stills"
+    assert html =~ "Timed Stills"
     assert html =~ "Encoder"
     assert html =~ "30 fps"
     {:ok, _view, watch} = live(conn, "/controls/watch")
@@ -100,7 +100,7 @@ defmodule Controller.SurfacesTest do
   test "line up: asks for home, then names a star; that's it records a sample", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
     {:ok, view, html} = live(conn, "/controls/lineup/#{id}")
-    assert html =~ "First: set home"
+    assert html =~ "First: Set Home"
     render_click(view, "home", %{})
     html = render(view)
     assert html =~ "Star 1"

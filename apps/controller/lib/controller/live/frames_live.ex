@@ -41,8 +41,8 @@ defmodule Controller.FramesLive do
     ~H"""
     <.page id="frames" night={@night}>
       <:header>
-        <.back navigate={~p"/bench/watch"} label="watch" />
-        <.title>recent frames</.title>
+        <.back navigate={~p"/bench/watch"} label="Watch" />
+        <.title>Recent Frames</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 

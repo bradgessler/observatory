@@ -14,7 +14,7 @@ defmodule Controller.BenchTest do
     {:ok, _view, html} = live(conn, "/bench?mount=#{id}")
     assert html =~ "scope-status"
     assert html =~ id
-    for name <- ["Axis strips", "Plain keypad", "Orb", "Game controller", "Sky"], do: assert(html =~ name)
+    for name <- ["Axis Strips", "Plain Keypad", "Orb", "Game Controller", "Sky"], do: assert(html =~ name)
     # default surface is the strips, rendered nested without its own header
     assert html =~ "around the polar axis"
   end

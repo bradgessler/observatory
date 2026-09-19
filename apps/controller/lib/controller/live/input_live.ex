@@ -108,8 +108,8 @@ defmodule Controller.InputLive do
     ~H"""
     <.page id="input" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} label="keypad" />
-        <.title>controller</.title>
+        <.back navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} label="Keypad" />
+        <.title>Game Controller</.title>
         <.actions>
           <.btn phx-click="scan">Scan</.btn>
         </.actions>

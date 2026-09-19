@@ -96,9 +96,11 @@ defmodule Controller.AxesLive do
     end
   end
 
-  def handle_event("sweep", _, socket) do
-    case AxisScan.sweep(socket.assigns.selected) do
-      :ok -> {:noreply, assign(socket, notice: "sweeping — five positions per axis, ±6°, two to three minutes")}
+  def handle_event("sweep", %{"range" => range}, socket) do
+    half = String.to_float(range)
+
+    case AxisScan.sweep(socket.assigns.selected, range: half) do
+      :ok -> {:noreply, assign(socket, notice: "sweeping — five positions per axis, ±#{round(half)}°, about three minutes")}
       {:error, :busy} -> {:noreply, assign(socket, notice: "a scan is already running")}
       {:error, why} -> {:noreply, assign(socket, notice: inspect(why))}
     end
@@ -126,7 +128,8 @@ defmodule Controller.AxesLive do
         <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <.row>
           <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Quick look (±3°, 1 min)</.btn>
-          <.btn variant="primary" phx-click="sweep" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Sweep (±6°, 3 min)</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Sweep ±6°</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Wide sweep ±20°</.btn>
         </.row>
         <.row :if={@result}>
           <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
@@ -153,14 +156,23 @@ defmodule Controller.AxesLive do
           <strong class={"ax-#{axis}"}>{label}</strong>
           <span :if={f}>
             runs at <b>{f["image_angle_deg"]}° ± {margin(f["image_angle_sd_deg"], f["bootstrap_sd_deg"])}°</b> across the picture,
-            tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> {if f["tilt_deg"] >= 0, do: "toward", else: "away from"} the camera
+            <%= if f["tilt_ambiguous"] do %>
+              tilt <b>about {abs(f["tilt_deg"])}° — toward or away the camera can't tell</b> from a sweep this small; the arcs are too nearly straight. Try the wide sweep.
+            <% else %>
+              tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> {if f["tilt_deg"] >= 0, do: "toward", else: "away from"} the camera
+            <% end %>
           </span>
           <span :if={f} class="dim">{f["n"]} spots followed through {length(sw["angles"])} positions · arcs fit to {f["rms_px"]} px · depth is in units of the distance to the axis (one camera can't scale it)</span>
           <span :if={!f} class="dim">not enough spots could be followed through the whole sweep</span>
         </div>
-        <div :if={sw["between_deg"]} class="axes-row">
+        <% ambiguous = sw["ra"]["fit"]["tilt_ambiguous"] == true or sw["dec"]["fit"]["tilt_ambiguous"] == true %>
+        <div :if={sw["between_deg"] && !ambiguous} class="axes-row">
           <strong>Between the two axes</strong>
           <span><b>{sw["between_deg"]}°</b> — a square mount reads 90°; the difference is measurement error plus whatever the mount really is</span>
+        </div>
+        <div :if={sw["between_deg"] && ambiguous} class="axes-row">
+          <strong>Between the two axes</strong>
+          <span class="dim">not known yet — with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]), 0)}° up; a wider sweep settles it</span>
         </div>
         <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored — both bias the tilt more than the in-picture direction.</.hint>
       </.card>

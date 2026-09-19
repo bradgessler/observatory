@@ -585,3 +585,5 @@ a.banner strong { color: var(--warn); }
 .axes-row:first-of-type { border-top: none; }
 .ax-ra { color: #4f8cff; }
 .ax-dec { color: #2ec27e; }
+.live-axes { pointer-events: none; }
+.ax-tube { color: #ff5a5a; }

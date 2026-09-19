@@ -45,6 +45,7 @@ defmodule Controller.Optical.Axis3DTest do
     assert fit.rms_px < 1.0
     assert fit.n == 30
     assert is_number(fit.image_angle_sd_deg)
+    refute fit.tilt_ambiguous
     assert fit.bootstrap_sd_deg < 5.0
   end
 

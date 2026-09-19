@@ -15,6 +15,7 @@ defmodule Controller.WatchLive do
       Watch.subscribe()
       Video.subscribe()
       Settings.subscribe()
+      send(self(), :mount_rescan)
       # the age of the still and the player's delay are shown live
       :timer.send_interval(1_000, :tick)
       # a picture that keeps itself fresh: timed stills go on when someone looks
@@ -31,7 +32,11 @@ defmodule Controller.WatchLive do
        mount_id: params["id"] || session["id"],
        notice: nil,
        now: DateTime.utc_now(),
-       tele: nil
+       tele: nil,
+       refs: %{},
+       snap: nil,
+       rig: nil,
+       axes_on: true
      )
      |> load()}
   end
@@ -55,6 +60,25 @@ defmodule Controller.WatchLive do
     )
   end
 
+  # a sweep with both tilts resolved gives us the mount in camera space
+  defp load_rig(%{assigns: %{mount_id: nil}} = socket), do: assign(socket, rig: nil)
+
+  defp load_rig(%{assigns: %{mount_id: id}} = socket) do
+    rig =
+      case Controller.Optical.AxisScan.result(id) do
+        %{"sweep" => %{"ref" => %{"ra" => r, "dec" => d}} = sweep} -> Controller.Optical.Rig.from_sweep(sweep, %{ra: r, dec: d})
+        _ -> nil
+      end
+
+    assign(socket, rig: rig)
+  end
+
+  defp pose(rig, %{axes: %{ra: %{degrees: r}, dec: %{degrees: d}}}) do
+    Controller.Optical.Rig.pose(rig, %{ra: r, dec: d}, dec_sign: Controller.Sky.Pointing.pointing().dec_sign)
+  end
+
+  defp pose(_, _), do: nil
+
   defp safe_video do
     try do
       Video.status()
@@ -62,6 +86,19 @@ defmodule Controller.WatchLive do
       :exit, _ -> %{state: :off, quality: nil, ready: false, error: "video app not running", playlist: nil, log: [], encoder: nil, supported_modes: nil, fell_back_from: nil}
     end
   end
+
+  # the mount whose axes we draw: the one asked for, else the first
+  def handle_info(:mount_rescan, socket) do
+    Process.send_after(self(), :mount_rescan, 5_000)
+    refs = Map.new(Mount.list(), &{&1.id, &1})
+    for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
+    id = if socket.assigns.mount_id in Map.keys(refs), do: socket.assigns.mount_id, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    {:noreply, socket |> assign(refs: refs, mount_id: id) |> load_rig()}
+  end
+
+  def handle_info({:mount, snap}, %{assigns: %{mount_id: id}} = socket) when snap.id == id, do: {:noreply, assign(socket, snap: snap)}
+  def handle_info({:mount, _}, socket), do: {:noreply, socket}
+  def handle_info({:settings, "optical_axes", _}, socket), do: {:noreply, load_rig(socket)}
 
   @impl true
   def handle_info(:tick, socket), do: {:noreply, assign(socket, now: DateTime.utc_now())}
@@ -109,6 +146,8 @@ defmodule Controller.WatchLive do
     tele = %{latency: num(t["latency"]), fps: num(t["fps"]), exact: t["exact"] == true, paused: t["paused"] == true, at: DateTime.utc_now()}
     {:noreply, assign(socket, tele: tele)}
   end
+
+  def handle_event("axes", %{"on" => on}, socket), do: {:noreply, assign(socket, axes_on: on == "true")}
 
   def handle_event("pin", %{"name" => name}, socket), do: {:noreply, assign(socket, pinned: name)}
   def handle_event("pin", _, socket), do: {:noreply, assign(socket, pinned: nil)}
@@ -160,7 +199,19 @@ defmodule Controller.WatchLive do
         <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
         <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
         <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
+
+        <%!-- the mount's axes as the camera sees them, turning with the encoders --%>
+        <% p = if @rig && @axes_on && @snap, do: pose(@rig, @snap) %>
+        <svg :if={p} viewBox={"0 0 #{@rig.w} #{@rig.h}"} preserveAspectRatio="none" class="axes-overlay live-axes" aria-hidden="true">
+          <line x1={elem(elem(p.polar, 0), 0)} y1={elem(elem(p.polar, 0), 1)} x2={elem(elem(p.polar, 1), 0)} y2={elem(elem(p.polar, 1), 1)} stroke="#4f8cff" stroke-width="2.4" />
+          <line x1={elem(elem(p.dec, 0), 0)} y1={elem(elem(p.dec, 0), 1)} x2={elem(elem(p.dec, 1), 0)} y2={elem(elem(p.dec, 1), 1)} stroke="#2ec27e" stroke-width="2.4" />
+          <line x1={elem(elem(p.tube, 0), 0)} y1={elem(elem(p.tube, 0), 1)} x2={elem(elem(p.tube, 1), 0)} y2={elem(elem(p.tube, 1), 1)} stroke="#ff5a5a" stroke-width="2.4" stroke-dasharray="10 6" />
+        </svg>
       </div>
+      <p :if={@rig} class="watch-cap">
+        axes from the camera's sweep · <span class="ax-ra">polar</span> · <span class="ax-dec">Dec</span> · <span class="ax-tube">tube (needs home set)</span> ·
+        <a href="#" phx-click="axes" phx-value-on={to_string(!@axes_on)}>{if @axes_on, do: "hide", else: "show"}</a>
+      </p>
 
       <%!-- one quiet line: what this picture is --%>
       <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]} aria-live="polite">

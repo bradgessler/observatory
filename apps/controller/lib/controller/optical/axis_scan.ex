@@ -37,6 +37,9 @@ defmodule Controller.Optical.AxisScan do
   """
   def sweep(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, Keyword.put(opts, :mode, :sweep)})
 
+  @doc "Sweep ranges offered: half-angle in degrees. ±6° is gentle; ±20° bows the arcs enough to see depth."
+  def ranges, do: [6.0, 20.0]
+
   def status, do: GenServer.call(__MODULE__, :status)
   def subscribe, do: Telescope.subscribe(@topic)
 
@@ -120,28 +123,36 @@ defmodule Controller.Optical.AxisScan do
 
   # -- the sweep ------------------------------------------------------------------------
 
-  @sweep_deg [-6.0, -3.0, 0.0, 3.0, 6.0]
-
-  defp sweep_scan(parent, ref, _opts) do
+  defp sweep_scan(parent, ref, opts) do
     Telescope.Events.tag("axis sweep")
     hfov = Settings.get("camera_hfov_deg", 70) / 1
+    half = (opts[:range] || 6.0) / 1
+    angles = [-half, -half / 2, 0.0, half / 2, half]
+
+    # the encoders at the sweep's centre position: the live overlay rotates from here
+    ref_enc =
+      case Mount.snapshot(ref) do
+        %{axes: %{ra: %{degrees: r}, dec: %{degrees: d}}} -> %{"ra" => r / 1, "dec" => d / 1}
+        _ -> %{"ra" => 0.0, "dec" => 0.0}
+      end
 
     with :ok <- camera_ready(),
-         {:ok, ra} <- sweep_axis(parent, ref, :ra, hfov),
-         {:ok, dec} <- sweep_axis(parent, ref, :dec, hfov) do
+         {:ok, ra} <- sweep_axis(parent, ref, :ra, hfov, angles),
+         {:ok, dec} <- sweep_axis(parent, ref, :dec, hfov, angles) do
       between =
         case {ra["fit"], dec["fit"]} do
           {%{} = a, %{} = b} -> Float.round(Controller.Optical.Axis3D.angle_between(%{dir: List.to_tuple(a["dir"])}, %{dir: List.to_tuple(b["dir"])}), 1)
           _ -> nil
         end
 
-      {:ok, %{sweep: %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "hfov_deg" => hfov, "angles" => @sweep_deg, "between_deg" => between, "ra" => ra, "dec" => dec}}}
+      {:ok, %{sweep: %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "hfov_deg" => hfov, "angles" => angles, "range_deg" => half, "between_deg" => between, "ref" => ref_enc, "ra" => ra, "dec" => dec}}}
     end
   end
 
-  # to −6°, then +3° four times with a still at rest at each, then back to where we started
-  defp sweep_axis(parent, ref, axis, hfov) do
-    steps = [-6.0, 3.0, 3.0, 3.0, 3.0]
+  # to −half, then +half/2 four times with a still at rest at each, then back to where we started
+  defp sweep_axis(parent, ref, axis, hfov, angles) do
+    half = -hd(angles)
+    steps = [-half, half / 2, half / 2, half / 2, half / 2]
 
     result =
       Enum.reduce_while(Enum.with_index(steps), {:ok, []}, fn {step, i}, {:ok, frames} ->
@@ -158,8 +169,8 @@ defmodule Controller.Optical.AxisScan do
         end
       end)
 
-    # home to where we started whatever happened
-    _ = Mount.goto_relative(ref, axis, -6.0)
+    # back to where we started whatever happened
+    _ = Mount.goto_relative(ref, axis, -half)
     _ = settle(ref, axis)
 
     with {:ok, frames_rev} <- result,
@@ -173,7 +184,7 @@ defmodule Controller.Optical.AxisScan do
       cam = Controller.Optical.Axis3D.camera(w, h, hfov)
 
       fit =
-        case Controller.Optical.Axis3D.fit(tracks, @sweep_deg, cam) do
+        case Controller.Optical.Axis3D.fit(tracks, angles, cam) do
           {:ok, f} -> fit_json(f, cam)
           {:error, _} -> nil
         end
@@ -213,6 +224,7 @@ defmodule Controller.Optical.AxisScan do
       "image_angle_sd_deg" => f.image_angle_sd_deg && Float.round(f.image_angle_sd_deg, 2),
       "tilt_sd_deg" => f.tilt_sd_deg && Float.round(f.tilt_sd_deg, 2),
       "bootstrap_sd_deg" => f.bootstrap_sd_deg && Float.round(f.bootstrap_sd_deg, 2),
+      "tilt_ambiguous" => f.tilt_ambiguous,
       "rms_px" => Float.round(f.rms_px, 2),
       "n" => f.n,
       "sense" => f.sense

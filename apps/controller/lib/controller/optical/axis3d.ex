@@ -45,21 +45,36 @@ defmodule Controller.Optical.Axis3D do
       {:error, :too_few_tracks}
     else
       thetas = Enum.map(angles_deg, &(&1 * @deg))
-      x0 = initial_axis(tracks, cam)
+      [az0, el0, u0, v0] = initial_axis(tracks, cam)
 
-      # try both senses of rotation, keep the better
-      {res, sense} =
-        for sense <- [1.0, -1.0] do
-          {Fit.lm(&outer_residuals(&1, tracks, thetas, cam, sense), x0, max_iter: opts[:max_iter] || 40), sense}
+      # both senses of rotation and both signs of tilt: a small sweep sees
+      # arcs that are nearly straight, and then "toward" and "away" fit
+      # equally well — the mirror solution must be tried, and if it is as
+      # good, the tilt is not known and we say so
+      fits =
+        for sense <- [1.0, -1.0], el <- [el0, -el0] do
+          {Fit.lm(&outer_residuals(&1, tracks, thetas, cam, sense), [az0, el, u0, v0], max_iter: opts[:max_iter] || 40), sense}
         end
-        |> Enum.min_by(fn {res, _} -> res.cost end)
+        |> Enum.sort_by(fn {res, _} -> res.cost end)
+
+      {res, sense} = hd(fits)
+      [_, el_best | _] = res.x
+
+      mirror_cost =
+        fits
+        |> Enum.filter(fn {r, _} -> [_, e | _] = r.x; e * el_best < 0 end)
+        |> Enum.map(fn {r, _} -> r.cost end)
+        |> Enum.min(fn -> :infinity end)
+
+      # the mirror fits within 10% as well: the sweep is too small to tell toward from away
+      tilt_ambiguous = mirror_cost != :infinity and mirror_cost < res.cost * 1.1
 
       [az, el, u0, v0] = res.x
       dir = dir_from(az, el)
       point = point_from(u0, v0, cam)
       rms = :math.sqrt(res.cost / max(length(res.residuals), 1))
       sd_az = Fit.sd(res.cov, 0)
-      sd_el = Fit.sd(res.cov, 1)
+      sd_el = if tilt_ambiguous, do: 90.0 * @deg, else: Fit.sd(res.cov, 1)
       boot = if opts[:bootstrap] == false, do: nil, else: bootstrap(tracks, thetas, cam, sense, res.x)
 
       {:ok,
@@ -73,6 +88,7 @@ defmodule Controller.Optical.Axis3D do
          tilt_deg: tilt(dir),
          image_angle_sd_deg: sd_az && sd_az / @deg,
          tilt_sd_deg: sd_el && sd_el / @deg,
+         tilt_ambiguous: tilt_ambiguous,
          bootstrap_sd_deg: boot,
          iterations: res.iterations
        }}

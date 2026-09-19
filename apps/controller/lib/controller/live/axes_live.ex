@@ -127,9 +127,9 @@ defmodule Controller.AxesLive do
         <:aside><.badge on={@scan.running} warn={@scan.step == :failed}>{step_words(@scan)}</.badge></:aside>
         <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <.row>
-          <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Quick look (±3°, 1 min)</.btn>
+          <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Quick look</.btn>
           <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Sweep ±6°</.btn>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Wide sweep ±20°</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Wide ±20°</.btn>
         </.row>
         <.row :if={@result}>
           <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
@@ -166,6 +166,7 @@ defmodule Controller.AxesLive do
             Dec: {Enum.map_join(pair["steps"]["dec"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["dec"]}°)
           </span>
           <span class="dim">the stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
+          <span :if={sw["history_spread_deg"]} class="dim">the last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other — repeatability, the margin that counts</span>
         </div>
 
         <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">

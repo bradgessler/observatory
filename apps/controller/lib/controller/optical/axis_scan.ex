@@ -82,6 +82,9 @@ defmodule Controller.Optical.AxisScan do
         {:ok, %{sweep: sweep}} ->
           Telescope.Events.emit(:optical, :sweep_done, %{id: s.id, ra: sweep_words(sweep["ra"]), dec: sweep_words(sweep["dec"]), between: sweep["between_deg"]})
           all = Settings.get("optical_axes", %{})
+          prev = get_in(all, [s.id, "sweep", "history"]) || []
+          history = if(sweep["pair"], do: [sweep["pair"]["polar"]["dir"] | prev], else: prev) |> Enum.take(5)
+          sweep = Map.merge(sweep, %{"history" => history, "history_n" => length(history), "history_spread_deg" => spread_deg(history)})
           entry = Map.get(all, s.id, %{}) |> Map.put("sweep", sweep)
           Settings.put("optical_axes", Map.put(all, s.id, entry))
           %{s | task: nil, step: :done}
@@ -241,6 +244,19 @@ defmodule Controller.Optical.AxisScan do
   end
 
   defp pair_fit(_, _, _, _), do: nil
+
+  # largest angle between any two of the remembered polar-axis directions
+  defp spread_deg(dirs) when length(dirs) < 2, do: nil
+
+  defp spread_deg(dirs) do
+    for a <- dirs, b <- dirs, a != b do
+      [ax, ay, az] = a
+      [bx, by, bz] = b
+      :math.acos(min(1.0, abs(ax * bx + ay * by + az * bz))) * 180 / :math.pi()
+    end
+    |> Enum.max()
+    |> Float.round(1)
+  end
 
   # rms over the sweep of (measured − commanded), after removing the constant offset of the reference frame
   defp step_error(steps) do

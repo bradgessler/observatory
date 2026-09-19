@@ -28,7 +28,7 @@ defmodule Controller.Optical.Track do
     block = opts[:block] || @block
     search = opts[:search] || @search
 
-    seeds = Flow.between(f0, f1, block: block, search: search)
+    seeds = Flow.between(f0, f1, block: block, search: max(search, 14))
 
     seeds
     |> Enum.map(fn %{x: x, y: y} -> follow(frames, {x - block / 2, y - block / 2}, block, search) end)
@@ -38,36 +38,45 @@ defmodule Controller.Optical.Track do
 
   def trajectories(_, _), do: []
 
-  # top-left corner positions frame by frame; nil if lost
+  # top-left corner positions frame by frame; nil if lost. The search is
+  # centred on where the spot is heading (last step repeated): steps of
+  # several degrees move a spot further than the window, but about the same
+  # amount each time.
   defp follow([f0 | rest], start, block, search) do
-    Enum.reduce_while(rest, {[start], f0, start}, fn frame, {acc, prev_frame, prev_pos} ->
-      case find(prev_frame, prev_pos, frame, block, search) do
-        {:ok, pos} -> {:cont, {[pos | acc], frame, pos}}
+    Enum.reduce_while(rest, {[start], f0, start, {0.0, 0.0}}, fn frame, {acc, prev_frame, prev_pos, vel} ->
+      {px, py} = prev_pos
+      {vx, vy} = vel
+      guess = {px + vx, py + vy}
+
+      case find(prev_frame, prev_pos, guess, frame, block, search) do
+        {:ok, {nx, ny} = pos} -> {:cont, {[pos | acc], frame, pos, {nx - px, ny - py}}}
         :lost -> {:halt, nil}
       end
     end)
     |> case do
       nil -> nil
-      {acc, _, _} -> Enum.reverse(acc)
+      {acc, _, _, _} -> Enum.reverse(acc)
     end
   end
 
-  defp find(prev, {px, py}, frame, block, search) do
+  defp find(prev, {px, py}, {gx, gy}, frame, block, search) do
     x0 = round(px)
     y0 = round(py)
+    cx = round(gx)
+    cy = round(gy)
     patch = for y <- y0..(y0 + block - 1), x <- x0..(x0 + block - 1), do: Frame.at(prev, x, y)
 
     {bx, by, best} =
       for dy <- -search..search, dx <- -search..search, reduce: {0, 0, 1.0e18} do
         {bdx, bdy, bbest} ->
-          s = sad(patch, frame, x0 + dx, y0 + dy, block)
+          s = sad(patch, frame, cx + dx, cy + dy, block)
           if s < bbest, do: {dx, dy, s}, else: {bdx, bdy, bbest}
       end
 
-    inside = x0 + bx >= 0 and y0 + by >= 0 and x0 + bx + block <= frame.w and y0 + by + block <= frame.h
+    inside = cx + bx >= 0 and cy + by >= 0 and cx + bx + block <= frame.w and cy + by + block <= frame.h
 
     if inside and best / (block * block) <= @max_sad_per_px,
-      do: {:ok, {x0 + bx + 0.0, y0 + by + 0.0}},
+      do: {:ok, {cx + bx + 0.0, cy + by + 0.0}},
       else: :lost
   end
 

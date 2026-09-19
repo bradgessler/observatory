@@ -27,6 +27,7 @@ defmodule Controller.SkyLive do
     if connected?(socket) do
       send(self(), :rescan)
       :timer.send_interval(@tick_ms, :tick)
+      Settings.subscribe()
     end
 
     {:ok,
@@ -72,6 +73,22 @@ defmodule Controller.SkyLive do
 
   @impl true
   def handle_info(:tick, socket), do: {:noreply, socket |> assign(now: DateTime.utc_now()) |> compute()}
+
+  # A setting changed on some phone: reload what this page derives from settings.
+  def handle_info({:settings, _key, _v}, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       site: site_setting(),
+       pointing: pointing_setting(),
+       offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
+       horizon: Settings.horizon(),
+       aperture: Settings.get("aperture_mm", 100),
+       auto_track: Settings.get("auto_track", true),
+       night: Settings.get("night", false)
+     )
+     |> compute()}
+  end
 
   def handle_info(:rescan, socket) do
     Process.send_after(self(), :rescan, 5_000)
@@ -501,6 +518,7 @@ defmodule Controller.SkyLive do
       dsos: dsos,
       lines: lines,
       treeline: treeline,
+      modes: Controller.Modes.active(),
       lim: limiting_mag(aperture),
       moon: moon_state(now, site, lst),
       targets: targets(now, site, horizon, aperture)
@@ -654,7 +672,7 @@ defmodule Controller.SkyLive do
       </header>
 
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
-      <Controller.Components.Modes.modes modes={Controller.Modes.active()} id={@selected} />
+      <Controller.Components.Modes.modes modes={@modes} id={@selected} />
 
       <nav class="tabs">
         <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>

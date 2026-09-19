@@ -19,6 +19,7 @@ defmodule Controller.ObjectLive do
     if connected?(socket) do
       send(self(), :rescan)
       :timer.send_interval(15_000, :tick)
+      Settings.subscribe()
     end
 
     {:ok,
@@ -31,6 +32,9 @@ defmodule Controller.ObjectLive do
 
   @impl true
   def handle_info(:tick, socket), do: {:noreply, socket |> assign(now: DateTime.utc_now()) |> compute()}
+
+  def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
+  def handle_info({:settings, _key, _v}, socket), do: {:noreply, socket |> assign(aperture: Settings.get("aperture_mm", 100)) |> compute()}
 
   def handle_info(:rescan, socket) do
     Process.send_after(self(), :rescan, 5_000)

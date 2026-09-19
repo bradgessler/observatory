@@ -15,12 +15,20 @@ defmodule Controller.Settings do
 
   def get(key, default \\ nil), do: Agent.get(__MODULE__, &Map.get(&1, key, default))
 
+  @topic "settings"
+
+  @doc "Every page subscribes: a change made on one phone shows on all of them."
+  def subscribe, do: Telescope.subscribe(@topic)
+
   def put(key, value) do
     Agent.update(__MODULE__, fn s ->
       s = Map.put(s, key, value)
       write(s)
       s
     end)
+
+    Telescope.broadcast(@topic, {:settings, key, value})
+    :ok
   end
 
   @doc "Minimum visible altitude per compass sector, degrees."

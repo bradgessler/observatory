@@ -1,70 +1,17 @@
+// JavaScript budget: every hook here exists because the browser will not hand
+// the behaviour to the server any other way. Everything else is LiveView.
+//   Stick     touch-and-pull with a heartbeat (no pointer bindings in LiveView; safety)
+//   SkyZoom   pinch-to-zoom is a gesture; the map itself is server-rendered SVG
+//   SkyPhoto  reads pixels from a photo on the phone (candidate to move server-side)
+//   Geo       the browser only gives location to JS
+// Arrow keys use phx-window-keydown/keyup, not a hook.
+
 // No bundler: phoenix.min.js and phoenix_live_view.min.js are loaded from
 // /vendor and expose the `Phoenix` and `LiveView` globals.
 
 const Hooks = {};
 
-// Press-and-hold slew. Pushes "hold" on pointerdown and every 300 ms while
-// held; the server's deadman stops the axis if it hasn't heard from us within
-// 900 ms, so a dropped connection can't leave the mount running.
-Hooks.Hold = {
-  mounted() {
-    const dir = this.el.dataset.dir;
-    let timer = null;
 
-    const start = (e) => {
-      e.preventDefault();
-      if (timer) return;
-      this.el.classList.add("pressed");
-      this.pushEvent("hold", { dir });
-      timer = setInterval(() => this.pushEvent("hold", { dir }), 300);
-      try { navigator.vibrate && navigator.vibrate(8); } catch (_) {}
-    };
-
-    const stop = (e) => {
-      if (!timer) return;
-      e && e.preventDefault();
-      clearInterval(timer);
-      timer = null;
-      this.el.classList.remove("pressed");
-      this.pushEvent("release", {});
-    };
-
-    this.el.addEventListener("pointerdown", start);
-    this.el.addEventListener("pointerup", stop);
-    this.el.addEventListener("pointercancel", stop);
-    this.el.addEventListener("pointerleave", stop);
-    this.el.addEventListener("contextmenu", (e) => e.preventDefault());
-    window.addEventListener("blur", stop);
-    document.addEventListener("visibilitychange", () => document.hidden && stop());
-    this.stop = stop;
-  },
-  destroyed() { this.stop && this.stop(); },
-};
-
-// Arrow keys on a laptop behave like the D-pad; space is STOP.
-Hooks.Keys = {
-  mounted() {
-    const down = new Set();
-    window.addEventListener("keydown", (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
-      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) return;
-      e.preventDefault();
-      if (e.key !== " " && down.has(e.key)) return; // ignore auto-repeat; hold timer covers it
-      down.add(e.key);
-      this.pushEvent("key", { key: e.key, type: "down" });
-      if (e.key !== " ") this.timers = this.timers || {};
-      if (e.key !== " " && !this.timers[e.key]) {
-        this.timers[e.key] = setInterval(() => this.pushEvent("key", { key: e.key, type: "down" }), 300);
-      }
-    });
-    window.addEventListener("keyup", (e) => {
-      if (!down.has(e.key)) return;
-      down.delete(e.key);
-      if (this.timers && this.timers[e.key]) { clearInterval(this.timers[e.key]); delete this.timers[e.key]; }
-      this.pushEvent("key", { key: e.key, type: "up" });
-    });
-  },
-};
 
 
 // Sky photo: trace where the sky stops in each column (bright sky above,
@@ -112,6 +59,62 @@ Hooks.SkyPhoto = {
   },
 };
 
+
+// The stick: touch anywhere on the pad, pull to move. The vector from the
+// touch-down point sets direction; distance sets speed (server maps it on a
+// log scale). Re-sent every 250 ms while held so the mount's deadman stays
+// fed; letting go (or the page hiding) sends stick_end. Mouse works the same.
+Hooks.Stick = {
+  mounted() {
+    const pad = this.el, knob = pad.querySelector("[data-knob]");
+    const lockX = pad.dataset.lock === "x";          // a strip: horizontal pull only
+    const axis = pad.dataset.axis || null;           // which mount axis a strip drives
+    const R = () => (lockX ? pad.getBoundingClientRect().width / 2 - 28 : pad.getBoundingClientRect().width / 2);
+    let origin = null, vec = { x: 0, y: 0, mag: 0 }, timer = null, active = null;
+    const show = (dx, dy) => { knob.style.transform = `translate(${dx}px, ${dy}px)`; knob.classList.toggle("live", !!origin); };
+    const send = () => this.pushEvent("stick", vec);
+    const update = (cx, cy) => {
+      const r = R(), dead = r * 0.12;
+      let dx = cx - origin.x, dy = lockX ? 0 : cy - origin.y;
+      const d = Math.hypot(dx, dy);
+      if (d > r) { dx *= r / d; dy *= r / d; }
+      const dist = Math.min(d, r);
+      const mag = dist <= dead ? 0 : (dist - dead) / (r - dead);
+      vec = { x: dist > 0 ? dx / Math.max(dist, 1e-6) : 0, y: dist > 0 ? -dy / Math.max(dist, 1e-6) : 0, mag };
+      if (axis) vec.axis = axis;
+      show(dx, dy);
+    };
+    const start = (e) => {
+      if (active !== null) return;
+      e.preventDefault();
+      active = e.pointerId;
+      pad.setPointerCapture(active);
+      const rect = pad.getBoundingClientRect();
+      origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      update(e.clientX, e.clientY);
+      send();
+      timer = setInterval(send, 250);
+      try { navigator.vibrate && navigator.vibrate(6); } catch (_) {}
+    };
+    const move = (e) => { if (e.pointerId !== active) return; e.preventDefault(); update(e.clientX, e.clientY); send(); };
+    const end = (e) => {
+      if (active === null || (e && e.pointerId !== undefined && e.pointerId !== active)) return;
+      clearInterval(timer); timer = null; active = null; origin = null;
+      show(0, 0);
+      this.pushEvent("stick_end", {});
+    };
+    pad.addEventListener("pointerdown", start);
+    pad.addEventListener("pointermove", move);
+    pad.addEventListener("pointerup", end);
+    pad.addEventListener("pointercancel", end);
+    pad.addEventListener("lostpointercapture", end);
+    pad.addEventListener("contextmenu", (e) => e.preventDefault());
+    window.addEventListener("blur", () => end());
+    document.addEventListener("visibilitychange", () => document.hidden && end());
+    this.end = end;
+  },
+  destroyed() { this.end && this.end(); },
+};
 
 // Pinch to zoom / drag to pan the sky map by driving the SVG viewBox.
 // Wheel zooms on a desktop; double-tap or double-click resets. A tap without

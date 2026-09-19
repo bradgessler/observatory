@@ -11,7 +11,10 @@ defmodule Controller.SetupLive do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    if connected?(socket), do: send(self(), :rescan)
+    if connected?(socket) do
+      send(self(), :rescan)
+      Settings.subscribe()
+    end
 
     {:ok,
      socket
@@ -29,6 +32,9 @@ defmodule Controller.SetupLive do
   def handle_info({:mount, snap}, socket) do
     if snap.id == socket.assigns.id, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
   end
+
+  def handle_info({:settings, "night", v}, socket), do: {:noreply, socket |> assign(night: v) |> load()}
+  def handle_info({:settings, _key, _v}, socket), do: {:noreply, load(socket)}
 
   defp rescan(socket) do
     case Enum.find(Mount.list(), &(&1.id == socket.assigns.id)) do

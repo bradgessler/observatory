@@ -20,7 +20,23 @@ defmodule Controller.Sky.Joystick do
   @eps 0.05
 
   @doc "Sky-oriented: `[{:ra, rate}, {:dec, rate}]` (× sidereal) to move the view in `dir`. nil until homed."
-  def sky(snap, ctx, dir, rate) do
+  def sky(snap, ctx, dir, rate), do: sky_vector(snap, ctx, unit(dir), rate)
+
+  @doc "Compass convention for one of the four directions."
+  def compass(snap, ctx, dir, rate), do: compass_vector(snap, ctx, unit(dir), rate)
+
+  # screen-style unit vectors: x right, y up
+  defp unit(:up), do: {0.0, 1.0}
+  defp unit(:down), do: {0.0, -1.0}
+  defp unit(:right), do: {1.0, 0.0}
+  defp unit(:left), do: {-1.0, 0.0}
+
+  @doc """
+  Any pull direction `{x, y}` (x right, y up, as on the phone) → axis rates,
+  sky-oriented: y is altitude, x is along the horizon to the right. `rate` is
+  the speed of the faster axis. nil until homed.
+  """
+  def sky_vector(snap, ctx, {x, y}, rate) do
     case Pointing.scope_radec(snap, ctx) do
       nil ->
         nil
@@ -45,13 +61,7 @@ defmodule Controller.Sky.Joystick do
           nil
         else
           # wanted on-sky motion: (d_alt, d_az_on_sky); azimuth increases to the right when facing the object
-          {want_alt, want_az} =
-            case dir do
-              :up -> {1.0, 0.0}
-              :down -> {-1.0, 0.0}
-              :right -> {0.0, 1.0}
-              :left -> {0.0, -1.0}
-            end
+          {want_alt, want_az} = {y, x}
 
           d_h = (want_alt * j22 - want_az * j12) / det
           d_dec = (j11 * want_az - j21 * want_alt) / det
@@ -68,18 +78,18 @@ defmodule Controller.Sky.Joystick do
     end
   end
 
-  @doc "Compass convention: N/S = toward/away from the pole (Dec), E/W = along the sky's turn (RA)."
-  def compass(snap, ctx, dir, rate) do
+  @doc """
+  Compass convention for any pull `{x, y}`: y = N/S (toward/away from the
+  pole, the Dec axis), x = W/E (along the sky's turn, the RA axis). Pure sign
+  mapping through the calibrated axis signs; works before home is set.
+  """
+  def compass_vector(snap, ctx, {x, y}, rate) do
     p = ctx.pointing
-    flipped? = snap != nil and snap.homed and (snap.axes.dec.degrees - ctx.offset["dec"]) * p.dec_sign < 0
+    flipped? = snap != nil and snap[:homed] == true and (snap.axes.dec.degrees - ctx.offset["dec"]) * p.dec_sign < 0
     north = if(flipped?, do: 1, else: -1) * p.dec_sign
-
-    case dir do
-      :up -> [{:dec, north * rate}]
-      :down -> [{:dec, -north * rate}]
-      # east = decreasing hour angle
-      :left -> [{:ra, -p.ha_sign * rate}]
-      :right -> [{:ra, p.ha_sign * rate}]
-    end
+    # east = decreasing hour angle; x to the right = west
+    scale = rate / Enum.max([abs(x), abs(y), 1.0e-9])
+    [{:ra, p.ha_sign * x * scale}, {:dec, north * y * scale}]
+    |> Enum.reject(fn {_, r} -> abs(r) < 0.05 end)
   end
 end

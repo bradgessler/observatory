@@ -10,11 +10,14 @@ defmodule Controller.MountLive do
 
   @impl true
   def mount(params, _session, socket) do
-    if connected?(socket), do: send(self(), :rescan)
+    if connected?(socket) do
+      send(self(), :rescan)
+      Controller.Settings.subscribe()
+    end
 
     {:ok,
      socket
-     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), more: false, mounts: %{}, refs: %{}, mode: Controller.Settings.get("keypad_mode"), held: [])
+     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), more: false, mounts: %{}, refs: %{}, mode: Controller.Settings.get("keypad_mode"), held: [], stick_rate: nil, lat: Controller.Sky.Pointing.site().lat, modes: Controller.Modes.active())
      |> assign(selected: params["id"])
      |> rescan()}
   end
@@ -35,6 +38,12 @@ defmodule Controller.MountLive do
   def handle_info({:mount, snap}, socket) do
     {:noreply, assign(socket, mounts: Map.put(socket.assigns.mounts, snap.id, snap))}
   end
+
+  # A setting changed on some phone: pick up the ones this page shows.
+  def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
+  def handle_info({:settings, "keypad_mode", v}, socket), do: {:noreply, assign(socket, mode: v)}
+  def handle_info({:settings, _key, _v}, socket),
+    do: {:noreply, assign(socket, modes: Controller.Modes.active(), lat: Controller.Sky.Pointing.site().lat)}
 
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
@@ -106,16 +115,54 @@ defmodule Controller.MountLive do
     {:noreply, assign(socket, held: [])}
   end
 
-  def handle_event("key", %{"key" => key, "type" => type}, socket) do
-    case {key, type} do
-      {"ArrowUp", "down"} -> handle_event("hold", %{"dir" => "up"}, socket)
-      {"ArrowDown", "down"} -> handle_event("hold", %{"dir" => "down"}, socket)
-      {"ArrowRight", "down"} -> handle_event("hold", %{"dir" => "right"}, socket)
-      {"ArrowLeft", "down"} -> handle_event("hold", %{"dir" => "left"}, socket)
-      {k, "up"} when k in ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"] -> handle_event("release", %{}, socket)
-      {" ", "down"} -> handle_event("stop", %{}, socket)
-      _ -> {:noreply, socket}
-    end
+  # Laptop keyboard via phx-window-keydown/keyup (no JS). Key auto-repeat keeps
+  # sending keydown, which keeps refreshing the mount's hold deadman.
+  @arrows %{"ArrowUp" => "up", "ArrowDown" => "down", "ArrowLeft" => "left", "ArrowRight" => "right"}
+
+  def handle_event("keydown", %{"key" => " "}, socket), do: handle_event("stop", %{}, socket)
+
+  def handle_event("keydown", %{"key" => key}, socket) when is_map_key(@arrows, key),
+    do: handle_event("hold", %{"dir" => @arrows[key]}, socket)
+
+  def handle_event("keyup", %{"key" => key}, socket) when is_map_key(@arrows, key),
+    do: handle_event("release", %{}, socket)
+
+  def handle_event(k, _params, socket) when k in ["keydown", "keyup"], do: {:noreply, socket}
+
+  # The stick: touch and pull. Direction is where you pulled (as you see it, or
+  # N/S/E/W in axes mode); speed grows with distance on a log scale from 1× at
+  # the dead zone to 800× at the rim. The hook re-sends while held, which keeps
+  # the mount's deadman fed; letting go sends stick_end.
+  @stick_max 800.0
+
+  def handle_event("stick", %{"x" => x, "y" => y, "mag" => mag} = params, socket)
+      when is_number(x) and is_number(y) and is_number(mag) do
+    mag = mag |> max(0.0) |> min(1.0)
+    rate = :math.pow(@stick_max, mag) |> max(1.0)
+    snap = current(socket)
+    ctx = Controller.Sky.Pointing.context()
+
+    # A per-axis strip is horizontal: its pull is one axis only, never a blend.
+    vector =
+      case params["axis"] do
+        "ra" -> {x / 1, 0.0}
+        "dec" -> {0.0, x / 1}
+        _ -> {x / 1, y / 1}
+      end
+
+    rates =
+      case {effective_mode(socket), params["axis"]} do
+        {:sky, nil} -> Controller.Sky.Joystick.sky_vector(snap, ctx, vector, rate)
+        _ -> Controller.Sky.Joystick.compass_vector(snap, ctx, vector, rate)
+      end || Controller.Sky.Joystick.compass_vector(snap, ctx, vector, rate)
+
+    socket = Enum.reduce(rates, socket, fn {axis, r}, s -> run(s, &Mount.slew(&1, axis, r, hold: true)) end)
+    {:noreply, assign(socket, held: Enum.map(rates, &elem(&1, 0)), stick_rate: round(rate))}
+  end
+
+  def handle_event("stick_end", _params, socket) do
+    {:noreply, socket} = handle_event("release", %{}, socket)
+    {:noreply, assign(socket, stick_rate: nil)}
   end
 
   def handle_event("mode", _, socket) do
@@ -172,15 +219,15 @@ defmodule Controller.MountLive do
 
   defp current(socket), do: socket.assigns.mounts[socket.assigns.selected]
 
-  # Sky mode needs to know where the scope points, which needs home.
+  # Default is the honest control: one strip per axis of the actual mount.
+  # "Blended" (move as you see it, both motors at once) is opt-in and needs home.
   defp effective_mode(socket) do
     snap = current(socket)
     homed? = snap != nil and snap[:homed] == true
 
     case socket.assigns[:mode] do
-      "axes" -> :axes
-      "sky" -> if homed?, do: :sky, else: :axes
-      _ -> if homed?, do: :sky, else: :axes
+      "sky" when homed? -> :sky
+      _ -> :axes
     end
   end
 
@@ -191,7 +238,7 @@ defmodule Controller.MountLive do
     assigns = assign(assigns, snap: current(%{assigns: assigns}), rates: @rates)
 
     ~H"""
-    <main class={["pad", @night && "night"]} id="pad" phx-hook="Keys">
+    <main class={["pad", @night && "night"]} id="pad" phx-window-keydown="keydown" phx-window-keyup="keyup">
       <header>
         <form :if={map_size(@refs) > 1} phx-change="select">
           <select name="id">
@@ -230,25 +277,62 @@ defmodule Controller.MountLive do
         </section>
 
         <% mode = effective_mode(%{assigns: assigns}) %>
-        <section class="dpad">
-          <span class="dpad-mode">
-            <button class="ghost" phx-click="mode">{if mode == :sky, do: "as you see it", else: "N · S · E · W"} ▾</button>
-          </span>
-          <button class="arrow" id="d-up" phx-hook="Hold" data-dir="up">▲<small>{if mode == :sky, do: "up", else: "N · toward pole"}</small></button>
-          <span></span>
-          <button class="arrow" id="d-left" phx-hook="Hold" data-dir="left">◀<small>{if mode == :sky, do: "left", else: "E"}</small></button>
-          <button class="stop" phx-click="estop">STOP</button>
-          <button class="arrow" id="d-right" phx-hook="Hold" data-dir="right">▶<small>{if mode == :sky, do: "right", else: "W"}</small></button>
-          <span></span>
-          <button class="arrow" id="d-down" phx-hook="Hold" data-dir="down">▼<small>{if mode == :sky, do: "down", else: "S · away from pole"}</small></button>
-          <span class="dpad-hint"><small :if={mode == :axes and not @snap.homed}>set home for up/down/left/right</small></span>
-        </section>
+        <%= if mode == :axes do %>
+          <section class="eq">
+            <%!-- the mount as it stands: polar axis tilted to your latitude, Dec axis square to it --%>
+            <svg viewBox="0 0 200 120" class="eq-glyph" aria-hidden="true">
+              <% t = -@lat * :math.pi() / 180 %>
+              <% {px, py} = {100 + 70 * :math.cos(t), 92 + 70 * :math.sin(t)} %>
+              <% {qx, qy} = {100 - 30 * :math.cos(t), 92 - 30 * :math.sin(t)} %>
+              <% {dx, dy} = {-:math.sin(t) * 26, :math.cos(t) * 26} %>
+              <line x1="10" y1="110" x2="190" y2="110" class="ground" />
+              <line x1="100" y1="110" x2="100" y2="92" class="pier" />
+              <line x1={qx} y1={qy} x2={px} y2={py} class={["axis", :ra in @held && "live"]} />
+              <text x={px + 4} y={py - 4} class="lbl">polar axis · {fmt0(@lat)}°</text>
+              <line x1={100 - dx} y1={92 - dy} x2={100 + dx} y2={92 + dy} class={["axis", :dec in @held && "live"]} />
+              <text x={100 + dx + 4} y={92 + dy + 4} class="lbl">dec</text>
+              <text x="14" y="104" class="lbl">S</text>
+              <text x="180" y="104" class="lbl">N</text>
+            </svg>
 
-        <section class="rates">
-          <button :for={r <- @rates} class={["rate", r == @rate && "on"]} phx-click="rate" phx-value-rate={r}>
-            {r}×
-          </button>
-        </section>
+            <div class="strip" id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="application" aria-label="pull left or right to turn around the polar axis">
+              <span class="strip-end">◀ E</span>
+              <span class="strip-mid">around the polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "RA"}</b></span>
+              <span class="strip-end">W ▶</span>
+              <div class="knob knob-h" data-knob></div>
+            </div>
+
+            <div class="strip" id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="application" aria-label="pull left or right to turn around the declination axis">
+              <span class="strip-end">◀ toward pole</span>
+              <span class="strip-mid">around the dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "Dec"}</b></span>
+              <span class="strip-end">away ▶</span>
+              <div class="knob knob-h" data-knob></div>
+            </div>
+          </section>
+        <% else %>
+          <section class="stick-wrap">
+            <div class="stick" id="stick" phx-hook="Stick" role="application" aria-label="touch and pull to move the view">
+              <svg viewBox="-100 -100 200 200" class="stick-face" aria-hidden="true">
+                <circle r="98" class="rim" />
+                <circle r="62" class="ring" />
+                <circle r="28" class="ring" />
+                <circle r="12" class="dead" />
+                <text x="0" y="-80" class="lbl">up</text>
+                <text x="0" y="90" class="lbl">down</text>
+                <text x="-84" y="4" class="lbl">left</text>
+                <text x="84" y="4" class="lbl">right</text>
+                <text x="0" y="6" class="rate-lbl">{if @stick_rate, do: "#{@stick_rate}×", else: ""}</text>
+              </svg>
+              <div class="knob" data-knob></div>
+            </div>
+          </section>
+        <% end %>
+        <div class="stick-foot">
+          <button class="ghost" phx-click="mode">{if mode == :sky, do: "blended · moves as you see it (both motors)", else: "one strip per axis"} ▾</button>
+          <small :if={mode == :axes and @mode == "sky" and not @snap.homed} class="dim">blended needs home set</small>
+        </div>
+
+        <button class="stop-bar" phx-click="estop">STOP</button>
 
         <section class="row">
           <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal">Track ☆</button>
@@ -256,7 +340,7 @@ defmodule Controller.MountLive do
           <.link navigate={~p"/setup/#{@selected}"} class="btn-link">Setup ›</.link>
         </section>
 
-        <Controller.Components.Modes.modes modes={Controller.Modes.active()} id={@selected} />
+        <Controller.Components.Modes.modes modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
           <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>
@@ -278,4 +362,6 @@ defmodule Controller.MountLive do
   end
 
   defp fmt(_), do: "—"
+
+  defp fmt0(x), do: :erlang.float_to_binary(x * 1.0, decimals: 0)
 end

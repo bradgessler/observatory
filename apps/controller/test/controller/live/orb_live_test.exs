@@ -25,7 +25,7 @@ defmodule Controller.OrbLiveTest do
       assert html =~ "RA · polar axis"
       assert html =~ "Dec axis"
       assert html =~ "STOP"
-      assert html =~ "eyepiece mode: later"
+      refute html =~ "eyepiece mode"
     end
 
     test "says so until homed, then shows RA/Dec", %{conn: conn, id: id} do

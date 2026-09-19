@@ -336,7 +336,8 @@ defmodule Controller.MountLive do
           <small :if={mode == :axes and @mode == "sky" and not @snap.homed} class="dim">blended needs home set</small>
         </div>
 
-        <button class="stop-bar" phx-click="estop">STOP</button>
+        <%!-- the bench header carries STOP and the modes chip; standalone, we carry our own --%>
+        <button :if={!@nested} class="stop-bar" phx-click="estop">STOP</button>
 
         <section class="row">
           <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal">Track ☆</button>
@@ -344,7 +345,7 @@ defmodule Controller.MountLive do
           <.link navigate={~p"/setup/#{@selected}"} class="btn-link">Setup ›</.link>
         </section>
 
-        <Controller.Components.Modes.modes modes={@modes} id={@selected} />
+        <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
           <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>

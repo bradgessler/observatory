@@ -233,16 +233,14 @@ defmodule Controller.OrbLive do
           </div>
         </section>
 
-        <button class="stop-bar" phx-click="estop">STOP</button>
+        <button :if={!@nested} class="stop-bar" phx-click="estop">STOP</button>
 
         <%!-- where you're standing; pick the one that matches the camera or your own spot --%>
         <% view = Controller.Settings.get("orb_view_az", 150.0) / 1 %>
         <div class="seg seg-4" role="radiogroup" aria-label="view the orb from">
           <button :for={{lbl, az} <- [{"from S", 150.0}, {"from E", 60.0}, {"from N", 330.0}, {"from W", 240.0}]} class={["seg-opt", abs(view - az) < 1 && "on"]} phx-click="view" phx-value-az={az} role="radio" aria-checked={to_string(abs(view - az) < 1)}>{lbl}</button>
         </div>
-        <a class="orb-later" aria-disabled="true">eyepiece mode: later</a>
-
-        <Controller.Components.Modes.modes modes={@modes} id={@selected} />
+        <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
           <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>

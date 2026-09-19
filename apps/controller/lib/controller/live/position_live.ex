@@ -131,7 +131,7 @@ defmodule Controller.PositionLive do
         </form>
         <.row>
           <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0° (home)?">Go home (0°, 0°)</.btn>
-          <.btn phx-click="stop">Stop</.btn>
+          <.btn :if={!@nested} phx-click="stop">Stop</.btn>
         </.row>
         <.hint>Home is counterweight down, tube at the pole — if that's where the mount was when home was set. Moves are full speed with the mount's own ramps; soft limits apply once homed.</.hint>
       </.card>

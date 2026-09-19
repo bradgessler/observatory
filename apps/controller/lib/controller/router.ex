@@ -22,6 +22,7 @@ defmodule Controller.Router do
     live "/controls/orb", OrbLive, :index
     live "/controls/orb/:id", OrbLive, :show
     live "/devices", DevicesLive, :index
+    live "/devices/ports", PortsLive, :index
     live "/input", InputLive, :index
     live "/bench", BenchLive, :index
     live "/bench/:surface", BenchLive, :show

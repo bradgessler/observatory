@@ -33,7 +33,7 @@ defmodule Controller.BenchLive do
 
     {:ok,
      socket
-     |> assign(night: Settings.get("night", false), refs: %{}, selected: params["mount"], snap: nil, surface: nil)
+     |> assign(night: Settings.get("night", false), refs: %{}, selected: params["mount"], snap: nil, surface: nil, modes: Controller.Modes.active())
      |> assign(pad: Input.status(), pads: Input.devices(), camera: Watch.status())
      |> rescan()}
   end
@@ -58,8 +58,8 @@ defmodule Controller.BenchLive do
   def handle_info({:input, _id, _info}, socket), do: {:noreply, socket}
   def handle_info({:input_gone, _id}, socket), do: {:noreply, assign(socket, pads: Input.devices())}
   def handle_info({:watch, _meta}, socket), do: {:noreply, assign(socket, camera: Watch.status())}
-  def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
-  def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
+  def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v, modes: Controller.Modes.active())}
+  def handle_info({:settings, _, _}, socket), do: {:noreply, assign(socket, modes: Controller.Modes.active())}
 
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
@@ -106,8 +106,18 @@ defmodule Controller.BenchLive do
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
         <span class="bench-brand">bench</span>
+        <span class="hdr-actions">
+          <%!-- one STOP, always visible, whatever surface is up --%>
+          <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>
+          <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
+          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+        </span>
         <div class="bench-devices">
           <.status snap={@snap} id={@selected} compact />
+          <%!-- modes are loud, but once: one amber chip here instead of a banner on every surface --%>
+          <.link :if={@modes != [] and @selected} navigate={~p"/setup/#{@selected}"} class="dev-chip mode-chip" title={Enum.map_join(@modes, " · ", fn {l, d} -> "#{l} #{d}" end)}>
+            <b>modes</b><span class="ss-badge warn">{length(@modes)} on</span>
+          </.link>
           <.link patch={~p"/bench/gamepad?#{[mount: @selected]}"} class="dev-chip">
             <b>pad</b>
             <span :if={@pads == []} class="ss-badge warn">none</span>
@@ -121,12 +131,6 @@ defmodule Controller.BenchLive do
             <span :if={@camera.tool && @camera.enabled} class="ss-badge on">live</span>
           </.link>
         </div>
-        <span class="hdr-actions">
-          <%!-- one STOP, always visible, whatever surface is up --%>
-          <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>
-          <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
-        </span>
       </header>
 
       <nav class="bench-nav" aria-label="control surfaces">

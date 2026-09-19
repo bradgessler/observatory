@@ -128,12 +128,12 @@ defmodule Controller.InputLive do
         <.kv label="mount" value={@mapper.target || "none"} />
         <.kv :if={@snap} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the <strong>trigger</strong> (button {@mapper.map.trigger}) and tilt the ball: X turns the polar axis, Y the Dec axis; more tilt, more speed. D-pad nudges at {round(@mapper.map.fine_rate)}×. Button {@mapper.map.stop} is STOP. Turn <strong>Pad moves scope</strong> on when what you see here looks right.</.hint>
+        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>more ›</.link></.hint>
       </.card>
 
       <.card :for={d <- @devices} title={d.parser}>
         <:aside><.badge on>{d.reports} reports</.badge><.badge :if={d.node != :nonode@nohost} dim>{d.node}</.badge></:aside>
-        <.kv label="device" value={"#{d.device.manufacturer} #{d.device.product}"} />
+        <.hint :if={d.reports == 0}>Touch the stick or a button and it shows up here.</.hint>
         <div class="axes">
           <div :for={{v, i} <- Enum.with_index(d.state.axes)} class="axis-bar">
             <span class="axis-i">{axis_name(i)}</span>
@@ -144,8 +144,6 @@ defmodule Controller.InputLive do
         <div class="buttons">
           <span :for={{b, i} <- Enum.with_index(d.state.buttons)} class={["btn-dot", b && "on"]}>{i}</span>
         </div>
-        <.kv label="hat" value={if d.state.hat, do: inspect(d.state.hat), else: "centred"} />
-        <.kv label="raw" value={Base.encode16(d.state.raw, case: :lower)} />
       </.card>
 
       <.card :if={@devices == []} title="No game controller open">

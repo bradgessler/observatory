@@ -127,42 +127,32 @@ defmodule Controller.DevicesLive do
       </.card>
       <.hint :if={@mounts == []}>No drivers running.</.hint>
 
-      <.card title="Serial ports on this machine">
-        <div :for={p <- @ports} class="port">
+      <% likely = Enum.filter(@ports, &(&1.looks_like_mount or &1.mount_id)) %>
+      <.card title="Telescope cable">
+        <div :for={p <- likely} class="port">
           <div class="line">
             <strong>{Path.basename(p.path)}</strong>
-            <.badge :if={p.looks_like_mount} on>FTDI · EQDIR cable</.badge>
-            <.badge :if={p.mount_id}>driver: {p.mount_id}</.badge>
+            <.badge :if={p.looks_like_mount} on>EQDIR cable</.badge>
+            <.badge :if={p.mount_id}>driver on</.badge>
           </div>
-          <span class="dim">
-            {p.manufacturer || "unknown maker"}<span :if={p.description}> · {p.description}</span>
-            <span :if={p.vendor_id}> · {hex(p.vendor_id)}:{hex(p.product_id)}</span>
-            <span :if={p.serial_number}> · s/n {p.serial_number}</span>
-          </span>
           <.row :if={!p.mount_id or p.path in @status.manual}>
             <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path}>Connect</.btn>
             <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path}>Disconnect</.btn>
           </.row>
         </div>
-        <.hint :if={@ports == []}>The OS lists no serial ports. The cable isn't plugged into this machine, or the hub isn't passing it through.</.hint>
+        <.hint :if={likely == []}>No EQDIR cable seen on this machine. Plug it into this machine's USB, then Scan.</.hint>
+        <.row>
+          <.btn navigate={~p"/devices/ports"} class="btn-ghost">All serial ports · {length(@ports)} ›</.btn>
+        </.row>
       </.card>
 
       <.card title="Reach this machine">
         <.kv label="Wi-Fi"><span :for={h <- @host} class="mono">http://{h}:4000 </span></.kv>
         <.kv :if={@tunnel} label="anywhere"><a class="mono" href={@tunnel}>{@tunnel}</a></.kv>
-        <.kv label="node" value={to_string(node())} />
+        <.kv :if={node() != :nonode@nohost} label="node" value={to_string(node())} />
       </.card>
 
-      <.card title="If it won't connect">
-        <ol class="checklist">
-          <li>Mount power LED steady? 12 V, centre-positive, switch on.</li>
-          <li>Cable in the mount's <strong>HAND CONTROL</strong> jack (RJ45), not AUTO GUIDE (RJ12).</li>
-          <li>No port above when you plug in? Other USB port, no hub, another cable.</li>
-          <li>Port but "not answering": power-cycle the mount, then Scan.</li>
-          <li>Another program holding the port? Quit it.</li>
-        </ol>
-        <.hint><.link href={~p"/docs/devices"} class="help">more ›</.link></.hint>
-      </.card>
+      <.hint>Won't connect? <.link href={~p"/docs/devices"}>The checklist ›</.link></.hint>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
     </.page>
@@ -178,6 +168,4 @@ defmodule Controller.DevicesLive do
 
   defp port_of(id, manual), do: Enum.find(manual, &(Path.basename(&1) == id)) || id
 
-  defp hex(nil), do: "—"
-  defp hex(n), do: n |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(4, "0")
 end

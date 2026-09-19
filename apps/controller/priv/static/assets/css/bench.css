@@ -72,3 +72,15 @@
 .seg.seg-3 { grid-template-columns: repeat(3, 1fr); }
 .seg-opt small { display: block; font-size: 10px; font-weight: 400; color: var(--dim); letter-spacing: .03em; }
 .seg-opt.on small { color: var(--text); opacity: .7; }
+
+/* header: brand and actions on one line, device chips wrap below */
+.bench-head { grid-template-columns: auto 1fr; }
+.bench-head .hdr-actions { justify-self: end; }
+.bench-head .bench-devices { grid-column: 1 / -1; }
+@media (min-width: 960px) {
+  .bench-head { grid-template-columns: auto 1fr auto; }
+  .bench-head .bench-devices { grid-column: 2; }
+  .bench-head .hdr-actions { grid-column: 3; }
+}
+.mode-chip { border-color: #5a4a12; }
+.night .mode-chip { border-color: #4a1010; }

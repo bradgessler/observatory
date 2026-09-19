@@ -46,6 +46,7 @@ defmodule Controller.SkyLive do
        offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
        search: nil,
        night: Settings.get("night", false),
+       nested: session["nested"] == true,
        # Aperture of the scope in use, mm. 0 = naked eye. Drives limiting magnitude.
        aperture: Settings.get("aperture_mm", 100),
        # Photo → obstructions: boundary traced in the browser, solve runs in a Task.
@@ -663,8 +664,9 @@ defmodule Controller.SkyLive do
     assigns = assign(assigns, scope: scope)
 
     ~H"""
-    <main class={["sky", @night && "night"]} id="sky">
-      <header>
+    <main class={["sky", @night && "night", @nested && "nested"]} id="sky">
+      <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
+      <header :if={!@nested}>
         <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ keypad</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
@@ -674,7 +676,7 @@ defmodule Controller.SkyLive do
       </header>
 
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
-      <Controller.Components.Modes.modes modes={@modes} id={@selected} />
+      <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
 
       <nav class="tabs">
         <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>

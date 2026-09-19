@@ -172,18 +172,9 @@ defmodule Controller.SetupLive do
         <.btn phx-click="home" data-confirm="Set the current position as home?">Set home</.btn>
       </.card>
 
-      <.card title="Move exactly">
-        <form phx-submit="goto" class="row">
-          <input type="hidden" name="axis" value="ra" /><input type="hidden" name="sign" value="+" />
-          <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees" class="field" />
-          <.btn type="submit">RA +</.btn>
-        </form>
-        <.row>
-          <.btn phx-click="goto" phx-value-axis="ra" phx-value-sign="-" phx-value-deg={@goto_deg}>RA −</.btn>
-          <.btn phx-click="goto" phx-value-axis="dec" phx-value-sign="+" phx-value-deg={@goto_deg}>Dec +</.btn>
-          <.btn phx-click="goto" phx-value-axis="dec" phx-value-sign="-" phx-value-deg={@goto_deg}>Dec −</.btn>
-        </.row>
-      </.card>
+      <.row>
+        <.btn navigate={~p"/bench/position?#{[mount: @id]}"}>Move to an exact angle ›</.btn>
+      </.row>
 
       <.card title="Modes">
         <:aside><.badge :if={@modes == []} on>all stock</.badge><.badge :if={@modes != []} warn>{length(@modes)} on</.badge></:aside>

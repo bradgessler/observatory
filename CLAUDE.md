@@ -124,6 +124,11 @@ Repo and migrate the settings into it.
   committed.
 - Commit messages say what changed and why in plain words, reference issues,
   and end with the session trailer.
+- When an epic or milestone closes, write it up: a concise post in `posts/`
+  in Brad's voice (read a few pieces on bradgessler.com first), with
+  screenshots of what was built, real code snippets (it's open source), what
+  went wrong on the way, and what's next. Progress people can read is how
+  others get inspired to run and hack on this.
 - Hardware facts worth remembering: EQ6-R wants 11–16 V centre-positive; the
   HAND CONTROL jack is 3.3 V TTL at 9600 baud; the board ignores axis "3"
   (both) for `F`, `E`, `L` — send per axis.

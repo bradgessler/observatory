@@ -139,6 +139,32 @@ defmodule Controller.LineupLive do
     {:noreply, socket |> compute() |> put_notice("line-up cleared")}
   end
 
+  # Hold whatever the tube is on right now — centred by hand, no goto needed.
+  # Through the line-up when there is one, the ideal geometry otherwise.
+  def handle_event("hold", _, socket) do
+    snap = socket.assigns.snap
+    ctx = Pointing.context(DateTime.utc_now(), socket.assigns.selected)
+
+    case snap && Pointing.scope_radec(snap, ctx) do
+      {ra, dec} ->
+        name = case Lineup.guess(snap, ctx, 1) do
+          [%{away_deg: d, name: n}] when d < 1.0 -> n
+          _ -> "here"
+        end
+
+        Tracker.track(socket.assigns.selected, %{name: name, ra_deg: ra, dec_deg: dec})
+        {:noreply, socket |> compute() |> put_notice("holding #{name}")}
+
+      _ ->
+        {:noreply, put_notice(socket, "set home first — then I know where the tube points")}
+    end
+  end
+
+  def handle_event("release", _, socket) do
+    Tracker.stop(socket.assigns.selected)
+    {:noreply, socket |> compute() |> put_notice("released")}
+  end
+
   def handle_event("pick", _, socket), do: {:noreply, assign(socket, picking: !socket.assigns.picking)}
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
@@ -255,10 +281,17 @@ defmodule Controller.LineupLive do
         </.row>
       </.card>
 
-      <.card :if={@tracker} title="Tracking">
-        <.kv label="on" value={@tracker.name} />
-        <.kv label="rates" value={"RA #{fmt(@tracker.ra_rate)}× · Dec #{fmt(@tracker.dec_rate)}×"} />
-        <.kv label="error" value={if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′", else: "—"} />
+      <%!-- tracking: hold whatever is in the eyepiece, or see how the hold is going --%>
+      <.card :if={@snap && @snap.homed} title="Tracking">
+        <div :if={@tracker} class="state-line">
+          <strong>Holding {@tracker.name}{if @tracker.paused, do: " · paused while you drive", else: ""}</strong>
+          <span class="dim">RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
+        </div>
+        <.row>
+          <.btn :if={!@tracker} variant="primary" phx-click="hold">Hold what I'm on</.btn>
+          <.btn :if={@tracker} phx-click="release">Stop holding</.btn>
+        </.row>
+        <.hint :if={!@tracker}>Centre anything by hand, tap, and both motors keep it there — through the line-up if there is one. Gotos from the Sky page do this by themselves.</.hint>
       </.card>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>

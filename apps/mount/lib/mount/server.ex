@@ -304,9 +304,11 @@ defmodule Mount.Server do
   defp close?(_new, nil), do: false
   defp close?(new, old), do: abs(new - old) <= max(old * 0.02, 1)
 
+  # The period is a 24-bit register: a rate tiny enough to overflow it (well
+  # under a thousandth of sidereal) is clamped to the slowest the board can do.
   defp period_for(rate, mode, %{steps_per_rev: cpr, timer_freq: tf, high_speed_ratio: hs}) do
     steps_per_s = P.sidereal_rate(cpr) * rate
-    max(round(tf * if(mode == :fast, do: hs, else: 1) / steps_per_s), 1)
+    tf * if(mode == :fast, do: hs, else: 1) / steps_per_s |> round() |> max(1) |> min(0xFFFFFF)
   end
 
   # Called every poll: an axis that was told to stop for a direction/mode

@@ -112,6 +112,19 @@ defmodule Controller.SurfacesTest do
     Controller.Sky.Lineup.clear(id)
   end
 
+  test "line up: hold what I'm on starts the tracker, stop holding ends it", %{conn: conn, id: id} do
+    Controller.Sky.Lineup.clear(id)
+    {:ok, view, _} = live(conn, "/controls/lineup/#{id}")
+    render_click(view, "home", %{})
+    html = render_click(view, "hold", %{})
+    assert html =~ "holding"
+    Process.sleep(300)
+    assert Controller.Sky.Tracker.status(id) != nil
+    render_click(view, "release", %{})
+    Process.sleep(300)
+    assert Controller.Sky.Tracker.status(id) == nil
+  end
+
   test "watch: history frames are served by name only when they exist", %{conn: conn} do
     assert conn |> get("/watch/frames/1758300000000.jpg") |> response(404)
     assert conn |> get("/watch/frames/..%2F..%2Fetc%2Fpasswd") |> response(404)

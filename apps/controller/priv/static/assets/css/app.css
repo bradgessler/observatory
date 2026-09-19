@@ -98,3 +98,34 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .fine { color: var(--dim); font-size: 11px; line-height: 1.4; margin: 0; opacity: .8; }
 .map .obj circle.hit { fill: transparent; }
 .map .obj.picked circle.hit { fill: transparent; stroke: var(--on); stroke-width: .6; }
+
+/* ---- catalog map additions ---- */
+.map .lines { stroke: #2a3550; stroke-width: .35; fill: none; }
+.night .map .lines { stroke: #3a0a0a; }
+.map .obj.faint circle { fill: #9aa3b8; }
+.map .obj.hidden circle, .map .obj.hidden rect { opacity: .18; }
+.map .obj.hidden text { opacity: .25; }
+.map .treeline { fill: #000; opacity: .55; }
+.night .map .treeline { fill: #000; opacity: .7; }
+.map .treeline-edge { fill: none; stroke: #3a4a2a; stroke-width: .5; }
+.night .map .treeline-edge { stroke: #4a1010; }
+.tabs { display: flex; gap: 8px; }
+.tabs button { flex: 1; padding: 10px; }
+.tabs button.on { border-color: var(--accent); color: var(--accent); }
+.targets { display: flex; flex-direction: column; gap: 6px; }
+.target { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 10px 12px; text-align: left; }
+.target.picked { border-color: var(--on); }
+.target .k { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 12px; color: var(--dim); border: 1px solid var(--edge); flex: none; }
+.target .t { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.target .t strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.target .t span { font-size: 12px; color: var(--dim); }
+.target .when { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.target .when.soon { color: var(--warn); }
+.target .when.rising { color: var(--on); }
+.horizon { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.horizon label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); text-align: center; }
+.horizon input { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 10px 4px; text-align: center; width: 100%; }
+.horizon-hint { font-size: 12px; color: var(--dim); margin: 0; }
+.target.top .k { border-color: var(--on); color: var(--on); font-weight: 700; font-size: 15px; }
+.target.top .t strong { font-size: 16px; }
+.map .obj circle.hit, .map .obj.faint circle.hit, .map .obj.hidden circle.hit { fill: transparent !important; opacity: 1; }

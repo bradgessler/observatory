@@ -12,6 +12,8 @@ defmodule Controller.Application do
       # Start a worker by calling: Controller.Worker.start_link(arg)
       # {Controller.Worker, arg},
       # Start to serve requests, typically the last entry
+      Controller.Sky.Catalog,
+      Controller.Settings,
       Controller.Endpoint
     ]
 

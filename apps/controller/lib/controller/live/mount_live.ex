@@ -14,7 +14,7 @@ defmodule Controller.MountLive do
 
     {:ok,
      socket
-     |> assign(rate: 64, goto_deg: "5", notice: nil, night: false, mounts: %{}, refs: %{})
+     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), mounts: %{}, refs: %{})
      |> assign(selected: params["id"])
      |> rescan()}
   end
@@ -122,7 +122,11 @@ defmodule Controller.MountLive do
     end
   end
 
-  def handle_event("night", _, socket), do: {:noreply, assign(socket, night: !socket.assigns.night)}
+  def handle_event("night", _, socket) do
+    night = !socket.assigns.night
+    Controller.Settings.put("night", night)
+    {:noreply, assign(socket, night: night)}
+  end
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
   defp run(socket, fun) do

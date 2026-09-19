@@ -210,7 +210,7 @@ defmodule Controller.WatchLive do
           <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
           <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
           <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
-          <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m={@quality} aria-label="play live video">▶</button>
+          <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m={@quality} aria-label="play live video">Play</button>
         </div>
 
         <%!-- the state is the selected segment: Off means stills --%>

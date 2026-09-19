@@ -73,6 +73,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :optical, name: :sweep_done, data: d}), do: "#{d.id} · axes swept · RA #{d.ra} · Dec #{d.dec} · #{d.between}° between"
   defp words(%{module: :video, name: :start, data: d}), do: "video #{d.quality} · #{d.encoder} · #{d.fps} fps"
   defp words(%{module: :video, name: :stop, data: d}), do: "video stopped (#{d.quality})"
+  defp words(%{module: :video, name: :frozen, data: d}), do: "camera froze on one frame (#{d.quality}) — encoder restarted"
   defp words(e), do: "#{e.module} · #{e.name} · #{inspect(e.data)}"
 
   defp fmt(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 2)

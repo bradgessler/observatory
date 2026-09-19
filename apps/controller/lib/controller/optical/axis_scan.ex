@@ -122,7 +122,7 @@ defmodule Controller.Optical.AxisScan do
 
   @sweep_deg [-6.0, -3.0, 0.0, 3.0, 6.0]
 
-  defp sweep_scan(parent, ref, opts) do
+  defp sweep_scan(parent, ref, _opts) do
     Telescope.Events.tag("axis sweep")
     hfov = Settings.get("camera_hfov_deg", 70) / 1
 
@@ -162,8 +162,9 @@ defmodule Controller.Optical.AxisScan do
     _ = Mount.goto_relative(ref, axis, -6.0)
     _ = settle(ref, axis)
 
-    with {:ok, frames_rev} <- result do
-      frames = Enum.reverse(frames_rev)
+    with {:ok, frames_rev} <- result,
+         frames = Enum.reverse(frames_rev),
+         :ok <- frames_alive(frames) do
       send(parent, {:step, {:analyse, axis}})
       list = Enum.map(frames, &elem(&1, 0))
       names = Enum.map(frames, &elem(&1, 1))
@@ -187,6 +188,12 @@ defmodule Controller.Optical.AxisScan do
          "fit" => fit
        }}
     end
+  end
+
+  # every still the same bytes means the camera has frozen; say so instead of fitting noise
+  defp frames_alive(frames) do
+    hashes = Enum.map(frames, fn {f, _} -> :erlang.phash2(f.pixels) end)
+    if length(Enum.uniq(hashes)) <= 1, do: {:error, "the camera is frozen — every picture is identical; stop and restart the video, or replug the camera"}, else: :ok
   end
 
   # the fit plus two projected points on the axis so the page can draw it
@@ -283,15 +290,21 @@ defmodule Controller.Optical.AxisScan do
     end
   end
 
-  # wait for the goto to land, then a beat for the tube to stop swaying
+  # Wait for the goto to land, then a beat for the tube to stop swaying. A
+  # goto starts on the driver's next poll, so "not running" a moment after
+  # asking means nothing; the driver's goto_pending flag is set at once and
+  # cleared only when the goto has landed — that is what we wait on.
   defp settle(ref, axis, waited \\ 0) do
     Process.sleep(250)
 
     case Mount.snapshot(ref) do
       %{axes: axes} ->
+        ax = axes[axis]
+        busy = ax.running or Map.get(ax, :goto_pending, false)
+
         cond do
-          axes[axis].running and waited < 30_000 -> settle(ref, axis, waited + 250)
-          axes[axis].running -> {:error, "#{axis} still moving after 30 s"}
+          busy and waited < 40_000 -> settle(ref, axis, waited + 250)
+          busy -> {:error, "#{axis} still moving after 40 s"}
           true -> Process.sleep(@settle_ms); :ok
         end
 

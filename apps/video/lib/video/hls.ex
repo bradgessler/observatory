@@ -82,7 +82,9 @@ defmodule Video.HLS do
        encoder: nil,
        modes: nil,
        fps: @default_fps,
-       fell_back_from: nil
+       fell_back_from: nil,
+       last_still_hash: nil,
+       same_still: 0
      }}
   end
 
@@ -150,13 +152,15 @@ defmodule Video.HLS do
 
   def handle_info({:launch, q}, %{state: :starting, port: nil} = s), do: {:noreply, launch(s, q)}
   def handle_info({:launch, _}, s), do: {:noreply, s}
-  def handle_info(:relaunch, %{state: :restarting, quality: q} = s), do: {:noreply, launch(s, q)}
+  def handle_info(:relaunch, %{state: :restarting, quality: q, restarts: r} = s) when r <= @max_restarts, do: {:noreply, launch(s, q)}
+  def handle_info(:relaunch, %{state: :restarting} = s), do: {:noreply, announce(%{s | state: :error, error: "the camera keeps freezing — giving up; unplug and replug it, then Play again"})}
   def handle_info(:relaunch, s), do: {:noreply, s}
 
   def handle_info(:poll, %{state: :starting} = s) do
     cond do
       playlist_ready?(s.quality) ->
-        {:noreply, announce(%{s | state: :streaming, ready: true, restarts: 0, error: nil})}
+        Process.send_after(self(), :frozen_check, @still_every_s * 1_000)
+        {:noreply, announce(%{s | state: :streaming, ready: true, error: nil, last_still_hash: nil, same_still: 0})}
 
       System.monotonic_time(:millisecond) - s.started_at > @warmup_ms ->
         reason = "no playlist after #{div(@warmup_ms, 1000)} s: #{first_interesting(s.log)}"
@@ -178,6 +182,28 @@ defmodule Video.HLS do
   end
 
   def handle_info(:poll, s), do: {:noreply, s}
+
+  # The capture can freeze on one buffer (a USB hiccup, a camera reset): ffmpeg
+  # keeps encoding it forever and every still is the same bytes. Watch the
+  # still's hash; three identical in a row on a scene that has a live camera
+  # means frozen — restart the encoder rather than stream a photograph.
+  def handle_info(:frozen_check, %{state: :streaming} = s) do
+    Process.send_after(self(), :frozen_check, @still_every_s * 1_000)
+    hash = still_hash(s.quality)
+    same = if hash != nil and hash == s.last_still_hash, do: s.same_still + 1, else: 0
+
+    if same >= 3 do
+      Logger.warning("video: still unchanged #{same} times — capture frozen, restarting encoder")
+      Telescope.Events.emit(:video, :frozen, %{quality: s.quality})
+      s = s |> kill() |> Map.merge(%{state: :restarting, error: "camera froze — restarting", last_still_hash: nil, same_still: 0, restarts: s.restarts + 1})
+      Process.send_after(self(), :relaunch, 2_500)
+      {:noreply, announce(s)}
+    else
+      {:noreply, %{s | last_still_hash: hash, same_still: same}}
+    end
+  end
+
+  def handle_info(:frozen_check, s), do: {:noreply, s}
   def handle_info({:EXIT, _port, _}, s), do: {:noreply, s}
   def handle_info(_, s), do: {:noreply, s}
 
@@ -277,6 +303,13 @@ defmodule Video.HLS do
   end
 
   defp wrapper, do: Path.join(:code.priv_dir(:video), "wrap.sh")
+
+  defp still_hash(q) do
+    case File.read(Path.join(dir(q), @still)) do
+      {:ok, bin} -> :erlang.phash2(bin)
+      _ -> nil
+    end
+  end
 
   defp lower(q) do
     ids = Ladder.ids()

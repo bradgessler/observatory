@@ -58,7 +58,7 @@ defmodule Controller.Optical.Track do
     patch = for y <- y0..(y0 + block - 1), x <- x0..(x0 + block - 1), do: Frame.at(prev, x, y)
 
     {bx, by, best} =
-      for dy <- -search..search, dx <- -search..search, reduce: {0, 0, :infinity} do
+      for dy <- -search..search, dx <- -search..search, reduce: {0, 0, 1.0e18} do
         {bdx, bdy, bbest} ->
           s = sad(patch, frame, x0 + dx, y0 + dy, block)
           if s < bbest, do: {dx, dy, s}, else: {bdx, bdy, bbest}

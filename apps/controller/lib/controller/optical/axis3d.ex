@@ -35,7 +35,9 @@ defmodule Controller.Optical.Axis3D do
   Returns `{:ok, %{dir, point, image_angle_deg, image_angle_sd_deg, tilt_deg,
   tilt_sd_deg, bootstrap_sd_deg, rms_px, n, sense}}` or `{:error, why}`.
   """
-  def fit(trajectories, angles_deg, cam, opts \\ []) when length(trajectories) >= 4 do
+  def fit(trajectories, angles_deg, cam, opts \\ [])
+
+  def fit(trajectories, angles_deg, cam, opts) when length(trajectories) >= 4 do
     n_frames = length(angles_deg)
     tracks = Enum.filter(trajectories, &(length(&1.points) == n_frames))
 

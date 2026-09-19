@@ -35,8 +35,46 @@ defmodule Controller.AxesLive do
   end
 
   defp load(socket) do
-    assign(socket, result: socket.assigns.selected && AxisScan.result(socket.assigns.selected), camera: Watch.status())
+    id = socket.assigns.selected
+    assign(socket, result: id && AxisScan.result(id), camera: Watch.status(), predicted: id && predicted(id))
   end
+
+  # What the orb's geometry says each axis should look like from where the
+  # orb's viewer stands (Setup › view from): the angle of its projection.
+  # If the webcam stands roughly where the orb's viewer does, the camera's
+  # measured line and this should agree — a first calibration check.
+  defp predicted(id) do
+    with ref when not is_nil(ref) <- Enum.find(Mount.list(), &(&1.id == id)),
+         %{connected: true} = snap <- Mount.snapshot(ref) do
+      scene = Controller.OrbLive.scene(snap, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
+      %{"ra" => angle_of(scene.ra.head, scene.ra.tail), "dec" => angle_of(scene.dec.head, scene.dec.tail), "from" => round(Settings.get("orb_view_az", 150.0) / 1)}
+    else
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp angle_of({hx, hy, _}, {tx, ty, _}), do: line_angle(hx - tx, hy - ty)
+
+  # undirected line angle in degrees, 0..180, screen y-down
+  defp line_angle(dx, dy) do
+    a = :math.atan2(dy, dx) * 180 / :math.pi()
+    a = if a < 0, do: a + 180, else: a
+    Float.round(a, 0)
+  end
+
+  defp measured(%{"line" => %{"ux" => ux, "uy" => uy}}), do: line_angle(ux, uy)
+  defp measured(_), do: nil
+
+  defp apart(a, b) when is_number(a) and is_number(b) do
+    d = abs(a - b)
+    round(min(d, 180 - d))
+  end
+
+  defp apart(_, _), do: nil
 
   @impl true
   def handle_info(:rescan, socket) do
@@ -117,7 +155,11 @@ defmodule Controller.AxesLive do
             spin {Float.round(ax["fit"]["quality"] / 1, 2)} · slide {Float.round(ax["fit"]["coherence"] / 1, 2)}
           </span>
           <span :if={!ax["fit"]} class="dim">nothing moved enough to measure</span>
+          <span :if={ax["line"] && @predicted} class="dim">
+            camera sees this axis at {round(measured(ax))}° · the orb, viewed from {@predicted["from"]}°, draws it at {round(@predicted[axis])}° · {apart(measured(ax), @predicted[axis])}° apart
+          </span>
         </div>
+        <.hint :if={@predicted}>The comparison with the orb only means something if the orb's viewpoint (Orb › from N/E/S/W, or Setup) is roughly where the camera stands; camera roll and height are not accounted for yet.</.hint>
         <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide; a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 

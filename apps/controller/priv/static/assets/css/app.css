@@ -471,3 +471,9 @@ a.banner strong { color: var(--warn); }
 .watch-strip a.on { border-color: var(--accent); }
 .watch-strip img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .watch-strip time { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center; background: rgba(0,0,0,.55); color: #fff; font-variant-numeric: tabular-nums; }
+
+/* ---- video feed ---- */
+.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--r); overflow: hidden; display: grid; place-items: center; }
+.video-frame video { width: 100%; height: 100%; display: block; background: #000; }
+.video-frame .hint { position: absolute; margin: 0; padding: 8px 12px; color: var(--dim); text-align: center; }
+.video-log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--dim); white-space: pre-wrap; word-break: break-all; margin: 0; }

@@ -13,6 +13,7 @@ defmodule Controller.WatchLive do
   def mount(params, session, socket) do
     if connected?(socket) do
       Watch.subscribe()
+      Video.subscribe()
       Settings.subscribe()
     end
 
@@ -42,12 +43,35 @@ defmodule Controller.WatchLive do
       history: Watch.history(limit: @strip),
       summary: Watch.history_summary(),
       # nil = follow the live frame; a name = pinned on one from the strip
-      pinned: socket.assigns[:pinned]
+      pinned: socket.assigns[:pinned],
+      video: safe_video(),
+      quality: socket.assigns[:quality] || "1k",
+      rungs: socket.assigns[:rungs] || [],
+      player: socket.assigns[:player]
     )
+  end
+
+  # the ladder probe opens the camera for a moment; only do it on demand
+  defp load_rungs(socket) do
+    try do
+      %{rungs: rungs} = Video.qualities()
+      assign(socket, rungs: rungs)
+    catch
+      :exit, _ -> socket
+    end
+  end
+
+  defp safe_video do
+    try do
+      Video.status()
+    catch
+      :exit, _ -> %{state: :off, quality: nil, ready: false, error: "video app not running", playlist: nil, log: [], encoder: nil, supported_modes: nil}
+    end
   end
 
   @impl true
   def handle_info({:watch, _meta}, socket), do: {:noreply, load(socket)}
+  def handle_info({:video, status}, socket), do: {:noreply, assign(socket, video: status)}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
@@ -69,10 +93,40 @@ defmodule Controller.WatchLive do
     {:noreply, load(socket)}
   end
 
+  def handle_event("quality", %{"q" => q}, socket) do
+    socket = assign(socket, quality: q)
+    # a running stream follows the picker
+    if socket.assigns.video.state in [:starting, :streaming, :restarting], do: Video.start(quality: q)
+    {:noreply, socket}
+  end
+
+  def handle_event("stream", %{"on" => "true"}, socket) do
+    socket = load_rungs(socket)
+
+    case Video.start(quality: socket.assigns.quality) do
+      :ok -> {:noreply, assign(socket, player: nil, video: safe_video())}
+      {:error, why} -> {:noreply, socket |> assign(notice: "stream: #{why}") |> assign(video: safe_video())}
+    end
+  end
+
+  def handle_event("stream", _, socket) do
+    Video.stop()
+    {:noreply, assign(socket, player: nil, video: safe_video())}
+  end
+
+  def handle_event("player", %{"state" => st} = p, socket), do: {:noreply, assign(socket, player: {st, p["detail"]})}
+
   def handle_event("pin", %{"name" => name}, socket), do: {:noreply, assign(socket, pinned: name)}
   def handle_event("pin", _, socket), do: {:noreply, assign(socket, pinned: nil)}
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
+
+  defp video_words(%{state: :off}), do: "off"
+  defp video_words(%{state: :starting}), do: "starting"
+  defp video_words(%{state: :restarting}), do: "restarting"
+  defp video_words(%{state: :streaming, quality: q}), do: "live · #{q}"
+  defp video_words(%{state: :error}), do: "error"
+  defp video_words(_), do: "?"
 
   defp pinned_entry(nil, _), do: nil
   defp pinned_entry(name, history), do: Enum.find(history, &(&1.name == name))
@@ -121,6 +175,41 @@ defmodule Controller.WatchLive do
           </select>
         </form>
         <.hint :if={@status.last_error}>last error: {@status.last_error}</.hint>
+      </.card>
+
+      <.card title="Video">
+        <:aside>
+          <.badge on={@video.state == :streaming} warn={@video.state == :error}>{video_words(@video)}</.badge>
+        </:aside>
+        <div class="video-frame">
+          <%!-- data-src appears only once the playlist exists; the hook follows it --%>
+          <video id="video-feed" phx-hook="Hls" data-src={@video.playlist && "/video/#{@video.playlist}"} playsinline muted autoplay controls={@video.ready}></video>
+          <.hint :if={@video.state == :off}>Off. Stills above keep coming either way.</.hint>
+          <.hint :if={@video.state in [:starting, :restarting]}>Warming up the encoder…</.hint>
+          <.hint :if={@video.state == :error}>{@video.error}</.hint>
+          <.hint :if={@player && elem(@player, 0) == "unsupported"}>This browser can't play HLS, even with hls.js. Safari, Chrome, Firefox and Edge all can.</.hint>
+          <.hint :if={@player && elem(@player, 0) == "error"}>Player error: {elem(@player, 1)}</.hint>
+        </div>
+        <div class="seg seg-2" role="radiogroup" aria-label="video feed">
+          <button class={["seg-opt", @video.state == :off && "on"]} phx-click="stream" phx-value-on="false" aria-checked={to_string(@video.state == :off)} role="radio">Off</button>
+          <button class={["seg-opt", @video.state != :off && "on"]} phx-click="stream" phx-value-on="true" aria-checked={to_string(@video.state != :off)} role="radio">Stream</button>
+        </div>
+        <div class="seg seg-3" role="radiogroup" aria-label="quality">
+          <button
+            :for={r <- (if @rungs == [], do: Video.Ladder.rungs() |> Enum.map(&Map.put(&1, :available?, true)), else: @rungs)}
+            class={["seg-opt", Atom.to_string(r.id) == @quality && "on"]}
+            phx-click="quality"
+            phx-value-q={r.id}
+            disabled={!r.available?}
+            role="radio"
+            aria-checked={to_string(Atom.to_string(r.id) == @quality)}
+          >{r.label}<small>{Video.Ladder.size_string(r.size)}</small></button>
+        </div>
+        <.hint :if={is_list(@video.supported_modes) and Enum.any?(@rungs, &(!&1.available?))}>
+          This camera tops out at {@video.supported_modes |> Enum.max_by(&elem(&1, 0)) |> Video.Ladder.size_string()}; greyed rungs aren't offered.
+        </.hint>
+        <.hint>HLS from FFmpeg on the server{if @video.encoder, do: " (#{@video.encoder})"}; about 6–10 s behind. Heavy: on a Pi, run this on a bigger machine.</.hint>
+        <pre :if={@video.state == :error and @video.log != []} class="video-log">{Enum.join(Enum.reverse(@video.log), "\n")}</pre>
       </.card>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>

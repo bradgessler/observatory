@@ -36,6 +36,7 @@ defmodule Controller.Router do
     live "/controls/tilt", TiltLive, :index
     live "/controls/tilt/:id", TiltLive, :show
     get "/watch/frames/:name", WatchController, :frame
+    get "/video/:quality/:name", VideoController, :file
     live "/setup/:id", SetupLive, :show
     live "/sky/:id", SkyLive, :show
     get "/docs/:slug", DocsController, :show

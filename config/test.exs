@@ -17,3 +17,4 @@ config :logger, level: :warning
 config :watch, dir: Path.join(System.tmp_dir!(), "observatory-test-frames-#{System.os_time(:millisecond)}")
 
 config :controller, settings_path: Path.join(System.tmp_dir!(), "observatory-test-settings-#{System.os_time(:millisecond)}.json")
+config :video, dir: Path.join(System.tmp_dir!(), "observatory-test-video-#{System.os_time(:millisecond)}")

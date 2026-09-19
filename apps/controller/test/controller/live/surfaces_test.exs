@@ -58,6 +58,28 @@ defmodule Controller.SurfacesTest do
     assert render_hook(view, "sensor", %{"state" => "denied"}) =~ "said no"
   end
 
+  test "video: playlist and segments are served by whitelisted name only", %{conn: conn} do
+    assert conn |> get("/video/1k/index.m3u8") |> response(404)
+    assert conn |> get("/video/1k/..%2Fsecret") |> response(404)
+    assert conn |> get("/video/9k/index.m3u8") |> response(404)
+    dir = Video.HLS.dir(:"1k")
+    File.mkdir_p!(dir)
+    File.write!(Path.join(dir, "index.m3u8"), "#EXTM3U\n")
+    File.write!(Path.join(dir, "seg00001.ts"), <<0x47, 0, 0>>)
+    conn2 = get(conn, "/video/1k/index.m3u8")
+    assert response(conn2, 200) =~ "#EXTM3U"
+    assert get_resp_header(conn2, "content-type") |> hd() =~ "mpegurl"
+    assert conn |> get("/video/1k/seg00001.ts") |> response(200)
+  end
+
+  test "watch page shows the video card, off, with the ladder", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/controls/watch")
+    assert html =~ "video-feed"
+    assert html =~ "1280x720"
+    assert html =~ "3840x2160"
+    refute html =~ "data-src="
+  end
+
   test "watch: history frames are served by name only when they exist", %{conn: conn} do
     assert conn |> get("/watch/frames/1758300000000.jpg") |> response(404)
     assert conn |> get("/watch/frames/..%2F..%2Fetc%2Fpasswd") |> response(404)

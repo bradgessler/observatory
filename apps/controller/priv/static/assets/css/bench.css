@@ -69,3 +69,6 @@
 .dpad .arrow.pressed { background: var(--btn-press); }
 .seg.seg-4 { grid-template-columns: repeat(4, 1fr); }
 .seg.seg-4 .seg-opt { padding: 10px 6px; font-size: 13px; }
+.seg.seg-3 { grid-template-columns: repeat(3, 1fr); }
+.seg-opt small { display: block; font-size: 10px; font-weight: 400; color: var(--dim); letter-spacing: .03em; }
+.seg-opt.on small { color: var(--text); opacity: .7; }

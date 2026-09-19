@@ -79,6 +79,25 @@ phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any s
     and plate-solved (needs a free `NOVA_API_KEY` from nova.astrometry.net)
     into that direction's horizon.
 
+* **Bench** `/` — the front door while control surfaces are being worked out.
+  One header with the scope's live state, the game pad, the camera and one
+  always-visible STOP; a nav of surfaces, each rendered below:
+  *Axis strips* (pull-to-speed per axis), *Plain keypad*, *Nudge* (tap = one
+  exact 1′/5′/30′/2° step), *Orb* (the equatorial geometry as a 3-D gizmo),
+  *Tilt* (hold the dead-man, tilt the phone; needs HTTPS), *Position* (type an
+  axis angle, go home), *Game controller* (a USB pad read by the server —
+  see `apps/input`), *Watch* and *Sky*.
+* **Watch** — a camera on the mount, read by the server (`imagesnap` on a Mac,
+  `fswebcam` on Linux). Every frame is kept under `~/.observatory/watch/frames`
+  for the last 240 frames / 20 minutes / 256 MB, whichever comes first, so a
+  person or an agent can look back at a slew (`Watch.history/1`,
+  `/watch/frames/<name>`); the page shows the strip. **Video** is HLS from
+  FFmpeg (`apps/video`: hardware H.264 where the machine has it, 1K/2K/4K as
+  the camera allows), served as plain files; Safari plays it natively, other
+  browsers get a lazily-loaded hls.js. While streaming, stills come from the
+  encoder so the history keeps filling. It is a separate app on purpose: it is
+  the heavy workload and is meant to run on a bigger machine than the camera's.
+
 Settings persist in `~/.observatory/settings.json`. Site and the pointing
 model's axis signs live in `config/config.exs` (`:controller`).
 

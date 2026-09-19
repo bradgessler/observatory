@@ -1,9 +1,9 @@
-defmodule Watch.MixProject do
+defmodule Video.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :watch,
+      app: :video,
       version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
@@ -18,15 +18,13 @@ defmodule Watch.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Watch.Application, []}
+      mod: {Video.Application, []}
     ]
   end
 
   defp deps do
     [
-      {:telescope, in_umbrella: true},
-      # while the camera is streaming, stills come from the encoder
-      {:video, in_umbrella: true}
+      {:telescope, in_umbrella: true}
     ]
   end
 end

@@ -4,6 +4,8 @@
 //   SkyZoom   pinch-to-zoom is a gesture; the map itself is server-rendered SVG
 //   SkyPhoto  reads pixels from a photo on the phone (candidate to move server-side)
 //   Geo       the browser only gives location to JS
+//   Tilt      the orientation sensor is only readable in the browser (dead-man + vector)
+//   Hls       video playback; loads hls.js lazily where <video> can't play HLS itself
 // Arrow keys use phx-window-keydown/keyup, not a hook.
 
 // No bundler: phoenix.min.js and phoenix_live_view.min.js are loaded from
@@ -272,6 +274,36 @@ Hooks.Tilt = {
     this.end = () => { stop(); if (listening) window.removeEventListener("deviceorientation", onOrient); };
   },
   destroyed() { this.end && this.end(); },
+};
+
+// HLS playback. Safari plays it natively in <video>; every other browser
+// needs hls.js, which is the one library we ship — loaded only when a
+// stream is actually on screen and the browser can't do it alone. The
+// server sets data-src once the playlist exists; clearing it stops playback.
+Hooks.Hls = {
+  mounted() { this.attach(); },
+  updated() { if (this.el.dataset.src !== this.src) this.attach(); },
+  destroyed() { this.detach(); },
+  detach() { if (this.hls) { this.hls.destroy(); this.hls = null; } this.el.removeAttribute("src"); this.el.load && this.el.load(); },
+  attach() {
+    const v = this.el, src = v.dataset.src;
+    this.detach();
+    this.src = src;
+    if (!src) return;
+    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = src; v.play().catch(() => {}); return; }
+    const go = () => {
+      if (!window.Hls || !window.Hls.isSupported()) { this.pushEvent("player", { state: "unsupported" }); return; }
+      this.hls = new window.Hls({ liveSyncDurationCount: 3, enableWorker: true });
+      this.hls.on(window.Hls.Events.ERROR, (_, d) => { if (d.fatal) this.pushEvent("player", { state: "error", detail: d.details }); });
+      this.hls.loadSource(src);
+      this.hls.attachMedia(v);
+      v.play().catch(() => {});
+    };
+    if (window.Hls) return go();
+    const s = document.createElement("script");
+    s.src = "/vendor/hls/hls.min.js"; s.onload = go; s.onerror = () => this.pushEvent("player", { state: "noscript" });
+    document.head.appendChild(s);
+  },
 };
 
 // "Use my location": ask the browser once, hand lat/lon to the server.

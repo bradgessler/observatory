@@ -50,12 +50,20 @@ defmodule Watch.Camera do
 
   @impl true
   def init(_) do
-    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0}}
+    # while video streams, the encoder's still is free: keep the history
+    # filling whether or not timed stills are switched on
+    Telescope.subscribe("video")
+    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0, streaming: false}}
   end
 
   @impl true
   def handle_call(:status, _from, s) do
-    {:reply, Map.merge(Map.take(s, [:enabled, :interval, :device, :last_error, :frames]), %{tool: tool_name(), latest: meta(latest())}), s}
+    {:reply,
+     Map.merge(Map.take(s, [:enabled, :interval, :device, :last_error, :frames, :streaming]), %{
+       tool: tool_name(),
+       latest: meta(latest()),
+       source: if(s.streaming, do: :stream, else: tool_name())
+     }), s}
   end
 
   def handle_call(:capture, _from, s), do: do_capture(s) |> then(fn s -> {:reply, meta(latest()) || {:error, s.last_error}, s} end)
@@ -76,7 +84,42 @@ defmodule Watch.Camera do
     {:noreply, s}
   end
 
+  def handle_info({:video, %{state: state}}, s) do
+    streaming? = state == :streaming
+    if streaming? and not s.streaming, do: send(self(), :stream_tick)
+    {:noreply, %{s | streaming: streaming?}}
+  end
+
+  # the stream's own cadence; stops by itself when the stream does
+  def handle_info(:stream_tick, %{streaming: false} = s), do: {:noreply, s}
+
+  def handle_info(:stream_tick, s) do
+    s = if s.enabled, do: s, else: do_capture(s)
+    Process.send_after(self(), :stream_tick, s.interval)
+    {:noreply, s}
+  end
+
+  # While the encoder holds the camera it also writes a still every few
+  # seconds; take that rather than fight it for the device.
   defp do_capture(s) do
+    case streamed_still() do
+      {:ok, jpeg} -> keep(s, jpeg, "stream")
+      :none -> grab(s)
+    end
+  end
+
+  defp streamed_still do
+    try do
+      case Video.snapshot() do
+        {:ok, jpeg} -> {:ok, jpeg}
+        _ -> :none
+      end
+    catch
+      :exit, _ -> :none
+    end
+  end
+
+  defp grab(s) do
     path = Path.join(System.tmp_dir!(), "watch-#{System.unique_integer([:positive])}.jpg")
 
     result =
@@ -98,16 +141,7 @@ defmodule Watch.Camera do
         case File.read(path) do
           {:ok, jpeg} when byte_size(jpeg) > 1_000 ->
             File.rm(path)
-            frame = %{jpeg: jpeg, at: DateTime.utc_now(), device: s.device || "default", bytes: byte_size(jpeg)}
-            :persistent_term.put({__MODULE__, :latest}, frame)
-            # the recent past on disk; a failure there never loses the live frame
-            try do
-              Watch.History.put(frame)
-            catch
-              :exit, why -> Logger.warning("watch: history unavailable: #{inspect(why)}")
-            end
-            Telescope.broadcast("watch", {:watch, meta(frame)})
-            %{s | last_error: nil, frames: s.frames + 1}
+            keep(s, jpeg, s.device || "default")
 
           _ ->
             File.rm(path)
@@ -118,6 +152,20 @@ defmodule Watch.Camera do
         Logger.warning("watch: capture failed: #{why}")
         %{s | last_error: why}
     end
+  end
+
+  defp keep(s, jpeg, device) do
+    frame = %{jpeg: jpeg, at: DateTime.utc_now(), device: device, bytes: byte_size(jpeg)}
+    :persistent_term.put({__MODULE__, :latest}, frame)
+    # the recent past on disk; a failure there never loses the live frame
+    try do
+      Watch.History.put(frame)
+    catch
+      :exit, why -> Logger.warning("watch: history unavailable: #{inspect(why)}")
+    end
+
+    Telescope.broadcast("watch", {:watch, meta(frame)})
+    %{s | last_error: nil, frames: s.frames + 1}
   end
 
   defp run(bin, args) do

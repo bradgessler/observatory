@@ -67,6 +67,24 @@ Hooks.SkyPhoto = {
 Hooks.Stick = {
   mounted() {
     const pad = this.el, knob = pad.querySelector("[data-knob]");
+    // Fixed mode: a plain button with data-dir. Hold = send that direction at
+    // full magnitude every 250 ms; release = stick_end. No knob, no drag.
+    if (pad.dataset.dir) {
+      const v = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] }[pad.dataset.dir] || [0, 0];
+      let timer = null, id = null;
+      const send = () => this.pushEvent("stick", { x: v[0], y: v[1], mag: 1 });
+      const start = (e) => { if (timer) return; e.preventDefault(); id = e.pointerId; pad.classList.add("pressed"); send(); timer = setInterval(send, 250); };
+      const stop = (e) => { if (!timer) return; if (e && e.pointerId !== undefined && e.pointerId !== id) return; clearInterval(timer); timer = null; pad.classList.remove("pressed"); this.pushEvent("stick_end", {}); };
+      pad.addEventListener("pointerdown", start);
+      pad.addEventListener("pointerup", stop);
+      pad.addEventListener("pointercancel", stop);
+      pad.addEventListener("pointerleave", stop);
+      pad.addEventListener("contextmenu", (e) => e.preventDefault());
+      window.addEventListener("blur", () => stop());
+      document.addEventListener("visibilitychange", () => document.hidden && stop());
+      this.end = stop;
+      return;
+    }
     const lockX = pad.dataset.lock === "x";          // a strip: horizontal pull only
     const axis = pad.dataset.axis || null;           // which mount axis a strip drives
     const R = () => (lockX ? pad.getBoundingClientRect().width / 2 - 28 : pad.getBoundingClientRect().width / 2);

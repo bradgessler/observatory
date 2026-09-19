@@ -10,16 +10,19 @@ defmodule Controller.InputLive do
   alias Controller.Settings
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     if connected?(socket) do
       Input.subscribe()
       Settings.subscribe()
       send(self(), :rescan)
     end
 
+    # nested views get :not_mounted_at_router instead of params
+    params = if is_map(params), do: params, else: %{}
+
     {:ok,
      socket
-     |> assign(night: Settings.get("night", false), refs: %{}, selected: params["mount"], snap: nil, notice: nil, start: nil)
+     |> assign(night: Settings.get("night", false), nested: session["nested"] == true, refs: %{}, selected: params["mount"] || session["mount"], snap: nil, notice: nil, start: nil)
      |> load()
      |> rescan()}
   end
@@ -103,25 +106,25 @@ defmodule Controller.InputLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.page id="input" night={@night}>
-      <:header>
+    <.page id="input" night={@night} class={@nested && "nested"}>
+      <:header :if={!@nested}>
         <.back navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} label="keypad" />
         <.title>controller</.title>
         <.actions>
           <.btn phx-click="scan">Scan</.btn>
-          <.btn variant={if @mapper.armed, do: "danger", else: "primary"} phx-click="arm" disabled={@devices == []}>{if @mapper.armed, do: "Disarm", else: "Arm"}</.btn>
+          <.btn variant={if @mapper.armed, do: "danger", else: "primary"} phx-click="arm" disabled={@devices == []}>{if @mapper.armed, do: "Pad moves scope: ON", else: "Pad moves scope: off"}</.btn>
         </.actions>
       </:header>
 
       <.card title="What it's doing">
         <:aside>
-          <.badge on={@mapper.armed} warn={!@mapper.armed}>{if @mapper.armed, do: "armed", else: "disarmed"}</.badge>
+          <.badge on={@mapper.armed} warn={!@mapper.armed}>{if @mapper.armed, do: "moving the scope", else: "watch only"}</.badge>
           <.badge on={@mapper.action != :idle} warn={@mapper.action == :stop}>{@mapper.action_text}</.badge>
         </:aside>
         <.kv label="mount" value={@mapper.target || "none"} />
         <.kv :if={@snap} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the <strong>trigger</strong> (button {@mapper.map.trigger}) and tilt the ball: X turns the polar axis, Y the Dec axis; more tilt, more speed. D-pad nudges at {round(@mapper.map.fine_rate)}×. Button {@mapper.map.stop} is STOP. Disarmed, the pad only shows here.</.hint>
+        <.hint>Hold the <strong>trigger</strong> (button {@mapper.map.trigger}) and tilt the ball: X turns the polar axis, Y the Dec axis; more tilt, more speed. D-pad nudges at {round(@mapper.map.fine_rate)}×. Button {@mapper.map.stop} is STOP. Turn <strong>Pad moves scope</strong> on when what you see here looks right.</.hint>
       </.card>
 
       <.card :for={d <- @devices} title={d.parser}>

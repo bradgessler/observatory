@@ -28,6 +28,12 @@ defmodule Input.Parsers do
     @impl true
     def name, do: "SideWinder Dual Strike"
 
+    # Found by holding it: the right-hand trigger under the index finger is
+    # button 7 (0-based); the left-hand trigger is 6. Left trigger = STOP.
+    # The ball rests ~0.17 off centre on this unit; a wider dead zone than the
+    # generic default keeps a held trigger from creeping.
+    def default_map, do: %{trigger: 7, stop: 6, dead: 0.22}
+
     @impl true
     def parse(<<_::binary-size(5)>> = report) do
       <<bits::little-unsigned-40>> = report

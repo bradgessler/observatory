@@ -80,7 +80,19 @@ defmodule Input.Device do
 
   def terminate(_reason, _s), do: :ok
 
-  defp info(s), do: %{id: s.id, device: s.dev, parser: s.parser.name(), state: s.state, reports: s.reports, node: node()}
+  # `at` is monotonic ms: consumers must ignore stale states (a backlog of
+  # old "trigger held" reports once moved the scope after the hand let go).
+  defp info(s),
+    do: %{
+      id: s.id,
+      device: s.dev,
+      parser: s.parser.name(),
+      parser_mod: s.parser,
+      state: s.state,
+      reports: s.reports,
+      node: node(),
+      at: System.monotonic_time(:millisecond)
+    }
 
   defp broadcast(s) do
     msg = {:input, s.id, info(s)}

@@ -8,5 +8,7 @@ config :controller, Controller.Endpoint,
   server: false
 
 config :mount, mounts: []
+# don't fight the dev server for the real game controller during tests
+config :input, discover: false
 config :libcluster, topologies: []
 config :logger, level: :warning

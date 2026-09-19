@@ -62,9 +62,28 @@ defmodule Mount.Server do
       holds: %{}
     }
 
+    # so terminate/2 runs on supervisor shutdown and we can stop the motors
+    Process.flag(:trap_exit, true)
     send(self(), :connect)
     {:ok, state}
   end
+
+  # Best effort on the way out: if the link still works, stop both axes so a
+  # driver restart (or a VM shutdown) doesn't leave the mount slewing.
+  @impl true
+  def terminate(_reason, %{connected: true, tstate: t} = state) when not is_nil(t) do
+    for axis <- [:ra, :dec] do
+      try do
+        exchange(state, P.encode("L", axis))
+      catch
+        _, _ -> :ok
+      end
+    end
+
+    safe_close(state)
+  end
+
+  def terminate(_reason, state), do: safe_close(state)
 
   @impl true
   def handle_info(:connect, state) do
@@ -295,7 +314,9 @@ defmodule Mount.Server do
          {:ok, _, state} <- query(state, "F", :ra),
          {:ok, _, state} <- query(state, "F", :dec) do
       state = %{state | connected: true, error: nil, firmware: fw, axes: %{ra: ra, dec: dec}}
-      state = refresh(state)
+      # Fail-safe: never inherit motion from before a (re)connect. A driver
+      # restart mid-slew must not leave the motors running with no owner.
+      state = state |> refresh() |> stop_axis(:ra) |> stop_axis(:dec)
 
       # If we were homed before a driver restart and the mount still counts from
       # somewhere other than its power-on value, it wasn't power-cycled: keep home.
@@ -474,7 +495,7 @@ defmodule Mount.Server do
       limits: if(state.homed, do: state.limits),
       axes:
         Map.new(state.axes, fn {k, ax} ->
-          {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked])}
+          {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked, :deg_per_s])}
         end)
     }
   end

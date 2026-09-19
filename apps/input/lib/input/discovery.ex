@@ -18,7 +18,8 @@ defmodule Input.Discovery do
 
   @impl true
   def init(_) do
-    send(self(), :scan)
+    # `config :input, discover: false` (tests) leaves devices alone
+    if Application.get_env(:input, :discover, true), do: send(self(), :scan)
     {:ok, %{seen: [], last_scan: nil}}
   end
 

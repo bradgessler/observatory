@@ -1,0 +1,39 @@
+defmodule Controller.Components.Status do
+  @moduledoc """
+  The telescope's state, always visible: which mount, answering or not, RA/Dec
+  axis degrees with motion dots, tracking, homed. Same strip on every surface
+  so flipping between controls never loses the picture.
+  """
+  use Phoenix.Component
+  use Controller, :verified_routes
+
+  attr :snap, :map, default: nil
+  attr :id, :string, default: nil
+  attr :compact, :boolean, default: false
+
+  def status(assigns) do
+    ~H"""
+    <.link navigate={if @id, do: ~p"/setup/#{@id}", else: ~p"/devices"} class={["scope-status", @compact && "compact"]}>
+      <%= if @snap && @snap.connected do %>
+        <span class="ss-id">{@id}</span>
+        <span class="ss-axis"><b>RA</b> {deg(@snap.axes.ra.degrees)}<i class={["dot", @snap.axes.ra.running && "on"]}></i></span>
+        <span class="ss-axis"><b>Dec</b> {deg(@snap.axes.dec.degrees)}<i class={["dot", @snap.axes.dec.running && "on"]}></i></span>
+        <span class={["ss-badge", @snap.tracking != :off && "on"]}>{if @snap.tracking != :off, do: "tracking", else: "not tracking"}</span>
+        <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "homed", else: "not homed"}</span>
+        <span :if={@snap.id == "sim"} class="ss-badge warn">simulator</span>
+      <% else %>
+        <span class="ss-id">{@id || "no mount"}</span>
+        <span class="ss-badge warn">{if @snap, do: "not answering", else: "not connected"}</span>
+      <% end %>
+    </.link>
+    """
+  end
+
+  defp deg(d) when is_number(d) do
+    sign = if d < 0, do: "−", else: "+"
+    a = abs(d)
+    "#{sign}#{trunc(a)}°#{:erlang.float_to_binary((a - trunc(a)) * 60, decimals: 0) |> String.pad_leading(2, "0")}′"
+  end
+
+  defp deg(_), do: "—"
+end

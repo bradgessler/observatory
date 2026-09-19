@@ -23,12 +23,16 @@ defmodule Controller.SkyLive do
   @showpiece_stars ~w(Albireo Mizar Polaris Antares Betelgeuse Rigel Sirius Capella Aldebaran Arcturus Vega)
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     if connected?(socket) do
       send(self(), :rescan)
       :timer.send_interval(@tick_ms, :tick)
       Settings.subscribe()
     end
+
+    # nested inside the bench, the mount id arrives in the session
+    # (and params is :not_mounted_at_router, not a map)
+    params = if(is_map(params), do: params, else: %{}) |> Map.put_new("id", session["id"])
 
     {:ok,
      socket
@@ -64,10 +68,8 @@ defmodule Controller.SkyLive do
      |> compute()}
   end
 
-  @impl true
-  def handle_params(params, _uri, socket) do
-    {:noreply, assign(socket, selected: params["id"] || socket.assigns.selected || first_id(socket))}
-  end
+  # No handle_params: this view is also nested inside the bench (child views may
+  # not define it). Mount and rescan pick the mount.
 
   # -- live updates ---------------------------------------------------------------------
 

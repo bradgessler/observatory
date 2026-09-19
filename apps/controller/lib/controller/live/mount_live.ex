@@ -9,11 +9,16 @@ defmodule Controller.MountLive do
   @rescan_ms 3_000
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     if connected?(socket) do
       send(self(), :rescan)
       Controller.Settings.subscribe()
     end
+
+    # `session` carries the mount id when rendered nested inside the bench
+    # (nested views get :not_mounted_at_router instead of params)
+    params = if(is_map(params), do: params, else: %{}) |> Map.put_new("id", session["id"])
+    socket = assign(socket, nested: session["nested"] == true)
 
     {:ok,
      socket
@@ -22,10 +27,8 @@ defmodule Controller.MountLive do
      |> rescan()}
   end
 
-  @impl true
-  def handle_params(params, _uri, socket) do
-    {:noreply, assign(socket, selected: params["id"] || socket.assigns.selected || first_id(socket))}
-  end
+  # No handle_params here on purpose: this view is also rendered nested inside
+  # the bench, and child LiveViews may not define it. Mount picks the id.
 
   # -- live updates -------------------------------------------------------------
 
@@ -75,7 +78,7 @@ defmodule Controller.MountLive do
 
   @impl true
   def handle_event("select", %{"id" => id}, socket) do
-    {:noreply, push_patch(socket, to: ~p"/#{id}")}
+    {:noreply, push_navigate(socket, to: ~p"/#{id}")}
   end
 
   def handle_event("rate", %{"rate" => r}, socket) do
@@ -239,7 +242,7 @@ defmodule Controller.MountLive do
 
     ~H"""
     <main class={["pad", @night && "night"]} id="pad" phx-window-keydown="keydown" phx-window-keyup="keyup">
-      <header>
+      <header :if={!@nested}>
         <form :if={map_size(@refs) > 1} phx-change="select">
           <select name="id">
             <option :for={id <- Enum.sort(Map.keys(@refs))} value={id} selected={id == @selected}>{id}</option>
@@ -258,7 +261,7 @@ defmodule Controller.MountLive do
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
 
       <%= if @snap && @snap.connected do %>
-        <section class="readout">
+        <section :if={!@nested} class="readout">
           <div class="axis">
             <span class="label">RA</span>
             <span class="deg">{fmt(@snap.axes.ra.degrees)}</span>
@@ -289,7 +292,7 @@ defmodule Controller.MountLive do
               <line x1="10" y1="110" x2="190" y2="110" class="ground" />
               <line x1="100" y1="110" x2="100" y2="92" class="pier" />
               <line x1={qx} y1={qy} x2={px} y2={py} class={["axis", :ra in @held && "live"]} />
-              <text x={px + 4} y={py - 4} class="lbl">polar axis · {fmt0(@lat)}°</text>
+              <text x={px - 6} y={py - 6} class="lbl" text-anchor="end">polar axis · {fmt0(@lat)}°</text>
               <line x1={100 - dx} y1={92 - dy} x2={100 + dx} y2={92 + dy} class={["axis", :dec in @held && "live"]} />
               <text x={100 + dx + 4} y={92 + dy + 4} class="lbl">dec</text>
               <text x="14" y="104" class="lbl">S</text>

@@ -32,6 +32,15 @@ be written from data. This page is the first, deliberately simple step.
   points roughly at the camera spins; one that lies across the view slides,
   and its pivot is off-frame or not a point at all.
 
+## What one camera can and cannot say
+
+When the motion is a slide, every arrow points the same way, and the axis
+must run at right angles to them, through the moving body — that is the
+dashed line. Where along the line of sight the axis sits is invisible to a
+single camera; a second camera at roughly a right angle turns two such
+lines into an axis in space. Arrows that disagree with the crowd by more
+than 60° (a shelf matching itself one block over) are ignored and counted.
+
 ## Honest limits
 
 * This is a 2-D reading of a 3-D motion. It says where the axis *appears*

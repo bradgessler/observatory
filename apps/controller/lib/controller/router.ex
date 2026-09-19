@@ -13,8 +13,8 @@ defmodule Controller.Router do
   scope "/", Controller do
     pipe_through :browser
 
-    # the bench is the front door while we're playing with components
-    live "/", BenchLive, :index
+    # the front door: a grouped list of everything, one line each
+    live "/", HomeLive, :index
     live "/keypad", MountLive, :index
     live "/keypad/:id", MountLive, :show
     live "/sky", SkyLive, :index

@@ -97,6 +97,14 @@ defmodule Controller.PagesTest do
     end
   end
 
+  describe "home" do
+    test "the front door lists every group with one line each", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+      for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Line Up", "Orb", "Bench"], do: assert(html =~ name)
+      assert html =~ "name a few stars"
+    end
+  end
+
   describe "docs" do
     test "markdown pages render", %{conn: conn} do
       assert get(conn, "/docs/magnitude") |> html_response(200) =~ "<h1>"

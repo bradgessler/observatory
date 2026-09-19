@@ -107,7 +107,7 @@ defmodule Controller.BenchLive do
     ~H"""
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
-        <span class="bench-brand">Bench</span>
+        <.link navigate={~p"/"} class="bench-brand">‹ Bench</.link>
         <span class="hdr-actions">
           <%!-- one STOP, always visible, whatever surface is up --%>
           <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>

@@ -93,6 +93,7 @@ defmodule Mount.Server do
     case connect(state) do
       {:ok, state} ->
         Logger.info("mount #{state.id}: connected, firmware #{state.firmware}")
+        Telescope.Events.emit(:mount, :connected, %{id: state.id, firmware: state.firmware})
         send(self(), :poll)
         {:noreply, broadcast(state)}
 
@@ -506,6 +507,7 @@ defmodule Mount.Server do
 
   defp die(state, reason) do
     Logger.error("mount #{state.id}: #{inspect(reason)}; restarting driver")
+    Telescope.Events.emit(:mount, :link_lost, %{id: state.id, reason: inspect(reason)})
     safe_close(state)
     exit({:mount_link_lost, reason})
   end
@@ -559,6 +561,7 @@ defmodule Mount.Server do
           "mount #{state.id}: #{axis} hit soft limit at #{Float.round(ax.degrees, 2)}°, stopping"
         )
 
+        Telescope.Events.emit(:mount, :limit_stop, %{id: state.id, axis: axis, degrees: Float.round(ax.degrees, 2)})
         state = stop_axis(state, axis)
         if axis == :ra, do: %{state | tracking: :off}, else: state
       else

@@ -96,23 +96,23 @@ defmodule Controller.CameraLive do
       </.card>
 
       <.card title="Timed Stills">
-        <div class="seg" role="radiogroup" aria-label="timed stills">
-          <button class={["seg-opt", !@status.enabled && "on"]} phx-click="timed" phx-value-on="false" role="radio" aria-checked={to_string(!@status.enabled)}>Off</button>
-          <button class={["seg-opt", @status.enabled && "on"]} phx-click="timed" phx-value-on="true" role="radio" aria-checked={to_string(@status.enabled)}>Every {div(@status.interval, 1000)} s</button>
-        </div>
+        <.seg label="timed stills">
+          <:opt on={!@status.enabled} click="timed" value={%{on: "false"}}>Off</:opt>
+          <:opt on={@status.enabled} click="timed" value={%{on: "true"}}>Every {div(@status.interval, 1000)} s</:opt>
+        </.seg>
         <.hint>Watching the Watch page turns these on. Each still is kept for a while (below) so a person or an agent can look back.</.hint>
         <.kv label="Kept" value={"#{@summary.count} frames · #{div(@summary.bytes, 1_048_576)} MB · up to #{@summary.policy.max_frames} frames or #{div(@summary.policy.max_age_s, 60)} min"} />
         <.hint :if={@status.last_error} class="err">Last capture error: {@status.last_error}</.hint>
       </.card>
 
       <.card title="Video">
-        <div class="seg seg-4" role="radiogroup" aria-label="video size">
-          <button :for={{lbl, q} <- [{"Auto", "auto"}, {"1K", "1k"}, {"2K", "2k"}, {"4K", "4k"}]} class={["seg-opt", q == @size && "on"]} phx-click="size" phx-value-q={q} role="radio" aria-checked={to_string(q == @size)}>{lbl}</button>
-        </div>
+        <.seg label="video size">
+          <:opt :for={{lbl, q} <- [{"Auto", "auto"}, {"1K", "1k"}, {"2K", "2k"}, {"4K", "4k"}]} on={q == @size} click="size" value={%{q: q}}>{lbl}</:opt>
+        </.seg>
         <.hint>Auto is 720p: every camera does it and it's cheap to encode. Bigger is a choice, not a default — 1080p is twice the work, 4K eight times. A size the camera won't deliver falls back one step by itself.</.hint>
-        <div class="seg seg-3" role="radiogroup" aria-label="frame rate">
-          <button :for={f <- Video.HLS.fps_choices()} class={["seg-opt", f == @fps && "on"]} phx-click="fps" phx-value-fps={f} role="radio" aria-checked={to_string(f == @fps)}>{f} fps</button>
-        </div>
+        <.seg label="frame rate">
+          <:opt :for={f <- Video.HLS.fps_choices()} on={f == @fps} click="fps" value={%{fps: f}}>{f} fps</:opt>
+        </.seg>
         <.hint>30 is plenty for watching a mount; 24 saves a little, 60 costs double for no benefit here.</.hint>
         <.kv label="Encoder" value={to_string(@video.encoder || "chosen when video starts")} />
         <.kv label="State" value={"#{@video.state}#{if @video.quality, do: " · #{@video.quality}"}"} />
@@ -127,7 +127,7 @@ defmodule Controller.CameraLive do
         <.hint>HLS from FFmpeg on this machine, 1-second segments. Heavy: on a Pi, run it on a bigger machine.</.hint>
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

@@ -86,7 +86,8 @@ defmodule Controller.LineupLive do
       next: List.first(candidates),
       candidates: candidates,
       guesses: if(socket.assigns.snap, do: Lineup.guess(socket.assigns.snap, ctx, 3), else: []),
-      samples: Lineup.samples(id),
+      # stars taken before the axes were re-zeroed count from a zero that is gone: not shown
+      samples: if(Lineup.stale?(id), do: [], else: Lineup.samples(id)),
       tracker: Tracker.status(id)
     )
   end
@@ -250,11 +251,10 @@ defmodule Controller.LineupLive do
       </.card>
 
       <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">
-        <div :for={c <- @candidates} class="star-row">
-          <div><strong>{c.name}</strong><span class="dim"> · {c.where}</span></div>
+        <.item :for={c <- @candidates} label={c.name} detail={c.where}>
           <.btn phx-click="slew" phx-value-id={c.id}>Slew</.btn>
           <.btn variant="primary" phx-click="centred" phx-value-id={c.id}>On it</.btn>
-        </div>
+        </.item>
         <.row><.btn class="btn-ghost" phx-click="pick">Back</.btn></.row>
       </.card>
 
@@ -264,21 +264,16 @@ defmodule Controller.LineupLive do
 
       <%!-- what am I on? --%>
       <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably Pointing At">
-        <div :for={g <- @guesses} class="star-row">
-          <div><strong>{g.name}</strong><span class="dim"> · {fmt(g.away_deg)}° away · {g.where}</span></div>
+        <.item :for={g <- @guesses} label={g.name} detail={"#{fmt(g.away_deg)}° away · #{g.where}"}>
           <.btn phx-click="centred" phx-value-id={g.id}>On it</.btn>
-        </div>
+        </.item>
       </.card>
 
       <%!-- the stars so far --%>
       <.card :if={@samples != []} title="Stars So Far">
-        <div :for={{s, i} <- Enum.with_index(@samples)} class="star-row">
-          <div>
-            <strong>{s["name"]}</strong>
-            <span class="dim"> · {String.slice(s["at"], 11, 5)} UTC{residual(@status, i)}</span>
-          </div>
+        <.item :for={{s, i} <- Enum.with_index(@samples)} label={s["name"]} detail={"#{String.slice(s["at"], 11, 5)} UTC#{residual(@status, i)}"}>
           <.btn class="btn-ghost" phx-click="drop" phx-value-i={i} aria-label={"forget #{s["name"]}"}>✕</.btn>
-        </div>
+        </.item>
         <.row>
           <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the whole line-up?">Start over</.btn>
         </.row>
@@ -296,7 +291,7 @@ defmodule Controller.LineupLive do
         </.row>
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

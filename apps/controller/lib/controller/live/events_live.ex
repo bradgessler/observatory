@@ -40,9 +40,9 @@ defmodule Controller.EventsLive do
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
-      <div class="seg seg-4" role="radiogroup" aria-label="which events">
-        <button :for={{lbl, m} <- [{"All", "all"}, {"Mount", "mount"}, {"Tracker", "tracker"}, {"Video", "video"}]} class={["seg-opt", to_string(@filter || "all") == m && "on"]} phx-click="filter" phx-value-m={m} role="radio" aria-checked={to_string(to_string(@filter || "all") == m)}>{lbl}</button>
-      </div>
+      <.seg label="which events">
+        <:opt :for={{lbl, m} <- [{"All", "all"}, {"Mount", "mount"}, {"Tracker", "tracker"}, {"Video", "video"}]} on={to_string(@filter || "all") == m} click="filter" value={%{m: m}}>{lbl}</:opt>
+      </.seg>
 
       <.hint :if={@shown == []}>Nothing yet. Every move, stop, star and stream shows up here as it happens.</.hint>
 

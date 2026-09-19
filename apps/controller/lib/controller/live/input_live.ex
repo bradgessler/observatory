@@ -120,10 +120,10 @@ defmodule Controller.InputLive do
           <.badge on={@mapper.action != :idle} warn={@mapper.action == :stop}>{@mapper.action_text}</.badge>
         </:aside>
         <%!-- two explicit states, not a toggle: you always see which one you're in --%>
-        <div class="seg" role="radiogroup" aria-label="what the pad does">
-          <button class={["seg-opt", !@mapper.armed && "on"]} phx-click="arm" phx-value-on="false" role="radio" aria-checked={to_string(!@mapper.armed)}>Watch only</button>
-          <button class={["seg-opt", "seg-live", @mapper.armed && "on"]} phx-click="arm" phx-value-on="true" role="radio" aria-checked={to_string(@mapper.armed)} disabled={@devices == []}>Pad moves scope</button>
-        </div>
+        <.seg label="what the pad does">
+          <:opt on={!@mapper.armed} click="arm" value={%{on: "false"}}>Watch only</:opt>
+          <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Pad moves scope</:opt>
+        </.seg>
         <.hint :if={@mapper.off_reason}><strong>{@mapper.off_reason}</strong></.hint>
         <.hint :if={Map.get(@mapper, :ignoring)}><strong>pad is off — tap Pad moves scope</strong></.hint>
         <.kv label="mount" value={@mapper.target || "none"} />
@@ -152,7 +152,7 @@ defmodule Controller.InputLive do
         <.kv :for={s <- @seen.devices} label={"#{Integer.to_string(s.vendor_id, 16)}:#{Integer.to_string(s.product_id, 16)}"} value={"#{s.product} · usage #{s.usage_page}/#{s.usage}#{if s.reading, do: " · reading", else: ""}"} />
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

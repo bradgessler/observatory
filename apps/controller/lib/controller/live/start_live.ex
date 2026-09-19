@@ -174,7 +174,7 @@ defmodule Controller.StartLive do
         <span class="home-brand">Observatory</span>
         <.title>{title(@step, @selected)}</.title>
         <.actions>
-          <button class="stop-mini" phx-click="stop" aria-label="stop the mount">STOP</button>
+          <.stop />
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </.actions>
       </:header>
@@ -220,13 +220,9 @@ defmodule Controller.StartLive do
         </.card>
 
         <.card title="Look At">
-          <div :for={t <- @targets} class="star-row">
-            <div>
-              <strong>{t.name}</strong>
-              <span class="dim"> · {Lineup.where_words(t.alt, t.az)}{if t.words, do: " · " <> t.words, else: ""}</span>
-            </div>
+          <.item :for={t <- @targets} label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
             <.btn variant="primary" phx-click="go" phx-value-id={t.id}>Go</.btn>
-          </div>
+          </.item>
           <.hint :if={@targets == []}>Nothing up right now.</.hint>
           <.row>
             <.btn navigate={~p"/sky/#{@selected}"}>Whole sky ›</.btn>
@@ -242,14 +238,10 @@ defmodule Controller.StartLive do
             <.btn navigate={~p"/controls/orb/#{@selected}"}>Orb</.btn>
           </.row>
           <%!-- a plugged-in pad shows itself here, with the one switch that matters --%>
-          <div :if={@pads != []} class="star-row">
-            <div>
-              <strong>Pad</strong>
-              <span class="dim"> · {Enum.map_join(@pads, ", ", & &1.parser)} · {pad_words(@mapper, @selected)}</span>
-            </div>
+          <.item :if={@pads != []} label="Pad" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
             <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Pad moves scope</.btn>
             <.btn :if={pad_on?(@mapper, @selected)} phx-click="pad" phx-value-on="false">Watch only</.btn>
-          </div>
+          </.item>
         </.card>
       <% end %>
 
@@ -263,7 +255,7 @@ defmodule Controller.StartLive do
         · <.link navigate={~p"/events"}>events</.link>
       </p>
 
-      <p :if={@notice} id={"notice-#{elem(@notice, 1)}"} class="notice">{elem(@notice, 0)}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

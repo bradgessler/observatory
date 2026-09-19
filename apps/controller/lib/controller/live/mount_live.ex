@@ -4,6 +4,7 @@ defmodule Controller.MountLive do
   a big STOP. Talks to whichever mounts the cluster knows about, live.
   """
   use Controller, :live_view
+  import Controller.Components.UI
 
   @rates [1, 8, 64, 400, 800]
   @rescan_ms 3_000
@@ -356,7 +357,7 @@ defmodule Controller.MountLive do
         </section>
       <% end %>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </main>
     """
   end

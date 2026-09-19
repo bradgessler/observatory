@@ -241,7 +241,7 @@ defmodule Controller.WatchLive do
         <.link navigate={~p"/controls/watch/camera"}>Camera</.link>
       </p>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

@@ -6,6 +6,7 @@ defmodule Controller.BenchLive do
   the surface renders below as a nested LiveView. Not the field UI.
   """
   use Controller, :live_view
+  import Controller.Components.UI
   import Controller.Components.Status
 
   alias Controller.Settings
@@ -117,7 +118,7 @@ defmodule Controller.BenchLive do
         <.link navigate={~p"/"} class="bench-brand">‹ Bench</.link>
         <span class="hdr-actions">
           <%!-- one STOP, always visible, whatever surface is up --%>
-          <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>
+          <.stop click="estop" />
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </span>

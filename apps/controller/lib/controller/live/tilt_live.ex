@@ -161,7 +161,7 @@ defmodule Controller.TiltLive do
       <.hint :if={@sensor == :insecure}>Tilt needs HTTPS — the browser only exposes the orientation sensor on a secure page. Open this over the tunnel URL (Devices shows it).</.hint>
       <.hint :if={@sensor == :none}>No orientation sensor here. This surface is for a phone in the hand; on a laptop use the keypad or nudge.</.hint>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

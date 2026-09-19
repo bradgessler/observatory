@@ -136,7 +136,7 @@ defmodule Controller.PositionLive do
         <.hint>Zero is where the axes were zeroed — counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

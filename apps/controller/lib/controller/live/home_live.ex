@@ -98,12 +98,11 @@ defmodule Controller.HomeLive do
         <h2>{name}</h2>
         <p class="dim">{blurb}</p>
         <div class="home-list">
-          <div :for={{title, path, sub, doc} <- items} class="home-item">
+          <div :for={{title, path, sub, _doc} <- items} class="home-item">
             <.link navigate={path} class="home-btn">
               <strong>{title}</strong>
               <span>{sub}</span>
             </.link>
-            <.link :if={doc} href={doc} class="home-more" aria-label={"about #{title}"}>?</.link>
           </div>
         </div>
       </section>

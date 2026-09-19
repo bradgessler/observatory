@@ -6,8 +6,15 @@ people who may have never used a telescope.
 
 ## Ground rules
 
-- **True black.** `--bg` is `#000`: on an OLED phone the ground is off, panels
-  are barely lifted (`#0a0c11`), hairlines are the only structure. Calm.
+- **True black, tones for structure.** `--bg` is `#000`: on an OLED phone the
+  ground is off. Surfaces are told apart by tone (`--panel`, `--panel2`,
+  `--sunk`), never by hairlines. No borders anywhere.
+- **Keys, not buttons.** Anything you can push is a key: a raised two-tone
+  bevel (`--bevel`: light edge top-left, dark edge bottom-right) that sinks
+  when pressed (`--bevel-in`). A latched state is a lit key (`--lit`, `--lit-on`,
+  `--lit-warn`), not an outline. Fields and troughs are sunk. The look is the
+  panel of a 1970s machine room, kept calm: clear about what can be pushed,
+  quiet about everything else.
 - **One grid.** Spacing steps of 8 (`--s1` 8, `--s2` 12, `--s3` 16, `--s4` 24);
   one corner radius (`--r` 14, cards 16); page width 560 centred; headers are a
   three-column grid (back · title · actions) so every page's title sits in the
@@ -21,6 +28,8 @@ people who may have never used a telescope.
 - **Modes are loud.** Anything persistent that changes where the scope goes
   (sync offset, flipped axis, reversed tracking, auto-track off, site override)
   shows as an amber strip on every page while it's on, linking to Setup.
+- **One affordance per thing.** A tile is the tile; no second button beside it.
+  Docs are reached from the destination page's `?`, never from a list.
 
 ## Night vision first
 
@@ -39,12 +48,14 @@ people who may have never used a telescope.
 
 | token | role |
 |---|---|
-| `--bg`, `--panel`, `--edge` | page, cards, hairlines |
+| `--bg`, `--panel`, `--panel2`, `--sunk` | page, cards, a step up inside a card, troughs and fields |
+| `--key`, `--key-press`, `--bevel`, `--bevel-in` | a pushable key, the same key pressed |
+| `--lit`, `--lit-on`, `--lit-warn` | a latched key: current choice, active/good, a state to notice |
+| `--hi`, `--lo` | the two bevel edges |
 | `--text`, `--dim` | primary text, secondary/labels |
 | `--accent` | the current selection (rate, tab) |
 | `--on` | active state: tracking, homed, picked, "go" |
 | `--warn` | STOP and the scope marker only |
-| `--btn`, `--btn-press` | button fill, pressed fill |
 | `--sky1`, `--sky2` | sky dome gradient |
 
 Type: system UI font, 16px base, tabular numerals for anything that changes.

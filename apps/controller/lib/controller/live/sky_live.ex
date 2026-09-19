@@ -9,6 +9,7 @@ defmodule Controller.SkyLive do
   with the counterweight down, axis signs from `config :controller, :pointing`.
   """
   use Controller, :live_view
+  import Controller.Components.UI
 
   alias Controller.Settings
   alias Controller.Sky.{Astro, Catalog, Ephemeris, HorizonScan, Solve, Pointing}
@@ -608,7 +609,7 @@ defmodule Controller.SkyLive do
         <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ Keypad</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
-          <button class="stop-mini" phx-click="stop" aria-label="stop the mount">STOP</button>
+          <.stop />
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </span>
       </header>
@@ -616,9 +617,9 @@ defmodule Controller.SkyLive do
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
       <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
 
-      <nav class="tabs">
-        <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>
-      </nav>
+      <.seg label="sky page" class="tabs">
+        <:opt :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} on={t == @tab} click="tab" value={%{tab: t}}>{label}</:opt>
+      </.seg>
 
       <svg :if={@tab == "map"} id="skymap" phx-hook="SkyZoom" viewBox="-104 -104 208 208" class="map" phx-click="clear">
         <defs>
@@ -724,7 +725,7 @@ defmodule Controller.SkyLive do
       </section>
 
       <p class="fine"><.link href={~p"/docs/sky"} class="help">how the sky page works</.link> · <.link href={~p"/docs/magnitude"} class="help">magnitude in plain words</.link></p>
-      <p :if={@notice} class="notice" phx-click="clear">{@notice}</p>
+      <.notice notice={@notice} />
     </main>
     """
   end

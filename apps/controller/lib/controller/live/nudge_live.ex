@@ -134,7 +134,7 @@ defmodule Controller.NudgeLive do
 
       <.hint>Each tap moves exactly one step, at full speed with the mount's own ramps. Nothing to hold.</.hint>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

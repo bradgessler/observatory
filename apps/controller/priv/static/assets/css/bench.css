@@ -90,3 +90,24 @@
 .seg-opt.on small { color: #fff; opacity: .85; }
 .seg-opt.seg-live.on { background: var(--warn); color: #000; box-shadow: none; }
 .night .seg-opt.on { background: #7a0000; color: #fff; }
+
+/* ---- tones and bevels (see the last block of app.css; this file loads after it) ---- */
+.scope-status, .dev-chip, .watch-frame, .mode-chip { border-color: transparent; }
+.mode-chip { background: var(--amber-bg); color: var(--amber); }
+.bench-tab { border-color: transparent; background: var(--key); box-shadow: var(--bevel); color: var(--text); }
+.bench-tab.on { background: var(--lit); color: var(--text); box-shadow: var(--bevel-in); border-color: transparent; }
+.bench-tab.on strong { color: var(--text); }
+.seg { border: 0; background: var(--sunk); box-shadow: var(--bevel-in); padding: 3px; gap: 3px; overflow: visible; border-radius: 14px; }
+.seg-opt { border: 0; border-radius: 11px; background: var(--key); box-shadow: var(--bevel); color: var(--dim); }
+.seg-opt + .seg-opt { border-left: 0; }
+.seg-opt.on { background: var(--lit); color: var(--text); box-shadow: var(--bevel-in); }
+.seg-opt.on small { color: var(--dim); opacity: 1; }
+.seg-opt.seg-live.on { background: var(--lit-warn); color: var(--warn); box-shadow: var(--bevel-in); }
+.night .seg-opt.on { background: var(--lit); color: var(--text); }
+.seg-opt:disabled { box-shadow: none; background: var(--panel2); opacity: .55; }
+.dpad .arrow.live { border-color: transparent; background: var(--lit-on); color: var(--on); box-shadow: var(--bevel-in); }
+.dpad .arrow.pressed { background: var(--key-press); box-shadow: var(--bevel-in); }
+.ss-badge { border-color: transparent; background: var(--sunk); }
+.ss-badge.on { background: var(--lit-on); color: var(--on); }
+.ss-badge.warn { background: var(--lit-warn); color: var(--warn); }
+.ss-badge.on, .ss-badge.warn, .mode-chip, .night .mode-chip { border-color: transparent; }

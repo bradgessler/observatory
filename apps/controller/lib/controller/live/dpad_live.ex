@@ -150,7 +150,7 @@ defmodule Controller.DpadLive do
 
       <.hint>Hold an arrow; it moves at the chosen rate until you let go. E/W turn the polar axis, N/S the Dec axis.</.hint>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

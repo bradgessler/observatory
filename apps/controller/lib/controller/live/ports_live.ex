@@ -70,7 +70,7 @@ defmodule Controller.PortsLive do
         <.hint>Connect tries the Sky-Watcher protocol on that port. A port that isn't a telescope just won't answer.</.hint>
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

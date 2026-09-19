@@ -240,9 +240,9 @@ defmodule Controller.OrbLive do
 
         <%!-- where you're standing; pick the one that matches the camera or your own spot --%>
         <% view = Controller.Settings.get("orb_view_az", 150.0) / 1 %>
-        <div class="seg seg-4" role="radiogroup" aria-label="view the orb from">
-          <button :for={{lbl, az} <- [{"from S", 150.0}, {"from E", 60.0}, {"from N", 330.0}, {"from W", 240.0}]} class={["seg-opt", abs(view - az) < 1 && "on"]} phx-click="view" phx-value-az={az} role="radio" aria-checked={to_string(abs(view - az) < 1)}>{lbl}</button>
-        </div>
+        <.seg label="view the orb from">
+          <:opt :for={{lbl, az} <- [{"from S", 150.0}, {"from E", 60.0}, {"from N", 330.0}, {"from W", 240.0}]} on={abs(view - az) < 1} click="view" value={%{az: az}}>{lbl}</:opt>
+        </.seg>
         <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
@@ -251,7 +251,7 @@ defmodule Controller.OrbLive do
         </section>
       <% end %>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

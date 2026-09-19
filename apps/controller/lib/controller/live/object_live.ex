@@ -4,6 +4,7 @@ defmodule Controller.ObjectLive do
   it, and the buttons that matter — Slew, Search, Sync.
   """
   use Controller, :live_view
+  import Controller.Components.UI
 
   alias Controller.Settings
   alias Controller.Sky.{Astro, Blurbs, Catalog, Ephemeris, Pointing}
@@ -178,7 +179,7 @@ defmodule Controller.ObjectLive do
       <header>
         <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">‹ sky</.link>
         <span class="hdr-actions">
-          <button class="stop-mini" phx-click="stop">STOP</button>
+          <.stop />
         </span>
       </header>
 
@@ -206,7 +207,7 @@ defmodule Controller.ObjectLive do
         <p :if={!@snap} class="horizon-hint">No mount connected.</p>
       </section>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </main>
     """
   end

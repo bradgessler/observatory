@@ -256,7 +256,7 @@ defmodule Controller.AxesLive do
         <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide; a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

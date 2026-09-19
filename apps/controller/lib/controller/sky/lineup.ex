@@ -104,6 +104,8 @@ defmodule Controller.Sky.Lineup do
     case {e["home_at"], safe_snapshot(id)} do
       {nil, _} -> false
       {_, nil} -> false
+      # not zeroed at all (a restart, a power cycle): the stars counted from a zero that is gone
+      {_, %{homed: false}} -> true
       {at, %{homed_at: now_at}} when is_integer(now_at) -> at != now_at
       _ -> false
     end

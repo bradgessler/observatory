@@ -159,12 +159,95 @@ defmodule Controller.Components.UI do
 
   def btn(assigns) do
     ~H"""
-    <.link :if={@navigate || @href} navigate={@navigate} href={@href} class={["btn", "btn-#{@variant}", @on && "on", @class]}>
+    <.link :if={@navigate || @href} navigate={@navigate} href={@href} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
       {render_slot(@inner_block)}
     </.link>
     <button :if={!(@navigate || @href)} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
       {render_slot(@inner_block)}
     </button>
+    """
+  end
+
+  @doc "STOP, the one loud key: in a header (`mini`) or full width (`bar`)."
+  attr :click, :string, default: "stop"
+  attr :size, :string, default: "mini"
+
+  def stop(assigns) do
+    ~H"""
+    <button class={if @size == "bar", do: "stop-bar", else: "stop-mini"} phx-click={@click} aria-label="stop the mount">STOP</button>
+    """
+  end
+
+  @doc """
+  A quiet line at the bottom that fades on its own. `notice` is nil, a string,
+  or `{text, key}` when the same words must show again.
+  """
+  attr :notice, :any, default: nil
+
+  def notice(%{notice: {text, key}} = assigns), do: notice(assign(assigns, notice: text, key: key))
+
+  def notice(assigns) do
+    assigns = assign_new(assigns, :key, fn -> :erlang.phash2(assigns.notice) end)
+
+    ~H"""
+    <p :if={@notice} id={"notice-#{@key}"} class="notice">{@notice}</p>
+    """
+  end
+
+  @doc """
+  A segmented control: a sunk trough of keys, exactly one lit. You always see
+  which state you are in. Each `:opt` names its click event and the
+  `phx-value-*` pairs it sends.
+
+      <.seg label="timed stills">
+        <:opt on={!@on} click="timed" value={%{on: "false"}}>Off</:opt>
+        <:opt on={@on} click="timed" value={%{on: "true"}}>Every 5 s</:opt>
+      </.seg>
+  """
+  attr :label, :string, required: true
+  attr :class, :string, default: nil
+
+  slot :opt, required: true do
+    attr :on, :boolean
+    attr :click, :string, required: true
+    attr :value, :map
+    attr :disabled, :boolean
+    attr :live, :boolean, doc: "this choice makes the scope move by itself: lit in the warn tone"
+  end
+
+  def seg(assigns) do
+    ~H"""
+    <div class={["seg", "seg-#{length(@opt)}", @class]} role="radiogroup" aria-label={@label}>
+      <button
+        :for={o <- @opt}
+        class={["seg-opt", o[:live] && "seg-live", o[:on] && "on"]}
+        phx-click={o.click}
+        {values(o[:value])}
+        role="radio"
+        aria-checked={to_string(o[:on] == true)}
+        disabled={o[:disabled]}
+      >
+        {render_slot(o)}
+      </button>
+    </div>
+    """
+  end
+
+  defp values(nil), do: %{}
+  defp values(map), do: Map.new(map, fn {k, v} -> {"phx-value-#{k}", v} end)
+
+  @doc "One row in a list: a name, a dim detail after it, and the keys that act on it."
+  attr :label, :string, required: true
+  attr :detail, :string, default: nil
+  attr :rest, :global
+  slot :inner_block
+
+  def item(assigns) do
+    ~H"""
+    <div class="item" {@rest}>
+      <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim"> · {@detail}</span></div>
+      {render_slot(@inner_block)}
+    </div>
     """
   end
 end

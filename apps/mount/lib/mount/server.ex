@@ -42,6 +42,8 @@ defmodule Mount.Server do
 
   @impl true
   def init(opts) do
+    # events raised by the driver itself (connected, link lost, limit stop) say who
+    Telescope.Events.tag("driver")
     {mod, topts} = Keyword.fetch!(opts, :transport)
 
     state = %{

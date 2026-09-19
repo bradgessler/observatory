@@ -110,9 +110,7 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .night .map .treeline { fill: #000; opacity: .7; }
 .map .treeline-edge { fill: none; stroke: #3a4a2a; stroke-width: .5; }
 .night .map .treeline-edge { stroke: #4a1010; }
-.tabs { display: flex; gap: 8px; }
-.tabs button { flex: 1; padding: 10px; }
-.tabs button.on { border-color: var(--accent); color: var(--accent); }
+.tabs .seg-opt { padding: 10px; }
 .targets { display: flex; flex-direction: column; gap: 6px; }
 .target { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 10px 12px; text-align: left; }
 .target.picked { border-color: var(--on); }
@@ -545,9 +543,9 @@ a.banner strong { color: var(--warn); }
 .star-next { display: grid; gap: 2px; }
 .star-next strong { font-size: 24px; }
 .star-next span { color: var(--dim); font-size: 14px; }
-.star-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--edge); }
-.star-row:first-of-type { border-top: none; padding-top: 0; }
-.star-row .btn { padding: 10px 14px; }
+.item { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 6px 0; }
+.item-text { min-width: 0; }
+.item .btn { padding: 10px 14px; }
 .site-line { font-variant-numeric: tabular-nums; }
 .site-line a { color: inherit; text-decoration: underline; }
 
@@ -598,3 +596,136 @@ a.banner strong { color: var(--warn); }
 .flow-modes b { color: var(--warn); }
 .flow-more { margin: 8px 0 0; text-align: center; color: var(--dim); font-size: 13px; }
 .flow-more a { color: var(--dim); }
+
+/* =====================================================================
+   Tones and bevels. The panel look of a 1970s machine room, kept calm:
+   surfaces are told apart by tone, never by hairlines; anything you can
+   push is a key with a two-tone bevel (light edge top-left, dark edge
+   bottom-right) that sinks when pressed; a latched state is a lit key,
+   not an outline. Ground stays true black for OLED. This block overrides
+   the border-based rules above it; new rules should be written in this
+   language and the old ones retired as pages are touched.
+   ===================================================================== */
+:root {
+  --panel: #0d0f14;      /* cards */
+  --panel2: #12151c;     /* a step up inside a card: alternate rows, notices */
+  --key: #191d26;        /* a key you can push */
+  --key-press: #0b0d11;  /* the same key, pressed */
+  --sunk: #050608;       /* troughs and fields */
+  --hi: rgba(255, 255, 255, .085);
+  --lo: rgba(0, 0, 0, .75);
+  --lit: #1c2a40;        /* a latched key: current choice */
+  --lit-on: #12301f;     /* a latched key: active, tracking, good */
+  --lit-warn: #3a1416;   /* the pad moving the scope, a state to notice */
+  --amber: #e0b64a; --amber-bg: #17120a;
+  --bevel: inset 1px 1px 0 var(--hi), inset -1px -1px 0 var(--lo);
+  --bevel-in: inset 1px 1px 0 var(--lo), inset -1px -1px 0 var(--hi);
+  --btn: var(--key); --btn-press: var(--key-press); --edge: transparent;
+}
+.night {
+  --panel: #0a0000; --panel2: #100000; --key: #180000; --key-press: #090000; --sunk: #040000;
+  --hi: rgba(255, 80, 80, .12); --lo: rgba(0, 0, 0, .8);
+  --lit: #3a0a0a; --lit-on: #3a0a0a; --lit-warn: #4a0000; --amber: #ff7a7a; --amber-bg: #0a0000;
+  --btn: var(--key); --btn-press: var(--key-press); --edge: transparent;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #eef0f3; --panel: #f9fafb; --panel2: #eef1f5; --key: #ffffff; --key-press: #e4e8ee; --sunk: #e6e9ee;
+    --hi: rgba(255, 255, 255, 1); --lo: rgba(20, 30, 50, .16);
+    --lit: #dbe6fb; --lit-on: #d6f2e1; --lit-warn: #fbe0dd; --amber: #7a5200; --amber-bg: #fff4dc;
+    --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
+}
+.night, .night :root { --panel: #0a0000; --panel2: #100000; --key: #180000; --key-press: #090000; --sunk: #040000; --hi: rgba(255, 80, 80, .12); --lo: rgba(0, 0, 0, .8); --lit: #3a0a0a; --lit-on: #3a0a0a; --lit-warn: #4a0000; --amber: #ff7a7a; --amber-bg: #0a0000; --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
+
+/* surfaces: tone only */
+.page .card, .readout, .pick, .photo, .object .card, .setup .card, .devices .card, .scope-status, .strip, .dev-chip, .home-btn, .watch-bar, .banner, .modes {
+  border-color: transparent; background: var(--panel);
+}
+.target { border-color: transparent; background: var(--panel); }
+.target.picked, .target.top .k { background: var(--lit); }
+.page .card.state, .page .card.lineup-status, .devices .state { border-color: transparent; background: var(--lit-warn); }
+.page .card.state.ok, .page .card.lineup-status.ok, .devices .state.ok { background: var(--lit-on); }
+.watch-bar.live { background: var(--lit-on); }
+.watch-bar.err, .banner { background: var(--lit-warn); }
+.modes { background: var(--amber-bg); color: var(--amber); }
+.mode-chip { background: var(--amber-bg); color: var(--amber); }
+.notice { background: var(--panel2); border-color: transparent; }
+
+/* dividers become spacing or an alternate tone */
+.setting, .item, .mode, .port, .axes-row { border-top: 0; }
+.events li { border-top: 0; padding: 6px 8px; border-radius: 8px; }
+.events li:nth-child(even) { background: var(--panel2); }
+.doc article td, .doc article th { border-bottom: 1px solid var(--panel2); }
+
+/* keys: raised, sink when pressed, lit when latched */
+button, .btn, .btn-link, .home-btn, .bench-tab, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .home-more, .more-toggle {
+  background: var(--key); border: 1px solid transparent; box-shadow: var(--bevel);
+}
+button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live {
+  background: var(--key-press); box-shadow: var(--bevel-in);
+}
+button.on, .btn.on, .rate.on, .tabs button.on, .arrow.live, .bench-tab.on, .btn-dot.on {
+  background: var(--lit); color: var(--text); border-color: transparent; box-shadow: var(--bevel-in);
+}
+.arrow.live, .btn-dot.on { background: var(--lit-on); color: var(--on); }
+.btn-primary, .pick .go, .object .go { border-color: transparent; color: var(--on); }
+.btn-danger { border-color: transparent; color: var(--warn); }
+.btn-danger:active { background: var(--warn); color: var(--bg); }
+.btn-ghost, button.ghost, .dpad-mode .ghost, .stick-foot .ghost, .orb-later { background: transparent; border-color: transparent; box-shadow: none; }
+.btn-ghost:active, button.ghost:active { background: var(--key-press); box-shadow: none; }
+@media (hover: hover) { button:hover, .btn:hover { border-color: transparent; filter: brightness(1.12); } .btn-ghost:hover, button.ghost:hover { filter: none; color: var(--text); } }
+button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); opacity: .55; }
+
+/* STOP: the one loud key, still a key */
+.stop, .stop-mini { color: var(--warn); border-color: transparent; }
+.stop:active, .stop-mini:active { background: var(--warn); color: var(--bg); box-shadow: var(--bevel-in); }
+.stop-bar, .estop { background: var(--warn); color: #000; border-color: transparent; box-shadow: var(--bevel); }
+.stop-bar:active, .estop:active { box-shadow: var(--bevel-in); filter: brightness(.9); }
+
+/* troughs and fields: sunk */
+.field, .goto input, .horizon input, .photo input[type=file], header select, .ro, .bar {
+  background: var(--sunk); border-color: transparent; box-shadow: var(--bevel-in);
+}
+.seg { border: 0; background: var(--sunk); box-shadow: var(--bevel-in); padding: 3px; gap: 3px; overflow: visible; }
+.seg-opt { border-radius: 11px; }
+.seg-opt + .seg-opt { border-left: 0; }
+.seg-opt.on { background: var(--lit); color: var(--text); box-shadow: var(--bevel-in); }
+.seg-opt.on small { color: var(--dim); opacity: 1; }
+.seg-opt.seg-live.on { background: var(--lit-warn); color: var(--warn); box-shadow: var(--bevel-in); }
+.night .seg-opt.on { background: var(--lit); color: var(--text); }
+.tabs button.on { background: var(--lit); color: var(--text); }
+.stick-face .rim { fill: var(--sunk); stroke: none; }
+.stick-face .dead { fill: var(--panel2); }
+.tilt-pad { background: var(--key); box-shadow: var(--bevel); border-color: transparent; }
+.tilt-pad.pressed { background: var(--key-press); box-shadow: var(--bevel-in); border-color: transparent; }
+.tilt-pad.live { background: var(--lit-on); color: var(--on); box-shadow: var(--bevel-in); border-color: transparent; }
+.strip { box-shadow: var(--bevel); }
+.strip.strip-ra, .strip.strip-dec { border-color: transparent; }
+.strip.strip-ra.live { background: var(--lit); box-shadow: var(--bevel-in); border-color: transparent; }
+.strip.strip-dec.live { background: var(--lit-on); box-shadow: var(--bevel-in); border-color: transparent; }
+
+/* badges and lamps: tone, not outline */
+.badge, .ss-badge, .target .k, .btn-dot, .chip, .watch-live { border-color: transparent; background: var(--sunk); }
+.badge.on, .ss-badge.on { background: var(--lit-on); color: var(--on); }
+.badge.warn, .ss-badge.warn { background: var(--lit-warn); color: var(--warn); }
+.dot, .ss-axis .dot { background: var(--sunk); box-shadow: var(--bevel-in); }
+.dot.on, .ss-axis .dot.on { background: var(--on); box-shadow: 0 0 8px var(--on); }
+.watch-strip a, .frame-grid a { border: 0; opacity: .7; }
+.watch-strip a.on, .frame-grid a.on { opacity: 1; box-shadow: 0 0 0 2px var(--lit); }
+.orb-key { border-left-color: var(--panel2); }
+.orb-key.ra { border-left-color: var(--accent); }
+.orb-key.dec { border-left-color: var(--on); }
+.orb-key.scope { border-left-color: var(--warn); }
+
+/* the flow strip: four keys, the current one lit, the done ones green */
+.flow-steps li { border-top: 0; background: var(--panel); border-radius: var(--r); padding: 8px 4px; }
+.flow-steps li.now { background: var(--lit); color: var(--text); }
+.flow-steps li.done { background: var(--lit-on); color: var(--on); }
+
+/* home tiles are keys; the doc affordance lives on the destination page's ? */
+.home-item { grid-template-columns: 1fr; }
+.home-more { display: none; }
+.page .card.state.ok, .page .card.lineup-status.ok, .devices .state.ok, .page .card.state, .page .card.lineup-status { border-color: transparent; }
+.badge.on, .badge.warn, .ss-badge.on, .ss-badge.warn, .mode-chip, .dev-chip.warn, .watch-bar.live, .watch-bar.err, .target.picked { border-color: transparent; }
+/* "not aligned" is where every night starts, not a problem: plain panel until there is something to say */
+.page .card.lineup-status { background: var(--panel); }
+.page .card.lineup-status.ok { background: var(--lit-on); }

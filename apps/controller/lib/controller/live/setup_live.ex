@@ -271,7 +271,7 @@ defmodule Controller.SetupLive do
         <.btn navigate={~p"/sky/#{@id}"}>Sky · Horizon</.btn>
       </.row>
 
-      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
+      <.notice notice={@notice} />
     </.page>
     """
   end

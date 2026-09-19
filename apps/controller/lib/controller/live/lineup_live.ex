@@ -105,7 +105,7 @@ defmodule Controller.LineupLive do
     notice =
       case star && Pointing.slew(ref, socket.assigns.snap, star, ctx, track: false) do
         {:ok, _, _} -> "heading roughly toward #{star.name} — centre it, then tap that's it"
-        {:error, :not_homed} -> "set home first"
+        {:error, :not_homed} -> "zero the axes first"
         {:error, :limit} -> "#{star.name} is outside the soft limits from here"
         {:error, e} -> inspect(e)
         nil -> "no such star"

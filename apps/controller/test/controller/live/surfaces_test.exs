@@ -32,7 +32,7 @@ defmodule Controller.SurfacesTest do
     Mount.goto_relative(id, :ra, 3.0)
     Process.sleep(300)
     {:ok, view, html} = live(conn, "/controls/position/#{id}")
-    assert html =~ "Degrees From Home"
+    assert html =~ "Degrees From Zero"
     render_click(view, "home", %{})
     Process.sleep(1_500)
     assert abs(Mount.snapshot(id).axes.ra.degrees) < 0.6

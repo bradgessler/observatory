@@ -105,7 +105,7 @@ defmodule Controller.ObjectLive do
       case Pointing.slew(ref, snap, obj, socket.assigns.ctx, track: Settings.get("auto_track", true)) do
         {:ok, d_ra, d_dec} -> "slewing (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
         {:error, :not_connected} -> "no mount connected"
-        {:error, :not_homed} -> "set home on the keypad first"
+        {:error, :not_homed} -> "zero the axes first (Setup, mount upright)"
         {:error, :limit} -> "outside the soft limits"
         {:error, e} -> inspect(e)
       end

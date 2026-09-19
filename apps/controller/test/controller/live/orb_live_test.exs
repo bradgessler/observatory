@@ -30,11 +30,11 @@ defmodule Controller.OrbLiveTest do
 
     test "says so until homed, then shows RA/Dec", %{conn: conn, id: id} do
       {:ok, view, html} = live(conn, "/controls/orb/#{id}")
-      assert html =~ "assuming home"
+      assert html =~ "assuming upright"
       Mount.set_home(id)
       assert_receive {:mount, %{homed: true}}, 2_000
       html = render(view)
-      refute html =~ "assuming home"
+      refute html =~ "assuming upright"
       assert html =~ "RA "
       assert html =~ "Dec "
     end

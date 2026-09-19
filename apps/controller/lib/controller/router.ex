@@ -15,7 +15,9 @@ defmodule Controller.Router do
 
     live "/", MountLive, :index
     live "/sky", SkyLive, :index
+    live "/object/:id", ObjectLive, :show
     live "/sky/:id", SkyLive, :show
+    get "/docs/:slug", DocsController, :show
     live "/:id", MountLive, :show
   end
 end

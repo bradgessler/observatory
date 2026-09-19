@@ -175,6 +175,17 @@ defmodule Controller.SkyLive do
     end
   end
 
+  defp coord(v, max) when is_number(v) and abs(v) <= max, do: {:ok, v / 1}
+
+  defp coord(v, max) when is_binary(v) do
+    case Float.parse(v) do
+      {f, _} when abs(f) <= max -> {:ok, f}
+      _ -> :error
+    end
+  end
+
+  defp coord(_, _), do: :error
+
   defp upload_in_progress?(socket) do
     {_done, in_progress} = uploaded_entries(socket, :photo)
     in_progress != []
@@ -278,14 +289,19 @@ defmodule Controller.SkyLive do
     {:noreply, assign(socket, auto_track: v)}
   end
 
-  def handle_event("site", %{"lat" => lat, "lon" => lon}, socket) do
-    with {la, _} <- Float.parse(lat), {lo, _} <- Float.parse(lon), true <- abs(la) <= 90 and abs(lo) <= 180 do
+  # From the lat/lon inputs (strings) or the phone's geolocation (numbers).
+  def handle_event("site", %{"lat" => lat, "lon" => lon} = params, socket) do
+    with {:ok, la} <- coord(lat, 90), {:ok, lo} <- coord(lon, 180) do
       Settings.put("site", %{"lat" => la, "lon" => lo})
-      {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo}) |> compute()}
+      from_phone? = is_number(lat)
+      note = if from_phone?, do: "site set from your phone (±#{round(params["accuracy"] || 0)} m)", else: nil
+      {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo, name: if(from_phone?, do: "here", else: socket.assigns.site.name)}, notice: note) |> compute()}
     else
       _ -> {:noreply, socket}
     end
   end
+
+  def handle_event("site_error", %{"reason" => r}, socket), do: {:noreply, assign(socket, notice: "location: #{r}")}
 
   def handle_event("equipment", %{"aperture" => a}, socket) do
     aperture =
@@ -643,7 +659,7 @@ defmodule Controller.SkyLive do
         <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>
       </nav>
 
-      <svg :if={@tab == "map"} viewBox="-104 -104 208 208" class="map" phx-click="clear">
+      <svg :if={@tab == "map"} id="skymap" phx-hook="SkyZoom" viewBox="-104 -104 208 208" class="map" phx-click="clear">
         <defs>
           <radialGradient id="dome" cx="50%" cy="50%" r="50%">
             <stop offset="70%" stop-color="var(--sky1)" /><stop offset="100%" stop-color="var(--sky2)" />
@@ -687,34 +703,36 @@ defmodule Controller.SkyLive do
 
       <section :if={@tab == "targets"} class="targets">
         <p class="horizon-hint">Above your tree line now, ranked by how good they look and how long they stay up.</p>
-        <button :for={{o, i} <- Enum.with_index(@targets, 1)} class={["target", i <= 5 && "top", @target && @target.id == o.id && "picked"]} phx-click="pick" phx-value-id={o.id}>
+        <.link :for={{o, i} <- Enum.with_index(@targets, 1)} navigate={~p"/object/#{o.id}?#{[mount: @selected]}"} class={["target", i <= 5 && "top"]}>
           <span class="k">{if i <= 5, do: "#{i}", else: glyph(o.kind)}</span>
-          <span class="t"><strong>{o.name}</strong><span>alt {fmt0(o.alt)}° · {compass(o.az)} · {o.words}</span></span>
+          <span class="t"><strong>{o.name}</strong><span>{fmt0(o.alt)}° up · {compass(o.az)} · {o.words}</span></span>
           <span class={["when", when_class(o.status)]}>{when_text(o.status)}</span>
-        </button>
+        </.link>
         <p :if={@targets == []} class="horizon-hint">Nothing above the tree line. Lower it on the Horizon tab if that's wrong.</p>
       </section>
 
       <section :if={@tab == "horizon"}>
-        <p class="horizon-hint">Where do the trees/houses start, in degrees above level, looking each way? 0 = clear to the horizon, 90 = blocked.</p>
+        <p class="horizon-hint">Tree line, degrees above level, each direction. <.link href={~p"/docs/horizon"} class="help">?</.link></p>
         <form phx-change="horizon" class="horizon">
           <label :for={s <- Settings.sectors()}>{s}<input name={s} inputmode="numeric" value={@horizon[s]} /></label>
         </form>
-        <p class="horizon-hint">What are you looking through? Aperture in mm (0 = just eyes, 50 = binoculars, 100 = 4-inch refractor, 203 = NexStar 8SE). Sets the faintest thing worth suggesting: mag {fmt1(@lim)} tonight.</p>
         <form phx-change="equipment" class="horizon">
           <label>aperture mm<input name="aperture" inputmode="numeric" value={@aperture} /></label>
+          <label>limit<span class="ro">mag {fmt1(@lim)}</span></label>
+          <label>Moon<span class="ro">{if @moon.up, do: "up · #{fmt0(@moon.illumination * 100)}%", else: "down"}</span></label>
+          <label>&nbsp;<.link href={~p"/docs/magnitude"} class="help ro">?</.link></label>
         </form>
-        <p class="horizon-hint">Moon: {if @moon.up, do: "up, #{fmt0(@moon.illumination * 100)}% lit", else: "down"}. Bright Moon knocks galaxies and nebulae down the list.</p>
 
         <div class="photo">
-          <p class="horizon-hint"><strong>Field calibration.</strong> If a slew lands on the mirror image of the target, flip that axis. If a star drifts out <em>faster</em> with tracking on, flip tracking. Re-Sync after flipping.</p>
+          <p class="horizon-hint">Calibration <.link href={~p"/docs/horizon"} class="help">?</.link></p>
           <div class="row">
             <button phx-click="flip" phx-value-what="ra">Flip RA ({@pointing.ha_sign})</button>
             <button phx-click="flip" phx-value-what="dec">Flip Dec ({@pointing.dec_sign})</button>
             <button phx-click="flip" phx-value-what="tracking">Flip tracking</button>
           </div>
           <div class="row">
-            <button class={@auto_track && "on"} phx-click="auto_track">{if @auto_track, do: "Auto-track after slew: on", else: "Auto-track after slew: off"}</button>
+            <button class={@auto_track && "on"} phx-click="auto_track">{if @auto_track, do: "Auto-track: on", else: "Auto-track: off"}</button>
+            <button id="use-location" phx-hook="Geo">Use my location</button>
           </div>
           <form phx-change="site" class="horizon">
             <label>lat<input name="lat" inputmode="decimal" value={@site.lat} /></label>
@@ -723,7 +741,7 @@ defmodule Controller.SkyLive do
         </div>
 
         <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
-          <p class="horizon-hint"><strong>Map obstructions from a photo.</strong> Stand at the scope, take a Night-mode shot of the sky with the tree line in frame, and pick it here. The tree line is traced on your phone; the photo is plate-solved to learn which way it faced, and that direction's horizon is updated.</p>
+          <p class="horizon-hint">Tree line from a Night-mode photo <.link href={~p"/docs/horizon"} class="help">?</.link></p>
           <form phx-change="validate" phx-submit="solve">
             <.live_file_input upload={@uploads.photo} />
             <button :if={@photo_cols && !@solving} class="go">Solve &amp; apply</button>
@@ -731,7 +749,7 @@ defmodule Controller.SkyLive do
           </form>
           <p :if={@photo_cols} class="horizon-hint">Traced {length(@photo_cols)} columns; sky/tree boundary found in {Enum.count(@photo_cols, fn [_, y] -> y < 1.0 end)} of them.</p>
           <p :if={@solve_note} class="horizon-hint">{@solve_note}</p>
-          <p :if={!Solve.configured?()} class="horizon-hint">Needs a free nova.astrometry.net API key in <code>NOVA_API_KEY</code>.</p>
+          <p :if={!Solve.configured?()} class="horizon-hint">Solving needs <code>NOVA_API_KEY</code> (free at nova.astrometry.net).</p>
         </div>
       </section>
 
@@ -741,19 +759,17 @@ defmodule Controller.SkyLive do
           <span class="dim">{describe(@target, @stars ++ @dsos, @lim, @moon)}</span>
         </div>
         <button class="go" phx-click="goto">Slew</button>
-        <button :if={!@search} phx-click="search" title="spiral around the target until you see it">Search</button>
-        <button :if={@search} class="on" phx-click="stop">Stop</button>
-        <button :if={!@search} phx-click="sync" title="the scope is centered on this now">Sync</button>
+        <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected]}"} class="btn-link">Info ›</.link>
       </section>
       <section class="pick hint" :if={!@target and @tab == "map"}>
         <span class="dim">
-          Tap an object to slew.
-          <span :if={@snap && !@snap.homed}>Scope marker appears once you set home.</span>
-          <span :if={!@snap}>No mount connected.</span>
+          Tap to pick · pinch to zoom
+          <span :if={@snap && !@snap.homed}> · set home to see the scope</span>
+          <span :if={!@snap}> · no mount</span>
         </span>
       </section>
 
-      <p class="fine">Pointing model: homed at the pole, counterweight down; axis signs from config, unverified on sky. Plate solving will replace this (#10, #5). Catalog: d3-celestial (BSD).</p>
+      <p class="fine"><.link href={~p"/docs/sky"} class="help">how the sky page works</.link> · <.link href={~p"/docs/magnitude"} class="help">magnitude in plain words</.link></p>
       <p :if={@notice} class="notice" phx-click="clear">{@notice}</p>
     </main>
     """

@@ -113,6 +113,93 @@ Hooks.SkyPhoto = {
   },
 };
 
+
+// Pinch to zoom / drag to pan the sky map by driving the SVG viewBox.
+// Wheel zooms on a desktop; double-tap or double-click resets. A tap without
+// movement still reaches the object underneath (pick) or the dome (clear).
+Hooks.SkyZoom = {
+  mounted() {
+    const svg = this.el;
+    const base = [-104, -104, 208, 208];
+    let vb = [...base];
+    const pts = new Map();
+    let pinch = null, moved = false;
+    const apply = () => svg.setAttribute("viewBox", vb.join(" "));
+    const clamp = () => {
+      vb[2] = vb[3] = Math.min(base[2], Math.max(16, vb[2]));
+      vb[0] = Math.max(base[0], Math.min(base[0] + base[2] - vb[2], vb[0]));
+      vb[1] = Math.max(base[1], Math.min(base[1] + base[3] - vb[3], vb[1]));
+    };
+    const toSvg = (x, y) => {
+      const r = svg.getBoundingClientRect();
+      return [vb[0] + (x - r.left) / r.width * vb[2], vb[1] + (y - r.top) / r.height * vb[3]];
+    };
+    const zoomAt = (cx, cy, f) => {
+      const [sx, sy] = toSvg(cx, cy);
+      const w = Math.min(base[2], Math.max(16, vb[2] * f));
+      const s = w / vb[2];
+      vb = [sx - (sx - vb[0]) * s, sy - (sy - vb[1]) * s, w, w];
+      clamp(); apply();
+    };
+    const pinchState = () => {
+      const [a, b] = [...pts.values()];
+      return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 };
+    };
+    svg.style.touchAction = "none";
+    svg.addEventListener("pointerdown", (e) => {
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      moved = false;
+      if (pts.size === 2) pinch = pinchState();
+    });
+    const move = (e) => {
+      if (!pts.has(e.pointerId)) return;
+      const prev = pts.get(e.pointerId);
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 1) {
+        if (vb[2] >= base[2]) return;                 // not zoomed: nothing to pan
+        const dx = e.clientX - prev[0], dy = e.clientY - prev[1];
+        if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+        const r = svg.getBoundingClientRect();
+        vb[0] -= dx / r.width * vb[2];
+        vb[1] -= dy / r.height * vb[3];
+        clamp(); apply();
+      } else if (pts.size === 2) {
+        moved = true;
+        const now = pinchState();
+        if (pinch && now.d > 0) zoomAt(now.cx, now.cy, pinch.d / now.d);
+        pinch = now;
+      }
+    };
+    const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    // swallow the click that follows a drag/pinch so it doesn't pick or clear
+    svg.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+    svg.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1.15 : 0.87); }, { passive: false });
+    svg.addEventListener("dblclick", (e) => { e.preventDefault(); vb = [...base]; apply(); });
+    // keep our zoom across LiveView patches
+    this.apply = apply;
+  },
+  updated() { this.apply && this.apply(); },
+};
+
+
+// "Use my location": ask the browser once, hand lat/lon to the server.
+Hooks.Geo = {
+  mounted() {
+    this.el.addEventListener("click", () => {
+      if (!navigator.geolocation) { this.pushEvent("site_error", { reason: "no geolocation in this browser" }); return; }
+      this.el.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { this.el.disabled = false; this.pushEvent("site", { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }); },
+        (err) => { this.el.disabled = false; this.pushEvent("site_error", { reason: err.message }); },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      );
+    });
+  },
+};
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
   hooks: Hooks,

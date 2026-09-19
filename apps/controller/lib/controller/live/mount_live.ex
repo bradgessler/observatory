@@ -14,7 +14,7 @@ defmodule Controller.MountLive do
 
     {:ok,
      socket
-     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), mounts: %{}, refs: %{})
+     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), more: false, mounts: %{}, refs: %{})
      |> assign(selected: params["id"])
      |> rescan()}
   end
@@ -128,6 +128,7 @@ defmodule Controller.MountLive do
     {:noreply, assign(socket, night: night)}
   end
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
+  def handle_event("more", _, socket), do: {:noreply, assign(socket, more: !socket.assigns.more)}
 
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
@@ -167,11 +168,12 @@ defmodule Controller.MountLive do
         <h1 :if={map_size(@refs) <= 1}>{@selected || "no mount"}</h1>
         <span>
           <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">✦ sky</.link>
+          <.link href={~p"/docs/keypad"} class="ghost help">?</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </span>
       </header>
 
-      <p :if={@selected == "sim"} class="banner">No telescope connected — this is a simulator. Plug the EQDIR cable into this machine and the real mount replaces it within a few seconds.</p>
+      <p :if={@selected == "sim"} class="banner">No telescope connected — simulator. Plug in the EQDIR cable and the real mount takes over.</p>
 
       <%= if @snap && @snap.connected do %>
         <section class="readout">
@@ -198,7 +200,7 @@ defmodule Controller.MountLive do
           <button class="arrow" id="dec-up" phx-hook="Hold" data-axis="dec" data-dir="+">▲<small>Dec +</small></button>
           <span></span>
           <button class="arrow" id="ra-left" phx-hook="Hold" data-axis="ra" data-dir="-">◀<small>RA −</small></button>
-          <button class="stop" phx-click="stop">STOP</button>
+          <button class="stop" phx-click="estop">STOP</button>
           <button class="arrow" id="ra-right" phx-hook="Hold" data-axis="ra" data-dir="+">▶<small>RA +</small></button>
           <span></span>
           <button class="arrow" id="dec-down" phx-hook="Hold" data-axis="dec" data-dir="-">▼<small>Dec −</small></button>
@@ -214,13 +216,13 @@ defmodule Controller.MountLive do
         <section class="row">
           <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal">Track ☆</button>
           <button :if={@snap.tracking != :off} class="on" phx-click="track" phx-value-mode="off">Tracking ☆</button>
-          <button phx-click="home" data-confirm="Set the current position as home (counterweight down, scope at the pole)?">Set home</button>
+          <button class="ghost more-toggle" phx-click="more">{if @more, do: "less ▴", else: "more ▾"}</button>
         </section>
 
-        <section class="goto">
+        <section :if={@more} class="goto">
           <form phx-submit="goto" class="row">
             <input type="hidden" name="axis" value="ra" /><input type="hidden" name="sign" value="+" />
-            <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees" />
+            <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees to move" />
             <button>RA +</button>
           </form>
           <div class="row">
@@ -228,9 +230,10 @@ defmodule Controller.MountLive do
             <button phx-click="goto" phx-value-axis="dec" phx-value-sign="+" phx-value-deg={@goto_deg}>Dec +</button>
             <button phx-click="goto" phx-value-axis="dec" phx-value-sign="-" phx-value-deg={@goto_deg}>Dec −</button>
           </div>
+          <div class="row">
+            <button phx-click="home" data-confirm="Set the current position as home (counterweight down, scope at the pole)?">Set home</button>
+          </div>
         </section>
-
-        <button class="estop" phx-click="estop">EMERGENCY STOP</button>
       <% else %>
         <section class="empty">
           <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>

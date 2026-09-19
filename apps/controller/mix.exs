@@ -49,6 +49,7 @@ defmodule Controller.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:req, "~> 0.5"},
+      {:mdex, "~> 0.13"},
       {:bandit, "~> 1.5"}
     ]
   end

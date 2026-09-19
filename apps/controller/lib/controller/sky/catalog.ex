@@ -169,7 +169,8 @@ defmodule Controller.Sky.Catalog do
   defp dso_kind(t) when t in ["s", "s0", "sd", "e", "i", "gg"], do: :galaxy
   defp dso_kind("oc"), do: :cluster
   defp dso_kind("gc"), do: :cluster
-  defp dso_kind("pn"), do: :nebula
+  # planetaries are small and bright per area: they punch above their total magnitude
+  defp dso_kind("pn"), do: :planetary
   defp dso_kind(t) when t in ["bn", "en", "rn", "sfr", "snr", "n"], do: :nebula
   defp dso_kind(_), do: :nebula
 end

@@ -136,3 +136,31 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .sky header { justify-content: space-between; }
 .sky header h1 { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 .sky header a.ghost { white-space: nowrap; }
+.photo { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; margin-top: 12px; }
+.photo form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.photo input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); }
+.photo code { color: var(--accent); }
+
+/* ---- larger screens: iPad, laptop, big desktop ---- */
+@media (min-width: 700px) {
+  .pad { max-width: 520px; }
+  .axis .deg { font-size: 34px; }
+}
+@media (min-width: 960px) {
+  .sky { max-width: 1400px; display: grid; grid-template-columns: minmax(420px, 1fr) minmax(360px, 520px); grid-template-rows: auto auto 1fr auto; column-gap: 28px; align-content: start; }
+  .sky header { grid-column: 1 / -1; }
+  .sky .tabs { grid-column: 2; grid-row: 2; }
+  .sky .map { grid-column: 1; grid-row: 2 / 5; max-height: calc(100dvh - 120px); width: auto; justify-self: center; }
+  .sky .targets, .sky section:not(.pick):not(.targets) { grid-column: 2; grid-row: 3; overflow: auto; max-height: calc(100dvh - 260px); }
+  .sky .pick { grid-column: 2; grid-row: 4; }
+  .sky .fine { grid-column: 1 / -1; }
+  /* on wide screens the map tab is always visible; tabs switch the right column */
+}
+@media (min-width: 1800px) {
+  html { font-size: 18px; }
+  .sky { max-width: 1900px; }
+}
+/* touch: no accidental zoom/scroll on controls, no text selection while holding */
+.dpad, .rates, .row, .tabs, .targets { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+@media (hover: hover) { button:hover { border-color: var(--dim); } }
+.photo input[type=file]::file-selector-button { background: var(--btn); color: var(--text); border: 1px solid var(--edge); border-radius: 10px; padding: 10px 14px; margin-right: 10px; font: inherit; }

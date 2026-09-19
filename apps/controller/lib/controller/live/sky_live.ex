@@ -11,13 +11,16 @@ defmodule Controller.SkyLive do
   use Controller, :live_view
 
   alias Controller.Settings
-  alias Controller.Sky.{Astro, Catalog, Ephemeris}
+  alias Controller.Sky.{Astro, Catalog, Ephemeris, HorizonScan, Solve}
 
   @tick_ms 15_000
   @mag_limit 5.0
   # Search spiral: one low-power eyepiece field per step, a pause to look.
   @spiral_step 0.4
   @spiral_pause_ms 2_500
+  # Crowd-pleasers, by experience rather than magnitude: things that make people say "whoa".
+  @showpieces ~w(m13 m57 m27 m31 m42 m45 m11 m22 m8 m17 m16 m20 m51 m81 m82 m104 m92 m44 m35 m3 m5 m15 m2 m4 m6 m7 m1 m33)
+  @showpiece_stars ~w(Albireo Mizar Polaris Antares Betelgeuse Rigel Sirius Capella Aldebaran Arcturus Vega)
 
   @impl true
   def mount(params, _session, socket) do
@@ -38,6 +41,11 @@ defmodule Controller.SkyLive do
        night: Settings.get("night", false),
        # Aperture of the scope in use, mm. 0 = naked eye. Drives limiting magnitude.
        aperture: Settings.get("aperture_mm", 100),
+       # Photo → obstructions: boundary traced in the browser, solve runs in a Task.
+       photo_cols: nil,
+       photo_dims: nil,
+       solving: false,
+       solve_note: nil,
        now: DateTime.utc_now(),
        refs: %{},
        snap: nil,
@@ -46,6 +54,7 @@ defmodule Controller.SkyLive do
        notice: nil,
        tab: "map"
      )
+     |> allow_upload(:photo, accept: ~w(.jpg .jpeg .png .heic .heif), max_entries: 1, max_file_size: 30_000_000, auto_upload: true)
      |> rescan()
      |> compute()}
   end
@@ -67,6 +76,24 @@ defmodule Controller.SkyLive do
 
   def handle_info({:mount, snap}, socket) do
     if snap.id == socket.assigns.selected, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
+  end
+
+  def handle_info({:solved, {:ok, sol, profile}}, socket) do
+    horizon = HorizonScan.merge(socket.assigns.horizon, profile)
+    Settings.put("horizon", horizon)
+
+    summary =
+      profile |> Enum.sort_by(fn {s, _} -> Enum.find_index(Settings.sectors(), &(&1 == s)) end) |> Enum.map_join(", ", fn {s, a} -> "#{s} #{a}°" end)
+
+    note =
+      "solved: photo centered RA #{fmt1(sol.ra_deg / 15)}h Dec #{fmt1(sol.dec_deg)}°, #{fmt0(sol.radius_deg * 2)}° across" <>
+        if(profile == %{}, do: "; no tree line found in frame", else: "; tree line → #{summary}")
+
+    {:noreply, socket |> assign(horizon: horizon, solving: false, solve_note: note, photo_cols: nil) |> compute()}
+  end
+
+  def handle_info({:solved, {:error, reason}}, socket) do
+    {:noreply, assign(socket, solving: false, solve_note: "solve failed: #{inspect(reason)}")}
   end
 
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
@@ -126,6 +153,58 @@ defmodule Controller.SkyLive do
     {:noreply, assign(socket, night: night)}
   end
   def handle_event("tab", %{"tab" => tab}, socket), do: {:noreply, assign(socket, tab: tab)}
+
+  # -- photo → obstructions ------------------------------------------------------------------------
+
+  def handle_event("validate", _params, socket), do: {:noreply, socket}
+
+  def handle_event("photo_cols", %{"cols" => cols, "width" => w, "height" => h}, socket) do
+    {:noreply, assign(socket, photo_cols: cols, photo_dims: {w, h}, solve_note: nil)}
+  end
+
+  def handle_event("solve", _params, %{assigns: %{photo_cols: cols}} = socket) when is_list(cols) do
+    cond do
+      not Solve.configured?() ->
+        {:noreply, assign(socket, solve_note: "no NOVA_API_KEY set; can't solve")}
+
+      socket.assigns.solving ->
+        {:noreply, socket}
+
+      true ->
+        paths =
+          consume_uploaded_entries(socket, :photo, fn %{path: path}, entry ->
+            dest = Path.join(System.tmp_dir!(), "sky-#{System.unique_integer([:positive])}#{Path.extname(entry.client_name)}")
+            File.cp!(path, dest)
+            {:ok, dest}
+          end)
+
+        case paths do
+          [path] ->
+            site = socket.assigns.site
+            dims = socket.assigns.photo_dims
+            taken_at = DateTime.utc_now()
+            boundary = for [x, y] <- cols, y < 1.0, do: {x, y}
+            lv = self()
+
+            Task.start(fn ->
+              result =
+                with {:ok, sol} <- Solve.solve(path) do
+                  {:ok, sol, HorizonScan.profile(sol, boundary, site, taken_at, dims)}
+                end
+
+              File.rm(path)
+              send(lv, {:solved, result})
+            end)
+
+            {:noreply, assign(socket, solving: true, solve_note: "uploaded; solving at nova.astrometry.net…")}
+
+          _ ->
+            {:noreply, assign(socket, solve_note: "pick a photo first")}
+        end
+    end
+  end
+
+  def handle_event("solve", _params, socket), do: {:noreply, assign(socket, solve_note: "pick a photo first")}
 
   def handle_event("equipment", %{"aperture" => a}, socket) do
     aperture =
@@ -303,7 +382,8 @@ defmodule Controller.SkyLive do
   end
 
   # What's worth looking at from this spot, with this scope, over the next two hours.
-  defp targets(now, site, horizon, aperture_mm) do
+  # Public: the agent/sky-tour layer (#8, #40) calls this same function.
+  def targets(now, site, horizon, aperture_mm) do
     lsts = for h <- [0, 1, 2], do: Astro.lst_deg(DateTime.add(now, h * 3600), site.lon)
     lim = limiting_mag(aperture_mm)
     moon = moon_state(now, site, hd(lsts))
@@ -311,7 +391,7 @@ defmodule Controller.SkyLive do
     candidates =
       Ephemeris.objects(now) ++
         Catalog.dsos() ++
-        Enum.filter(Catalog.stars(2.6), &(&1.proper != nil))
+        Enum.filter(Catalog.stars(4.0), &(&1.proper != nil and (&1.mag <= 2.6 or &1.proper in @showpiece_stars)))
 
     for o <- candidates,
         o.id != "sol-sun",
@@ -319,9 +399,10 @@ defmodule Controller.SkyLive do
         [a0, a1, a2] = Enum.map(lsts, &Astro.alt_az(o.ra_deg, o.dec_deg, site.lat, &1)),
         {alt0, az0} = a0,
         tree0 = Settings.horizon_at(horizon, az0),
-        up0 = alt0 > tree0,
-        up1 = elem(a1, 0) > Settings.horizon_at(horizon, elem(a1, 1)),
-        up2 = elem(a2, 0) > Settings.horizon_at(horizon, elem(a2, 1)),
+        # one tuple bind: a bare `up = false` here would act as a filter and drop the row
+        {up0, up1, up2} =
+          {alt0 > tree0, elem(a1, 0) > Settings.horizon_at(horizon, elem(a1, 1)),
+           elem(a2, 0) > Settings.horizon_at(horizon, elem(a2, 1))},
         up0 or up2 do
       status =
         cond do
@@ -331,8 +412,9 @@ defmodule Controller.SkyLive do
           true -> :rising
         end
 
+      # brighter = better, but a -10 Moon shouldn't get 10 points of it; Messier = curated showpiece
       wow =
-        -min(o.mag, 2.0) + kind_bonus(o.kind) + min(alt0 - tree0, 30) / 30 +
+        -max(o.mag, -2.0) + kind_bonus(o.kind) + messier_bonus(o) + min(alt0 - tree0, 30) / 30 +
           if(status == :good, do: 1.0, else: 0.0) - if(status == :rising, do: 1.5, else: 0.0) -
           moon_penalty(o, moon)
 
@@ -352,8 +434,17 @@ defmodule Controller.SkyLive do
     Enum.sort_by(top, & &1.wow, :desc) ++ Enum.reject(ranked, &MapSet.member?(top_ids, &1.id))
   end
 
+  defp messier_bonus(%{id: id}) when id in @showpieces, do: 3.5
+  defp messier_bonus(%{proper: p}) when p in @showpiece_stars, do: 1.0
+  defp messier_bonus(%{id: "m" <> rest}) when rest != "", do: 1.5
+  defp messier_bonus(_), do: 0.0
+
+  # Bright stars are nice but they're points; bias toward things with structure.
+  defp kind_bonus(:star), do: -1.0
+
   defp kind_bonus(:moon), do: 6.0
   defp kind_bonus(:planet), do: 5.0
+  defp kind_bonus(:planetary), do: 2.0
   defp kind_bonus(:galaxy), do: 1.5
   defp kind_bonus(:nebula), do: 1.5
   defp kind_bonus(:cluster), do: 1.0
@@ -370,6 +461,7 @@ defmodule Controller.SkyLive do
   defp extended_margin(:galaxy), do: 3.5
   defp extended_margin(:nebula), do: 3.0
   defp extended_margin(:cluster), do: 1.5
+  defp extended_margin(:planetary), do: 1.0
   defp extended_margin(_), do: 0.0
 
   defp showable?(%{kind: k, mag: m}, lim, _moon), do: m <= lim - extended_margin(k)
@@ -498,6 +590,18 @@ defmodule Controller.SkyLive do
           <label>aperture mm<input name="aperture" inputmode="numeric" value={@aperture} /></label>
         </form>
         <p class="horizon-hint">Moon: {if @moon.up, do: "up, #{fmt0(@moon.illumination * 100)}% lit", else: "down"}. Bright Moon knocks galaxies and nebulae down the list.</p>
+
+        <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
+          <p class="horizon-hint"><strong>Map obstructions from a photo.</strong> Stand at the scope, take a Night-mode shot of the sky with the tree line in frame, and pick it here. The tree line is traced on your phone; the photo is plate-solved to learn which way it faced, and that direction's horizon is updated.</p>
+          <form phx-change="validate" phx-submit="solve">
+            <.live_file_input upload={@uploads.photo} capture="environment" />
+            <button :if={@photo_cols && !@solving} class="go">Solve &amp; apply</button>
+            <span :if={@solving} class="dim">solving… (30–90 s)</span>
+          </form>
+          <p :if={@photo_cols} class="horizon-hint">Traced {length(@photo_cols)} columns; sky/tree boundary found in {Enum.count(@photo_cols, fn [_, y] -> y < 1.0 end)} of them.</p>
+          <p :if={@solve_note} class="horizon-hint">{@solve_note}</p>
+          <p :if={!Solve.configured?()} class="horizon-hint">Needs a free nova.astrometry.net API key in <code>NOVA_API_KEY</code>.</p>
+        </div>
       </section>
 
       <section class="pick" :if={@target}>
@@ -541,6 +645,7 @@ defmodule Controller.SkyLive do
 
   defp glyph(:moon), do: "☾"
   defp glyph(:planet), do: "pl"
+  defp glyph(:planetary), do: "pn"
   defp glyph(:galaxy), do: "gal"
   defp glyph(:nebula), do: "neb"
   defp glyph(:cluster), do: "cl"

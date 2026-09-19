@@ -32,6 +32,18 @@ people who may have never used a telescope.
 Type: system UI font, 16px base, tabular numerals for anything that changes.
 Radii: 14px controls, 16px cards, 999px pills. Spacing: 8/10/12/14/16.
 
+## Every screen size
+
+Phone first, but the same pages run on an iPad, a laptop, and a 5K desktop.
+- Phone (< 700px): single column, thumb reach, tabs switch panels.
+- Tablet/laptop (≥ 960px): the sky page becomes two columns — map left,
+  tabs/list/pick right — so list ↔ map correspondence is visible at once.
+- Big desktop (≥ 1800px): base font scales up; nothing becomes tiny.
+- Touch and pointer both: controls are `touch-action: manipulation` and
+  `user-select: none`; hover styles only under `@media (hover: hover)`; no
+  behaviour depends on hover. Pointer events (not mouse/touch events) drive
+  press-and-hold.
+
 ## Touch and motion
 
 - Every control ≥ 44px; the D-pad and STOP are much bigger. STOP is always

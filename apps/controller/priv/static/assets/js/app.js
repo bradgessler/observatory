@@ -67,6 +67,52 @@ Hooks.Keys = {
   },
 };
 
+
+// Sky photo: trace where the sky stops in each column (bright sky above,
+// dark trees/houses below) right here in the browser, then hand the boundary
+// to the server. The server plate-solves the same photo to turn columns into
+// compass directions and rows into altitude.
+Hooks.SkyPhoto = {
+  mounted() {
+    const input = this.el.querySelector("input[type=file]");
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        const W = 96, H = 64;
+        const c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, W, H);
+        const d = ctx.getImageData(0, 0, W, H).data;
+        const lum = (x, y) => { const i = (y * W + x) * 4; return 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; };
+        // sky brightness reference: median of the top 15% of rows
+        const top = [];
+        for (let y = 0; y < Math.floor(H * 0.15); y++) for (let x = 0; x < W; x++) top.push(lum(x, y));
+        top.sort((a, b) => a - b);
+        const sky = top[Math.floor(top.length / 2)];
+        const all = [];
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) all.push(lum(x, y));
+        all.sort((a, b) => a - b);
+        const dark = all[Math.floor(all.length * 0.1)];
+        const thresh = dark + (sky - dark) * 0.45;
+        const cols = [];
+        for (let x = 0; x < W; x++) {
+          // walk down from the top; the first run of 3 dark rows is the boundary
+          let yb = H;
+          for (let y = 0; y < H - 2; y++) {
+            if (lum(x, y) < thresh && lum(x, y + 1) < thresh && lum(x, y + 2) < thresh) { yb = y; break; }
+          }
+          cols.push([(x + 0.5) / W, yb / H]);
+        }
+        this.pushEvent("photo_cols", { cols, width: img.naturalWidth, height: img.naturalHeight, sky, dark });
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  },
+};
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
   hooks: Hooks,

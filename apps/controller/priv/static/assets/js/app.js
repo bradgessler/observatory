@@ -8,7 +8,6 @@ const Hooks = {};
 // 900 ms, so a dropped connection can't leave the mount running.
 Hooks.Hold = {
   mounted() {
-    const axis = this.el.dataset.axis;
     const dir = this.el.dataset.dir;
     let timer = null;
 
@@ -16,8 +15,8 @@ Hooks.Hold = {
       e.preventDefault();
       if (timer) return;
       this.el.classList.add("pressed");
-      this.pushEvent("hold", { axis, dir });
-      timer = setInterval(() => this.pushEvent("hold", { axis, dir }), 300);
+      this.pushEvent("hold", { dir });
+      timer = setInterval(() => this.pushEvent("hold", { dir }), 300);
       try { navigator.vibrate && navigator.vibrate(8); } catch (_) {}
     };
 
@@ -27,7 +26,7 @@ Hooks.Hold = {
       clearInterval(timer);
       timer = null;
       this.el.classList.remove("pressed");
-      this.pushEvent("release", { axis });
+      this.pushEvent("release", {});
     };
 
     this.el.addEventListener("pointerdown", start);

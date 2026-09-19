@@ -309,3 +309,6 @@ a.banner strong { color: var(--warn); }
 .page .err { color: var(--warn); }
 .page .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--accent); text-decoration: none; word-break: break-all; }
 .page .dim { color: var(--dim); font-size: 13px; }
+.dpad-mode { grid-column: 1; display: flex; align-items: center; justify-content: flex-start; }
+.dpad-mode .ghost { font-size: 12px; padding: 4px 0; text-align: left; color: var(--dim); }
+.dpad-hint { grid-column: 3; display: flex; align-items: flex-end; justify-content: flex-end; color: var(--dim); text-align: right; }

@@ -14,7 +14,7 @@ defmodule Controller.MountLive do
 
     {:ok,
      socket
-     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), more: false, mounts: %{}, refs: %{})
+     |> assign(rate: 64, goto_deg: "5", notice: nil, night: Controller.Settings.get("night", false), more: false, mounts: %{}, refs: %{}, mode: Controller.Settings.get("keypad_mode"), held: [])
      |> assign(selected: params["id"])
      |> rescan()}
   end
@@ -73,34 +73,55 @@ defmodule Controller.MountLive do
     {:noreply, assign(socket, rate: String.to_integer(r))}
   end
 
-  def handle_event("hold", %{"axis" => axis, "dir" => dir}, socket) do
-    rate = socket.assigns.rate * if(dir == "+", do: 1, else: -1)
-    {:noreply, run(socket, &Mount.slew(&1, String.to_existing_atom(axis), rate, hold: true))}
+  # The arrows mean a direction on the sky, not an axis. In sky mode "up" is
+  # toward the zenith and both axes may turn; in axes mode it's the
+  # hand-controller convention (N/S = Dec, E/W = RA).
+  def handle_event("hold", %{"dir" => dir}, socket) when dir in ~w(up down left right) do
+    dir = String.to_existing_atom(dir)
+    snap = current(socket)
+    ctx = Controller.Sky.Pointing.context()
+
+    rates =
+      case effective_mode(socket) do
+        :sky -> Controller.Sky.Joystick.sky(snap, ctx, dir, socket.assigns.rate)
+        :axes -> Controller.Sky.Joystick.compass(snap, ctx, dir, socket.assigns.rate)
+      end || Controller.Sky.Joystick.compass(snap, ctx, dir, socket.assigns.rate)
+
+    socket = Enum.reduce(rates, socket, fn {axis, rate}, s -> run(s, &Mount.slew(&1, axis, rate, hold: true)) end)
+    {:noreply, assign(socket, held: Enum.map(rates, &elem(&1, 0)))}
   end
 
-  def handle_event("release", %{"axis" => axis}, socket) do
-    axis = String.to_existing_atom(axis)
+  def handle_event("release", _params, socket) do
     snap = current(socket)
+    held = socket.assigns[:held] || [:ra, :dec]
 
-    # Letting go of an RA nudge while tracking should go back to tracking, not stop.
-    if axis == :ra and snap && snap.tracking != :off do
-      {:noreply, run(socket, &Mount.track(&1, snap.tracking))}
-    else
-      {:noreply, run(socket, &Mount.stop(&1, axis))}
-    end
+    socket =
+      Enum.reduce(held, socket, fn axis, s ->
+        # Letting go of an RA nudge while tracking should go back to tracking, not stop.
+        if axis == :ra and snap && snap.tracking != :off,
+          do: run(s, &Mount.track(&1, snap.tracking)),
+          else: run(s, &Mount.stop(&1, axis))
+      end)
+
+    {:noreply, assign(socket, held: [])}
   end
 
   def handle_event("key", %{"key" => key, "type" => type}, socket) do
     case {key, type} do
-      {"ArrowUp", "down"} -> handle_event("hold", %{"axis" => "dec", "dir" => "+"}, socket)
-      {"ArrowDown", "down"} -> handle_event("hold", %{"axis" => "dec", "dir" => "-"}, socket)
-      {"ArrowRight", "down"} -> handle_event("hold", %{"axis" => "ra", "dir" => "+"}, socket)
-      {"ArrowLeft", "down"} -> handle_event("hold", %{"axis" => "ra", "dir" => "-"}, socket)
-      {k, "up"} when k in ["ArrowUp", "ArrowDown"] -> handle_event("release", %{"axis" => "dec"}, socket)
-      {k, "up"} when k in ["ArrowLeft", "ArrowRight"] -> handle_event("release", %{"axis" => "ra"}, socket)
+      {"ArrowUp", "down"} -> handle_event("hold", %{"dir" => "up"}, socket)
+      {"ArrowDown", "down"} -> handle_event("hold", %{"dir" => "down"}, socket)
+      {"ArrowRight", "down"} -> handle_event("hold", %{"dir" => "right"}, socket)
+      {"ArrowLeft", "down"} -> handle_event("hold", %{"dir" => "left"}, socket)
+      {k, "up"} when k in ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"] -> handle_event("release", %{}, socket)
       {" ", "down"} -> handle_event("stop", %{}, socket)
       _ -> {:noreply, socket}
     end
+  end
+
+  def handle_event("mode", _, socket) do
+    mode = if effective_mode(socket) == :sky, do: "axes", else: "sky"
+    Controller.Settings.put("keypad_mode", mode)
+    {:noreply, assign(socket, mode: mode)}
   end
 
   def handle_event("stop", _, socket), do: {:noreply, run(socket, &Mount.stop/1)}
@@ -151,6 +172,18 @@ defmodule Controller.MountLive do
 
   defp current(socket), do: socket.assigns.mounts[socket.assigns.selected]
 
+  # Sky mode needs to know where the scope points, which needs home.
+  defp effective_mode(socket) do
+    snap = current(socket)
+    homed? = snap != nil and snap[:homed] == true
+
+    case socket.assigns[:mode] do
+      "axes" -> :axes
+      "sky" -> if homed?, do: :sky, else: :axes
+      _ -> if homed?, do: :sky, else: :axes
+    end
+  end
+
   # -- render -----------------------------------------------------------------------
 
   @impl true
@@ -196,16 +229,19 @@ defmodule Controller.MountLive do
           </div>
         </section>
 
+        <% mode = effective_mode(%{assigns: assigns}) %>
         <section class="dpad">
+          <span class="dpad-mode">
+            <button class="ghost" phx-click="mode">{if mode == :sky, do: "as you see it", else: "N · S · E · W"} ▾</button>
+          </span>
+          <button class="arrow" id="d-up" phx-hook="Hold" data-dir="up">▲<small>{if mode == :sky, do: "up", else: "N · toward pole"}</small></button>
           <span></span>
-          <button class="arrow" id="dec-up" phx-hook="Hold" data-axis="dec" data-dir="+">▲<small>Dec +</small></button>
-          <span></span>
-          <button class="arrow" id="ra-left" phx-hook="Hold" data-axis="ra" data-dir="-">◀<small>RA −</small></button>
+          <button class="arrow" id="d-left" phx-hook="Hold" data-dir="left">◀<small>{if mode == :sky, do: "left", else: "E"}</small></button>
           <button class="stop" phx-click="estop">STOP</button>
-          <button class="arrow" id="ra-right" phx-hook="Hold" data-axis="ra" data-dir="+">▶<small>RA +</small></button>
+          <button class="arrow" id="d-right" phx-hook="Hold" data-dir="right">▶<small>{if mode == :sky, do: "right", else: "W"}</small></button>
           <span></span>
-          <button class="arrow" id="dec-down" phx-hook="Hold" data-axis="dec" data-dir="-">▼<small>Dec −</small></button>
-          <span></span>
+          <button class="arrow" id="d-down" phx-hook="Hold" data-dir="down">▼<small>{if mode == :sky, do: "down", else: "S · away from pole"}</small></button>
+          <span class="dpad-hint"><small :if={mode == :axes and not @snap.homed}>set home for up/down/left/right</small></span>
         </section>
 
         <section class="rates">

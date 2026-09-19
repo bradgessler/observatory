@@ -134,11 +134,11 @@ defmodule Controller.StartLive do
 
     text =
       case obj && Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true) do
-        {:ok, _, _} -> "heading to #{obj.name} — it will hold there"
+        {:ok, _, _} -> "heading to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
         {:error, :not_connected} -> "no mount"
         {:error, e} -> inspect(e)
-        nil -> "gone from the list — try again"
+        nil -> "not on the list any more"
       end
 
     {:noreply, notice(socket, text)}

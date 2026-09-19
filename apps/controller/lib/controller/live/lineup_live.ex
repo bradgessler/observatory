@@ -121,8 +121,8 @@ defmodule Controller.LineupLive do
 
     cond do
       is_nil(star) or is_nil(snap) -> {:noreply, put_notice(socket, "no mount")}
-      not snap.homed -> {:noreply, put_notice(socket, "zero the axes first — it arms the limits")}
-      slewing?(snap) -> {:noreply, put_notice(socket, "still slewing — wait for it to land")}
+      not snap.homed -> {:noreply, put_notice(socket, "zero the axes first")}
+      slewing?(snap) -> {:noreply, put_notice(socket, "still slewing")}
       true ->
         st = Lineup.add(snap, star)
         {:noreply, socket |> assign(picking: false) |> compute() |> put_notice(words_after(st, star))}
@@ -157,7 +157,7 @@ defmodule Controller.LineupLive do
         {:noreply, socket |> compute() |> put_notice("holding #{name}")}
 
       _ ->
-        {:noreply, put_notice(socket, "zero the axes first — then I know which way the tube is turned")}
+        {:noreply, put_notice(socket, "zero the axes first")}
     end
   end
 
@@ -213,8 +213,8 @@ defmodule Controller.LineupLive do
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.n < 3} class="dim">{3 - @status.n} more to check it</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and @status.rms_arcmin < 120} class="dim">one star is off — forget the worst below</span>
-          <span :if={@status.solved? and @status.n >= 2 and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}° — one isn't that star; forget the worst below</span>
+          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and @status.rms_arcmin < 120} class="dim">one star is off: forget the worst below</span>
+          <span :if={@status.solved? and @status.n >= 2 and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
           <span :if={@status.signs_corrected?} class="dim">axis sign corrected (Modes)</span>
         </div>
       </.card>
@@ -223,12 +223,12 @@ defmodule Controller.LineupLive do
       <.hint :if={@status} class="site-line">
         Site {@site.name} · {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
         <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>change</.link>
-        <span :if={@site.name == "nowhere"}> — <b>no site set</b></span>
+        <span :if={@site.name == "nowhere"}> · <b>no site set</b></span>
       </.hint>
 
       <%!-- step 0: home, for the limits --%>
       <.card :if={@snap && !@snap.homed} title="First: Zero the Axes">
-        <.hint>Counterweight down, tube along the polar axis — by eye.</.hint>
+        <.hint>Counterweight down, tube along the polar axis. By eye is fine.</.hint>
         <.btn variant="primary" phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
       </.card>
 
@@ -240,13 +240,13 @@ defmodule Controller.LineupLive do
         </div>
         <.row>
           <.btn phx-click="slew" phx-value-id={@next.id} disabled={slewing?(@snap)}>{if slewing?(@snap), do: "Slewing…", else: "Slew near it"}</.btn>
-          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)}>That's it — I'm on {@next.name}</.btn>
+          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)}>On it</.btn>
         </.row>
         <.row>
           <.btn class="btn-ghost" phx-click="pick">A different star ›</.btn>
           <.btn class="btn-ghost" navigate={~p"/controls/nudge/#{@selected}"}>Centre it ›</.btn>
         </.row>
-        <.hint :if={@samples == []}>First slew is a guess — watch the cable.</.hint>
+        <.hint :if={@samples == []}>First slew is a guess. Watch the cable.</.hint>
       </.card>
 
       <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">

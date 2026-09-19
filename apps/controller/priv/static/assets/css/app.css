@@ -70,7 +70,8 @@ header select { background: var(--panel); border: 1px solid var(--edge); border-
 .night .estop { background: #b00000; color: #fff; }
 
 .empty { color: var(--dim); text-align: center; padding: 40px 12px; }
-.notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--warn); color: #000; padding: 10px 16px; border-radius: 999px; font-weight: 600; margin: 0; }
+/* a notice is a quiet line, not an alarm: panel on panel, dim text, gone in a few seconds */
+.notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--panel); color: var(--dim); border: 1px solid var(--edge); padding: 8px 14px; border-radius: var(--r); font-size: 13px; font-weight: 400; margin: 0; text-align: center; }
 
 /* ---- sky map ---- */
 :root { --sky1: #0b1020; --sky2: #05070d; }
@@ -176,7 +177,6 @@ button, .map, .dpad { -webkit-touch-callout: none; }
 /* ---- one shape rule: 14px corners everywhere; STOP is the only circle ---- */
 .arrow { border-radius: 14px; }
 .stop-mini { border-radius: 14px; }
-.notice { border-radius: 14px; }
 .badge { border-radius: 8px; }
 .rate { border-radius: 14px; }
 

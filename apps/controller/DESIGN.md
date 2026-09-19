@@ -31,7 +31,7 @@ people who may have never used a telescope.
   even "on" and "warning" states are shades of red. Star dots become red.
   Peak brightness in night mode stays under `#ff4a4a`-on-`#050000`.
 - **Never flash.** No white splash, no bright transitions, no full-screen
-  notices. Notices are a small pill at the bottom.
+  notices. Notices are a quiet grey line at the bottom that fades on its own; never red, never a fill.
 - **Dim by default.** Text is `--text` on `--bg` at ~85% contrast, not pure white
   on black. Large numbers (position readout) are the brightest thing on screen.
 
@@ -43,7 +43,7 @@ people who may have never used a telescope.
 | `--text`, `--dim` | primary text, secondary/labels |
 | `--accent` | the current selection (rate, tab) |
 | `--on` | active state: tracking, homed, picked, "go" |
-| `--warn` | STOP, the scope marker, notices |
+| `--warn` | STOP and the scope marker only |
 | `--btn`, `--btn-press` | button fill, pressed fill |
 | `--sky1`, `--sky2` | sky dome gradient |
 

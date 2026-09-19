@@ -12,6 +12,7 @@ defmodule Controller.BenchLive do
 
   @surfaces [
     {"strips", "Axis strips", Controller.MountLive, "one pull-to-speed strip per mount axis; the field keypad"},
+    {"lineup", "Line up", Controller.LineupLive, "name a few stars; the software works out how the mount sits"},
     {"dpad", "Plain keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
     {"nudge", "Nudge", Controller.NudgeLive, "tap to move an exact step: 1′, 5′, 30′, 2°; for centering"},
     {"orb", "Orb", Controller.OrbLive, "the equatorial geometry as a 3-D gizmo, with analog strips"},
@@ -89,6 +90,7 @@ defmodule Controller.BenchLive do
     end
 
     Input.arm(false)
+    Controller.Sky.Tracker.stop_all()
     {:noreply, socket}
   end
 

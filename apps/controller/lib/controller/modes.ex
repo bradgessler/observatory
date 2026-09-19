@@ -23,7 +23,8 @@ defmodule Controller.Modes do
       if(Settings.get("auto_track", true) == false, do: {"auto-track off", "slews won't start tracking"}),
       if(is_map(Settings.get("site")), do: {"site override", "lat/lon set by hand or phone"}),
       mount_tilt_mode(),
-      mount_heading_mode()
+      mount_heading_mode(),
+      lineup_mode()
     ]
     |> Enum.reject(&is_nil/1)
   end
@@ -44,6 +45,23 @@ defmodule Controller.Modes do
     case Settings.get("mount_heading_deg") do
       h when is_number(h) and abs(h) > 0.5 -> {"polar axis #{fmt(abs(h) * 1.0)}° #{if h > 0, do: "E", else: "W"} of true north", "e.g. aligned to a compass"}
       _ -> nil
+    end
+  end
+
+  # A line-up replaces the first-order model entirely: every goto and readout
+  # goes through the fitted geometry.
+  defp lineup_mode do
+    case Settings.get("lineup", %{}) do
+      map when map_size(map) > 0 ->
+        {id, _} = Enum.at(map, 0)
+        st = Controller.Sky.Lineup.status(id)
+
+        if st.solved?,
+          do: {"lined up · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
+          else: nil
+
+      _ ->
+        nil
     end
   end
 

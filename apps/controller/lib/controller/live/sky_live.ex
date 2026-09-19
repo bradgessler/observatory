@@ -11,7 +11,7 @@ defmodule Controller.SkyLive do
   use Controller, :live_view
 
   alias Controller.Settings
-  alias Controller.Sky.{Astro, Catalog, Ephemeris, HorizonScan, Solve}
+  alias Controller.Sky.{Astro, Catalog, Ephemeris, HorizonScan, Solve, Pointing}
 
   @tick_ms 15_000
   @mag_limit 5.0
@@ -351,64 +351,34 @@ defmodule Controller.SkyLive do
   end
 
   def handle_event("goto", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
-    cond do
-      is_nil(snap) or not snap.connected ->
-        {:noreply, assign(socket, notice: "no mount connected")}
+    ref = socket.assigns.refs[socket.assigns.selected]
 
-      not snap.homed ->
-        {:noreply, assign(socket, notice: "set home on the keypad first (counterweight down, scope at the pole)")}
+    notice =
+      case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
+        {:ok, d_ra, d_dec} -> "slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
+        {:error, :not_connected} -> "no mount connected"
+        {:error, :not_homed} -> "set home first (counterweight down) — it arms the cable-safety limits"
+        {:error, :limit} -> "#{t.name} is outside the soft limits"
+        {:error, e} -> inspect(e)
+      end
 
-      true ->
-        {ra_axis, dec_axis} = axes_for(t, socket.assigns)
-        ref = socket.assigns.refs[socket.assigns.selected]
-        d_ra = ra_axis - snap.axes.ra.degrees
-        d_dec = dec_axis - snap.axes.dec.degrees
-
-        # Arm tracking first: the driver pauses it for the RA goto and re-arms it on landing.
-        if socket.assigns.auto_track and snap.tracking == :off do
-          try do
-            Mount.track(ref, :sidereal)
-          catch
-            :exit, _ -> :ok
-          end
-        end
-
-        result =
-          try do
-            with :ok <- Mount.goto_relative(ref, :ra, d_ra),
-                 :ok <- Mount.goto_relative(ref, :dec, d_dec),
-                 do: :ok
-          catch
-            :exit, _ -> {:error, :unreachable}
-          end
-
-        notice =
-          case result do
-            :ok -> "slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
-            {:error, :limit} -> "#{t.name} is outside the soft limits"
-            {:error, e} -> inspect(e)
-          end
-
-        {:noreply, assign(socket, notice: notice)}
-    end
+    {:noreply, assign(socket, notice: notice)}
   end
 
   def handle_event("goto", _, socket), do: {:noreply, socket}
 
   def handle_event("stop", _, socket) do
+    Controller.Sky.Tracker.stop(socket.assigns.selected)
     if ref = socket.assigns.refs[socket.assigns.selected], do: Mount.stop(ref)
     {:noreply, assign(socket, notice: "stopped", search: nil)}
   end
 
-  # "The scope is centered on the target right now." One-star sync: the
-  # difference between where the model put the axes and where they are becomes
-  # a persistent offset. Good enough to land things in a low-power eyepiece.
+  # "The scope is centred on the target right now." One tap is a one-star sync;
+  # each further star tightens the line-up (Controller.Sky.Lineup).
   def handle_event("sync", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
     if snap && snap.homed do
-      {ra_raw, dec_raw} = raw_axes_for(t, socket.assigns)
-      off = %{"ra" => snap.axes.ra.degrees - ra_raw, "dec" => snap.axes.dec.degrees - dec_raw}
-      Settings.put("pointing_offset", off)
-      {:noreply, assign(socket, offset: off, notice: "synced on #{t.name} (offset RA #{fmt1(off["ra"])}°, Dec #{fmt1(off["dec"])}°)")}
+      st = Pointing.sync(snap, t, ctx(socket.assigns))
+      {:noreply, assign(socket, notice: "lined up on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
     else
       {:noreply, assign(socket, notice: "set home first")}
     end
@@ -439,48 +409,11 @@ defmodule Controller.SkyLive do
     |> Enum.take(48)
   end
 
-  # -- pointing model ------------------------------------------------------------------------------
+  # -- pointing model: see Controller.Sky.Pointing (first-order or lined-up) ---------------------
 
-  # Model without the sync offset: where the axes "should" be for an object.
-  #
-  # A German equatorial reaches every point two ways: the normal side
-  # (RA axis = hour angle, Dec axis = pole-to-target) or "through the pole"
-  # (RA axis ±180°, Dec axis negated). Pick the one that keeps the RA axis
-  # within ±90° of home so the counterweight stays below the mount; that is
-  # also what keeps the tube off the tripod.
-  def raw_axes_for(obj, %{now: now, site: site, pointing: p}) do
-    lst = Astro.lst_deg(now, site.lon)
-    ha = Astro.hour_angle(lst, obj.ra_deg)
-    normal = {ha / p.ha_sign, (90 - obj.dec_deg) / p.dec_sign}
-    flipped = {Astro.norm180(ha + 180) / p.ha_sign, -(90 - obj.dec_deg) / p.dec_sign}
+  defp ctx(assigns), do: Pointing.context(assigns.now, assigns.selected)
 
-    cond do
-      abs(elem(normal, 0)) <= 90 -> normal
-      abs(elem(flipped, 0)) <= 90 -> flipped
-      abs(elem(normal, 0)) <= abs(elem(flipped, 0)) -> normal
-      true -> flipped
-    end
-  end
-
-  defp axes_for(obj, %{offset: off} = a) do
-    {ra, dec} = raw_axes_for(obj, a)
-    {ra + off["ra"], dec + off["dec"]}
-  end
-
-  # Inverse of the above, including which side of the pier the Dec axis says we're on.
-  defp scope_radec(%{homed: true, axes: %{ra: ra, dec: dec}}, %{now: now, site: site, pointing: p, offset: off}) do
-    lst = Astro.lst_deg(now, site.lon)
-    ra_axis = ra.degrees - off["ra"]
-    dec_axis = dec.degrees - off["dec"]
-    d = dec_axis * p.dec_sign
-    ha = ra_axis * p.ha_sign
-
-    if d >= 0,
-      do: {Astro.norm360(lst - ha), 90 - d},
-      else: {Astro.norm360(lst - ha - 180), 90 + d}
-  end
-
-  defp scope_radec(_, _), do: nil
+  defp scope_radec(snap, assigns), do: Pointing.scope_radec(snap, ctx(assigns))
 
   # -- sky computation (once per tick, not per render) ----------------------------------------------
 

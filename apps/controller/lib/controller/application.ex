@@ -14,6 +14,7 @@ defmodule Controller.Application do
       # Start to serve requests, typically the last entry
       Controller.Sky.Catalog,
       Controller.Settings,
+      Controller.Sky.Tracker,
       Controller.Endpoint
     ]
 

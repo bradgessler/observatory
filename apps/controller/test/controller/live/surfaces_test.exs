@@ -11,7 +11,7 @@ defmodule Controller.SurfacesTest do
   end
 
   test "every bench surface renders nested", %{conn: conn, id: id} do
-    for surface <- ~w(strips dpad nudge orb tilt position gamepad watch sky) do
+    for surface <- ~w(strips lineup dpad nudge orb tilt position gamepad watch sky) do
       {:ok, _view, html} = live(conn, "/bench/#{surface}?mount=#{id}")
       assert html =~ "bench-stage", surface
     end
@@ -95,6 +95,21 @@ defmodule Controller.SurfacesTest do
     assert html =~ "30 fps"
     {:ok, _view, watch} = live(conn, "/controls/watch")
     refute watch =~ "video-log"
+  end
+
+  test "line up: asks for home, then names a star; that's it records a sample", %{conn: conn, id: id} do
+    Controller.Sky.Lineup.clear(id)
+    {:ok, view, html} = live(conn, "/controls/lineup/#{id}")
+    assert html =~ "First: set home"
+    render_click(view, "home", %{})
+    html = render(view)
+    assert html =~ "Star 1"
+    assert html =~ "I&#39;m on"
+    [cand | _] = Controller.Sky.Lineup.candidates(id, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
+    html = render_click(view, "centred", %{"id" => cand.id})
+    assert html =~ "1 star"
+    assert Controller.Sky.Lineup.status(id).n == 1
+    Controller.Sky.Lineup.clear(id)
   end
 
   test "watch: history frames are served by name only when they exist", %{conn: conn} do

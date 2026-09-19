@@ -175,7 +175,10 @@ defmodule Controller.MountLive do
   end
 
   def handle_event("stop", _, socket), do: {:noreply, run(socket, &Mount.stop/1)}
-  def handle_event("estop", _, socket), do: {:noreply, run(socket, &Mount.emergency_stop/1)}
+  def handle_event("estop", _, socket) do
+    Controller.Sky.Tracker.stop_all()
+    {:noreply, run(socket, &Mount.emergency_stop/1)}
+  end
   def handle_event("home", _, socket), do: {:noreply, run(socket, &Mount.set_home/1)}
 
   def handle_event("track", %{"mode" => mode}, socket) do

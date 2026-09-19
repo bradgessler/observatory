@@ -93,7 +93,10 @@ defmodule Controller.DpadLive do
     {:noreply, assign(socket, held: [])}
   end
 
-  def handle_event("estop", _, socket), do: {:noreply, run(socket, &Mount.emergency_stop/1)}
+  def handle_event("estop", _, socket) do
+    Controller.Sky.Tracker.stop_all()
+    {:noreply, run(socket, &Mount.emergency_stop/1)}
+  end
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
   defp run(socket, fun) do

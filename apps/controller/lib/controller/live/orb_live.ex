@@ -136,7 +136,10 @@ defmodule Controller.OrbLive do
     {:noreply, assign(socket, held: [], stick_rate: nil)}
   end
 
-  def handle_event("estop", _, socket), do: {:noreply, run(socket, &Mount.emergency_stop/1)}
+  def handle_event("estop", _, socket) do
+    Controller.Sky.Tracker.stop_all()
+    {:noreply, run(socket, &Mount.emergency_stop/1)}
+  end
 
   def handle_event("night", _, socket) do
     night = !socket.assigns.night

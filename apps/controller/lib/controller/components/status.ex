@@ -18,7 +18,15 @@ defmodule Controller.Components.Status do
         <span class="ss-id">{@id}</span>
         <span class="ss-axis"><b>RA</b> {deg(@snap.axes.ra.degrees)}<i class={["dot", @snap.axes.ra.running && "on"]}></i></span>
         <span class="ss-axis"><b>Dec</b> {deg(@snap.axes.dec.degrees)}<i class={["dot", @snap.axes.dec.running && "on"]}></i></span>
-        <span class={["ss-badge", @snap.tracking != :off && "on"]}>{if @snap.tracking != :off, do: "tracking", else: "not tracking"}</span>
+        <% model_track = Controller.Sky.Tracker.status(@id) %>
+        <span class={["ss-badge", (@snap.tracking != :off or model_track) && "on"]}>
+          {cond do
+            model_track && model_track.paused -> "tracking · paused"
+            model_track -> "tracking · #{model_track.name}"
+            @snap.tracking != :off -> "tracking"
+            true -> "not tracking"
+          end}
+        </span>
         <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "homed", else: "not homed"}</span>
         <span :if={@snap.id == "sim"} class="ss-badge warn">simulator</span>
       <% else %>

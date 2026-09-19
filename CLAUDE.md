@@ -54,6 +54,14 @@ decided by the machine, with an override on a secondary page. Deep-science
 and deep-astro surfaces come later, on their own pages, without changing the
 functions underneath.
 
+**Ask the browser only when needed; assume it will say no.** Location, the
+orientation sensor, the camera: request them from a tap, at the moment a
+feature needs them, never on page load. Whatever the answer, the page keeps
+working — a manual field (lat/lon typed in), a different control surface
+(keypad instead of tilt), a still instead of video — and one calm line says
+which it is using and how to change it. Never a banner that nags a laptop
+about location it cannot have.
+
 **Copy lives in docs.** Explanations go in `priv/docs/*.md` (rendered at
 `/docs/:slug`); the UI carries one-line hints and a `?` link.
 

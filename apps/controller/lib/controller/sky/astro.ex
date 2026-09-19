@@ -51,6 +51,43 @@ defmodule Controller.Sky.Astro do
     {-r * :math.sin(a), -r * :math.cos(a)}
   end
 
+  @doc "The inverse of `alt_az/4`: RA/Dec in degrees for a horizontal direction seen from `lat` at `lst`."
+  def radec_from_altaz(alt, az, lat, lst) do
+    a = alt * @deg
+    z = az * @deg
+    phi = lat * @deg
+
+    sin_dec = :math.sin(a) * :math.sin(phi) + :math.cos(a) * :math.cos(phi) * :math.cos(z)
+    dec = :math.asin(clamp(sin_dec))
+    y = -:math.sin(z) * :math.cos(a)
+    x = :math.sin(a) * :math.cos(phi) - :math.cos(a) * :math.sin(phi) * :math.cos(z)
+    ha = :math.atan2(y, x) / @deg
+    {norm360(lst - ha), dec / @deg}
+  end
+
+  @doc "Unit vector for alt/az in an east-north-up frame."
+  def altaz_vec(alt, az) do
+    a = alt * @deg
+    z = az * @deg
+    {:math.cos(a) * :math.sin(z), :math.cos(a) * :math.cos(z), :math.sin(a)}
+  end
+
+  @doc "Alt/az in degrees for an east-north-up unit vector."
+  def vec_altaz({x, y, z}) do
+    {:math.asin(clamp(z)) / @deg, norm360(:math.atan2(x, y) / @deg)}
+  end
+
+  @doc "Angular separation in degrees between two unit vectors."
+  def separation({ax, ay, az}, {bx, by, bz}) do
+    dot = ax * bx + ay * by + az * bz
+    :math.acos(clamp(dot)) / @deg
+  end
+
+  @doc "Angular separation in degrees between two RA/Dec points."
+  def separation_radec(ra1, dec1, ra2, dec2) do
+    separation(altaz_vec(dec1, ra1), altaz_vec(dec2, ra2))
+  end
+
   def norm360(x) do
     r = :math.fmod(x, 360.0)
     if r < 0, do: r + 360, else: r

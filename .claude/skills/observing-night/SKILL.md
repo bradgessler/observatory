@@ -8,6 +8,21 @@ description: Run a field-test night with the Observatory software and the EQ6-R 
 We break in hardware and software by using them. Every night is a field test.
 Keep the loop cheap: same setup order, same checks, same debrief.
 
+## Physical safety first
+
+* The laptop sits on a stool next to the mount and the USB cable is short: a
+  big slew can drag it off. Until a longer cable arrives, **no remote slews
+  bigger than a few degrees without a camera check**, and the person at the
+  scope watches the cable during gotos. Soft limits stay armed (set home).
+
+## Line-up night (no Polaris needed)
+
+1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
+2. Power on, plug in, open the bench. **Set home** (counterweight down, tube along the axis) — this arms the limits.
+3. Bench › **Line up**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
+4. Sky › Tonight: tap Saturn / the Pleiades → Slew. Tracking follows through the model; STOP ends it.
+5. If a goto misses by more than an eyepiece field, add the object as a star (Sync) and go on.
+
 ## Before dark (laptop, indoors)
 
 1. `cd ~/Projects/bradgessler/telescope && git pull && mix deps.get && mix phx.server`

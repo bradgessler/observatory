@@ -538,3 +538,15 @@ a.banner strong { color: var(--warn); }
 .watch-links a { color: var(--dim); text-decoration: none; }
 #watch .watch-frame { margin-top: 0; }
 #watch .seg { max-width: 360px; width: 100%; margin: 0 auto; }
+
+/* ---- line up ---- */
+.page .card.lineup-status { border-color: var(--warn); }
+.page .card.lineup-status.ok { border-color: var(--on); }
+.star-next { display: grid; gap: 2px; }
+.star-next strong { font-size: 24px; }
+.star-next span { color: var(--dim); font-size: 14px; }
+.star-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--edge); }
+.star-row:first-of-type { border-top: none; padding-top: 0; }
+.star-row .btn { padding: 10px 14px; }
+.site-line { font-variant-numeric: tabular-nums; }
+.site-line a { color: inherit; text-decoration: underline; }

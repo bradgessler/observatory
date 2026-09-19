@@ -94,7 +94,7 @@ defmodule Controller.LineupLive do
   # -- events -------------------------------------------------------------------------
 
   @impl true
-  def handle_event("home", _, socket), do: {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("home set · limits armed")}
+  def handle_event("home", _, socket), do: {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("axes zeroed · limits armed")}
 
   # Rough slew toward the suggested star through whatever model we have so far
   def handle_event("slew", %{"id" => sid}, socket) do
@@ -121,7 +121,7 @@ defmodule Controller.LineupLive do
 
     cond do
       is_nil(star) or is_nil(snap) -> {:noreply, put_notice(socket, "no mount")}
-      not snap.homed -> {:noreply, put_notice(socket, "set home first — it arms the limits")}
+      not snap.homed -> {:noreply, put_notice(socket, "zero the axes first — it arms the limits")}
       true ->
         st = Lineup.add(snap, star)
         {:noreply, socket |> assign(picking: false) |> compute() |> put_notice(words_after(st, star))}
@@ -156,7 +156,7 @@ defmodule Controller.LineupLive do
         {:noreply, socket |> compute() |> put_notice("holding #{name}")}
 
       _ ->
-        {:noreply, put_notice(socket, "set home first — then I know where the tube points")}
+        {:noreply, put_notice(socket, "zero the axes first — then I know which way the tube is turned")}
     end
   end
 
@@ -227,9 +227,9 @@ defmodule Controller.LineupLive do
       </.hint>
 
       <%!-- step 0: home, for the limits --%>
-      <.card :if={@snap && !@snap.homed} title="First: Set Home">
-        <.hint>Counterweight down, tube roughly toward the pole — by eye is fine. This only arms the cable-safety limits; the stars do the aligning.</.hint>
-        <.btn variant="primary" phx-click="home" data-confirm="Set the current position as home?">Set home</.btn>
+      <.card :if={@snap && !@snap.homed} title="First: Zero the Axes">
+        <.hint>Put the mount upright — counterweight down, tube along the polar axis, by eye is fine — and zero the axes here. That gives the software its reference for the axis angles and arms the cable-safety limits; the stars do the aligning.</.hint>
+        <.btn variant="primary" phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
       </.card>
 
       <%!-- the next star --%>

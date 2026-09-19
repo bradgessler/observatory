@@ -209,7 +209,7 @@ defmodule Controller.WatchLive do
         </svg>
       </div>
       <p :if={@rig} class="watch-cap">
-        axes from the camera's sweep · <span class="ax-ra">polar</span> · <span class="ax-dec">Dec</span> · <span class="ax-tube">tube (needs home set)</span> ·
+        axes from the camera's sweep · <span class="ax-ra">polar</span> · <span class="ax-dec">Dec</span> · <span class="ax-tube">tube (needs the axes zeroed upright)</span> ·
         <a href="#" phx-click="axes" phx-value-on={to_string(!@axes_on)}>{if @axes_on, do: "hide", else: "show"}</a>
       </p>
 

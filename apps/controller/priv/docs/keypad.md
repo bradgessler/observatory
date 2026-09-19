@@ -22,7 +22,7 @@ toward/away does, flip Dec. Those two signs are the whole calibration.
 
 There is also a **blended** mode (tap the label under the strips): a round pad
 where up means toward the top of the sky and left/right run along the horizon,
-with both motors driven at once to make that happen. It needs home set, and it
+with both motors driven at once to make that happen. It needs the axes zeroed, and it
 is off by default because it hides which axis is moving.
 
 The rate row sets how fast: **1×** is sidereal (a star creeps), **8×** and
@@ -46,7 +46,7 @@ Slow drift is normal and is your polar alignment talking.
 ## More
 
 **Degrees** moves an axis by an exact amount at full speed (the mount manages
-the ramps). **Set home** tells the software the mount is in its home position:
+the ramps). **Zero the axes** tells the software the mount is standing in its reference pose:
 counterweight straight down, tube pointing at the pole. That zeroes both axes
 and arms the soft limits — do it once at the start of a night, before any
 slewing from the sky page.

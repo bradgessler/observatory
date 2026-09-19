@@ -62,7 +62,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :mount, name: :stop, data: d}), do: "#{d.id} · stop #{d.axis}#{if d[:instant], do: " now", else: ""}"
   defp words(%{module: :mount, name: :emergency_stop, data: d}), do: "#{d.id} · EMERGENCY STOP"
   defp words(%{module: :mount, name: :track, data: d}), do: "#{d.id} · tracking #{d.mode}"
-  defp words(%{module: :mount, name: :set_home, data: d}), do: "#{d.id} · home set here"
+  defp words(%{module: :mount, name: :set_home, data: d}), do: "#{d.id} · axes zeroed here"
   defp words(%{module: :mount, name: :connected, data: d}), do: "#{d.id} · connected · firmware #{d.firmware}"
   defp words(%{module: :mount, name: :link_lost, data: d}), do: "#{d.id} · LINK LOST (#{d.reason}) · driver restarting"
   defp words(%{module: :mount, name: :limit_stop, data: d}), do: "#{d.id} · #{d.axis} stopped at the soft limit (#{d.degrees}°)"

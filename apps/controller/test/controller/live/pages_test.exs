@@ -64,7 +64,7 @@ defmodule Controller.PagesTest do
     test "slewing before home explains itself", %{conn: conn, id: id} do
       {:ok, view, _} = live(conn, "/sky/#{id}")
       render_click(view, "pick", %{"id" => "m13"})
-      assert render_click(view, "goto", %{}) =~ "set home"
+      assert render_click(view, "goto", %{}) =~ "zero the axes"
     end
   end
 

@@ -100,7 +100,7 @@ defmodule Controller.SurfacesTest do
   test "line up: asks for home, then names a star; that's it records a sample", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
     {:ok, view, html} = live(conn, "/controls/lineup/#{id}")
-    assert html =~ "First: Set Home"
+    assert html =~ "First: Zero the Axes"
     render_click(view, "home", %{})
     html = render(view)
     assert html =~ "Star 1"

@@ -357,7 +357,7 @@ defmodule Controller.SkyLive do
       case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
         {:ok, d_ra, d_dec} -> "slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
         {:error, :not_connected} -> "no mount connected"
-        {:error, :not_homed} -> "set home first (counterweight down) — it arms the cable-safety limits"
+        {:error, :not_homed} -> "zero the axes first (Setup, mount upright) — it arms the cable-safety limits"
         {:error, :limit} -> "#{t.name} is outside the soft limits"
         {:error, e} -> inspect(e)
       end
@@ -380,7 +380,7 @@ defmodule Controller.SkyLive do
       st = Pointing.sync(snap, t, ctx(socket.assigns))
       {:noreply, assign(socket, notice: "lined up on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
     else
-      {:noreply, assign(socket, notice: "set home first")}
+      {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
     end
   end
 

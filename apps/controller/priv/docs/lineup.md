@@ -6,9 +6,11 @@ do the aligning.
 
 ## What to do
 
-1. **Set home.** Counterweight straight down, tube pointing roughly along the
-   polar axis. By eye is fine. This arms the soft limits that keep the mount
-   from winding up cables; it does not need to be accurate.
+1. **Zero the axes.** Stand the mount upright — counterweight straight down,
+   tube along the polar axis, by eye is fine — and tap *Zero the axes here*.
+   The mount has no absolute encoders, so this is how the software learns
+   which way the axes are turned; it also arms the soft limits that keep the
+   mount from winding up cables. It does not need to be accurate.
 2. The page names a **star** and says where to look ("high in the east").
    Tap *Slew near it* if you like, then centre the star in the eyepiece with
    any control — keypad, nudge, game pad, tilt.
@@ -48,5 +50,5 @@ Harmless for looking; it limits long exposures.
 * The stars you centre are the truth the model is built on. Centre carefully.
 * Nothing here corrects a tube that isn't square to the Dec axis (cone error)
   or axes that aren't perpendicular. Those come with more stars later.
-* Home still matters for the limits. If you move the mount by hand with the
-  power off, set home again and start the line-up over.
+* The zero still matters for the limits. If you move the mount by hand with
+  the power off, zero the axes again and start the line-up over.

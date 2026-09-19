@@ -164,12 +164,12 @@ defmodule Controller.SetupLive do
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
 
-      <.card title="Home">
+      <.card title="Zero the Axes">
         <:aside>
-          <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "set · limits armed", else: "not set"}</.badge>
+          <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "zeroed · limits armed", else: "not zeroed"}</.badge>
         </:aside>
-        <.hint>Counterweight straight down, tube at the pole. Do this before slewing from the sky page.</.hint>
-        <.btn phx-click="home" data-confirm="Set the current position as home?">Set home</.btn>
+        <.hint>The mount has no absolute encoders: it doesn't know which way it is turned until you tell it. Put it upright — counterweight straight down, tube along the polar axis — and zero the axes here. That is the software's reference for the axis angles and arms the cable-safety limits. It has nothing to do with the sky; the line-up does that.</.hint>
+        <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
       </.card>
 
       <.row>

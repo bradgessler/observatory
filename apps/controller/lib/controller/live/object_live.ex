@@ -123,7 +123,7 @@ defmodule Controller.ObjectLive do
       st = Pointing.sync(snap, obj, socket.assigns.ctx)
       {:noreply, socket |> assign(notice: "lined up on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
     else
-      {:noreply, assign(socket, notice: "set home first")}
+      {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
     end
   end
 

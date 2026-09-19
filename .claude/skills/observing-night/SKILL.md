@@ -13,16 +13,16 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 * The laptop sits on a stool next to the mount and the USB cable is short: a
   big slew can drag it off. Until a longer cable arrives, **no remote slews
   bigger than a few degrees without a camera check**, and the person at the
-  scope watches the cable during gotos. Soft limits stay armed (set home).
+  scope watches the cable during gotos. Soft limits stay armed (zero the axes).
 
 ## Line-up night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
-2. Power on, plug in, open the bench. **Set home** (counterweight down, tube along the axis) — this arms the limits.
+2. Power on, plug in, open the bench. **Zero the axes here** (mount upright: counterweight down, tube along the axis) — this arms the limits.
 3. Bench › **Line up**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
 4. Sky › Tonight: tap Saturn / the Pleiades → Slew. Tracking follows through the model; STOP ends it.
 5. If a goto misses by more than an eyepiece field, add the object as a star (Sync) and go on.
-6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — set home and line up again.
+6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — zero the axes and line up again.
 
 ## Before dark (laptop, indoors)
 
@@ -40,7 +40,7 @@ Keep the loop cheap: same setup order, same checks, same debrief.
    the laptop; the real mount replaces the simulator within ~3 s.
 2. Polar align with the polar scope.
 3. Home position: counterweight **down**, scope pointing at the pole.
-   Keypad → **Set home** (this arms soft limits and the pointing model).
+   Setup → **Zero the axes here** (this arms soft limits and the pointing model).
 4. **Direction check before anything else** (10 seconds, saves the night):
    on the keypad hold **RA +** at 64× and watch which way the tube moves, then
    **Dec +**. Then Sky → Horizon → tap **Flip RA** / **Flip Dec** until a slew
@@ -56,7 +56,7 @@ Keep the loop cheap: same setup order, same checks, same debrief.
    default after every slew from the sky page.
 7. **If the scope heads somewhere alarming: the STOP button is in the sky
    page header and the middle of the keypad; EMERGENCY STOP is the red bar.**
-   Soft limits stop RA at ±100° from home only after Set home.
+   Soft limits stop RA at ±100° from zero only once the axes are zeroed.
 
 ## Game controller (bench › Game controller, or /input)
 

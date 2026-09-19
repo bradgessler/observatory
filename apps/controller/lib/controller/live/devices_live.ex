@@ -115,7 +115,7 @@ defmodule Controller.DevicesLive do
           <.badge :if={m.id == "sim"}>simulator</.badge>
           <.badge :if={m.node != :nonode@nohost} dim>{m.node}</.badge>
         </:aside>
-        <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "homed", else: "not homed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />
+        <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "zeroed", else: "axes not zeroed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />
         <.kv :if={!m.connected && m[:error]} label="problem"><span class="err">{describe_error(m.error)}</span></.kv>
         <.row>
           <.btn navigate={~p"/bench?#{[mount: m.id]}"}>Drive it ›</.btn>

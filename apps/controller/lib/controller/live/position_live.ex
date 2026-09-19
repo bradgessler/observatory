@@ -117,7 +117,7 @@ defmodule Controller.PositionLive do
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
 
-      <.card title="Axes, Degrees From Home">
+      <.card title="Axes, Degrees From Zero">
         <form phx-change="targets" class="pos-grid">
           <span class="pos-k">RA</span>
           <span class="pos-now">{if @snap, do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
@@ -130,10 +130,10 @@ defmodule Controller.PositionLive do
           <.btn type="button" phx-click="go" phx-value-axis="dec">Go</.btn>
         </form>
         <.row>
-          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0° (home)?">Go home (0°, 0°)</.btn>
+          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0°?">Back to zero (0°, 0°)</.btn>
           <.btn :if={!@nested} phx-click="stop">Stop</.btn>
         </.row>
-        <.hint>Home is counterweight down, tube at the pole — if that's where the mount was when home was set. Moves are full speed with the mount's own ramps; soft limits apply once homed.</.hint>
+        <.hint>Zero is where the axes were zeroed — counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>
       </.card>
 
       <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>

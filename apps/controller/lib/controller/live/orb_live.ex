@@ -218,7 +218,7 @@ defmodule Controller.OrbLive do
             <div class="orb-key scope">
               <span class="orb-k">⌖ tube</span>
               <b>alt {fmt0(@scene.scope.alt)}° · az {fmt0(@scene.scope.az)}°</b>
-              <span class="orb-motion">{if @scene.radec, do: fmt_radec(@scene.radec), else: "unhomed"}</span>
+              <span class="orb-motion">{if @scene.radec, do: fmt_radec(@scene.radec), else: "axes not zeroed"}</span>
             </div>
           </div>
         </.card>
@@ -319,7 +319,7 @@ defmodule Controller.OrbLive do
       <% on_pole = abs(px(@scene.scope.pt) - px(@scene.ra.head)) < 12 and abs(py(@scene.scope.pt) - py(@scene.ra.head)) < 12 %>
       <text x={px(@scene.scope.pt) + if(on_pole, do: -9, else: 9)} y={py(@scene.scope.pt) + if(on_pole, do: 20, else: 11)} class="lbl lbl-scope" text-anchor={if on_pole, do: "end", else: "start"}>{if on_pole, do: "tube · at the pole", else: "tube points here"}</text>
 
-      <text :if={!@scene.radec} x="0" y={@scene.r + 16} class="note">unhomed — assuming home</text>
+      <text :if={!@scene.radec} x="0" y={@scene.r + 16} class="note">axes not zeroed — assuming upright</text>
     </svg>
     """
   end

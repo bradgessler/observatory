@@ -27,7 +27,7 @@ defmodule Controller.Components.Status do
             true -> "not tracking"
           end}
         </span>
-        <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "homed", else: "not homed"}</span>
+        <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "zeroed", else: "not zeroed"}</span>
         <span :if={@snap.id == "sim"} class="ss-badge warn">simulator</span>
       <% else %>
         <span class="ss-id">{@id || "no mount"}</span>

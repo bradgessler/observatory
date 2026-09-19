@@ -88,8 +88,12 @@ defmodule Watch.Camera do
     streaming? = state == :streaming
     if streaming? and not s.streaming, do: send(self(), :stream_tick)
     busy? = state in [:starting, :streaming, :restarting]
-    {:noreply, %{s | streaming: streaming?, video: if(busy?, do: :busy, else: :free)}}
+    # the encoder takes a moment to release the camera after it is told to stop
+    if not busy? and s.video == :busy, do: Process.send_after(self(), :video_free, 3_000)
+    {:noreply, %{s | streaming: streaming?, video: if(busy?, do: :busy, else: s.video)}}
   end
+
+  def handle_info(:video_free, s), do: {:noreply, %{s | video: :free}}
 
   # the stream's own cadence; stops by itself when the stream does
   def handle_info(:stream_tick, %{streaming: false} = s), do: {:noreply, s}

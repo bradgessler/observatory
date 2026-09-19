@@ -152,7 +152,9 @@ defmodule Controller.Optical.AxisScan do
          :ok <- settle(ref, axis) do
       send(parent, {:step, {:analyse, axis}})
       raw = Flow.between(before, after_frame, search: 8)
-      vectors = Pivot.coherent(raw)
+      # only a slide has a "crowd" to disagree with; a turn fans out on purpose
+      raw_fit = Pivot.fit(raw)
+      vectors = if raw_fit && raw_fit.coherence > 0.6, do: Pivot.coherent(raw), else: raw
       fit = Pivot.fit(vectors)
       {:ok, %{vectors: vectors, dropped: length(raw) - length(vectors), fit: fit, line: Pivot.axis_line(vectors), frame_after: after_name, words: Pivot.words(fit)}}
     else

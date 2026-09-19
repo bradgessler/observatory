@@ -19,6 +19,7 @@ defmodule Video.HLS do
   @still "still.jpg"
   @still_every_s 5
   @poll_ms 500
+  @camera_handoff_ms 2_500
   @default_fps 30
   @fps_choices [24, 30, 60]
 
@@ -112,7 +113,12 @@ defmodule Video.HLS do
 
       true ->
         fps = if opts[:fps] in @fps_choices, do: opts[:fps], else: s.fps
-        s = %{s | fps: fps, fell_back_from: nil} |> kill() |> launch(quality.id)
+        # announce first: Watch stops grabbing stills the moment it hears
+        # :starting, and a grab already in flight needs a couple of seconds
+        # to let go of the camera — two processes on it at once corrupts the
+        # stream for its whole life
+        s = %{s | fps: fps, fell_back_from: nil, quality: quality.id, state: :starting, error: nil} |> kill() |> announce()
+        Process.send_after(self(), {:launch, quality.id}, @camera_handoff_ms)
         {:reply, :ok, s}
     end
   end
@@ -142,6 +148,8 @@ defmodule Video.HLS do
     end
   end
 
+  def handle_info({:launch, q}, %{state: :starting, port: nil} = s), do: {:noreply, launch(s, q)}
+  def handle_info({:launch, _}, s), do: {:noreply, s}
   def handle_info(:relaunch, %{state: :restarting, quality: q} = s), do: {:noreply, launch(s, q)}
   def handle_info(:relaunch, s), do: {:noreply, s}
 

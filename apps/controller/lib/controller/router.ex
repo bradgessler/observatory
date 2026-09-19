@@ -27,6 +27,7 @@ defmodule Controller.Router do
     live "/bench/:surface", BenchLive, :show
     live "/controls/watch", WatchLive, :index
     live "/controls/watch/frames", FramesLive, :index
+    live "/controls/watch/camera", CameraLive, :index
     get "/watch/latest.jpg", WatchController, :latest
     live "/controls/dpad", DpadLive, :index
     live "/controls/dpad/:id", DpadLive, :show

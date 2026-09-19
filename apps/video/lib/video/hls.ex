@@ -7,7 +7,9 @@ defmodule Video.HLS do
   that `Watch` can pick up while the camera is busy streaming.
 
   Files: `~/.observatory/video/<quality>/index.m3u8` + `segNNNNN.ts`. The
-  playlist keeps the last six 2-second segments; old segments are deleted.
+  playlist keeps the last ten 1-second segments, each stamped with wall-clock
+  time (EXT-X-PROGRAM-DATE-TIME) so the player can measure its own delay;
+  old segments are deleted.
   """
   use GenServer
   require Logger
@@ -17,6 +19,11 @@ defmodule Video.HLS do
   @still "still.jpg"
   @still_every_s 5
   @poll_ms 500
+  @default_fps 30
+  @fps_choices [24, 30, 60]
+
+  @doc "Frame rates a stream can be asked for."
+  def fps_choices, do: @fps_choices
   @warmup_ms 20_000
   @max_restarts 3
 
@@ -72,7 +79,8 @@ defmodule Video.HLS do
        log: [],
        error: nil,
        encoder: nil,
-       modes: nil
+       modes: nil,
+       fps: @default_fps
      }}
   end
 
@@ -98,7 +106,8 @@ defmodule Video.HLS do
         {:reply, {:error, :no_ffmpeg}, %{s | error: "ffmpeg not installed (brew install ffmpeg / apt install ffmpeg)"}}
 
       true ->
-        s = s |> kill() |> launch(quality.id)
+        fps = if opts[:fps] in @fps_choices, do: opts[:fps], else: s.fps
+        s = %{s | fps: fps} |> kill() |> launch(quality.id)
         {:reply, :ok, s}
     end
   end
@@ -161,10 +170,12 @@ defmodule Video.HLS do
 
     args =
       ~w(-hide_banner -nostdin -loglevel warning) ++
-        Source.impl().input_args(s.device, rung.size) ++
+        Source.impl().input_args(s.device, rung.size, s.fps) ++
         Encoder.args(encoder, rung.kbps) ++
-        ~w(-g 60 -keyint_min 60 -sc_threshold 0 -an) ++
-        ~w(-f hls -hls_time 2 -hls_list_size 6 -hls_flags delete_segments+independent_segments -hls_segment_filename) ++
+        # one keyframe per second = one per segment
+        ~w(-g #{s.fps} -keyint_min #{s.fps} -an) ++
+        # 1 s segments, wall-clock stamped, so a player can say how far behind it is
+        ~w(-f hls -hls_time 1 -hls_list_size 10 -hls_flags delete_segments+independent_segments+program_date_time -hls_segment_filename) ++
         [Path.join(out, "seg%05d.ts"), Path.join(out, "index.m3u8")] ++
         ~w(-map 0:v -vf fps=1/#{@still_every_s} -q:v 3 -f image2 -update 1 -atomic_writing 1) ++
         [Path.join(out, @still)]
@@ -236,6 +247,7 @@ defmodule Video.HLS do
       ready: s.ready,
       error: s.error,
       encoder: s.encoder,
+      fps: s.fps,
       playlist: if(s.ready, do: "#{s.quality}/index.m3u8"),
       log: Enum.take(s.log, 5),
       supported_modes: s.modes,

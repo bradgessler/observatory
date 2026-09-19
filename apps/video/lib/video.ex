@@ -3,7 +3,7 @@ defmodule Video do
   Live video of the hardware as HLS, produced by FFmpeg under a BEAM port and
   served as plain files. Safari plays HLS natively; other browsers get hls.js.
 
-      Video.start(quality: :"1k")   # begin encoding; ready a few seconds later
+      Video.start(quality: :"1k", fps: 30)   # begin encoding; ready a few seconds later
       Video.stop()
       Video.status()                # %{state, quality, ready, playlist, ...}
       Video.qualities()             # the ladder, with what this camera can do

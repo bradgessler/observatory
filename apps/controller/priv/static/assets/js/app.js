@@ -280,17 +280,58 @@ Hooks.Tilt = {
 // needs hls.js, which is the one library we ship — loaded only when a
 // stream is actually on screen and the browser can't do it alone. The
 // server sets data-src once the playlist exists; clearing it stops playback.
+// Picture-in-picture must survive leaving the page: when the element is torn
+// down by navigation while it is the PiP video, it is parked (hidden) on
+// <body>, outside anything LiveView patches, and keeps playing until PiP ends.
+const inPip = (v) => document.pictureInPictureElement === v || v.webkitPresentationMode === "picture-in-picture";
+const parkPip = (v, hls) => {
+  v.id = "video-feed-pip";
+  v.style.cssText = "position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none";
+  document.body.appendChild(v);
+  window.__pip = v;
+  const done = () => { if (inPip(v)) return; if (hls) hls.destroy(); v.remove(); if (window.__pip === v) window.__pip = null; };
+  v.addEventListener("leavepictureinpicture", done);
+  v.addEventListener("webkitpresentationmodechanged", () => setTimeout(done, 0));
+};
+const unparkPip = () => { const v = window.__pip; if (!v) return; try { document.exitPictureInPicture && document.exitPictureInPicture(); } catch (_) {} v.remove(); window.__pip = null; };
+
 Hooks.Hls = {
   mounted() { this.attach(); },
   updated() { if (this.el.dataset.src !== this.src) this.attach(); },
-  destroyed() { this.detach(); },
-  detach() { if (this.hls) { this.hls.destroy(); this.hls = null; } this.el.removeAttribute("src"); this.el.load && this.el.load(); },
+  destroyed() { this.leaving = true; this.detach(); },
+  detach() {
+    if (this.tele) { clearInterval(this.tele); this.tele = null; }
+    if (this.leaving && inPip(this.el)) { parkPip(this.el, this.hls); this.hls = null; return; }
+    if (this.hls) { this.hls.destroy(); this.hls = null; }
+    this.el.removeAttribute("src"); this.el.load && this.el.load();
+  },
+  // Once a second: how far behind reality this picture is, and the frame rate
+  // actually being decoded here. Latency comes from the segments' wall-clock
+  // stamps (hls.js exposes it; Safari gives getStartDate) — exact, assuming
+  // the clocks agree. Without a stamp we only know the distance to the live
+  // edge, reported as a lower bound.
+  telemetry() {
+    const v = this.el;
+    let frames = null, t0 = performance.now();
+    this.tele = setInterval(() => {
+      let fps = null;
+      const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null;
+      const now = performance.now();
+      if (q) { if (frames !== null) fps = (q.totalVideoFrames - frames) / ((now - t0) / 1000); frames = q.totalVideoFrames; t0 = now; }
+      let latency = null, exact = false;
+      if (this.hls && Number.isFinite(this.hls.latency) && this.hls.latency > 0) { latency = this.hls.latency; exact = true; }
+      else if (v.getStartDate) { const sd = v.getStartDate(); if (sd && !isNaN(sd.getTime())) { latency = (Date.now() - (sd.getTime() + v.currentTime * 1000)) / 1000; exact = true; } }
+      if (latency === null && v.seekable && v.seekable.length) latency = Math.max(0, v.seekable.end(v.seekable.length - 1) - v.currentTime);
+      this.pushEvent("telemetry", { latency, exact, fps: fps === null ? null : Math.round(fps), paused: v.paused });
+    }, 1000);
+  },
   attach() {
     const v = this.el, src = v.dataset.src;
     this.detach();
     this.src = src;
-    if (!src) return;
-    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = src; v.play().catch(() => {}); return; }
+    // the stream was stopped: a parked PiP player has nothing left to play
+    if (!src) { unparkPip(); return; }
+    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = src; v.play().catch(() => {}); this.telemetry(); return; }
     const go = () => {
       if (!window.Hls || !window.Hls.isSupported()) { this.pushEvent("player", { state: "unsupported" }); return; }
       this.hls = new window.Hls({ liveSyncDurationCount: 3, enableWorker: true });
@@ -298,6 +339,7 @@ Hooks.Hls = {
       this.hls.loadSource(src);
       this.hls.attachMedia(v);
       v.play().catch(() => {});
+      this.telemetry();
     };
     if (window.Hls) return go();
     const s = document.createElement("script");

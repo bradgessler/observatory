@@ -17,8 +17,8 @@ defmodule Video.Source do
   @doc "Sizes a device supports, or `:unknown` when the platform can't say."
   @callback modes(device :: String.t() | nil) :: [mode] | :unknown
 
-  @doc "FFmpeg arguments up to and including `-i …` for this device at this size."
-  @callback input_args(device :: String.t() | nil, size :: mode) :: [String.t()]
+  @doc "FFmpeg arguments up to and including `-i …` for this device at this size and frame rate."
+  @callback input_args(device :: String.t() | nil, size :: mode, fps :: pos_integer) :: [String.t()]
 
   @doc "The source in use."
   def impl, do: Application.get_env(:video, :source, Video.Source.Local)

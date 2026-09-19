@@ -56,17 +56,17 @@ defmodule Video.Source.Local do
   end
 
   @impl true
-  def input_args(device, {w, h}) do
+  def input_args(device, {w, h}, fps) do
     case os() do
       # Ask for nv12 explicitly. Left to itself avfoundation picks uyvy422 and
       # then, if any output names a pixel format, tries to honour *that* on
       # the input, fails, and hands over frames with the wrong stride — the
       # "inside a black hole" picture. nv12 is what VideoToolbox wants anyway.
       :darwin ->
-        ~w(-f avfoundation -framerate 30 -pixel_format nv12 -video_size #{w}x#{h} -capture_cursor 0 -i #{(device || "0") <> ":none"})
+        ~w(-f avfoundation -framerate #{fps} -pixel_format nv12 -video_size #{w}x#{h} -capture_cursor 0 -i #{(device || "0") <> ":none"})
 
       :linux ->
-        ~w(-f v4l2 -input_format mjpeg -framerate 30 -video_size #{w}x#{h} -i #{device || "/dev/video0"})
+        ~w(-f v4l2 -input_format mjpeg -framerate #{fps} -video_size #{w}x#{h} -i #{device || "/dev/video0"})
 
       _ ->
         []

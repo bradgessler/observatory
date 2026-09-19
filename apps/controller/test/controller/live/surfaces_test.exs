@@ -78,12 +78,23 @@ defmodule Controller.SurfacesTest do
     assert html =~ "1280x720"
     assert html =~ "3840x2160"
     refute html =~ "video-feed"
+    assert html =~ "watch-bar"
     assert html =~ "Recent frames"
   end
 
   test "recent frames page renders without frames", %{conn: conn} do
+    Watch.History.clear()
     {:ok, _view, html} = live(conn, "/controls/watch/frames")
     assert html =~ "Nothing kept yet"
+  end
+
+  test "camera page carries the technical detail, not the watch page", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/controls/watch/camera")
+    assert html =~ "Timed stills"
+    assert html =~ "Encoder"
+    assert html =~ "30 fps"
+    {:ok, _view, watch} = live(conn, "/controls/watch")
+    refute watch =~ "video-log"
   end
 
   test "watch: history frames are served by name only when they exist", %{conn: conn} do

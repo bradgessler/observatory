@@ -43,6 +43,11 @@
   .bench-stage { grid-column: 2; grid-row: 2; }
 }
 
+/* ---- watch ---- */
+.watch-frame { background: #000; border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; min-height: 120px; display: grid; place-items: center; }
+.watch-frame img { display: block; width: 100%; height: auto; }
+.night .watch-frame img { filter: sepia(1) saturate(4) hue-rotate(-30deg) brightness(.7); }
+
 /* ---- plain keypad ---- */
 .dpad .arrow.live { border-color: var(--on); color: var(--on); }
 .dpad .arrow.pressed { background: var(--btn-press); }

@@ -1,0 +1,144 @@
+defmodule Watch.Camera do
+  @moduledoc """
+  Eyes on the hardware. Grabs a still from a camera on this machine, on
+  demand or on a timer, keeps the latest frame in memory and broadcasts
+  `{:watch, meta}` on `"watch"` so any page (or an agent) can look at it.
+
+  Capture is a short-lived OS command owned by this process:
+  `imagesnap` on macOS (brew install imagesnap), `fswebcam` on Linux/Pi.
+  No browser is involved; the frame comes from the server.
+  """
+  use GenServer
+  require Logger
+
+  @default_interval_ms 5_000
+
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+
+  @doc "Latest frame: `%{jpeg: binary, at: DateTime, device: name, bytes: n}` or nil."
+  def latest, do: :persistent_term.get({__MODULE__, :latest}, nil)
+
+  def status, do: GenServer.call(__MODULE__, :status)
+  def capture, do: GenServer.call(__MODULE__, :capture, 20_000)
+  def enable(on?) when is_boolean(on?), do: GenServer.call(__MODULE__, {:enable, on?})
+  def select(device) when is_binary(device), do: GenServer.call(__MODULE__, {:select, device})
+
+  @doc "Cameras this machine can see."
+  def devices do
+    case tool() do
+      {:imagesnap, bin} ->
+        case System.cmd(bin, ["-l"], stderr_to_stdout: true) do
+          {out, 0} ->
+            out
+            |> String.split("\n")
+            |> Enum.flat_map(fn
+              "=> " <> name -> [String.trim(name)]
+              _ -> []
+            end)
+
+          _ ->
+            []
+        end
+
+      {:fswebcam, _} ->
+        Path.wildcard("/dev/video*")
+
+      :none ->
+        []
+    end
+  end
+
+  @impl true
+  def init(_) do
+    {:ok, %{enabled: false, interval: @default_interval_ms, device: nil, last_error: nil, frames: 0}}
+  end
+
+  @impl true
+  def handle_call(:status, _from, s) do
+    {:reply, Map.merge(Map.take(s, [:enabled, :interval, :device, :last_error, :frames]), %{tool: tool_name(), latest: meta(latest())}), s}
+  end
+
+  def handle_call(:capture, _from, s), do: do_capture(s) |> then(fn s -> {:reply, meta(latest()) || {:error, s.last_error}, s} end)
+
+  def handle_call({:enable, on?}, _from, s) do
+    if on? and not s.enabled, do: send(self(), :tick)
+    {:reply, :ok, %{s | enabled: on?}}
+  end
+
+  def handle_call({:select, device}, _from, s), do: {:reply, :ok, %{s | device: device}}
+
+  @impl true
+  def handle_info(:tick, %{enabled: false} = s), do: {:noreply, s}
+
+  def handle_info(:tick, s) do
+    s = do_capture(s)
+    Process.send_after(self(), :tick, s.interval)
+    {:noreply, s}
+  end
+
+  defp do_capture(s) do
+    path = Path.join(System.tmp_dir!(), "watch-#{System.unique_integer([:positive])}.jpg")
+
+    result =
+      case tool() do
+        {:imagesnap, bin} ->
+          args = ["-q", "-w", "0.8"] ++ if(s.device, do: ["-d", s.device], else: []) ++ [path]
+          run(bin, args)
+
+        {:fswebcam, bin} ->
+          args = ["-q", "--no-banner", "-r", "1280x720"] ++ if(s.device, do: ["-d", s.device], else: []) ++ [path]
+          run(bin, args)
+
+        :none ->
+          {:error, "no capture tool (brew install imagesnap / apt install fswebcam)"}
+      end
+
+    case result do
+      :ok ->
+        case File.read(path) do
+          {:ok, jpeg} when byte_size(jpeg) > 1_000 ->
+            File.rm(path)
+            frame = %{jpeg: jpeg, at: DateTime.utc_now(), device: s.device || "default", bytes: byte_size(jpeg)}
+            :persistent_term.put({__MODULE__, :latest}, frame)
+            Telescope.broadcast("watch", {:watch, meta(frame)})
+            %{s | last_error: nil, frames: s.frames + 1}
+
+          _ ->
+            File.rm(path)
+            %{s | last_error: "empty frame"}
+        end
+
+      {:error, why} ->
+        Logger.warning("watch: capture failed: #{why}")
+        %{s | last_error: why}
+    end
+  end
+
+  defp run(bin, args) do
+    task = Task.async(fn -> System.cmd(bin, args, stderr_to_stdout: true) end)
+
+    case Task.yield(task, 15_000) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {_, 0}} -> :ok
+      {:ok, {out, code}} -> {:error, "exit #{code}: #{String.trim(out) |> String.slice(0, 200)}"}
+      nil -> {:error, "timeout"}
+    end
+  end
+
+  defp meta(nil), do: nil
+  defp meta(frame), do: Map.take(frame, [:at, :device, :bytes])
+
+  defp tool do
+    cond do
+      bin = System.find_executable("imagesnap") -> {:imagesnap, bin}
+      bin = System.find_executable("fswebcam") -> {:fswebcam, bin}
+      true -> :none
+    end
+  end
+
+  defp tool_name do
+    case tool() do
+      {name, _} -> name
+      :none -> nil
+    end
+  end
+end

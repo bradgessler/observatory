@@ -15,6 +15,7 @@ defmodule Controller.BenchLive do
     {"dpad", "Plain keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
     {"orb", "Orb", Controller.OrbLive, "the equatorial geometry as a 3-D gizmo, with analog strips"},
     {"gamepad", "Game controller", Controller.InputLive, "a USB pad read by the server"},
+    {"watch", "Watch", Controller.WatchLive, "a camera on the mount, read by the server"},
     {"sky", "Sky", Controller.SkyLive, "map, tonight's targets, horizon"}
   ]
 

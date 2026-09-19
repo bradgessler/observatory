@@ -139,7 +139,8 @@ defmodule Controller.SurfacesTest do
 
   test "optical axes page renders idle and refuses a scan without a camera or with one running", %{conn: conn, id: id} do
     {:ok, view, html} = live(conn, "/controls/watch/axes/#{id}")
-    assert html =~ "Find the axes"
+    assert html =~ "Quick look"
+    assert html =~ "Sweep"
     assert html =~ "idle"
     # no camera tool in CI: the button is disabled, and the scan says why
     assert Controller.Optical.AxisScan.status().running == false

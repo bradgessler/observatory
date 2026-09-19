@@ -30,6 +30,13 @@ defmodule Controller.Optical.AxisScan do
   @doc "Start a scan of both axes on mount `id`. `{:error, :busy}` if one is running."
   def run(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, opts})
 
+  @doc """
+  The sweep: five positions per axis (−6°, −3°, 0°, +3°, +6°), a still at rest
+  at each, spots tracked through the sequence, the axis fitted in 3-D with
+  its margins. Two to three minutes. `{:error, :busy}` if anything is running.
+  """
+  def sweep(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, Keyword.put(opts, :mode, :sweep)})
+
   def status, do: GenServer.call(__MODULE__, :status)
   def subscribe, do: Telescope.subscribe(@topic)
 
@@ -56,7 +63,7 @@ defmodule Controller.Optical.AxisScan do
 
       ref ->
         parent = self()
-        task = Task.async(fn -> scan(parent, ref, id, opts) end)
+        task = Task.async(fn -> if(opts[:mode] == :sweep, do: sweep_scan(parent, ref, opts), else: scan(parent, ref, id, opts)) end)
         {:reply, :ok, announce(%{s | task: task, id: id, step: :starting, error: nil})}
     end
   end
@@ -69,9 +76,18 @@ defmodule Controller.Optical.AxisScan do
 
     s =
       case result do
+        {:ok, %{sweep: sweep}} ->
+          Telescope.Events.emit(:optical, :sweep_done, %{id: s.id, ra: sweep_words(sweep["ra"]), dec: sweep_words(sweep["dec"]), between: sweep["between_deg"]})
+          all = Settings.get("optical_axes", %{})
+          entry = Map.get(all, s.id, %{}) |> Map.put("sweep", sweep)
+          Settings.put("optical_axes", Map.put(all, s.id, entry))
+          %{s | task: nil, step: :done}
+
         {:ok, res} ->
           Telescope.Events.emit(:optical, :axes_found, %{id: s.id, ra: summary(res.ra), dec: summary(res.dec)})
-          Settings.put("optical_axes", Map.put(Settings.get("optical_axes", %{}), s.id, stringify(res)))
+          all = Settings.get("optical_axes", %{})
+          entry = Map.get(all, s.id, %{}) |> Map.take(["sweep"]) |> Map.merge(stringify(res))
+          Settings.put("optical_axes", Map.put(all, s.id, entry))
           %{s | task: nil, step: :done}
 
         {:error, why} ->
@@ -101,6 +117,104 @@ defmodule Controller.Optical.AxisScan do
       {:ok, %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "frame" => before_name, "delta_deg" => delta, "scale" => before.scale, "w" => before.w, "h" => before.h, ra: ra, dec: dec}}
     end
   end
+
+  # -- the sweep ------------------------------------------------------------------------
+
+  @sweep_deg [-6.0, -3.0, 0.0, 3.0, 6.0]
+
+  defp sweep_scan(parent, ref, opts) do
+    Telescope.Events.tag("axis sweep")
+    hfov = Settings.get("camera_hfov_deg", 70) / 1
+
+    with :ok <- camera_ready(),
+         {:ok, ra} <- sweep_axis(parent, ref, :ra, hfov),
+         {:ok, dec} <- sweep_axis(parent, ref, :dec, hfov) do
+      between =
+        case {ra["fit"], dec["fit"]} do
+          {%{} = a, %{} = b} -> Float.round(Controller.Optical.Axis3D.angle_between(%{dir: List.to_tuple(a["dir"])}, %{dir: List.to_tuple(b["dir"])}), 1)
+          _ -> nil
+        end
+
+      {:ok, %{sweep: %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "hfov_deg" => hfov, "angles" => @sweep_deg, "between_deg" => between, "ra" => ra, "dec" => dec}}}
+    end
+  end
+
+  # to −6°, then +3° four times with a still at rest at each, then back to where we started
+  defp sweep_axis(parent, ref, axis, hfov) do
+    steps = [-6.0, 3.0, 3.0, 3.0, 3.0]
+
+    result =
+      Enum.reduce_while(Enum.with_index(steps), {:ok, []}, fn {step, i}, {:ok, frames} ->
+        send(parent, {:step, {:sweep, axis, i + 1, length(steps)}})
+
+        with :ok <- Mount.goto_relative(ref, axis, step),
+             :ok <- settle(ref, axis),
+             after_at = DateTime.add(DateTime.utc_now(), if(streaming?(), do: 5, else: 0), :second),
+             {:ok, frame, name, _} <- capture(parent, {:sweep, axis, i + 1, length(steps)}, after_at) do
+          {:cont, {:ok, [{frame, name} | frames]}}
+        else
+          {:error, :limit} -> {:halt, {:error, "#{axis}: soft limit during the sweep"}}
+          {:error, e} -> {:halt, {:error, "#{axis}: #{inspect(e)}"}}
+        end
+      end)
+
+    # home to where we started whatever happened
+    _ = Mount.goto_relative(ref, axis, -6.0)
+    _ = settle(ref, axis)
+
+    with {:ok, frames_rev} <- result do
+      frames = Enum.reverse(frames_rev)
+      send(parent, {:step, {:analyse, axis}})
+      list = Enum.map(frames, &elem(&1, 0))
+      names = Enum.map(frames, &elem(&1, 1))
+      tracks = Controller.Optical.Track.trajectories(list)
+      %{w: w, h: h, scale: scale} = hd(list)
+      cam = Controller.Optical.Axis3D.camera(w, h, hfov)
+
+      fit =
+        case Controller.Optical.Axis3D.fit(tracks, @sweep_deg, cam) do
+          {:ok, f} -> fit_json(f, cam)
+          {:error, _} -> nil
+        end
+
+      {:ok,
+       %{
+         "frames" => names,
+         "w" => w,
+         "h" => h,
+         "scale" => scale,
+         "tracks" => Enum.map(tracks, fn %{points: pts} -> Enum.map(pts, fn {x, y} -> [x, y] end) end),
+         "fit" => fit
+       }}
+    end
+  end
+
+  # the fit plus two projected points on the axis so the page can draw it
+  defp fit_json(f, cam) do
+    {px, py, pz} = f.point
+    {ax, ay, az} = f.dir
+    proj = fn {x, y, z} -> [cam.f * x / z + cam.cx, cam.f * y / z + cam.cy] end
+    p1 = proj.({px - ax * 0.4, py - ay * 0.4, pz - az * 0.4})
+    p2 = proj.({px + ax * 0.4, py + ay * 0.4, pz + az * 0.4})
+
+    %{
+      "dir" => [ax, ay, az],
+      "point" => [px, py, pz],
+      "line" => [p1, p2],
+      "image_angle_deg" => Float.round(f.image_angle_deg, 1),
+      "tilt_deg" => Float.round(f.tilt_deg, 1),
+      "image_angle_sd_deg" => f.image_angle_sd_deg && Float.round(f.image_angle_sd_deg, 2),
+      "tilt_sd_deg" => f.tilt_sd_deg && Float.round(f.tilt_sd_deg, 2),
+      "bootstrap_sd_deg" => f.bootstrap_sd_deg && Float.round(f.bootstrap_sd_deg, 2),
+      "rms_px" => Float.round(f.rms_px, 2),
+      "n" => f.n,
+      "sense" => f.sense
+    }
+  end
+
+  defp sweep_words(%{"fit" => nil}), do: "not enough spots to fit"
+  defp sweep_words(%{"fit" => f}), do: "#{f["n"]} spots · in picture #{f["image_angle_deg"]}° · tilt #{f["tilt_deg"]}° · ±#{f["bootstrap_sd_deg"] || f["tilt_sd_deg"]}° · rms #{f["rms_px"]} px"
+  defp sweep_words(_), do: "?"
 
   defp streaming? do
     match?(%{source: :stream}, Watch.status())

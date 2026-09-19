@@ -96,6 +96,14 @@ defmodule Controller.AxesLive do
     end
   end
 
+  def handle_event("sweep", _, socket) do
+    case AxisScan.sweep(socket.assigns.selected) do
+      :ok -> {:noreply, assign(socket, notice: "sweeping — five positions per axis, ±6°, two to three minutes")}
+      {:error, :busy} -> {:noreply, assign(socket, notice: "a scan is already running")}
+      {:error, why} -> {:noreply, assign(socket, notice: inspect(why))}
+    end
+  end
+
   def handle_event("clear", _, socket) do
     AxisScan.clear(socket.assigns.selected)
     {:noreply, load(socket)}
@@ -117,14 +125,47 @@ defmodule Controller.AxesLive do
         <:aside><.badge on={@scan.running} warn={@scan.step == :failed}>{step_words(@scan)}</.badge></:aside>
         <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <.row>
-          <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Find the axes</.btn>
-          <.btn :if={@result} class="btn-ghost" phx-click="clear">Forget this result</.btn>
+          <.btn variant="primary" phx-click="run" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Quick look (±3°, 1 min)</.btn>
+          <.btn variant="primary" phx-click="sweep" disabled={@scan.running or is_nil(@selected) or is_nil(@camera.tool)}>Sweep (±6°, 3 min)</.btn>
+        </.row>
+        <.row :if={@result}>
+          <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
         <.hint :if={@scan.error} class="err">{@scan.error}</.hint>
       </.card>
 
-      <.card :if={@result} title={"Result · #{String.slice(@result["at"], 11, 5)} UTC"}>
+      <%!-- the sweep: the axis in space, with margins --%>
+      <% sw = @result && @result["sweep"] %>
+      <.card :if={sw} title={"Sweep · #{String.slice(sw["at"], 11, 5)} UTC"}>
+        <div class="axes-pic">
+          <img :if={sw["ra"]["frames"] != []} src={~p"/watch/frames/#{hd(sw["ra"]["frames"])}"} alt="the first frame of the sweep" />
+          <svg viewBox={"0 0 #{sw["ra"]["w"]} #{sw["ra"]["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
+            <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
+              <% ax = sw[axis] %>
+              <polyline :for={t <- ax["tracks"]} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.9" />
+              <line :if={ax["fit"]} x1={ax["fit"]["line"] |> hd() |> hd()} y1={ax["fit"]["line"] |> hd() |> Enum.at(1)} x2={ax["fit"]["line"] |> Enum.at(1) |> hd()} y2={ax["fit"]["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="2.4" stroke-dasharray="12 8" />
+            <% end %>
+          </svg>
+        </div>
+        <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
+          <% f = sw[axis]["fit"] %>
+          <strong class={"ax-#{axis}"}>{label}</strong>
+          <span :if={f}>
+            runs at <b>{f["image_angle_deg"]}° ± {margin(f["image_angle_sd_deg"], f["bootstrap_sd_deg"])}°</b> across the picture,
+            tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> {if f["tilt_deg"] >= 0, do: "toward", else: "away from"} the camera
+          </span>
+          <span :if={f} class="dim">{f["n"]} spots followed through {length(sw["angles"])} positions · arcs fit to {f["rms_px"]} px · depth is in units of the distance to the axis (one camera can't scale it)</span>
+          <span :if={!f} class="dim">not enough spots could be followed through the whole sweep</span>
+        </div>
+        <div :if={sw["between_deg"]} class="axes-row">
+          <strong>Between the two axes</strong>
+          <span><b>{sw["between_deg"]}°</b> — a square mount reads 90°; the difference is measurement error plus whatever the mount really is</span>
+        </div>
+        <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored — both bias the tilt more than the in-picture direction.</.hint>
+      </.card>
+
+      <.card :if={@result && @result["ra"]} title={"Quick look · #{String.slice(@result["at"], 11, 5)} UTC"}>
         <div class="axes-pic">
           <img :if={@result["frame"]} src={~p"/watch/frames/#{@result["frame"]}"} alt="the frame before any move" />
           <svg viewBox={"0 0 #{@result["w"]} #{@result["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
@@ -169,12 +210,17 @@ defmodule Controller.AxesLive do
     """
   end
 
+  defp margin(a, b) do
+    [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Float.round(1)
+  end
+
   defp step_words(%{running: false, step: :done}), do: "done"
   defp step_words(%{running: false, step: :failed}), do: "failed"
   defp step_words(%{running: false}), do: "idle"
   defp step_words(%{step: :capture_before}), do: "first picture"
   defp step_words(%{step: {:move, ax}}), do: "turning #{ax}"
   defp step_words(%{step: {:capture, ax}}), do: "picture after #{ax}"
+  defp step_words(%{step: {:sweep, ax, i, n}}), do: "#{ax} · position #{i} of #{n}"
   defp step_words(%{step: {:analyse, ax}}), do: "looking at #{ax}"
   defp step_words(_), do: "working"
 end

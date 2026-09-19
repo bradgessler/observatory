@@ -28,6 +28,9 @@ defmodule Input.Device do
     Process.flag(:trap_exit, true)
     parser = Input.Parsers.for(dev)
     port = HIDPort.open(dev.path)
+    # The pad only reports on change. A steady hold must still read as fresh
+    # intent, so re-publish the current state on a heartbeat.
+    :timer.send_interval(200, :heartbeat)
 
     {:ok,
      %{
@@ -68,6 +71,10 @@ defmodule Input.Device do
     Telescope.broadcast("input", {:input_gone, s.id})
     {:stop, :normal, %{s | port: nil}}
   end
+
+  # steady hold = fresh intent: re-publish the current state while the device is open
+  def handle_info(:heartbeat, %{opened: true} = s), do: {:noreply, broadcast(s)}
+  def handle_info(:heartbeat, s), do: {:noreply, s}
 
   def handle_info(_other, s), do: {:noreply, s}
 

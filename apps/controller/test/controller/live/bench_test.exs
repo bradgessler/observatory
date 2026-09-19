@@ -38,7 +38,7 @@ defmodule Controller.BenchTest do
 
   test "game controller surface renders server-side state only", %{conn: conn, id: id} do
     {:ok, _view, html} = live(conn, "/input?mount=#{id}")
-    assert html =~ "watch only"
+    assert html =~ "Watch only"
     refute html =~ "phx-hook=\"Gamepad\""
   end
 end

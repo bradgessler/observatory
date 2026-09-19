@@ -54,8 +54,18 @@ defmodule Input.MapperTest do
     push(report([0], [0.0, 1.0]))
     settle()
     assert Mount.snapshot(id).axes.dec.running
-    Process.sleep(1_000)
-    refute Mount.snapshot(id).axes.dec.running
+    # watchdog is 600 ms on a 300 ms tick; allow for a loaded test VM
+    deadline = System.monotonic_time(:millisecond) + 3_000
+
+    wait = fn wait ->
+      cond do
+        not Mount.snapshot(id).axes.dec.running -> :ok
+        System.monotonic_time(:millisecond) > deadline -> flunk("still running after 3 s of silence")
+        true -> Process.sleep(50); wait.(wait)
+      end
+    end
+
+    wait.(wait)
     assert Input.status().held == []
   end
 

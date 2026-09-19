@@ -76,11 +76,11 @@ defmodule Controller.InputLive do
   # -- events -------------------------------------------------------------------------
 
   @impl true
-  def handle_event("arm", _, socket) do
-    on? = not socket.assigns.mapper.armed
+  def handle_event("arm", params, socket) do
+    on? = params["on"] == "true"
     if on? and socket.assigns.selected, do: Input.target(socket.assigns.selected)
     Input.arm(on?)
-    {:noreply, socket |> assign(notice: if(on?, do: "armed: the pad moves #{socket.assigns.selected}", else: "disarmed")) |> load()}
+    {:noreply, socket |> assign(notice: if(on?, do: "the pad now moves #{socket.assigns.selected}", else: "watch only")) |> load()}
   end
 
   def handle_event("scan", _, socket) do
@@ -112,15 +112,19 @@ defmodule Controller.InputLive do
         <.title>controller</.title>
         <.actions>
           <.btn phx-click="scan">Scan</.btn>
-          <.btn variant={if @mapper.armed, do: "danger", else: "primary"} phx-click="arm" disabled={@devices == []}>{if @mapper.armed, do: "Pad moves scope: ON", else: "Pad moves scope: off"}</.btn>
         </.actions>
       </:header>
 
-      <.card title="What it's doing">
+      <.card title="Pad">
         <:aside>
-          <.badge on={@mapper.armed} warn={!@mapper.armed}>{if @mapper.armed, do: "moving the scope", else: "watch only"}</.badge>
           <.badge on={@mapper.action != :idle} warn={@mapper.action == :stop}>{@mapper.action_text}</.badge>
         </:aside>
+        <%!-- two explicit states, not a toggle: you always see which one you're in --%>
+        <div class="seg" role="radiogroup" aria-label="what the pad does">
+          <button class={["seg-opt", !@mapper.armed && "on"]} phx-click="arm" phx-value-on="false" role="radio" aria-checked={to_string(!@mapper.armed)}>Watch only</button>
+          <button class={["seg-opt", "seg-live", @mapper.armed && "on"]} phx-click="arm" phx-value-on="true" role="radio" aria-checked={to_string(@mapper.armed)} disabled={@devices == []}>Pad moves scope</button>
+        </div>
+        <.hint :if={@mapper.off_reason}><strong>{@mapper.off_reason}</strong></.hint>
         <.kv label="mount" value={@mapper.target || "none"} />
         <.kv :if={@snap} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />

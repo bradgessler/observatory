@@ -21,7 +21,7 @@ defmodule Input.Mapper do
 
   alias Input.Gamepad
 
-  @max_age_ms 250
+  @max_age_ms 400
   @watchdog_ms 600
   @call_timeout 1_500
   @min_interval_ms 60
@@ -42,18 +42,23 @@ defmodule Input.Mapper do
     Telescope.subscribe("input")
     # monotonic time can be negative; "long ago" must be relative to now, not 0
     long_ago = System.monotonic_time(:millisecond) - 60_000
-    s = %{armed: false, target: nil, map: %{}, device_map: %{}, held: [], action: :idle, last_cmd: long_ago, last_fresh: long_ago}
+    s = %{armed: false, target: nil, map: %{}, device_map: %{}, held: [], action: :idle, last_cmd: long_ago, last_fresh: long_ago, failures: 0, off_reason: nil}
     Process.send_after(self(), :watchdog, @watchdog_ms)
     {:ok, announce(s)}
   end
 
   @impl true
   def handle_call({:arm, on?}, _from, s) do
-    s = if on?, do: %{s | armed: true}, else: %{release(s) | armed: false}
+    # a freshly armed pad must never have its first command rate-limited away
+    long_ago = System.monotonic_time(:millisecond) - 60_000
+    s = if on?, do: Map.merge(s, %{armed: true, failures: 0, off_reason: nil, last_cmd: long_ago}), else: Map.merge(release(s), %{armed: false, off_reason: nil})
     {:reply, :ok, announce(s)}
   end
 
-  def handle_call({:target, id}, _from, s), do: {:reply, :ok, announce(%{release(s) | target: id})}
+  def handle_call({:target, id}, _from, s) do
+    long_ago = System.monotonic_time(:millisecond) - 60_000
+    {:reply, :ok, announce(Map.merge(release(s), %{target: id, last_cmd: long_ago}))}
+  end
   def handle_call({:configure, map}, _from, s), do: {:reply, :ok, announce(%{s | map: Map.merge(s.map, map)})}
 
   @impl true
@@ -90,7 +95,7 @@ defmodule Input.Mapper do
 
   def handle_info({:input_gone, _id}, s) do
     Logger.warning("input mapper: device gone — releasing and disarming")
-    {:noreply, announce(%{release(s) | armed: false})}
+    {:noreply, announce(Map.merge(release(s), %{armed: false, off_reason: "turned off: the controller was unplugged"}))}
   end
 
   def handle_info(_, s), do: {:noreply, s}
@@ -116,10 +121,18 @@ defmodule Input.Mapper do
             results = for {axis, r} <- rates, do: safe(fn -> Mount.slew(ref, axis, r, hold: true) end)
 
             if Enum.any?(results, &match?({:error, :unreachable}, &1)) do
-              Logger.error("input mapper: mount not answering — disarming")
-              %{s | held: [], armed: false}
+              # one slow answer is not a dead mount; three in a row is
+              # (Map.get: the running process may predate this key after a hot reload)
+              failures = Map.get(s, :failures, 0) + 1
+
+              if failures >= 3 do
+                Logger.error("input mapper: mount not answering (#{failures}×) — turning the pad off")
+                Map.merge(s, %{held: [], armed: false, failures: 0, off_reason: "turned off: the mount stopped answering"})
+              else
+                Map.put(s, :failures, failures)
+              end
             else
-              %{s | held: Enum.map(rates, &elem(&1, 0)), last_cmd: now}
+              Map.merge(s, %{held: Enum.map(rates, &elem(&1, 0)), last_cmd: now, failures: 0})
             end
         end
     end
@@ -172,6 +185,7 @@ defmodule Input.Mapper do
       action: s.action,
       action_text: Gamepad.describe(s.action),
       held: s.held,
+      off_reason: Map.get(s, :off_reason),
       map: Gamepad.defaults() |> Map.merge(s.device_map) |> Map.merge(s.map)
     }
   end

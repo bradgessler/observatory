@@ -16,8 +16,16 @@
 
 /* ---- bench shell ---- */
 .bench { min-height: 100dvh; display: grid; grid-template-rows: auto auto 1fr; gap: 10px; padding: max(10px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); }
-.bench-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+.bench-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px 10px; }
+/* phone: brand + icons on one line, the device chips in a wrapping row below */
+@media (max-width: 959px) {
+  .bench-head { grid-template-columns: auto auto; justify-content: space-between; }
+  .bench-devices { grid-column: 1 / -1; }
+}
 .bench-brand { color: var(--dim); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.bench-devices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.dev-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--panel); color: var(--text); text-decoration: none; font-size: 12px; }
+.dev-chip b { color: var(--dim); font-weight: 600; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 /* phone: one quiet row of pills, names only, swipe to see more */
 .bench-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 2px 0; }
 .bench-nav::-webkit-scrollbar { display: none; }
@@ -42,6 +50,14 @@
   .bench-tab { min-width: 0; }
   .bench-stage { grid-column: 2; grid-row: 2; }
 }
+
+/* ---- two-state control: you always see which state you're in ---- */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--edge); border-radius: 14px; overflow: hidden; }
+.seg-opt { border: none; border-radius: 0; background: transparent; color: var(--dim); padding: 14px 12px; font-weight: 600; }
+.seg-opt + .seg-opt { border-left: 1px solid var(--edge); }
+.seg-opt.on { background: var(--btn-press); color: var(--text); }
+.seg-opt.seg-live.on { color: var(--warn); box-shadow: inset 0 0 0 2px var(--warn); }
+.seg-opt:disabled { opacity: .4; }
 
 /* ---- watch ---- */
 .watch-frame { background: #000; border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; min-height: 120px; display: grid; place-items: center; }

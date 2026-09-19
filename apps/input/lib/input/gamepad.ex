@@ -23,8 +23,10 @@ defmodule Input.Gamepad do
     y_axis: 1,
     invert_x: false,
     invert_y: true,
-    dead: 0.12,
-    max_rate: 800.0,
+    # feel: see Input.Curve — null zone, where full speed starts, the bands
+    dead: 0.30,
+    full: 0.85,
+    bands: [2.0, 8.0, 32.0, 200.0, 800.0],
     fine_rate: 8.0
   }
 
@@ -47,15 +49,17 @@ defmodule Input.Gamepad do
         x = axis(axes, m.x_axis) |> flip(m.invert_x)
         y = axis(axes, m.y_axis) |> flip(m.invert_y)
         mag = :math.sqrt(x * x + y * y)
+        # the feel lives in Input.Curve: null zone, saturation, speed bands
+        rate = Input.Curve.rate(mag, %{dead: m.dead, full: m.full, bands: m.bands})
 
-        if mag < m.dead do
+        if rate == 0.0 do
           :idle
         else
-          # 0 at the dead-zone edge → 1 at full tilt, then log speed 1×..max
-          t = min((mag - m.dead) / (1 - m.dead), 1.0)
-          rate = :math.pow(m.max_rate, t)
           scale = rate / max(abs(x), abs(y))
-          {:move, [{:ra, x * scale}, {:dec, y * scale}] |> Enum.reject(fn {_, r} -> abs(r) < 0.5 end)}
+          # an axis under a third of the pull doesn't move: a pull is mostly one axis
+          {:move,
+           [{:ra, x * scale}, {:dec, y * scale}]
+           |> Enum.reject(fn {_, r} -> abs(r) < rate / 3 end)}
         end
 
       state[:hat] != nil ->

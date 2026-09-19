@@ -101,7 +101,7 @@ defmodule Mount.Server do
   end
 
   def handle_info(:poll, state) do
-    state = state |> refresh() |> enforce_limits() |> maybe_resume_tracking()
+    state = state |> refresh() |> start_pending() |> enforce_limits() |> maybe_resume_tracking()
     Process.send_after(self(), :poll, @poll_ms)
     {:noreply, broadcast(state)}
   end
@@ -231,29 +231,84 @@ defmodule Mount.Server do
     |> refresh_axis(axis)
   end
 
+  # Slews never block the caller. Same direction and microstep mode: change the
+  # period live. Anything else: send the stop now, remember the wanted slew,
+  # and start it from the next poll once the axis reports stopped. (The old
+  # stop-and-wait here took seconds per change and jammed every input path.)
+  #
+  # Mode hysteresis: fast microstep mode can run any rate, slow mode only up to
+  # 128×. If the axis is already running in a mode that can do the wanted
+  # rate, keep it — flapping between modes on every wobble of a stick is what
+  # made continuous control feel like it "decayed".
   defp start_slew(state, axis, rate) do
     ax = state.axes[axis]
     dir = if rate >= 0, do: :forward, else: :reverse
-    {mode, period} = P.slew_params(abs(rate), ax)
+    {natural_mode, _} = P.slew_params(abs(rate), ax)
 
-    # In slew mode the period can change live; anything else needs a stop first.
+    mode =
+      cond do
+        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :fast and abs(rate) >= 4 -> :fast
+        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :slow and abs(rate) <= 128 -> :slow
+        true -> natural_mode
+      end
+
+    period = period_for(abs(rate), mode, ax)
     same_run? = ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == mode
 
-    if same_run? do
-      send!(state, "I", axis, P.from_int(period))
-    else
-      state
-      |> stop_axis(axis)
-      |> send!("G", axis, P.motion_mode(mode, dir))
-      |> send!("I", axis, P.from_int(period))
-      |> send!("J", axis)
+    cond do
+      # Same run and (nearly) the same speed: say nothing to the board. Held
+      # controls refresh 4-5×/s; rewriting :I each time made the motor stutter.
+      same_run? and close?(period, ax[:period]) ->
+        put_axis(state, axis, :pending, nil)
+
+      same_run? ->
+        state |> send!("I", axis, P.from_int(period)) |> put_axis(axis, :period, period) |> put_axis(axis, :pending, nil)
+
+      ax.running ->
+        # stop now, start the new slew when the poll sees the axis stopped
+        state |> send!("K", axis) |> put_axis(axis, :pending, {mode, dir, period})
+
+      true ->
+        begin_slew(state, axis, mode, dir, period)
     end
     |> put_axis(axis, :goto_pending, false)
     |> refresh_axis(axis)
   end
 
+  defp begin_slew(state, axis, mode, dir, period) do
+    state
+    |> send!("G", axis, P.motion_mode(mode, dir))
+    |> send!("I", axis, P.from_int(period))
+    |> send!("J", axis)
+    |> put_axis(axis, :period, period)
+    |> put_axis(axis, :pending, nil)
+  end
+
+  # within ~2%: not worth a command
+  defp close?(_new, nil), do: false
+  defp close?(new, old), do: abs(new - old) <= max(old * 0.02, 1)
+
+  defp period_for(rate, mode, %{steps_per_rev: cpr, timer_freq: tf, high_speed_ratio: hs}) do
+    steps_per_s = P.sidereal_rate(cpr) * rate
+    max(round(tf * if(mode == :fast, do: hs, else: 1) / steps_per_s), 1)
+  end
+
+  # Called every poll: an axis that was told to stop for a direction/mode
+  # change starts its pending slew as soon as it reports stopped.
+  defp start_pending(state) do
+    Enum.reduce([:ra, :dec], state, fn axis, s ->
+      case s.axes[axis][:pending] do
+        {mode, dir, period} ->
+          if s.axes[axis].running, do: s, else: begin_slew(s, axis, mode, dir, period)
+
+        _ ->
+          s
+      end
+    end)
+  end
+
   defp stop_axis(state, axis) do
-    state = send!(state, "K", axis)
+    state = state |> put_axis(axis, :pending, nil) |> send!("K", axis)
     wait_stopped(state, axis, System.monotonic_time(:millisecond) + @stop_wait_ms)
   end
 

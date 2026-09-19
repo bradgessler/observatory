@@ -10,15 +10,20 @@ defmodule Input.GamepadTest do
     assert Gamepad.interpret(state([0.9, 0.0], [])) == :idle
   end
 
-  test "trigger + tilt moves; more tilt is faster, on a log scale" do
-    {:move, [ra: slow]} = Gamepad.interpret(state([0.3, 0.0], [0]))
-    {:move, [ra: fast]} = Gamepad.interpret(state([1.0, 0.0], [0]))
-    assert slow > 1 and slow < 50
-    assert_in_delta fast, 800, 1
+  test "trigger + tilt moves; more tilt steps up the bands to full speed" do
+    {:move, [ra: slow]} = Gamepad.interpret(state([0.45, 0.0], [0]))
+    {:move, [ra: fast]} = Gamepad.interpret(state([0.9, 0.0], [0]))
+    assert slow == 8.0
+    assert fast == 800.0
   end
 
-  test "dead zone" do
+  test "null zone: a ball that looks centred (or is 0.17 off) does nothing even with the trigger held" do
     assert Gamepad.interpret(state([0.05, -0.08], [0])) == :idle
+    assert Gamepad.interpret(state([0.17, 0.02], [0])) == :idle
+  end
+
+  test "a pull that is mostly one axis moves only that axis" do
+    assert {:move, [ra: _]} = Gamepad.interpret(state([1.0, 0.2], [0]))
   end
 
   test "Y is inverted by default so pushing forward is +Dec" do

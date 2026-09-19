@@ -1,9 +1,9 @@
 defmodule Controller.BenchLive do
   @moduledoc """
-  The bench: one place to try every control surface against the same
-  telescope. Sidebar on a laptop, tabs on a phone; the telescope's state is
-  always at the top; the chosen surface renders below as a nested LiveView.
-  Not the field UI — where we play.
+  The bench: the front door while we're playing with components. One
+  telescope, several devices, several control surfaces. The header shows the
+  live state of every device (mount, pad, camera); the nav picks a surface;
+  the surface renders below as a nested LiveView. Not the field UI.
   """
   use Controller, :live_view
   import Controller.Components.Status
@@ -24,11 +24,14 @@ defmodule Controller.BenchLive do
     if connected?(socket) do
       send(self(), :rescan)
       Settings.subscribe()
+      Input.subscribe()
+      Watch.subscribe()
     end
 
     {:ok,
      socket
      |> assign(night: Settings.get("night", false), refs: %{}, selected: params["mount"], snap: nil, surface: nil)
+     |> assign(pad: Input.status(), pads: Input.devices(), camera: Watch.status())
      |> rescan()}
   end
 
@@ -41,13 +44,17 @@ defmodule Controller.BenchLive do
   @impl true
   def handle_info(:rescan, socket) do
     Process.send_after(self(), :rescan, 3_000)
-    {:noreply, rescan(socket)}
+    {:noreply, socket |> rescan() |> assign(pads: Input.devices(), camera: Watch.status())}
   end
 
   def handle_info({:mount, snap}, socket) do
     if snap.id == socket.assigns.selected, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
   end
 
+  def handle_info({:mapper, status}, socket), do: {:noreply, assign(socket, pad: status)}
+  def handle_info({:input, _id, _info}, socket), do: {:noreply, socket}
+  def handle_info({:input_gone, _id}, socket), do: {:noreply, assign(socket, pads: Input.devices())}
+  def handle_info({:watch, _meta}, socket), do: {:noreply, assign(socket, camera: Watch.status())}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
@@ -83,7 +90,21 @@ defmodule Controller.BenchLive do
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
         <span class="bench-brand">bench</span>
-        <.status snap={@snap} id={@selected} compact />
+        <div class="bench-devices">
+          <.status snap={@snap} id={@selected} compact />
+          <.link patch={~p"/bench/gamepad?#{[mount: @selected]}"} class="dev-chip">
+            <b>pad</b>
+            <span :if={@pads == []} class="ss-badge warn">none</span>
+            <span :if={@pads != [] and !@pad.armed} class="ss-badge">watch only</span>
+            <span :if={@pads != [] and @pad.armed} class={["ss-badge", "on"]}>{if @pad.held == [], do: "live", else: "moving"}</span>
+          </.link>
+          <.link patch={~p"/bench/watch?#{[mount: @selected]}"} class="dev-chip">
+            <b>camera</b>
+            <span :if={is_nil(@camera.tool)} class="ss-badge warn">none</span>
+            <span :if={@camera.tool && !@camera.enabled} class="ss-badge">{if @camera.latest, do: "frame #{@camera.frames}", else: "idle"}</span>
+            <span :if={@camera.tool && @camera.enabled} class="ss-badge on">live</span>
+          </.link>
+        </div>
         <span class="hdr-actions">
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>

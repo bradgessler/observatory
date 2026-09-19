@@ -67,8 +67,8 @@ defmodule Controller.Optical.AxisScan do
     s =
       case result do
         {:ok, res} ->
-          Settings.put("optical_axes", Map.put(Settings.get("optical_axes", %{}), s.id, res))
           Telescope.Events.emit(:optical, :axes_found, %{id: s.id, ra: summary(res.ra), dec: summary(res.dec)})
+          Settings.put("optical_axes", Map.put(Settings.get("optical_axes", %{}), s.id, stringify(res)))
           %{s | task: nil, step: :done}
 
         {:error, why} ->
@@ -92,10 +92,10 @@ defmodule Controller.Optical.AxisScan do
     Telescope.Events.tag("axis scan")
 
     with :ok <- camera_ready(),
-         {:ok, before, before_name} <- capture(parent, :capture_before),
+         {:ok, before, before_name, _} <- capture(parent, :capture_before),
          {:ok, ra} <- axis(parent, ref, :ra, delta, before),
          {:ok, dec} <- axis(parent, ref, :dec, delta, before) do
-      {:ok, %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "frame" => before_name, "delta_deg" => delta, "scale" => before.scale, "w" => before.w, "h" => before.h} |> Map.merge(%{ra: ra, dec: dec}) |> stringify()}
+      {:ok, %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "frame" => before_name, "delta_deg" => delta, "scale" => before.scale, "w" => before.w, "h" => before.h, ra: ra, dec: dec}}
     end
   end
 
@@ -106,18 +106,30 @@ defmodule Controller.Optical.AxisScan do
     end
   end
 
-  defp capture(parent, step) do
+  defp capture(parent, step, after_at \\ nil, tries \\ 0) do
     send(parent, {:step, step})
 
     case Watch.capture() do
-      %{at: _} ->
-        case Watch.latest() do
-          %{jpeg: jpeg} ->
-            name = Watch.history(limit: 1) |> List.first() |> then(&(&1 && &1.name))
-            with {:ok, frame} <- Frame.from_binary(jpeg), do: {:ok, frame, name}
+      %{at: at} ->
+        cond do
+          # while video runs, stills come from the encoder every few seconds:
+          # make sure this one was taken after the move, not before it
+          after_at && DateTime.compare(at, after_at) != :gt && tries < 12 ->
+            Process.sleep(1_000)
+            capture(parent, step, after_at, tries + 1)
 
-          _ ->
-            {:error, "no frame"}
+          after_at && DateTime.compare(at, after_at) != :gt ->
+            {:error, "camera gave no new frame"}
+
+          true ->
+            case Watch.latest() do
+              %{jpeg: jpeg} ->
+                name = Watch.history(limit: 1) |> List.first() |> then(&(&1 && &1.name))
+                with {:ok, frame} <- Frame.from_binary(jpeg), do: {:ok, frame, name, at}
+
+              _ ->
+                {:error, "no frame"}
+            end
         end
 
       {:error, why} ->
@@ -128,9 +140,11 @@ defmodule Controller.Optical.AxisScan do
   defp axis(parent, ref, axis, delta, before) do
     send(parent, {:step, {:move, axis}})
 
+    moved_at = DateTime.utc_now()
+
     with :ok <- Mount.goto_relative(ref, axis, delta),
          :ok <- settle(ref, axis),
-         {:ok, after_frame, after_name} <- capture(parent, {:capture, axis}),
+         {:ok, after_frame, after_name, _} <- capture(parent, {:capture, axis}, moved_at),
          :ok <- Mount.goto_relative(ref, axis, -delta),
          :ok <- settle(ref, axis) do
       send(parent, {:step, {:analyse, axis}})

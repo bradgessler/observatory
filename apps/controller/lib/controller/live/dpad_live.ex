@@ -133,7 +133,8 @@ defmodule Controller.DpadLive do
         <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up">▲<small>N · toward pole</small></button>
         <span></span>
         <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left">◀<small>E</small></button>
-        <button class="stop" phx-click="estop">STOP</button>
+        <%!-- release stops; the always-visible STOP lives in the bench header --%>
+        <span class="dpad-centre"><b>{@rate}×</b></span>
         <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right">▶<small>W</small></button>
         <span></span>
         <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down">▼<small>S · away</small></button>

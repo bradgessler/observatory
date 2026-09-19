@@ -12,3 +12,8 @@ config :mount, mounts: []
 config :input, discover: false
 config :libcluster, topologies: []
 config :logger, level: :warning
+
+# frame history goes to a scratch dir, never the user's ~/.observatory
+config :watch, dir: Path.join(System.tmp_dir!(), "observatory-test-frames-#{System.os_time(:millisecond)}")
+
+config :controller, settings_path: Path.join(System.tmp_dir!(), "observatory-test-settings-#{System.os_time(:millisecond)}.json")

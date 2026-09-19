@@ -21,9 +21,30 @@ defmodule Controller.Modes do
       if(p.dec_sign != base.dec_sign, do: {"Dec axis flipped", "sign #{p.dec_sign}"}),
       if(Settings.get("tracking_direction") == "reverse", do: {"tracking reversed", "RA runs the other way"}),
       if(Settings.get("auto_track", true) == false, do: {"auto-track off", "slews won't start tracking"}),
-      if(is_map(Settings.get("site")), do: {"site override", "lat/lon set by hand or phone"})
+      if(is_map(Settings.get("site")), do: {"site override", "lat/lon set by hand or phone"}),
+      mount_tilt_mode(),
+      mount_heading_mode()
     ]
     |> Enum.reject(&is_nil/1)
+  end
+
+  # The mount as it stands vs. the ideal: a latitude knob that isn't the site
+  # latitude, or a polar axis not on true north, shifts everything the orb and
+  # the pointing model draw. Say so.
+  defp mount_tilt_mode do
+    lat = Pointing.site().lat
+
+    case Settings.get("mount_tilt_deg") do
+      t when is_number(t) and abs(t - lat) > 0.5 -> {"mount tilt #{fmt(t * 1.0)}°", "site latitude is #{fmt(lat * 1.0)}°"}
+      _ -> nil
+    end
+  end
+
+  defp mount_heading_mode do
+    case Settings.get("mount_heading_deg") do
+      h when is_number(h) and abs(h) > 0.5 -> {"polar axis #{fmt(abs(h) * 1.0)}° #{if h > 0, do: "E", else: "W"} of true north", "e.g. aligned to a compass"}
+      _ -> nil
+    end
   end
 
   def clear_sync, do: Settings.put("pointing_offset", %{"ra" => 0.0, "dec" => 0.0})

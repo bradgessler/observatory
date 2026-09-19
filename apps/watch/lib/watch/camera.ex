@@ -100,6 +100,12 @@ defmodule Watch.Camera do
             File.rm(path)
             frame = %{jpeg: jpeg, at: DateTime.utc_now(), device: s.device || "default", bytes: byte_size(jpeg)}
             :persistent_term.put({__MODULE__, :latest}, frame)
+            # the recent past on disk; a failure there never loses the live frame
+            try do
+              Watch.History.put(frame)
+            catch
+              :exit, why -> Logger.warning("watch: history unavailable: #{inspect(why)}")
+            end
             Telescope.broadcast("watch", {:watch, meta(frame)})
             %{s | last_error: nil, frames: s.frames + 1}
 

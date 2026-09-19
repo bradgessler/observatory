@@ -42,7 +42,8 @@ defmodule Controller.Settings do
     Map.get(horizon, Enum.at(@sectors, i), 20)
   end
 
-  defp path, do: Path.join([System.user_home!(), ".observatory", "settings.json"])
+  # tests point this at a scratch file so they never read or write the real one
+  defp path, do: Application.get_env(:controller, :settings_path) || Path.join([System.user_home!(), ".observatory", "settings.json"])
 
   defp read do
     with {:ok, bin} <- File.read(path()), {:ok, map} <- Jason.decode(bin), do: map, else: (_ -> %{})

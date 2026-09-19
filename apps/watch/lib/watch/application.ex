@@ -4,7 +4,7 @@ defmodule Watch.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [Watch.Camera]
+    children = [Watch.History, Watch.Camera]
     Supervisor.start_link(children, strategy: :one_for_one, name: Watch.Supervisor)
   end
 end

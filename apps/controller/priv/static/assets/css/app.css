@@ -426,3 +426,48 @@ a.banner strong { color: var(--warn); }
 .strip-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .strip-dot.ra { background: var(--accent); }
 .strip-dot.dec { background: var(--on); }
+
+/* ---- light mode: follow the device; night mode (.night) still wins ---- */
+@media (prefers-color-scheme: light) {
+  :root { --bg: #f4f5f7; --panel: #ffffff; --edge: #dfe3e9; --text: #14171d; --dim: #667085; --accent: #2457d6; --on: #15803d; --warn: #d92d20; --btn: #ffffff; --btn-press: #e8ecf2; --sky1: #dfe6f3; --sky2: #c9d3e6; }
+  html, body { background: var(--bg); }
+  .map .obj circle { fill: #1f2937; }
+  .map .obj.faint circle { fill: #4b5563; }
+  .map .lines { stroke: #b8c2d6; }
+  .map .treeline { fill: #0b1220; opacity: .18; }
+  .orb-svg .end-ra { fill: var(--panel); }
+  .knob { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .stop-bar, .stop-mini, .stop { background: var(--panel); }
+  .modes { background: #fff7e6; border-color: #e9c46a; color: #7a5200; }
+  .watch-frame { background: #000; }
+}
+/* night mode is an explicit choice: red on black regardless of the device setting */
+.night, .night :root { --bg: #000; --panel: #080000; --edge: #220000; --text: #ff4a4a; --dim: #8a2222; --accent: #ff4a4a; --on: #ff7a7a; --warn: #ff9a9a; --btn: #0e0000; --btn-press: #1a0000; --sky1: #0c0000; --sky2: #050000; }
+
+/* ---- nudge / plain keypad centre, 4-wide rate rows ---- */
+.dpad-centre { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.dpad-centre b { font-size: 20px; color: var(--text); }
+.dpad-centre small { font-size: 11px; letter-spacing: .04em; }
+.rates.rates-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ---- position ---- */
+.pos-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 8px; align-items: center; }
+.pos-k { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.pos-now { font-variant-numeric: tabular-nums; font-size: 18px; text-align: center; }
+.pos-grid .field { padding: 12px 8px; }
+
+/* ---- tilt ---- */
+.tilt-wrap { display: grid; justify-items: center; }
+.tilt-pad { position: relative; width: min(300px, 78vw); aspect-ratio: 1; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.tilt-pad b { font-size: 22px; letter-spacing: .06em; text-transform: uppercase; }
+.tilt-pad small { font-size: 12px; color: var(--dim); }
+.tilt-pad.pressed { border-color: var(--accent); }
+.tilt-pad.live { border-color: var(--on); color: var(--on); }
+.tilt-dot { position: absolute; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transition: transform .12s linear; }
+
+/* ---- watch history strip ---- */
+.watch-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.watch-strip a { flex: 0 0 auto; width: 96px; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; border: 1px solid var(--edge); position: relative; }
+.watch-strip a.on { border-color: var(--accent); }
+.watch-strip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.watch-strip time { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center; background: rgba(0,0,0,.55); color: #fff; font-variant-numeric: tabular-nums; }

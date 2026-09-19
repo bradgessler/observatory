@@ -13,7 +13,10 @@ defmodule Controller.BenchLive do
   @surfaces [
     {"strips", "Axis strips", Controller.MountLive, "one pull-to-speed strip per mount axis; the field keypad"},
     {"dpad", "Plain keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
+    {"nudge", "Nudge", Controller.NudgeLive, "tap to move an exact step: 1′, 5′, 30′, 2°; for centering"},
     {"orb", "Orb", Controller.OrbLive, "the equatorial geometry as a 3-D gizmo, with analog strips"},
+    {"tilt", "Tilt", Controller.TiltLive, "eyepiece mode: hold the button, tilt the phone"},
+    {"position", "Position", Controller.PositionLive, "set an axis angle, go home; the put-it-back tool"},
     {"gamepad", "Game controller", Controller.InputLive, "a USB pad read by the server"},
     {"watch", "Watch", Controller.WatchLive, "a camera on the mount, read by the server"},
     {"sky", "Sky", Controller.SkyLive, "map, tonight's targets, horizon"}
@@ -76,6 +79,19 @@ defmodule Controller.BenchLive do
   end
 
   @impl true
+  def handle_event("estop", _, socket) do
+    if ref = socket.assigns.refs[socket.assigns.selected] do
+      try do
+        Mount.emergency_stop(ref)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
+    Input.arm(false)
+    {:noreply, socket}
+  end
+
   def handle_event("night", _, socket) do
     v = !socket.assigns.night
     Settings.put("night", v)
@@ -106,6 +122,8 @@ defmodule Controller.BenchLive do
           </.link>
         </div>
         <span class="hdr-actions">
+          <%!-- one STOP, always visible, whatever surface is up --%>
+          <button class="stop-mini" phx-click="estop" aria-label="stop the mount">STOP</button>
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </span>

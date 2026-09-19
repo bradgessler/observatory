@@ -205,6 +205,75 @@ Hooks.SkyZoom = {
 };
 
 
+// Tilt: hold the button (dead-man), tilt the phone. The orientation at
+// press-down is "still"; the vector from there sets direction and speed.
+// Null zone 5°, full speed at 30°. Sent every 250 ms while held; tilt_end on
+// release, page hide, or losing the sensor. iOS wants a permission prompt
+// from inside a user gesture, and only over HTTPS.
+Hooks.Tilt = {
+  mounted() {
+    const el = this.el, dot = el.querySelector("[data-dot]");
+    const DEAD = 5, FULL = 30;
+    let base = null, cur = null, timer = null, id = null, listening = false;
+    const state = (s) => this.pushEvent("sensor", { state: s });
+    const onOrient = (e) => { if (e.beta === null || e.beta === undefined) return; cur = { b: e.beta, g: e.gamma }; };
+    const listen = () => { if (listening) return; listening = true; window.addEventListener("deviceorientation", onOrient); };
+    const vec = () => {
+      if (!base || !cur) return { x: 0, y: 0, mag: 0 };
+      // tilt top of phone away = up (toward pole); tilt right = west
+      const dy = -(cur.b - base.b), dx = cur.g - base.g;
+      const d = Math.hypot(dx, dy);
+      const mag = d <= DEAD ? 0 : Math.min(1, (d - DEAD) / (FULL - DEAD));
+      return { x: d > 0 ? dx / d : 0, y: d > 0 ? dy / d : 0, mag };
+    };
+    const send = () => {
+      const v = vec();
+      if (dot) dot.style.transform = `translate(${v.x * v.mag * 40}px, ${-v.y * v.mag * 40}px)`;
+      this.pushEvent("tilt", v);
+    };
+    const ready = async () => {
+      if (!window.isSecureContext) { state("insecure"); return false; }
+      if (!("DeviceOrientationEvent" in window)) { state("none"); return false; }
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {
+        try { if ((await DeviceOrientationEvent.requestPermission()) !== "granted") { state("denied"); return false; } }
+        catch (_) { state("denied"); return false; }
+      }
+      listen();
+      state("ok");
+      return true;
+    };
+    const start = async (e) => {
+      if (timer) return;
+      e.preventDefault();
+      id = e.pointerId;
+      if (!(await ready())) return;
+      el.classList.add("pressed");
+      base = cur; // may be null for a beat; vec() treats that as still
+      const arm = () => { if (!base) base = cur; send(); };
+      timer = setInterval(arm, 250);
+    };
+    const stop = (e) => {
+      if (!timer) return;
+      if (e && e.pointerId !== undefined && e.pointerId !== id) return;
+      clearInterval(timer); timer = null; base = null;
+      el.classList.remove("pressed");
+      if (dot) dot.style.transform = "";
+      this.pushEvent("tilt_end", {});
+    };
+    el.addEventListener("pointerdown", start);
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointercancel", stop);
+    el.addEventListener("pointerleave", stop);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+    window.addEventListener("blur", () => stop());
+    document.addEventListener("visibilitychange", () => document.hidden && stop());
+    if (!window.isSecureContext) state("insecure");
+    else if (!("DeviceOrientationEvent" in window)) state("none");
+    this.end = () => { stop(); if (listening) window.removeEventListener("deviceorientation", onOrient); };
+  },
+  destroyed() { this.end && this.end(); },
+};
+
 // "Use my location": ask the browser once, hand lat/lon to the server.
 Hooks.Geo = {
   mounted() {

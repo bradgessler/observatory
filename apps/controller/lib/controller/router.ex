@@ -29,6 +29,13 @@ defmodule Controller.Router do
     get "/watch/latest.jpg", WatchController, :latest
     live "/controls/dpad", DpadLive, :index
     live "/controls/dpad/:id", DpadLive, :show
+    live "/controls/nudge", NudgeLive, :index
+    live "/controls/nudge/:id", NudgeLive, :show
+    live "/controls/position", PositionLive, :index
+    live "/controls/position/:id", PositionLive, :show
+    live "/controls/tilt", TiltLive, :index
+    live "/controls/tilt/:id", TiltLive, :show
+    get "/watch/frames/:name", WatchController, :frame
     live "/setup/:id", SetupLive, :show
     live "/sky/:id", SkyLive, :show
     get "/docs/:slug", DocsController, :show

@@ -14,6 +14,7 @@ defmodule Controller.SetupLive do
     if connected?(socket) do
       send(self(), :rescan)
       Settings.subscribe()
+      Telescope.subscribe("tracker")
     end
 
     {:ok,
@@ -33,6 +34,8 @@ defmodule Controller.SetupLive do
     if snap.id == socket.assigns.id, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
   end
 
+  def handle_info({:tracker, id, _}, %{assigns: %{id: id}} = socket), do: {:noreply, load(socket)}
+  def handle_info({:tracker, _, _}, socket), do: {:noreply, socket}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, socket |> assign(night: v) |> load()}
   def handle_info({:settings, _key, _v}, socket), do: {:noreply, load(socket)}
 
@@ -49,6 +52,7 @@ defmodule Controller.SetupLive do
 
   defp load(socket) do
     assign(socket,
+      steering: steering(socket.assigns.id),
       modes: Modes.active(),
       pointing: Pointing.pointing(),
       offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
@@ -141,6 +145,8 @@ defmodule Controller.SetupLive do
     end
   end
 
+  defp fmt1(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
+
   defp safe(fun) do
     try do
       fun.()
@@ -154,6 +160,45 @@ defmodule Controller.SetupLive do
 
   # -- render -------------------------------------------------------------------------
 
+  # How the scope is being steered right now, in the language of #62: which
+  # law is in charge, what it is correcting for and by how much, and how the
+  # target is being held. One place to look once everything is set up.
+  defp steering(id) do
+    align = Controller.Sky.Lineup.status(id)
+    p = Pointing.pointing()
+    base = Application.get_env(:controller, :pointing, %{ha_sign: 1, dec_sign: -1})
+    off = Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0})
+    tracker = Controller.Sky.Tracker.status(id)
+
+    law =
+      cond do
+        align.solved? and align.n >= 3 -> {3, "sky · star-aligned", "gotos and tracking go through the fitted geometry of this mount"}
+        align.solved? -> {3, "sky · star-aligned (#{align.n} star#{if align.n == 1, do: "", else: "s"})", "steerable in the sky; a third star would grade it"}
+        abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01 -> {2, "sky · ideal geometry + sync offset", "assumes the mount is polar-aligned; one star fixed the offsets"}
+        true -> {2, "sky · ideal geometry", "assumes the mount is polar-aligned and zeroed upright; no correction yet"}
+      end
+
+    corrections =
+      [
+        if(align.solved?, do: align.axis_words),
+        if(align.solved? and align.rms_arcmin, do: "stars agree to #{fmt1(align.rms_arcmin)}′#{if align.good_for != [], do: " · good for " <> Enum.join(align.good_for, ", ")}"),
+        if(align.signs_corrected?, do: "an axis sign was corrected from the stars"),
+        if(not align.solved? and (abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01), do: "sync offset RA #{fmt1(off["ra"])}° · Dec #{fmt1(off["dec"])}°"),
+        if(p.ha_sign != base.ha_sign, do: "RA axis sign flipped"),
+        if(p.dec_sign != base.dec_sign, do: "Dec axis sign flipped")
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    tracking =
+      cond do
+        tracker && tracker.paused -> "model tracker on #{tracker.name} · paused while a hand is on a control"
+        tracker -> "model tracker on #{tracker.name} · RA #{fmt1(tracker.ra_rate)}× Dec #{fmt1(tracker.dec_rate)}×#{if tracker.error_arcmin, do: " · #{fmt1(tracker.error_arcmin)}′ off"}"
+        true -> nil
+      end
+
+    %{law: law, corrections: corrections, tracking: tracking}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -163,6 +208,20 @@ defmodule Controller.SetupLive do
         <.title>{@id} · Setup</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
+
+      <%!-- the one place to see what is steering the scope and what it is correcting for --%>
+      <.card title="How It's Steered" class="steering">
+        <:aside><.badge on={elem(@steering.law, 0) == 3}>law {elem(@steering.law, 0)}</.badge></:aside>
+        <div class="state-line">
+          <strong>{elem(@steering.law, 1)}</strong>
+          <span class="dim">{elem(@steering.law, 2)}</span>
+        </div>
+        <ul :if={@steering.corrections != []} class="checklist">
+          <li :for={c <- @steering.corrections}>{c}</li>
+        </ul>
+        <.kv label="tracking" value={@steering.tracking || (if @snap && @snap.tracking != :off, do: "mount's own #{@snap.tracking} rate on RA (law 2)", else: "not tracking")} />
+        <.hint>Law 1 is the raw axes (keypad, nudge, position — no correction). Law 2 is the sky through an ideal mount. Law 3 is the sky through this mount as the stars measured it. <.link navigate={~p"/bench/align?#{[mount: @id]}"}>Star Align</.link> raises it; <.link href={~p"/docs/align"}>the doc</.link> explains the numbers.</.hint>
+      </.card>
 
       <.card title="Zero the Axes">
         <:aside>

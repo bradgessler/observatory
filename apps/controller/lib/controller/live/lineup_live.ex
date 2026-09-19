@@ -210,7 +210,8 @@ defmodule Controller.LineupLive do
           <strong :if={@status.solved?}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · agree to {fmt(@status.rms_arcmin)}′</strong>
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 2} class="dim">not there yet — one star is probably off; see below</span>
+          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 2 and @status.rms_arcmin < 120} class="dim">not there yet — one star is probably off; see below</span>
+          <span :if={@status.solved? and @status.n >= 2 and @status.rms_arcmin >= 120} class="dim">these stars can't all be right (they disagree by {fmt(@status.rms_arcmin / 60)}°) — one isn't what you think it is; forget the one with the biggest "off by" below and do it again</span>
           <span :if={@status.signs_corrected?} class="dim">the stars said an axis was wired the other way round — sign corrected (shows under Modes)</span>
           <span :if={!@status.solved?} class="dim">gotos use the ideal geometry until you name a star</span>
         </div>

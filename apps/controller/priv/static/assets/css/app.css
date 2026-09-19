@@ -223,3 +223,42 @@ a.target { text-decoration: none; color: var(--text); }
 .object .go.big { padding: 18px; font-size: 18px; font-weight: 800; letter-spacing: .06em; }
 button:disabled { opacity: .4; }
 .object .go { border-color: var(--on); color: var(--on); }
+
+/* ---- OLED: true black ground, panels barely lifted; 8px grid ---- */
+:root { --bg: #000; --panel: #0a0c11; --edge: #171b25; --btn: #101318; --btn-press: #1a1f2a; }
+.night { --bg: #000; --panel: #080000; --edge: #220000; --btn: #0e0000; --btn-press: #1a0000; }
+html, body { background: #000; }
+
+/* ---- no tap flash / selection / callout on anything you press ---- */
+button, a.target, .btn-link, .help, .banner, .modes, .ro, .tabs button, .rate, .arrow, .stop, .stop-mini {
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+button:focus, a:focus { outline: none; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a.banner { text-decoration: none; display: block; }
+a.banner strong { color: var(--warn); }
+
+/* ---- modes strip: amber, always visible while any mode is on ---- */
+.modes { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 8px 12px; border: 1px solid #5a4a12; border-radius: 14px; color: #e0b64a; text-decoration: none; font-size: 12px; background: #0f0c04; }
+.night .modes { border-color: #4a1010; color: #ff7a7a; background: #0a0000; }
+.mode-badge strong { font-weight: 700; margin-right: 4px; }
+.mode-more { margin-left: auto; opacity: .8; }
+
+/* ---- setup + devices pages ---- */
+.setup, .devices { max-width: 560px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100dvh; }
+.setup header, .devices header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.setup header h1 { font-size: 13px; font-weight: 600; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin: 0; }
+.setup .card, .devices .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
+.setup h2, .devices h2 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 8px 0 -4px; }
+.line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mode { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--edge); }
+.mode > div { display: flex; flex-direction: column; gap: 2px; }
+.mode .dim { font-size: 13px; font-variant-numeric: tabular-nums; }
+.mode button { padding: 10px 16px; }
+.devices .state { border-color: var(--warn); }
+.devices .state.ok { border-color: var(--on); }
+.devices .state strong { font-size: 17px; }
+.devices .err { color: var(--warn); font-size: 13px; }
+.devices .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.devices .checklist ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--text); font-size: 14px; }
+.setup .dim, .devices .dim { color: var(--dim); font-size: 13px; }

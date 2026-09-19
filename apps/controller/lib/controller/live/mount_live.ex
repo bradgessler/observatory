@@ -168,12 +168,13 @@ defmodule Controller.MountLive do
         <h1 :if={map_size(@refs) <= 1}>{@selected || "no mount"}</h1>
         <span>
           <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">✦ sky</.link>
+          <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
           <.link href={~p"/docs/keypad"} class="ghost help">?</.link>
           <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
         </span>
       </header>
 
-      <p :if={@selected == "sim"} class="banner">No telescope connected — simulator. Plug in the EQDIR cable and the real mount takes over.</p>
+      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
 
       <%= if @snap && @snap.connected do %>
         <section class="readout">
@@ -216,24 +217,10 @@ defmodule Controller.MountLive do
         <section class="row">
           <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal">Track ☆</button>
           <button :if={@snap.tracking != :off} class="on" phx-click="track" phx-value-mode="off">Tracking ☆</button>
-          <button class="ghost more-toggle" phx-click="more">{if @more, do: "less ▴", else: "more ▾"}</button>
+          <.link navigate={~p"/setup/#{@selected}"} class="btn-link">Setup ›</.link>
         </section>
 
-        <section :if={@more} class="goto">
-          <form phx-submit="goto" class="row">
-            <input type="hidden" name="axis" value="ra" /><input type="hidden" name="sign" value="+" />
-            <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees to move" />
-            <button>RA +</button>
-          </form>
-          <div class="row">
-            <button phx-click="goto" phx-value-axis="ra" phx-value-sign="-" phx-value-deg={@goto_deg}>RA −</button>
-            <button phx-click="goto" phx-value-axis="dec" phx-value-sign="+" phx-value-deg={@goto_deg}>Dec +</button>
-            <button phx-click="goto" phx-value-axis="dec" phx-value-sign="-" phx-value-deg={@goto_deg}>Dec −</button>
-          </div>
-          <div class="row">
-            <button phx-click="home" data-confirm="Set the current position as home (counterweight down, scope at the pole)?">Set home</button>
-          </div>
-        </section>
+        <Controller.Components.Modes.modes modes={Controller.Modes.active()} id={@selected} />
       <% else %>
         <section class="empty">
           <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>

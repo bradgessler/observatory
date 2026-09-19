@@ -653,7 +653,8 @@ defmodule Controller.SkyLive do
         </span>
       </header>
 
-      <p :if={@selected == "sim"} class="banner">No telescope connected — simulator. Slews move a pretend mount.</p>
+      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
+      <Controller.Components.Modes.modes modes={Controller.Modes.active()} id={@selected} />
 
       <nav class="tabs">
         <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>
@@ -724,19 +725,12 @@ defmodule Controller.SkyLive do
         </form>
 
         <div class="photo">
-          <p class="horizon-hint">Calibration <.link href={~p"/docs/horizon"} class="help">?</.link></p>
-          <div class="row">
-            <button phx-click="flip" phx-value-what="ra">Flip RA ({@pointing.ha_sign})</button>
-            <button phx-click="flip" phx-value-what="dec">Flip Dec ({@pointing.dec_sign})</button>
-            <button phx-click="flip" phx-value-what="tracking">Flip tracking</button>
-          </div>
-          <div class="row">
-            <button class={@auto_track && "on"} phx-click="auto_track">{if @auto_track, do: "Auto-track: on", else: "Auto-track: off"}</button>
-            <button id="use-location" phx-hook="Geo">Use my location</button>
-          </div>
+          <p class="horizon-hint">Site <.link href={~p"/docs/horizon"} class="help">?</.link></p>
           <form phx-change="site" class="horizon">
             <label>lat<input name="lat" inputmode="decimal" value={@site.lat} /></label>
             <label>lon<input name="lon" inputmode="decimal" value={@site.lon} /></label>
+            <label>&nbsp;<button type="button" id="use-location" phx-hook="Geo" class="ro">Use my location</button></label>
+            <label>&nbsp;<.link navigate={~p"/setup/#{@selected}"} class="ro">Setup ›</.link></label>
           </form>
         </div>
 

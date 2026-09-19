@@ -67,6 +67,23 @@ defmodule Mount do
   @doc "Runtime knobs: `tracking_direction: :forward | :reverse`, `limits: map | nil`."
   def configure(ref, opts), do: call(ref, {:configure, opts})
 
+  # -- devices (local node) -------------------------------------------------------
+
+  @doc "Serial ports this machine sees, with what we make of each."
+  defdelegate ports, to: Mount.Discovery
+
+  @doc "Rescan USB right now."
+  defdelegate scan, to: Mount.Discovery
+
+  @doc "Start a driver on a specific serial port."
+  def connect_port(port), do: Mount.Discovery.add_port(port)
+
+  @doc "Stop a driver started by hand."
+  def disconnect_port(port), do: Mount.Discovery.remove_port(port)
+
+  @doc "Last scan time, hand-added ports, running ids."
+  defdelegate discovery_status, to: Mount.Discovery, as: :status
+
   def subscribe(%{id: id}), do: Telescope.subscribe("mount:#{id}")
   def subscribe(id), do: Telescope.subscribe("mount:#{id}")
 

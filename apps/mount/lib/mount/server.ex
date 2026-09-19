@@ -126,7 +126,10 @@ defmodule Mount.Server do
 
   def handle_call(:emergency_stop, _from, state) do
     state =
-      state |> send!("L", :both) |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds)})
+      state
+      |> send!("L", :ra)
+      |> send!("L", :dec)
+      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds)})
 
     {:reply, :ok, broadcast(refresh(state))}
   end
@@ -163,7 +166,8 @@ defmodule Mount.Server do
       state
       |> stop_axis(:ra)
       |> stop_axis(:dec)
-      |> send!("E", :both, P.from_int(P.center()))
+      |> send!("E", :ra, P.from_int(P.center()))
+      |> send!("E", :dec, P.from_int(P.center()))
       |> Map.merge(%{tracking: :off, homed: true})
 
     # Survives a driver restart (USB hiccup) within this VM; see connect/1.
@@ -287,7 +291,9 @@ defmodule Mount.Server do
          {:ok, fw, state} <- query(state, "e", :ra),
          {:ok, ra, state} <- read_axis_constants(state, :ra),
          {:ok, dec, state} <- read_axis_constants(state, :dec),
-         {:ok, _, state} <- query(state, "F", :both) do
+         # the EQ6-R doesn't answer axis "3" (both) for F — initialize one at a time
+         {:ok, _, state} <- query(state, "F", :ra),
+         {:ok, _, state} <- query(state, "F", :dec) do
       state = %{state | connected: true, error: nil, firmware: fw, axes: %{ra: ra, dec: dec}}
       state = refresh(state)
 

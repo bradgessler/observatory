@@ -75,6 +75,6 @@ defmodule Mount.Transport.Serial do
   end
 
   # enumerate/0 hands back bare names: "cu.usbserial-XXXX" on macOS, "ttyUSB0" on Linux.
-  defp device_path("/" <> _ = name), do: name
-  defp device_path(name), do: "/dev/" <> name
+  def device_path("/" <> _ = name), do: name
+  def device_path(name), do: "/dev/" <> name
 end

@@ -188,56 +188,50 @@ defmodule Controller.WatchLive do
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
-      <.card>
-        <%!-- what you are looking at, in one line, always --%>
-        <div class={["watch-bar", @video.state == :streaming && "live", @video.state == :error && "err", @busy && @video.state != :streaming && "wait"]} aria-live="polite">
-          <%= cond do %>
-            <% @video.state == :streaming -> %>
-              <b>LIVE VIDEO</b> <span>{@video.quality} · {behind_words(@tele)}{fps_words(@tele)}</span>
-            <% @video.state in [:starting, :restarting] -> %>
-              <b>STARTING VIDEO</b> <span>{@video.quality} · showing the last still meanwhile</span>
-            <% @video.state == :error -> %>
-              <b>VIDEO FAILED</b> <span>showing stills</span>
-            <% @frame -> %>
-              <b>STILL</b> <span>{Calendar.strftime(@frame.at, "%H:%M:%S")} UTC · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}</span>
-            <% true -> %>
-              <b>NO PICTURE</b> <span>{if @status.tool, do: "capture a still or start video", else: "no capture tool on this machine"}</span>
-          <% end %>
-        </div>
+      <%!-- one picture: the latest still, or the video once it plays --%>
+      <div class="watch-frame">
+        <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
+        <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
+        <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
+        <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m={@quality} aria-label="play live video">Play</button>
+      </div>
 
-        <%!-- one picture: the latest still, or the video once it plays --%>
-        <div class="watch-frame">
-          <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
-          <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
-          <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
-          <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m={@quality} aria-label="play live video">Play</button>
-        </div>
+      <%!-- one quiet line: what this picture is --%>
+      <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]} aria-live="polite">
+        <%= cond do %>
+          <% @video.state == :streaming -> %>
+            Live · {@video.quality} · {behind_words(@tele)}{fps_words(@tele)}
+          <% @video.state in [:starting, :restarting] -> %>
+            Starting video · last still meanwhile
+          <% @video.state == :error -> %>
+            Video didn't start · <.link navigate={~p"/controls/watch/camera"}>why</.link>
+          <% @player && elem(@player, 0) in ["unsupported", "noscript", "error"] -> %>
+            This browser couldn't play the video
+          <% @frame -> %>
+            Still · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}
+          <% true -> %>
+            {if @status.tool, do: "No picture yet", else: "No camera tool on this machine"}
+        <% end %>
+      </p>
 
-        <%!-- the state is the selected segment: Off means stills --%>
-        <div class="seg seg-4" role="radiogroup" aria-label="picture source">
-          <button class={["seg-opt", !@busy && "on"]} phx-click="mode" phx-value-m="off" role="radio" aria-checked={to_string(!@busy)}>Stills</button>
-          <button
-            :for={r <- @ladder}
-            class={["seg-opt", @busy and Atom.to_string(r.id) == @quality && "on"]}
-            phx-click="mode"
-            phx-value-m={r.id}
-            disabled={!r.available?}
-            role="radio"
-            aria-checked={to_string(@busy and Atom.to_string(r.id) == @quality)}
-          >{r.label}<small>{Video.Ladder.size_string(r.size)}</small></button>
-        </div>
+      <%!-- the state is the selected segment --%>
+      <div class="seg seg-4" role="radiogroup" aria-label="picture source">
+        <button class={["seg-opt", !@busy && "on"]} phx-click="mode" phx-value-m="off" role="radio" aria-checked={to_string(!@busy)}>Stills</button>
+        <button
+          :for={r <- @ladder}
+          class={["seg-opt", @busy and Atom.to_string(r.id) == @quality && "on"]}
+          phx-click="mode"
+          phx-value-m={r.id}
+          disabled={!r.available?}
+          role="radio"
+          aria-checked={to_string(@busy and Atom.to_string(r.id) == @quality)}
+        >{r.label}</button>
+      </div>
 
-        <.hint :if={@video.state == :error}>The camera didn't start. <.link navigate={~p"/controls/watch/camera"}>Camera page</.link> has the details.</.hint>
-        <.hint :if={@player && elem(@player, 0) in ["unsupported", "noscript", "error"]}>This browser couldn't play the video. Safari, Chrome, Firefox and Edge all can.</.hint>
-
-        <.row>
-          <.btn phx-click="capture" disabled={is_nil(@status.tool) or @busy}>Capture now</.btn>
-          <.btn navigate={~p"/controls/watch/frames"}>Recent frames{if @summary.count > 0, do: " · #{@summary.count}"} →</.btn>
-        </.row>
-        <.row>
-          <.btn navigate={~p"/controls/watch/camera"} class="btn-ghost">Camera, sizes, timing →</.btn>
-        </.row>
-      </.card>
+      <p class="watch-links">
+        <.link navigate={~p"/controls/watch/frames"}>Recent frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>
+        <.link navigate={~p"/controls/watch/camera"}>Camera</.link>
+      </p>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
     </.page>

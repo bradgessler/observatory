@@ -528,3 +528,13 @@ a.banner strong { color: var(--warn); }
 .watch-bar { flex-wrap: wrap; min-width: 0; row-gap: 2px; }
 .watch-bar span { overflow-wrap: anywhere; }
 .page .card { min-width: 0; max-width: 100%; }
+
+/* ---- watch, stripped: picture, a caption, a switch, two links ---- */
+.watch-cap { margin: 0; font-size: 13px; color: var(--dim); text-align: center; font-variant-numeric: tabular-nums; }
+.watch-cap.live { color: var(--on); }
+.watch-cap.err { color: var(--warn); }
+.watch-cap a { color: inherit; text-decoration: underline; }
+.watch-links { margin: 0; display: flex; justify-content: center; gap: 24px; font-size: 14px; }
+.watch-links a { color: var(--dim); text-decoration: none; }
+#watch .watch-frame { margin-top: 0; }
+#watch .seg { max-width: 360px; width: 100%; margin: 0 auto; }

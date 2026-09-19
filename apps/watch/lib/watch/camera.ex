@@ -108,8 +108,11 @@ defmodule Watch.Camera do
   # seconds; take that rather than fight it for the device.
   defp do_capture(s) do
     case {streamed_still(), s.video} do
-      {{:ok, jpeg}, _} ->
-        keep(s, jpeg, "stream")
+      {{:ok, jpeg, taken_at}, _} ->
+        # the encoder's still is up to a few seconds old: stamp it with when
+        # it was really taken, so anyone waiting for a frame *after* a move
+        # (the axis scan) is not fooled
+        if same_as_last?(taken_at), do: %{s | last_error: nil}, else: keep(s, jpeg, "stream", taken_at)
 
       # never open the camera with a second process while the encoder has it:
       # macOS renegotiates the shared capture format and the stream comes out
@@ -122,10 +125,17 @@ defmodule Watch.Camera do
     end
   end
 
+  defp same_as_last?(taken_at) do
+    case latest() do
+      %{at: at, device: "stream"} -> DateTime.compare(at, taken_at) == :eq
+      _ -> false
+    end
+  end
+
   defp streamed_still do
     try do
       case Video.snapshot() do
-        {:ok, jpeg} -> {:ok, jpeg}
+        {:ok, jpeg, at} -> {:ok, jpeg, at}
         _ -> :none
       end
     catch
@@ -168,8 +178,8 @@ defmodule Watch.Camera do
     end
   end
 
-  defp keep(s, jpeg, device) do
-    frame = %{jpeg: jpeg, at: DateTime.utc_now(), device: device, bytes: byte_size(jpeg)}
+  defp keep(s, jpeg, device, at \\ DateTime.utc_now()) do
+    frame = %{jpeg: jpeg, at: at, device: device, bytes: byte_size(jpeg)}
     :persistent_term.put({__MODULE__, :latest}, frame)
     # the recent past on disk; a failure there never loses the live frame
     try do

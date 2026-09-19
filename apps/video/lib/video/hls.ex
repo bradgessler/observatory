@@ -38,7 +38,7 @@ defmodule Video.HLS do
   @doc "The ladder with `available?` filled in for the selected camera."
   def qualities, do: GenServer.call(__MODULE__, :qualities, 15_000)
 
-  @doc "Latest still the encoder wrote, if streaming and fresh."
+  @doc "Latest still the encoder wrote, if streaming and fresh: `{:ok, jpeg, taken_at}` — the file's own time, not now."
   def snapshot do
     case status() do
       %{state: :streaming, quality: q} ->
@@ -47,7 +47,7 @@ defmodule Video.HLS do
         with {:ok, %{mtime: mtime}} <- File.stat(path, time: :posix),
              true <- System.os_time(:second) - mtime < @still_every_s * 3,
              {:ok, jpeg} when byte_size(jpeg) > 1_000 <- File.read(path) do
-          {:ok, jpeg}
+          {:ok, jpeg, DateTime.from_unix!(mtime)}
         else
           _ -> {:error, :stale}
         end

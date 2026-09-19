@@ -171,6 +171,8 @@ defmodule Controller.MountLive do
         </span>
       </header>
 
+      <p :if={@selected == "sim"} class="banner">No telescope connected — this is a simulator. Plug the EQDIR cable into this machine and the real mount replaces it within a few seconds.</p>
+
       <%= if @snap && @snap.connected do %>
         <section class="readout">
           <div class="axis">

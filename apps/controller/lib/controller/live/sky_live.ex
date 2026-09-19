@@ -637,6 +637,8 @@ defmodule Controller.SkyLive do
         </span>
       </header>
 
+      <p :if={@selected == "sim"} class="banner">No telescope connected — simulator. Slews move a pretend mount.</p>
+
       <nav class="tabs">
         <button :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} class={t == @tab && "on"} phx-click="tab" phx-value-tab={t}>{label}</button>
       </nav>

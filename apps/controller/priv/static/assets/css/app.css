@@ -169,3 +169,5 @@ button, .map, .dpad { -webkit-touch-callout: none; }
 .hdr-actions { display: flex; align-items: center; gap: 6px; }
 .stop-mini { border: 2px solid var(--warn); color: var(--warn); font-weight: 800; letter-spacing: .08em; padding: 8px 14px; border-radius: 999px; font-size: 13px; }
 .stop-mini:active { background: var(--warn); color: var(--bg); }
+.banner { margin: 0; padding: 10px 14px; border: 1px solid var(--warn); border-radius: 12px; color: var(--warn); font-size: 13px; }
+.sky .banner { grid-column: 1 / -1; }

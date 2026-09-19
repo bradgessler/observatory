@@ -112,6 +112,18 @@ defmodule Controller.SurfacesTest do
     Controller.Sky.Lineup.clear(id)
   end
 
+  test "line up: the forget button really forgets (clicked through the DOM, not the handler)", %{conn: conn, id: id} do
+    Controller.Sky.Lineup.clear(id)
+    {:ok, view, _} = live(conn, "/controls/lineup/#{id}")
+    render_click(view, "home", %{})
+    [c | _] = Controller.Sky.Lineup.candidates(id, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
+    render_click(view, "centred", %{"id" => c.id})
+    assert Controller.Sky.Lineup.status(id).n == 1
+    view |> element("button[phx-click=drop]") |> render_click()
+    assert Controller.Sky.Lineup.status(id).n == 0
+    Controller.Sky.Lineup.clear(id)
+  end
+
   test "line up: hold what I'm on starts the tracker, stop holding ends it", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
     {:ok, view, _} = live(conn, "/controls/lineup/#{id}")

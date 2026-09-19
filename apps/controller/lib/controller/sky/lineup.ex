@@ -87,7 +87,8 @@ defmodule Controller.Sky.Lineup do
       residuals_arcmin: Map.get(entry, "residuals_arcmin", []),
       axis_off_deg: m && Model.axis_error(m, lat),
       axis_words: m && axis_words(m, lat),
-      good_for: if(rms, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
+      # one or two stars fit exactly whatever they are; only three or more can be judged
+      good_for: if(rms && n >= 3, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
       signs_corrected?: Map.get(entry, "signs_corrected", false),
       solved?: m != nil
     }

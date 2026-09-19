@@ -169,7 +169,7 @@ defmodule Controller.LineupLive do
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
   defp words_after(%{n: 1}, star), do: "#{star.name} noted · one star: gotos will be roughly right · do a second, far from this one"
-  defp words_after(%{n: 2} = st, _), do: "two stars · agree to #{fmt(st.rms_arcmin)}′ · the mount can be steered now; a third says how well"
+  defp words_after(%{n: 2}, _), do: "two stars · the mount can be steered now; a third says how well"
   defp words_after(st, _), do: "#{st.n} stars · agree to #{fmt(st.rms_arcmin)}′ · #{Enum.join(st.good_for, ", ") |> then(&if(&1 == "", do: "keep going", else: "good for " <> &1))}"
 
   defp put_notice(socket, text), do: assign(socket, notice: text)
@@ -207,10 +207,12 @@ defmodule Controller.LineupLive do
       <.card :if={@status} class={"lineup-status#{if @status.solved?, do: " ok", else: ""}"}>
         <div class="state-line">
           <strong :if={!@status.solved?}>Not lined up</strong>
-          <strong :if={@status.solved?}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · agree to {fmt(@status.rms_arcmin)}′</strong>
+          <strong :if={@status.solved? and @status.n >= 3}>{@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
+          <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · lined up, not yet checked</strong>
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 2 and @status.rms_arcmin < 120} class="dim">not there yet — one star is probably off; see below</span>
+          <span :if={@status.solved? and @status.n < 3} class="dim">{if @status.n == 1, do: "one star sets the offsets; a second, far away, pins the axis; a third says how good it is", else: "two stars: the mount can be steered now; a third tells you how well"}</span>
+          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and @status.rms_arcmin < 120} class="dim">not there yet — one star is probably off; see below</span>
           <span :if={@status.solved? and @status.n >= 2 and @status.rms_arcmin >= 120} class="dim">these stars can't all be right (they disagree by {fmt(@status.rms_arcmin / 60)}°) — one isn't what you think it is; forget the one with the biggest "off by" below and do it again</span>
           <span :if={@status.signs_corrected?} class="dim">the stars said an axis was wired the other way round — sign corrected (shows under Modes)</span>
           <span :if={!@status.solved?} class="dim">gotos use the ideal geometry until you name a star</span>

@@ -153,7 +153,8 @@ defmodule Controller.Components.UI do
   attr :variant, :string, default: "default"
   attr :on, :boolean, default: false
   attr :class, :string, default: nil
-  attr :rest, :global, include: ~w(phx-click phx-value-port phx-value-what phx-value-axis phx-value-sign phx-value-deg phx-value-mode phx-value-rate phx-value-id disabled type data-confirm phx-hook form)
+  # phx-value-* are NOT global attributes: every one a caller uses must be listed here or it is silently dropped
+  attr :rest, :global, include: ~w(data-confirm disabled form phx-click phx-hook phx-value-axis phx-value-az phx-value-deg phx-value-dir phx-value-fps phx-value-i phx-value-id phx-value-m phx-value-mode phx-value-name phx-value-on phx-value-port phx-value-q phx-value-rate phx-value-sign phx-value-tab phx-value-what type)
   slot :inner_block, required: true
 
   def btn(assigns) do

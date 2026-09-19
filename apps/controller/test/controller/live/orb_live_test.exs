@@ -22,8 +22,8 @@ defmodule Controller.OrbLiveTest do
       assert has_element?(view, "#orb-ax-scope")
       assert html =~ "pole"
       assert html =~ "scope"
-      assert html =~ "around the polar axis"
-      assert html =~ "around the dec axis"
+      assert html =~ "RA · polar axis"
+      assert html =~ "Dec axis"
       assert html =~ "STOP"
       assert html =~ "eyepiece mode: later"
     end
@@ -60,9 +60,9 @@ defmodule Controller.OrbLiveTest do
       assert_receive {:mount, %{axes: %{dec: %{running: true, deg_per_s: v}}}} when v != 0.0, 2_000
       html = render(view)
       assert has_element?(view, "#orb-ax-dec.running")
-      assert has_element?(view, "path.spin-dec")
+      assert has_element?(view, "path.orbit-dec")
       assert html =~ ~r/[↻↺] \d+×/
-      refute has_element?(view, "path.spin-ra")
+      refute has_element?(view, "path.orbit-ra")
     end
 
     test "STOP is an instant stop", %{conn: conn, id: id} do

@@ -407,3 +407,22 @@ a.banner strong { color: var(--warn); }
   .orb-page .orb-card { grid-row: span 2; }
   .orb-page .orb-svg { max-width: 440px; }
 }
+
+/* ---- orb: motion as one arrowhead lapping the axis; strips wear their axis colour ---- */
+.orb-svg .orbit { fill: none; stroke-width: .7; opacity: .35; }
+.orb-svg .orbit-ra { stroke: var(--accent); }
+.orb-svg .orbit-dec { stroke: var(--on); }
+.orb-svg .orbit-head { stroke: none; }
+.orb-svg .orbit-head-ra { fill: var(--accent); }
+.orb-svg .orbit-head-dec { fill: var(--on); }
+@media (prefers-reduced-motion: reduce) { .orb-svg .orbit-head { display: none; } .orb-svg .orbit { opacity: .7; } }
+.strip.strip-ra { border-color: color-mix(in srgb, var(--accent) 55%, var(--edge)); }
+.strip.strip-dec { border-color: color-mix(in srgb, var(--on) 55%, var(--edge)); }
+.strip.strip-ra.live { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.strip.strip-dec.live { border-color: var(--on); box-shadow: inset 0 0 0 1px var(--on); }
+.strip .strip-only { grid-column: 1 / -1; justify-self: center; flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); }
+.strip .strip-only b { font-size: 13px; color: var(--dim); font-weight: 500; }
+.strip .strip-only b:empty { display: none; }
+.strip-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.strip-dot.ra { background: var(--accent); }
+.strip-dot.dec { background: var(--on); }

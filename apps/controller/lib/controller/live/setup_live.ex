@@ -54,7 +54,9 @@ defmodule Controller.SetupLive do
       offset: Settings.get("pointing_offset", %{"ra" => 0.0, "dec" => 0.0}),
       tracking_direction: Settings.get("tracking_direction", "forward"),
       auto_track: Settings.get("auto_track", true),
-      limits: Application.get_env(:mount, :limits)
+      limits: Application.get_env(:mount, :limits),
+      mount_tilt: Settings.get("mount_tilt_deg", Pointing.site().lat),
+      mount_heading: Settings.get("mount_heading_deg", 0)
     )
   end
 
@@ -109,6 +111,17 @@ defmodule Controller.SetupLive do
     Settings.put("tracking_direction", dir)
     if socket.assigns.ref, do: safe(fn -> Mount.configure(socket.assigns.ref, tracking_direction: String.to_atom(dir)) end)
     {:noreply, socket |> assign(notice: "tracking direction: #{dir}") |> load()}
+  end
+
+  # The physical mount: latitude knob and which way the tripod's north leg points.
+  def handle_event("mount_geom", %{"tilt" => t, "heading" => h}, socket) do
+    with {tilt, _} <- Float.parse(t), {heading, _} <- Float.parse(h), true <- tilt >= 0 and tilt <= 90 do
+      Settings.put("mount_tilt_deg", tilt)
+      Settings.put("mount_heading_deg", heading)
+      {:noreply, load(socket)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("auto_track", _, socket) do
@@ -193,6 +206,14 @@ defmodule Controller.SetupLive do
         </.setting>
         <.setting label="Soft limits from home" value={"RA #{lim(@limits, :ra)} · Dec #{lim(@limits, :dec)}"} />
         <.btn variant="ghost" phx-click="reset_pointing">Reset pointing to defaults</.btn>
+      </.card>
+
+      <.card title="Mount as it stands">
+        <.hint>What the orb draws. Tilt is the latitude knob on the mount (30° on the bench); heading is where the tripod's north leg points, degrees east of true north. Defaults: site latitude, 0.</.hint>
+        <form phx-change="mount_geom" class="horizon">
+          <label>tilt °<input name="tilt" inputmode="decimal" value={@mount_tilt} class="field" /></label>
+          <label>heading °<input name="heading" inputmode="decimal" value={@mount_heading} class="field" /></label>
+        </form>
       </.card>
 
       <.row>

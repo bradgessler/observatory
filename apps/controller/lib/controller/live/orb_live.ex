@@ -146,6 +146,18 @@ defmodule Controller.OrbLive do
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
+  # Stand somewhere else to look at the orb (to match where the webcam is).
+  def handle_event("view", %{"az" => az}, socket) do
+    case Float.parse(az) do
+      {a, _} ->
+        Controller.Settings.put("orb_view_az", a)
+        {:noreply, assign(socket, view_az: a)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
@@ -209,23 +221,25 @@ defmodule Controller.OrbLive do
         </.card>
 
         <section class="eq">
-          <div class="strip" id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="application" aria-label="pull left or right to turn around the polar axis">
-            <span class="strip-end">◀ E</span>
-            <span class="strip-mid">around the polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "RA"}</b></span>
-            <span class="strip-end">W ▶</span>
+          <%!-- each strip wears its axis's colour: this one turns that one --%>
+          <div class={["strip", "strip-ra", :ra in @held && "live"]} id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="application" aria-label="pull left or right to turn around the polar axis">
+            <span class="strip-mid strip-only"><i class="strip-dot ra"></i>RA · polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
             <div class="knob knob-h" data-knob></div>
           </div>
 
-          <div class="strip" id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="application" aria-label="pull left or right to turn around the declination axis">
-            <span class="strip-end">◀ toward pole</span>
-            <span class="strip-mid">around the dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "Dec"}</b></span>
-            <span class="strip-end">away ▶</span>
+          <div class={["strip", "strip-dec", :dec in @held && "live"]} id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="application" aria-label="pull left or right to turn around the declination axis">
+            <span class="strip-mid strip-only"><i class="strip-dot dec"></i>Dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
             <div class="knob knob-h" data-knob></div>
           </div>
         </section>
 
         <button class="stop-bar" phx-click="estop">STOP</button>
 
+        <%!-- where you're standing; pick the one that matches the camera or your own spot --%>
+        <% view = Controller.Settings.get("orb_view_az", 150.0) / 1 %>
+        <div class="seg seg-4" role="radiogroup" aria-label="view the orb from">
+          <button :for={{lbl, az} <- [{"from S", 150.0}, {"from E", 60.0}, {"from N", 330.0}, {"from W", 240.0}]} class={["seg-opt", abs(view - az) < 1 && "on"]} phx-click="view" phx-value-az={az} role="radio" aria-checked={to_string(abs(view - az) < 1)}>{lbl}</button>
+        </div>
         <a class="orb-later" aria-disabled="true">eyepiece mode: later</a>
 
         <Controller.Components.Modes.modes modes={@modes} id={@selected} />
@@ -272,7 +286,13 @@ defmodule Controller.OrbLive do
         class={["ax", "ax-ra", @scene.ra.running && "running", :ra in @held && "live"]} />
       <circle cx={px(@scene.ra.head)} cy={py(@scene.ra.head)} r="3.2" class="end-ra" />
       <text x={px(@scene.ra.head) + 6} y={py(@scene.ra.head) - 4} class="lbl lbl-ra">pole · {fmt0(@scene.lat)}°</text>
-      <path :if={@scene.ra.spin} d={@scene.ra.spin} class="spin spin-ra" marker-end="url(#orb-head-ra)" />
+      <%!-- reported motion: a single arrowhead laps the axis in the direction it turns --%>
+      <g :if={@scene.ra.spin}>
+        <path id="orbit-ra" d={@scene.ra.spin} class="orbit orbit-ra" />
+        <polygon :for={{dur, begin} <- orbit_heads(orbit_dur(@scene.ra.rate))} points="-3.2,-2.2 3.2,0 -3.2,2.2" class="orbit-head orbit-head-ra">
+          <animateMotion dur={dur} begin={begin} repeatCount="indefinite" rotate="auto"><mpath href="#orbit-ra" /></animateMotion>
+        </polygon>
+      </g>
 
       <%!-- 2 · dec axis: square to the polar axis, turned with it; a square at its end --%>
       <line x1="0" y1="0" x2={px(@scene.dec.tail)} y2={py(@scene.dec.tail)} class="ax ax-dec tail" />
@@ -280,7 +300,12 @@ defmodule Controller.OrbLive do
         class={["ax", "ax-dec", @scene.dec.running && "running", :dec in @held && "live"]} />
       <rect x={px(@scene.dec.head) - 3} y={py(@scene.dec.head) - 3} width="6" height="6" class="end-dec" />
       <text x={px(@scene.dec.head) + 6} y={py(@scene.dec.head) + 3} class="lbl lbl-dec">dec</text>
-      <path :if={@scene.dec.spin} d={@scene.dec.spin} class="spin spin-dec" marker-end="url(#orb-head-dec)" />
+      <g :if={@scene.dec.spin}>
+        <path id="orbit-dec" d={@scene.dec.spin} class="orbit orbit-dec" />
+        <polygon :for={{dur, begin} <- orbit_heads(orbit_dur(@scene.dec.rate))} points="-3.2,-2.2 3.2,0 -3.2,2.2" class="orbit-head orbit-head-dec">
+          <animateMotion dur={dur} begin={begin} repeatCount="indefinite" rotate="auto"><mpath href="#orbit-dec" /></animateMotion>
+        </polygon>
+      </g>
 
       <%!-- 3 · the tube: a crosshair where it points --%>
       <line id="orb-ax-scope" x1="0" y1="0" x2={px(@scene.scope.pt)} y2={py(@scene.scope.pt)} class="ax ax-scope" />
@@ -315,8 +340,13 @@ defmodule Controller.OrbLive do
     h = (ra.degrees - off["ra"]) * p.ha_sign
     d = (dec.degrees - off["dec"]) * p.dec_sign
 
-    pole = {0.0, cos(lat), sin(lat)}
-    east = {1.0, 0.0, 0.0}
+    # The physical mount, not the ideal one: its latitude knob may not match the
+    # site (30° on the bench indoors) and its "north" is wherever the tripod
+    # points. Both are settings; defaults are the site latitude and true north.
+    tilt = Controller.Settings.get("mount_tilt_deg", lat) / 1
+    heading = Controller.Settings.get("mount_heading_deg", 0) / 1
+    pole = {sin(heading) * cos(tilt), cos(heading) * cos(tilt), sin(tilt)}
+    east = {cos(heading), -sin(heading), 0.0}
     dec_axis = rotate(east, pole, -h)
     scope_model = pole |> rotate(east, d) |> rotate(pole, -h)
 
@@ -385,9 +415,10 @@ defmodule Controller.OrbLive do
   # A right-handed turn about an axis pointing away from the viewer reads clockwise.
   defp glyph(axis, sense, {f, _, _}), do: if((sense > 0) == (dot(axis, f) > 0), do: "↻", else: "↺")
 
+  # Where you stand to look at the orb. A setting, so it can match the webcam.
   defp camera do
     e = @cam_el * @deg
-    a = @cam_az * @deg
+    a = (Controller.Settings.get("orb_view_az", @cam_az) / 1) * @deg
     pos = {cos_r(e) * :math.sin(a), cos_r(e) * :math.cos(a), :math.sin(e)}
     f = neg(pos)
     r = normalize(cross(f, {0.0, 0.0, 1.0}))
@@ -427,18 +458,26 @@ defmodule Controller.OrbLive do
     %{front: front |> Enum.reverse() |> Enum.join(" "), back: back |> Enum.reverse() |> Enum.join(" ")}
   end
 
-  # A 300° arc around `axis`, turning in `sense` (+1 right-handed), placed `c`
-  # of the way out along it with radius `rr`; the path runs the way the axis turns.
+  # A full circle around `axis`, turning in `sense` (+1 right-handed), placed `c`
+  # of the way out along it with radius `rr`. The path runs the way the axis
+  # turns, so an arrowhead animated along it shows the direction of rotation.
   defp spin(axis, sense, c, rr, cam) do
     {u1, u2} = perps(axis)
     centre = scale(axis, c)
 
-    Enum.map_join(0..30, "", fn i ->
-      t = (30 + i * 10) * @deg
+    Enum.map_join(0..36, "", fn i ->
+      t = i * 10 * @deg
       v = add(centre, add(scale(u1, rr * :math.cos(t)), scale(u2, sense * rr * :math.sin(t))))
       if(i == 0, do: "M", else: "L") <> pt(project(v, cam))
-    end)
+    end) <> "Z"
   end
+
+  # One lap per `dur` seconds: faster axis, faster arrows, within reason.
+  defp orbit_dur(rate_x) when rate_x <= 0, do: 4.0
+  defp orbit_dur(rate_x), do: Float.round((6.0 / :math.pow(max(rate_x, 1.0), 0.45)) |> max(0.6) |> min(6.0), 2)
+
+  # three arrowheads a third of a lap apart (a negative begin sets the phase)
+  defp orbit_heads(dur), do: for(i <- 0..2, do: {"#{dur}s", "-#{Float.round(dur * i / 3, 2)}s"})
 
   defp marks(cam) do
     for {lbl, v, dx, dy} <- [

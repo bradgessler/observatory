@@ -67,3 +67,5 @@
 /* ---- plain keypad ---- */
 .dpad .arrow.live { border-color: var(--on); color: var(--on); }
 .dpad .arrow.pressed { background: var(--btn-press); }
+.seg.seg-4 { grid-template-columns: repeat(4, 1fr); }
+.seg.seg-4 .seg-opt { padding: 10px 6px; font-size: 13px; }

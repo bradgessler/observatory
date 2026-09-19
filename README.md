@@ -58,6 +58,30 @@ The Pi comes up as `telescope.local`.
 * `ssh telescope.local` drops you in an IEx shell; `Firmware.status()` shows
   interfaces and mounts.
 
+### The web UI (`apps/controller`)
+
+`mix phx.server` at the repo root, then open `http://<this-machine>:4000` on a
+phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any size.
+
+* **Keypad** `/` — press-and-hold D-pad, rates 1×–800×, STOP, Track, Set home,
+  ±° gotos, emergency stop. Arrow keys + space on a keyboard.
+* **Sky** `/sky` — the sky right now from your site: stars to mag 5, Messier and
+  named DSOs, constellation lines, Moon and planets. Tap anything → **Slew**.
+  No finder? **Search** spirals around the target until you see it; **Sync**
+  teaches the pointing model where it really is.
+  * **Tonight** — what's above *your* tree line over the next two hours, ranked
+    for this scope and this sky (aperture → limiting magnitude, Moon up/phase,
+    crowd-pleaser bias), each with plain words instead of a magnitude number.
+    Top five, then the rest. Picking one rings it on the map.
+  * **Horizon** — the tree line per compass direction, the scope's aperture,
+    and **map obstructions from a photo**: take a Night-mode shot of the sky
+    with the trees in frame, pick it, and the boundary is traced on your phone
+    and plate-solved (needs a free `NOVA_API_KEY` from nova.astrometry.net)
+    into that direction's horizon.
+
+Settings persist in `~/.observatory/settings.json`. Site and the pointing
+model's axis signs live in `config/config.exs` (`:controller`).
+
 ### Drive it from a laptop
 
 ```sh

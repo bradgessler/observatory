@@ -84,3 +84,9 @@
 }
 .mode-chip { border-color: #5a4a12; }
 .night .mode-chip { border-color: #4a1010; }
+
+/* the chosen segment is filled, not merely tinted */
+.seg-opt.on { background: var(--accent); color: #fff; }
+.seg-opt.on small { color: #fff; opacity: .85; }
+.seg-opt.seg-live.on { background: var(--warn); color: #000; box-shadow: none; }
+.night .seg-opt.on { background: #7a0000; color: #fff; }

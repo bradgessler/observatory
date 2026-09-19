@@ -80,7 +80,8 @@ defmodule Video.HLS do
        error: nil,
        encoder: nil,
        modes: nil,
-       fps: @default_fps
+       fps: @default_fps,
+       fell_back_from: nil
      }}
   end
 
@@ -111,12 +112,12 @@ defmodule Video.HLS do
 
       true ->
         fps = if opts[:fps] in @fps_choices, do: opts[:fps], else: s.fps
-        s = %{s | fps: fps} |> kill() |> launch(quality.id)
+        s = %{s | fps: fps, fell_back_from: nil} |> kill() |> launch(quality.id)
         {:reply, :ok, s}
     end
   end
 
-  def handle_call(:stop, _from, s), do: {:reply, :ok, s |> kill() |> Map.merge(%{state: :off, error: nil}) |> announce()}
+  def handle_call(:stop, _from, s), do: {:reply, :ok, s |> kill() |> Map.merge(%{state: :off, error: nil, fell_back_from: nil}) |> announce()}
 
   @impl true
   def handle_info({port, {:data, data}}, %{port: port} = s) do
@@ -147,7 +148,17 @@ defmodule Video.HLS do
         {:noreply, announce(%{s | state: :streaming, ready: true, restarts: 0, error: nil})}
 
       System.monotonic_time(:millisecond) - s.started_at > @warmup_ms ->
-        {:noreply, s |> kill() |> Map.merge(%{state: :error, error: "no playlist after #{div(@warmup_ms, 1000)} s: #{first_interesting(s.log)}"}) |> announce()}
+        reason = "no playlist after #{div(@warmup_ms, 1000)} s: #{first_interesting(s.log)}"
+
+        case lower(s.quality) do
+          # the camera would not deliver this size: try the next one down, once
+          lower when lower != nil and :erlang.map_get(:fell_back_from, s) == nil ->
+            Logger.warning("video: #{s.quality} produced nothing (#{reason}); falling back to #{lower}")
+            {:noreply, s |> kill() |> Map.put(:fell_back_from, s.quality) |> launch(lower)}
+
+          _ ->
+            {:noreply, s |> kill() |> Map.merge(%{state: :error, error: reason}) |> announce()}
+        end
 
       true ->
         Process.send_after(self(), :poll, @poll_ms)
@@ -212,9 +223,11 @@ defmodule Video.HLS do
     })
   end
 
-  # Auto: the largest rung this camera reports, capped at 2K — 4K is a choice,
-  # not a default. Unknown modes (Linux) mean 1K, which every camera does.
-  @auto_cap :"2k"
+  # Auto: the largest rung this camera reports, capped at 1K. Every camera
+  # does 720p, it is cheap to encode on a small machine, and it is plenty for
+  # watching a mount; bigger sizes are a choice on the Camera page. (Some
+  # cameras advertise 1080p and then deliver frames without timestamps.)
+  @auto_cap :"1k"
   defp auto_rung(s) do
     modes = s.modes || Source.impl().modes(s.device)
     s = %{s | modes: modes}
@@ -253,6 +266,14 @@ defmodule Video.HLS do
 
   defp wrapper, do: Path.join(:code.priv_dir(:video), "wrap.sh")
 
+  defp lower(q) do
+    ids = Ladder.ids()
+    case Enum.find_index(ids, &(&1 == q)) do
+      i when is_integer(i) and i > 0 -> Enum.at(ids, i - 1)
+      _ -> nil
+    end
+  end
+
   # Two segments in the playlist is enough for a player to start.
   defp playlist_ready?(quality) do
     case File.read(Path.join(dir(quality), "index.m3u8")) do
@@ -275,7 +296,9 @@ defmodule Video.HLS do
       ready: s.ready,
       error: s.error,
       encoder: s.encoder,
-      fps: s.fps,
+      fps: Map.get(s, :fps, @default_fps),
+      # Map.get: a hot reload must never crash a running encoder over a new key
+      fell_back_from: Map.get(s, :fell_back_from),
       playlist: if(s.ready, do: "#{s.quality}/index.m3u8"),
       log: Enum.take(s.log, 5),
       supported_modes: s.modes,

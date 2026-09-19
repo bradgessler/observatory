@@ -71,6 +71,17 @@ page has STOP. The driver exits and restarts on a lost serial link, and stops
 both axes on every (re)connect and in `terminate/2`, so a restart can never
 inherit motion.
 
+**Every crash is a gap in the supervision tree.** Flaky cables, cameras that
+stop delivering frames, encoders that hang, a pad unplugged mid-slew: reality
+will try to take the stack down all night. Each piece of hardware and each
+workload is its own process under its own supervisor with restart limits,
+and a failure there is *contained*: the mount keeps working when the camera
+dies, the stills keep coming when the encoder dies, and the page says what
+is down in one calm line. When something crashes, the fix is never just the
+bug — it is also the missing boundary that let one failure become two, and
+the missing "keeps crashing, giving up" step (restart budget, then a clear
+message and a manual path).
+
 **Only fresh intent moves the scope.** (From the night the pad kept the mount
 moving after the hand let go: a mapper fell behind and replayed a mailbox of
 stale "trigger held" reports, each one re-feeding the deadman.) Every input

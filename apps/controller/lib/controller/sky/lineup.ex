@@ -87,6 +87,7 @@ defmodule Controller.Sky.Lineup do
       axis_off_deg: m && Model.axis_error(m, lat),
       axis_words: m && axis_words(m, lat),
       good_for: if(rms, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
+      signs_corrected?: Map.get(entry, "signs_corrected", false),
       solved?: m != nil
     }
   end
@@ -100,9 +101,11 @@ defmodule Controller.Sky.Lineup do
       Enum.map(samples, fn s -> %{theta_ra: s["theta_ra"], theta_dec: s["theta_dec"], alt: s["alt"], az: s["az"]} end)
 
     all = Settings.get(@key, %{})
+    # once a sign was corrected during this line-up, keep saying so
+    corrected_before = get_in(all, [id, "signs_corrected"]) == true
 
     entry =
-      case Model.fit(fit_samples, signs, start) do
+      case fit_with_signs(fit_samples, signs, start) do
         {:ok, p, q} ->
           %{
             "samples" => samples,
@@ -110,6 +113,7 @@ defmodule Controller.Sky.Lineup do
             "rms_arcmin" => q.rms_arcmin,
             "worst_arcmin" => q.worst_arcmin,
             "residuals_arcmin" => q.residuals_arcmin,
+            "signs_corrected" => q[:signs_corrected] != nil or corrected_before,
             "at" => DateTime.to_iso8601(DateTime.utc_now())
           }
 
@@ -119,6 +123,74 @@ defmodule Controller.Sky.Lineup do
 
     Settings.put(@key, Map.put(all, id, entry))
     status(id)
+  end
+
+  # The configured axis signs are a guess until the real sky says otherwise.
+  #
+  # A wrong RA sign cannot be absorbed by the geometry: with three or more
+  # stars it shows as degrees of disagreement, so the other combinations are
+  # tried and a far better one is adopted. A wrong Dec sign *is* absorbed —
+  # it comes out as an RA offset near 180°, which means the model thinks the
+  # counterweight is up when it is down and would pick the wrong side of the
+  # pier for every goto. Flip it and refit. Either way the modes chip says so.
+  defp fit_with_signs(fit_samples, signs, start) do
+    case fit_with_ra_sign(fit_samples, signs, start) do
+      {:ok, p, q, sg} when abs(p.off_ra) > 90 and abs(p.off_ra) < 270 ->
+        flipped = %{sg | dec_sign: -sg.dec_sign}
+
+        case Model.fit(fit_samples, flipped, start) do
+          {:ok, p2, q2} ->
+            p2 = %{p2 | off_ra: Astro.norm180(p2.off_ra)}
+
+            if q2.rms_arcmin <= q.rms_arcmin + 0.5 and abs(p2.off_ra) <= 90 do
+              Settings.put("pointing", %{"ha_sign" => flipped.ha_sign, "dec_sign" => flipped.dec_sign})
+              {:ok, p2, Map.put(q2, :signs_corrected, flipped)}
+            else
+              {:ok, p, if(sg == signs, do: q, else: Map.put(q, :signs_corrected, sg))}
+            end
+
+          _ ->
+            {:ok, p, if(sg == signs, do: q, else: Map.put(q, :signs_corrected, sg))}
+        end
+
+      {:ok, p, q, sg} ->
+        {:ok, p, if(sg == signs, do: q, else: Map.put(q, :signs_corrected, sg))}
+
+      other ->
+        other
+    end
+  end
+
+  defp fit_with_ra_sign(fit_samples, signs, start) do
+    case Model.fit(fit_samples, signs, start) do
+      {:ok, _p, %{rms_arcmin: rms}} = first when length(fit_samples) >= 3 and rms > 30.0 ->
+        others = for h <- [1, -1], d <- [1, -1], %{ha_sign: h, dec_sign: d} != signs, do: %{ha_sign: h, dec_sign: d}
+
+        best =
+          others
+          |> Enum.map(fn sg -> {sg, Model.fit(fit_samples, sg, start)} end)
+          |> Enum.min_by(fn {_, {:ok, _, q}} -> q.rms_arcmin end)
+
+        case best do
+          {sg, {:ok, p, q}} when q.rms_arcmin < rms / 5 ->
+            Settings.put("pointing", %{"ha_sign" => sg.ha_sign, "dec_sign" => sg.dec_sign})
+            {:ok, p, q, sg}
+
+          _ ->
+            {:ok, p0, q0} = first
+            {:ok, p0, q0, signs}
+        end
+
+      {:ok, p, q} ->
+        {:ok, p, q, signs}
+
+      other ->
+        other
+    end
+    |> case do
+      {:ok, p, q, sg} -> {:ok, %{p | off_ra: Astro.norm180(p.off_ra)}, q, sg}
+      other -> other
+    end
   end
 
   defp put_samples(id, samples) do

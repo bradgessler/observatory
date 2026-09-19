@@ -26,7 +26,7 @@ defmodule Controller.CameraLive do
       try do
         Video.status()
       catch
-        :exit, _ -> %{state: :off, error: "video app not running", log: [], encoder: nil, supported_modes: nil, quality: nil}
+        :exit, _ -> %{state: :off, error: "video app not running", log: [], encoder: nil, supported_modes: nil, quality: nil, fell_back_from: nil}
       end
 
     assign(socket, status: Watch.status(), devices: Watch.devices(), video: video, summary: Watch.history_summary())
@@ -109,7 +109,7 @@ defmodule Controller.CameraLive do
         <div class="seg seg-4" role="radiogroup" aria-label="video size">
           <button :for={{lbl, q} <- [{"Auto", "auto"}, {"1K", "1k"}, {"2K", "2k"}, {"4K", "4k"}]} class={["seg-opt", q == @size && "on"]} phx-click="size" phx-value-q={q} role="radio" aria-checked={to_string(q == @size)}>{lbl}</button>
         </div>
-        <.hint>Auto takes the best this camera offers up to 1080p. 4K is a choice, not a default — it's four times the work.</.hint>
+        <.hint>Auto is 720p: every camera does it and it's cheap to encode. Bigger is a choice, not a default — 1080p is twice the work, 4K eight times. A size the camera won't deliver falls back one step by itself.</.hint>
         <div class="seg seg-3" role="radiogroup" aria-label="frame rate">
           <button :for={f <- Video.HLS.fps_choices()} class={["seg-opt", f == @fps && "on"]} phx-click="fps" phx-value-fps={f} role="radio" aria-checked={to_string(f == @fps)}>{f} fps</button>
         </div>

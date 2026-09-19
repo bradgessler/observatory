@@ -59,7 +59,7 @@ defmodule Controller.WatchLive do
     try do
       Video.status()
     catch
-      :exit, _ -> %{state: :off, quality: nil, ready: false, error: "video app not running", playlist: nil, log: [], encoder: nil, supported_modes: nil}
+      :exit, _ -> %{state: :off, quality: nil, ready: false, error: "video app not running", playlist: nil, log: [], encoder: nil, supported_modes: nil, fell_back_from: nil}
     end
   end
 
@@ -166,11 +166,11 @@ defmodule Controller.WatchLive do
       <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]} aria-live="polite">
         <%= cond do %>
           <% @video.state == :streaming -> %>
-            Live · {size_words(@video.quality)} · {behind_words(@tele)}{fps_words(@tele)}
+            Live · {size_words(@video.quality)}{if @video.fell_back_from, do: " (#{@video.fell_back_from} gave no picture)", else: ""} · {behind_words(@tele)}{fps_words(@tele)}
           <% @video.state in [:starting, :restarting] -> %>
             Starting video · last still meanwhile
           <% @video.state == :error -> %>
-            Video didn't start · <.link navigate={~p"/controls/watch/camera"}>why</.link>
+            Video didn't start — showing stills · <.link navigate={~p"/controls/watch/camera"}>why</.link>
           <% @player && elem(@player, 0) in ["unsupported", "noscript", "error"] -> %>
             This browser couldn't play the video
           <% @frame -> %>
@@ -180,11 +180,10 @@ defmodule Controller.WatchLive do
         <% end %>
       </p>
 
-      <%!-- the state is the selected segment; the size is the camera's business (Camera page to override) --%>
-      <div class="seg" role="radiogroup" aria-label="picture source">
-        <button class={["seg-opt", !@busy && "on"]} phx-click="mode" phx-value-m="off" role="radio" aria-checked={to_string(!@busy)}>Stills</button>
-        <button class={["seg-opt", @busy && "on"]} phx-click="mode" phx-value-m="live" role="radio" aria-checked={to_string(@busy)}>Live</button>
-      </div>
+      <%!-- no mode to pick: the still is what you see; Play starts video, Stop returns --%>
+      <.row :if={@busy}>
+        <.btn phx-click="mode" phx-value-m="off">Stop video · back to stills</.btn>
+      </.row>
 
       <p class="watch-links">
         <.link navigate={~p"/controls/watch/frames"}>Recent Frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>

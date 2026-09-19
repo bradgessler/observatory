@@ -185,6 +185,7 @@ defmodule Controller.LineupLive do
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.good_for == [] and @status.n >= 2} class="dim">not there yet — one star is probably off; see below</span>
+          <span :if={@status.signs_corrected?} class="dim">the stars said an axis was wired the other way round — sign corrected (shows under Modes)</span>
           <span :if={!@status.solved?} class="dim">gotos use the ideal geometry until you name a star</span>
         </div>
       </.card>
@@ -215,7 +216,7 @@ defmodule Controller.LineupLive do
         <.row>
           <.btn class="btn-ghost" phx-click="pick">A different star ›</.btn>
         </.row>
-        <.hint>Centre it in the eyepiece with any control — keypad, nudge, pad, tilt — then tap <b>that's it</b>. {if @samples == [], do: "The first star fixes the offsets.", else: "Pick stars far apart in the sky; that is what pins the axis down."}</.hint>
+        <.hint>Centre it in the eyepiece with any control — keypad, nudge, pad, tilt — then tap <b>that's it</b>. {if @samples == [], do: "The first star fixes the offsets. Slewing to it is a guess from the ideal set-up: watch the cable.", else: "Pick stars far apart in the sky; that is what pins the axis down."}</.hint>
       </.card>
 
       <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">

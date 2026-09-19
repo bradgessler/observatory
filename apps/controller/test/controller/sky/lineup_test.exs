@@ -2,6 +2,7 @@ defmodule Controller.Sky.LineupTest do
   @moduledoc "The line-up against a simulated mount whose true geometry we control through the samples."
   use ExUnit.Case, async: false
 
+  alias Controller.Settings
   alias Controller.Sky.{Astro, Lineup, Model, Pointing, Stars}
 
   @id "sim-lineup"
@@ -88,6 +89,28 @@ defmodule Controller.Sky.LineupTest do
     Lineup.clear(@id)
     refute Lineup.status(@id).solved?
     refute Pointing.lined_up?(Pointing.context(now, @id))
+  end
+
+  test "a wrong axis sign is found and corrected from three stars" do
+    now = ~U[2026-09-20 05:30:00Z]
+    truth = %{axis_alt: 40.0, axis_az: 10.0, off_ra: 3.0, off_dec: -2.0}
+    configured = Pointing.pointing()
+    # the mount is really wired with the opposite Dec sense
+    wrong = %{configured | dec_sign: -configured.dec_sign}
+    site = Pointing.site()
+
+    for name <- ["Vega", "Altair", "Arcturus"] do
+      s = Enum.find(Stars.all(), &(&1.name == name))
+      {alt, az} = Astro.alt_az(s.ra_deg, s.dec_deg, site.lat, Astro.lst_deg(now, site.lon))
+      {r, d} = Model.encoders(truth, wrong, alt, az)
+      Lineup.add(%{id: @id, homed: true, connected: true, tracking: :off, axes: %{ra: %{degrees: r}, dec: %{degrees: d}}}, s, now)
+    end
+
+    st = Lineup.status(@id)
+    assert st.signs_corrected?
+    assert st.rms_arcmin < 0.5
+    assert Pointing.pointing() == wrong
+    Settings.put("pointing", %{"ha_sign" => configured.ha_sign, "dec_sign" => configured.dec_sign})
   end
 
   test "where_words are for people" do

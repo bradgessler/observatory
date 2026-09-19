@@ -4,6 +4,24 @@ One visual system for every screen (keypad, sky, targets, guest page). The UI is
 a product, not a debug panel. It is used outdoors, at night, one-handed, by
 people who may have never used a telescope.
 
+## Ground rules
+
+- **True black.** `--bg` is `#000`: on an OLED phone the ground is off, panels
+  are barely lifted (`#0a0c11`), hairlines are the only structure. Calm.
+- **One grid.** Spacing steps of 8 (`--s1` 8, `--s2` 12, `--s3` 16, `--s4` 24);
+  one corner radius (`--r` 14, cards 16); page width 560 centred; headers are a
+  three-column grid (back · title · actions) so every page's title sits in the
+  same place.
+- **Components, not markup.** Pages are built from `Controller.Components.UI`
+  (`page`, `back`, `title`, `actions`, `help`, `card`, `row`, `kv`, `setting`,
+  `badge`, `hint`, `btn`) and `Controller.Components.Modes`. A new screen
+  should need no new CSS for layout.
+- **No expansion.** Secondary controls get their own page and a back link,
+  never a disclosure that reflows the screen.
+- **Modes are loud.** Anything persistent that changes where the scope goes
+  (sync offset, flipped axis, reversed tracking, auto-track off, site override)
+  shows as an amber strip on every page while it's on, linking to Setup.
+
 ## Night vision first
 
 - **Two palettes, one toggle (◐), remembered.** `default` is a dim dark-sky

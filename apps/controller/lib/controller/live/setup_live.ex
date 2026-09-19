@@ -4,6 +4,7 @@ defmodule Controller.SetupLive do
   where the scope goes — with the current value shown and a way to undo it.
   """
   use Controller, :live_view
+  import Controller.Components.UI
 
   alias Controller.{Modes, Settings}
   alias Controller.Sky.Pointing
@@ -31,7 +32,9 @@ defmodule Controller.SetupLive do
 
   defp rescan(socket) do
     case Enum.find(Mount.list(), &(&1.id == socket.assigns.id)) do
-      nil -> assign(socket, ref: nil, snap: nil)
+      nil ->
+        assign(socket, ref: nil, snap: nil)
+
       ref ->
         if is_nil(socket.assigns.ref), do: Mount.subscribe(ref)
         assign(socket, ref: ref, snap: safe(fn -> Mount.snapshot(ref) end) |> ok_or_nil())
@@ -60,7 +63,11 @@ defmodule Controller.SetupLive do
     case Float.parse(deg) do
       {d, _} ->
         d = if sign == "-", do: -d, else: d
-        {:noreply, socket |> assign(goto_deg: deg) |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d), "moving #{axis} #{d}°")}
+
+        {:noreply,
+         socket
+         |> assign(goto_deg: deg)
+         |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d), "moving #{axis} #{d}°")}
 
       :error ->
         {:noreply, assign(socket, notice: "degrees?")}
@@ -74,10 +81,12 @@ defmodule Controller.SetupLive do
 
   def handle_event("flip", %{"what" => what}, socket) do
     p = socket.assigns.pointing
-    p = case what do
-      "ra" -> %{p | ha_sign: -p.ha_sign}
-      "dec" -> %{p | dec_sign: -p.dec_sign}
-    end
+
+    p =
+      case what do
+        "ra" -> %{p | ha_sign: -p.ha_sign}
+        "dec" -> %{p | dec_sign: -p.dec_sign}
+      end
 
     Settings.put("pointing", %{"ha_sign" => p.ha_sign, "dec_sign" => p.dec_sign})
     Modes.clear_sync()
@@ -129,75 +138,64 @@ defmodule Controller.SetupLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <main class={["setup", @night && "night"]}>
-      <header>
-        <.link navigate={~p"/#{@id}"} class="ghost">‹ keypad</.link>
-        <h1>{@id} · setup</h1>
-        <.link href={~p"/docs/keypad"} class="ghost help">?</.link>
-      </header>
+    <.page id="setup" night={@night}>
+      <:header>
+        <.back navigate={~p"/#{@id}"} label="keypad" />
+        <.title>{@id} · setup</.title>
+        <.actions><.help href={~p"/docs/keypad"} /></.actions>
+      </:header>
 
-      <section class="card">
-        <div class="line">
-          <strong>Home</strong>
-          <span class={["badge", @snap && @snap.homed && "on"]}>{if @snap && @snap.homed, do: "set · limits armed", else: "not set"}</span>
-        </div>
-        <p class="dim">Counterweight straight down, tube at the pole. Do this before slewing from the sky page.</p>
-        <button phx-click="home" data-confirm="Set the current position as home?">Set home</button>
-      </section>
+      <.card title="Home">
+        <:aside>
+          <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "set · limits armed", else: "not set"}</.badge>
+        </:aside>
+        <.hint>Counterweight straight down, tube at the pole. Do this before slewing from the sky page.</.hint>
+        <.btn phx-click="home" data-confirm="Set the current position as home?">Set home</.btn>
+      </.card>
 
-      <section class="card">
-        <strong>Move exactly</strong>
+      <.card title="Move exactly">
         <form phx-submit="goto" class="row">
           <input type="hidden" name="axis" value="ra" /><input type="hidden" name="sign" value="+" />
-          <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees" />
-          <button>RA +</button>
+          <input name="deg" inputmode="decimal" value={@goto_deg} aria-label="degrees" class="field" />
+          <.btn type="submit">RA +</.btn>
         </form>
-        <div class="row">
-          <button phx-click="goto" phx-value-axis="ra" phx-value-sign="-" phx-value-deg={@goto_deg}>RA −</button>
-          <button phx-click="goto" phx-value-axis="dec" phx-value-sign="+" phx-value-deg={@goto_deg}>Dec +</button>
-          <button phx-click="goto" phx-value-axis="dec" phx-value-sign="-" phx-value-deg={@goto_deg}>Dec −</button>
-        </div>
-      </section>
+        <.row>
+          <.btn phx-click="goto" phx-value-axis="ra" phx-value-sign="-" phx-value-deg={@goto_deg}>RA −</.btn>
+          <.btn phx-click="goto" phx-value-axis="dec" phx-value-sign="+" phx-value-deg={@goto_deg}>Dec +</.btn>
+          <.btn phx-click="goto" phx-value-axis="dec" phx-value-sign="-" phx-value-deg={@goto_deg}>Dec −</.btn>
+        </.row>
+      </.card>
 
-      <section class="card">
-        <div class="line"><strong>Modes</strong><span :if={@modes == []} class="badge on">all stock</span></div>
-        <p class="dim">Anything here changes where the scope goes. Each is shown on every page while it's on.</p>
+      <.card title="Modes">
+        <:aside><.badge :if={@modes == []} on>all stock</.badge><.badge :if={@modes != []} warn>{length(@modes)} on</.badge></:aside>
+        <.hint>Anything here changes where the scope goes. Each shows on every page while it's on.</.hint>
 
-        <div class="mode">
-          <div><strong>Sync offset</strong><span class="dim">RA {fmt(@offset["ra"])}° · Dec {fmt(@offset["dec"])}°</span></div>
-          <button phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01}>Clear</button>
-        </div>
-        <div class="mode">
-          <div><strong>RA axis sign</strong><span class="dim">{@pointing.ha_sign}</span></div>
-          <button phx-click="flip" phx-value-what="ra">Flip</button>
-        </div>
-        <div class="mode">
-          <div><strong>Dec axis sign</strong><span class="dim">{@pointing.dec_sign}</span></div>
-          <button phx-click="flip" phx-value-what="dec">Flip</button>
-        </div>
-        <div class="mode">
-          <div><strong>Tracking direction</strong><span class="dim">{@tracking_direction}</span></div>
-          <button phx-click="tracking_direction">Flip</button>
-        </div>
-        <div class="mode">
-          <div><strong>Auto-track after slew</strong><span class="dim">{if @auto_track, do: "on", else: "off"}</span></div>
-          <button phx-click="auto_track">{if @auto_track, do: "Turn off", else: "Turn on"}</button>
-        </div>
-        <div class="mode">
-          <div><strong>Soft limits</strong><span class="dim">RA {lim(@limits, :ra)} · Dec {lim(@limits, :dec)} from home</span></div>
-        </div>
-        <button class="ghost" phx-click="reset_pointing">Reset pointing to defaults</button>
-      </section>
+        <.setting label="Sync offset" value={"RA #{fmt(@offset["ra"])}° · Dec #{fmt(@offset["dec"])}°"}>
+          <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01}>Clear</.btn>
+        </.setting>
+        <.setting label="RA axis sign" value={to_string(@pointing.ha_sign)}>
+          <.btn phx-click="flip" phx-value-what="ra">Flip</.btn>
+        </.setting>
+        <.setting label="Dec axis sign" value={to_string(@pointing.dec_sign)}>
+          <.btn phx-click="flip" phx-value-what="dec">Flip</.btn>
+        </.setting>
+        <.setting label="Tracking direction" value={@tracking_direction}>
+          <.btn phx-click="tracking_direction">Flip</.btn>
+        </.setting>
+        <.setting label="Auto-track after slew" value={if @auto_track, do: "on", else: "off"}>
+          <.btn phx-click="auto_track">{if @auto_track, do: "Turn off", else: "Turn on"}</.btn>
+        </.setting>
+        <.setting label="Soft limits from home" value={"RA #{lim(@limits, :ra)} · Dec #{lim(@limits, :dec)}"} />
+        <.btn variant="ghost" phx-click="reset_pointing">Reset pointing to defaults</.btn>
+      </.card>
 
-      <section class="card">
-        <div class="line">
-          <.link navigate={~p"/devices"} class="btn-link">Devices</.link>
-          <.link navigate={~p"/sky/#{@id}"} class="btn-link">Sky · Horizon</.link>
-        </div>
-      </section>
+      <.row>
+        <.btn navigate={~p"/devices"}>Devices</.btn>
+        <.btn navigate={~p"/sky/#{@id}"}>Sky · Horizon</.btn>
+      </.row>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
-    </main>
+    </.page>
     """
   end
 

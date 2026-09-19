@@ -5,6 +5,7 @@ defmodule Controller.DevicesLive do
   when it isn't, and the buttons to scan, connect a port by hand, or disconnect.
   """
   use Controller, :live_view
+  import Controller.Components.UI
 
   alias Controller.Settings
 
@@ -50,19 +51,22 @@ defmodule Controller.DevicesLive do
 
     subscribed =
       Enum.reduce(mounts, socket.assigns.subscribed, fn m, acc ->
-        if MapSet.member?(acc, m.id), do: acc, else: (Mount.subscribe(m.id); MapSet.put(acc, m.id))
+        if MapSet.member?(acc, m.id) do
+          acc
+        else
+          Mount.subscribe(m.id)
+          MapSet.put(acc, m.id)
+        end
       end)
-
-    ports = Mount.ports()
-    status = Mount.discovery_status()
 
     assign(socket,
       mounts: mounts,
-      ports: ports,
-      status: status,
+      ports: Mount.ports(),
+      status: Mount.discovery_status(),
       subscribed: subscribed,
       any_real: Enum.any?(mounts, &(&1.id != "sim" and &1.connected)),
-      host: host_addresses()
+      host: host_addresses(),
+      tunnel: tunnel_url()
     )
   end
 
@@ -80,83 +84,88 @@ defmodule Controller.DevicesLive do
     end
   end
 
+  # ~/.observatory/tunnel.sh keeps a Cloudflare quick tunnel up and writes its URL here.
+  defp tunnel_url do
+    case File.read(Path.join([System.user_home!(), ".observatory", "tunnel_url"])) do
+      {:ok, "https://" <> _ = u} -> String.trim(u)
+      _ -> nil
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
-    <main class={["devices", @night && "night"]}>
-      <header>
-        <.link navigate={~p"/"} class="ghost">‹ keypad</.link>
-        <span class="hdr-actions">
-          <button phx-click="scan">Scan now</button>
-          <.link href={~p"/docs/devices"} class="ghost help">?</.link>
-        </span>
-      </header>
+    <.page id="devices" night={@night}>
+      <:header>
+        <.back navigate={~p"/"} label="keypad" />
+        <.title>devices</.title>
+        <.actions><.btn phx-click="scan">Scan now</.btn><.help href={~p"/docs/devices"} /></.actions>
+      </:header>
 
-      <section class={["card", "state", @any_real && "ok"]}>
-        <strong :if={@any_real}>Telescope connected</strong>
-        <strong :if={!@any_real}>No telescope connected</strong>
-        <span class="dim">
-          last scan {if @status.last_scan, do: Calendar.strftime(@status.last_scan, "%H:%M:%S UTC"), else: "—"} · rescans every 3 s
-        </span>
-      </section>
+      <.card class={if @any_real, do: "state ok", else: "state"}>
+        <div class="state-line">
+          <strong>{if @any_real, do: "Telescope connected", else: "No telescope connected"}</strong>
+          <span class="dim">last scan {if @status.last_scan, do: Calendar.strftime(@status.last_scan, "%H:%M:%S UTC"), else: "—"} · every 3 s</span>
+        </div>
+      </.card>
 
-      <h2>Mounts</h2>
-      <section :for={m <- @mounts} class="card mount">
-        <div class="line">
-          <strong>{m.id}</strong>
-          <span class={["badge", m.connected && "on"]}>{if m.connected, do: "answering", else: "not answering"}</span>
-          <span :if={m.id == "sim"} class="badge">simulator</span>
-          <span :if={m.node != :nonode@nohost} class="badge dim">{m.node}</span>
-        </div>
-        <div :if={m.connected} class="dim">firmware {m.firmware} · {if m.homed, do: "homed", else: "not homed"} · tracking {m.tracking}</div>
-        <div :if={!m.connected && m[:error]} class="err">{describe_error(m.error)}</div>
-        <div class="line">
-          <.link navigate={~p"/#{m.id}"} class="btn-link">Keypad</.link>
-          <.link navigate={~p"/sky/#{m.id}"} class="btn-link">Sky</.link>
-          <button :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)}>Disconnect</button>
-        </div>
-      </section>
-      <p :if={@mounts == []} class="dim">No drivers running.</p>
+      <.card :for={m <- @mounts} title={m.id}>
+        <:aside>
+          <.badge on={m.connected}>{if m.connected, do: "answering", else: "not answering"}</.badge>
+          <.badge :if={m.id == "sim"}>simulator</.badge>
+          <.badge :if={m.node != :nonode@nohost} dim>{m.node}</.badge>
+        </:aside>
+        <.kv :if={m.connected} label="firmware" value={m.firmware} />
+        <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "homed", else: "not homed"} · tracking #{m.tracking}"} />
+        <.kv :if={!m.connected && m[:error]} label="problem"><span class="err">{describe_error(m.error)}</span></.kv>
+        <.row>
+          <.btn navigate={~p"/#{m.id}"}>Keypad</.btn>
+          <.btn navigate={~p"/sky/#{m.id}"}>Sky</.btn>
+          <.btn navigate={~p"/setup/#{m.id}"}>Setup</.btn>
+          <.btn :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)}>Disconnect</.btn>
+        </.row>
+      </.card>
+      <.hint :if={@mounts == []}>No drivers running.</.hint>
 
-      <h2>Serial ports on this machine</h2>
-      <section :for={p <- @ports} class="card port">
-        <div class="line">
-          <strong>{Path.basename(p.path)}</strong>
-          <span :if={p.looks_like_mount} class="badge on">FTDI · looks like an EQDIR cable</span>
-          <span :if={p.mount_id} class="badge">driver: {p.mount_id}</span>
+      <.card title="Serial ports on this machine">
+        <div :for={p <- @ports} class="port">
+          <div class="line">
+            <strong>{Path.basename(p.path)}</strong>
+            <.badge :if={p.looks_like_mount} on>FTDI · EQDIR cable</.badge>
+            <.badge :if={p.mount_id}>driver: {p.mount_id}</.badge>
+          </div>
+          <span class="dim">
+            {p.manufacturer || "unknown maker"}<span :if={p.description}> · {p.description}</span>
+            <span :if={p.vendor_id}> · {hex(p.vendor_id)}:{hex(p.product_id)}</span>
+            <span :if={p.serial_number}> · s/n {p.serial_number}</span>
+          </span>
+          <.row :if={!p.mount_id or p.path in @status.manual}>
+            <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path}>Connect</.btn>
+            <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path}>Disconnect</.btn>
+          </.row>
         </div>
-        <div class="dim">
-          {p.manufacturer || "unknown maker"}<span :if={p.description}> · {p.description}</span>
-          <span :if={p.vendor_id}> · {hex(p.vendor_id)}:{hex(p.product_id)}</span>
-          <span :if={p.serial_number}> · s/n {p.serial_number}</span>
-        </div>
-        <div class="line">
-          <button :if={!p.mount_id} phx-click="connect" phx-value-port={p.path}>Connect</button>
-          <button :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path}>Disconnect</button>
-        </div>
-      </section>
-      <p :if={@ports == []} class="dim">The OS lists no serial ports. The cable isn't plugged into this machine, or the hub isn't passing it through.</p>
+        <.hint :if={@ports == []}>The OS lists no serial ports. The cable isn't plugged into this machine, or the hub isn't passing it through.</.hint>
+      </.card>
 
-      <h2>This machine</h2>
-      <section class="card">
-        <div class="dim">Phone on the same Wi-Fi: <span :for={h <- @host} class="mono">http://{h}:4000 </span></div>
-        <div class="dim">Node: {node()}</div>
-      </section>
+      <.card title="Reach this machine">
+        <.kv label="Wi-Fi"><span :for={h <- @host} class="mono">http://{h}:4000 </span></.kv>
+        <.kv :if={@tunnel} label="anywhere"><a class="mono" href={@tunnel}>{@tunnel}</a></.kv>
+        <.kv label="node" value={to_string(node())} />
+      </.card>
 
-      <h2>If it won't connect</h2>
-      <section class="card checklist">
-        <ol>
-          <li>Mount power LED steady? (12 V, centre-positive, switch on.)</li>
-          <li>Cable in the mount's <strong>HAND CONTROL</strong> jack (RJ45), not AUTO GUIDE (RJ12)?</li>
-          <li>Does a port appear above when you plug the USB in? If not: other USB port, no hub, another cable.</li>
-          <li>Port appears but "not answering": power-cycle the mount, then Scan.</li>
-          <li>Another program holding the port (a probe script, a terminal)? Quit it.</li>
+      <.card title="If it won't connect">
+        <ol class="checklist">
+          <li>Mount power LED steady? 12 V, centre-positive, switch on.</li>
+          <li>Cable in the mount's <strong>HAND CONTROL</strong> jack (RJ45), not AUTO GUIDE (RJ12).</li>
+          <li>No port above when you plug in? Other USB port, no hub, another cable.</li>
+          <li>Port but "not answering": power-cycle the mount, then Scan.</li>
+          <li>Another program holding the port? Quit it.</li>
         </ol>
-        <.link href={~p"/docs/devices"} class="help">more ›</.link>
-      </section>
+        <.hint><.link href={~p"/docs/devices"} class="help">more ›</.link></.hint>
+      </.card>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
-    </main>
+    </.page>
     """
   end
 

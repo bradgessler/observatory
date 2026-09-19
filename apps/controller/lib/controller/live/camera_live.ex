@@ -18,7 +18,7 @@ defmodule Controller.CameraLive do
       Settings.subscribe()
     end
 
-    {:ok, socket |> assign(night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30)) |> load()}
+    {:ok, socket |> assign(night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30), size: Settings.get("video_quality", "auto")) |> load()}
   end
 
   defp load(socket) do
@@ -57,6 +57,12 @@ defmodule Controller.CameraLive do
     catch
       :exit, _ -> {:noreply, assign(socket, notice: "video app not running")}
     end
+  end
+
+  def handle_event("size", %{"q" => q}, socket) do
+    Settings.put("video_quality", q)
+    if socket.assigns.video.state in [:starting, :streaming, :restarting], do: Video.start(quality: q, fps: socket.assigns.fps)
+    {:noreply, socket |> assign(size: q) |> load()}
   end
 
   def handle_event("fps", %{"fps" => f}, socket) do
@@ -100,6 +106,10 @@ defmodule Controller.CameraLive do
       </.card>
 
       <.card title="Video">
+        <div class="seg seg-4" role="radiogroup" aria-label="video size">
+          <button :for={{lbl, q} <- [{"Auto", "auto"}, {"1K", "1k"}, {"2K", "2k"}, {"4K", "4k"}]} class={["seg-opt", q == @size && "on"]} phx-click="size" phx-value-q={q} role="radio" aria-checked={to_string(q == @size)}>{lbl}</button>
+        </div>
+        <.hint>Auto takes the best this camera offers up to 1080p. 4K is a choice, not a default — it's four times the work.</.hint>
         <div class="seg seg-3" role="radiogroup" aria-label="frame rate">
           <button :for={f <- Video.HLS.fps_choices()} class={["seg-opt", f == @fps && "on"]} phx-click="fps" phx-value-fps={f} role="radio" aria-checked={to_string(f == @fps)}>{f} fps</button>
         </div>

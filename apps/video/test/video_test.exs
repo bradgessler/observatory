@@ -32,6 +32,15 @@ defmodule VideoTest do
     assert {:error, :not_streaming} = Video.snapshot()
   end
 
+  test "auto picks the best rung the camera offers, capped at 2K" do
+    # exercised through the private chooser via start/1 would open a camera; check the ladder maths instead
+    rungs = Video.Ladder.rungs()
+    upto_2k = rungs |> Enum.take_while(&(&1.id != :"2k")) |> Kernel.++([Video.Ladder.get(:"2k")])
+    assert Enum.map(upto_2k, & &1.id) == [:"1k", :"2k"]
+    best = upto_2k |> Enum.filter(&Video.Ladder.available?(&1, [{1280, 720}, {1920, 1080}, {3840, 2160}])) |> List.last()
+    assert best.id == :"2k"
+  end
+
   test "an unknown quality is refused without touching ffmpeg" do
     assert {:error, :unknown_quality} = Video.start(quality: "9k")
     assert %{state: :off} = Video.status()

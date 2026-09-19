@@ -51,20 +51,8 @@ defmodule Controller.WatchLive do
       # nil = follow the live frame; a name = pinned on one from the strip
       pinned: socket.assigns[:pinned],
       video: safe_video(),
-      quality: socket.assigns[:quality] || "1k",
-      rungs: socket.assigns[:rungs] || [],
       player: socket.assigns[:player]
     )
-  end
-
-  # the ladder probe opens the camera for a moment; only do it on demand
-  defp load_rungs(socket) do
-    try do
-      %{rungs: rungs} = Video.qualities()
-      assign(socket, rungs: rungs)
-    catch
-      :exit, _ -> socket
-    end
   end
 
   defp safe_video do
@@ -100,27 +88,6 @@ defmodule Controller.WatchLive do
     {:noreply, load(socket)}
   end
 
-  def handle_event("quality", %{"q" => q}, socket) do
-    socket = assign(socket, quality: q)
-    # a running stream follows the picker
-    if socket.assigns.video.state in [:starting, :streaming, :restarting], do: Video.start(quality: q, fps: Settings.get("video_fps", 30))
-    {:noreply, socket}
-  end
-
-  def handle_event("stream", %{"on" => "true"}, socket) do
-    socket = load_rungs(socket)
-
-    case Video.start(quality: socket.assigns.quality, fps: Settings.get("video_fps", 30)) do
-      :ok -> {:noreply, assign(socket, player: nil, video: safe_video())}
-      {:error, why} -> {:noreply, socket |> assign(notice: "stream: #{why}") |> assign(video: safe_video())}
-    end
-  end
-
-  def handle_event("stream", _, socket) do
-    Video.stop()
-    {:noreply, assign(socket, player: nil, video: safe_video())}
-  end
-
   def handle_event("player", %{"state" => st} = p, socket), do: {:noreply, assign(socket, player: {st, p["detail"]})}
 
   # one segmented control says it all: Off = stills, a rung = video at that size
@@ -129,10 +96,8 @@ defmodule Controller.WatchLive do
     {:noreply, assign(socket, player: nil, tele: nil, video: safe_video())}
   end
 
-  def handle_event("mode", %{"m" => q}, socket) do
-    socket = socket |> assign(quality: q) |> load_rungs()
-
-    case Video.start(quality: q, fps: Settings.get("video_fps", 30)) do
+  def handle_event("mode", %{"m" => "live"}, socket) do
+    case Video.start(quality: Settings.get("video_quality", "auto"), fps: Settings.get("video_fps", 30)) do
       :ok -> {:noreply, assign(socket, player: nil, tele: nil, video: safe_video())}
       {:error, why} -> {:noreply, socket |> assign(notice: "stream: #{why}") |> assign(video: safe_video())}
     end
@@ -149,6 +114,13 @@ defmodule Controller.WatchLive do
   def handle_event("pin", _, socket), do: {:noreply, assign(socket, pinned: nil)}
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
+
+  defp size_words(q) do
+    case Video.Ladder.get(q) do
+      %{size: {_, h}} -> "#{h}p"
+      _ -> to_string(q)
+    end
+  end
 
   defp num(x) when is_number(x), do: x
   defp num(_), do: nil
@@ -170,15 +142,9 @@ defmodule Controller.WatchLive do
 
   defp busy?(video), do: video.state in [:starting, :streaming, :restarting]
 
-  defp rungs(assigns) do
-    if assigns.rungs == [],
-      do: Enum.map(Video.Ladder.rungs(), &Map.put(&1, :available?, true)),
-      else: assigns.rungs
-  end
-
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, ladder: rungs(assigns), busy: busy?(assigns.video))
+    assigns = assign(assigns, busy: busy?(assigns.video))
 
     ~H"""
     <.page id="watch" night={@night} class={@nested && "nested"}>
@@ -193,14 +159,14 @@ defmodule Controller.WatchLive do
         <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
         <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
         <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
-        <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m={@quality} aria-label="play live video">Play</button>
+        <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
       </div>
 
       <%!-- one quiet line: what this picture is --%>
       <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]} aria-live="polite">
         <%= cond do %>
           <% @video.state == :streaming -> %>
-            Live · {@video.quality} · {behind_words(@tele)}{fps_words(@tele)}
+            Live · {size_words(@video.quality)} · {behind_words(@tele)}{fps_words(@tele)}
           <% @video.state in [:starting, :restarting] -> %>
             Starting video · last still meanwhile
           <% @video.state == :error -> %>
@@ -214,18 +180,10 @@ defmodule Controller.WatchLive do
         <% end %>
       </p>
 
-      <%!-- the state is the selected segment --%>
-      <div class="seg seg-4" role="radiogroup" aria-label="picture source">
+      <%!-- the state is the selected segment; the size is the camera's business (Camera page to override) --%>
+      <div class="seg" role="radiogroup" aria-label="picture source">
         <button class={["seg-opt", !@busy && "on"]} phx-click="mode" phx-value-m="off" role="radio" aria-checked={to_string(!@busy)}>Stills</button>
-        <button
-          :for={r <- @ladder}
-          class={["seg-opt", @busy and Atom.to_string(r.id) == @quality && "on"]}
-          phx-click="mode"
-          phx-value-m={r.id}
-          disabled={!r.available?}
-          role="radio"
-          aria-checked={to_string(@busy and Atom.to_string(r.id) == @quality)}
-        >{r.label}</button>
+        <button class={["seg-opt", @busy && "on"]} phx-click="mode" phx-value-m="live" role="radio" aria-checked={to_string(@busy)}>Live</button>
       </div>
 
       <p class="watch-links">

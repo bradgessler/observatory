@@ -96,7 +96,11 @@ defmodule Video.HLS do
   end
 
   def handle_call({:start, opts}, _from, s) do
-    quality = Ladder.parse(opts[:quality] || :"1k")
+    {quality, s} =
+      case opts[:quality] || :auto do
+        a when a in [:auto, "auto"] -> auto_rung(s)
+        q -> {Ladder.parse(q), s}
+      end
 
     cond do
       is_nil(quality) ->
@@ -206,6 +210,30 @@ defmodule Video.HLS do
         error: nil,
         encoder: encoder
     })
+  end
+
+  # Auto: the largest rung this camera reports, capped at 2K — 4K is a choice,
+  # not a default. Unknown modes (Linux) mean 1K, which every camera does.
+  @auto_cap :"2k"
+  defp auto_rung(s) do
+    modes = s.modes || Source.impl().modes(s.device)
+    s = %{s | modes: modes}
+
+    rung =
+      case modes do
+        :unknown ->
+          Ladder.get(:"1k")
+
+        list ->
+          Ladder.rungs()
+          |> Enum.take_while(&(&1.id != @auto_cap))
+          |> Kernel.++([Ladder.get(@auto_cap)])
+          |> Enum.filter(&Ladder.available?(&1, list))
+          |> List.last()
+          |> Kernel.||(Ladder.get(:"1k"))
+      end
+
+    {rung, s}
   end
 
   # Closing the port closes the wrapper's stdin; it sends ffmpeg SIGINT.

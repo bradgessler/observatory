@@ -99,13 +99,13 @@ defmodule Controller.DevicesLive do
       <:header>
         <.back navigate={~p"/"} label="bench" />
         <.title>devices</.title>
-        <.actions><.btn phx-click="scan">Scan now</.btn><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
 
       <.card class={if @any_real, do: "state ok", else: "state"}>
         <div class="state-line">
           <strong>{if @any_real, do: "Telescope connected", else: "No telescope connected"}</strong>
-          <span class="dim">last scan {if @status.last_scan, do: Calendar.strftime(@status.last_scan, "%H:%M:%S UTC"), else: "—"} · every 3 s</span>
+          <span :if={!@any_real} class="dim">looking for a cable every few seconds</span>
         </div>
       </.card>
 
@@ -115,13 +115,11 @@ defmodule Controller.DevicesLive do
           <.badge :if={m.id == "sim"}>simulator</.badge>
           <.badge :if={m.node != :nonode@nohost} dim>{m.node}</.badge>
         </:aside>
-        <.kv :if={m.connected} label="firmware" value={m.firmware} />
-        <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "homed", else: "not homed"} · tracking #{m.tracking}"} />
+        <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "homed", else: "not homed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />
         <.kv :if={!m.connected && m[:error]} label="problem"><span class="err">{describe_error(m.error)}</span></.kv>
         <.row>
-          <.btn navigate={~p"/#{m.id}"}>Keypad</.btn>
-          <.btn navigate={~p"/sky/#{m.id}"}>Sky</.btn>
-          <.btn navigate={~p"/setup/#{m.id}"}>Setup</.btn>
+          <.btn navigate={~p"/bench?#{[mount: m.id]}"}>Drive it ›</.btn>
+          <.btn navigate={~p"/setup/#{m.id}"}>Setup ›</.btn>
           <.btn :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)}>Disconnect</.btn>
         </.row>
       </.card>

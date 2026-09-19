@@ -44,6 +44,16 @@ expansion panels (secondary things get a page and a back link).
 (sync offset, flipped axis sign, reversed tracking, auto-track off, site
 override) is reported by `Controller.Modes.active/0` and shown on every page.
 
+**Knobs live in functions; the UI shows what tonight needs.** Every
+configurable thing is a parameter on a public function (`Video.start(quality:,
+fps:)`, `Mount.slew(ref, axis, rate, hold:)`) so it can be driven from a page,
+an agent or IEx later. The UI right now is for three jobs — drive the scope,
+make setup quick, say how locked-on tracking is — and shows only what those
+need. A knob the machine can decide (video size, encoder, ports to try) is
+decided by the machine, with an override on a secondary page. Deep-science
+and deep-astro surfaces come later, on their own pages, without changing the
+functions underneath.
+
 **Copy lives in docs.** Explanations go in `priv/docs/*.md` (rendered at
 `/docs/:slug`); the UI carries one-line hints and a `?` link.
 

@@ -93,7 +93,7 @@ defmodule Controller.PagesTest do
     test "devices lists the simulated mount", %{conn: conn, id: id} do
       {:ok, _view, html} = live(conn, "/devices")
       assert html =~ id
-      assert html =~ "Scan now"
+      assert html =~ "Drive it"
     end
   end
 

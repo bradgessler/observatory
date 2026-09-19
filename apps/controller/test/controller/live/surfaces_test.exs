@@ -75,8 +75,8 @@ defmodule Controller.SurfacesTest do
   test "watch page: play sits on the frame, video only appears once a playlist exists", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/controls/watch")
     assert html =~ "play live video"
-    assert html =~ ">1K<"
-    assert html =~ ">4K<"
+    assert html =~ ">Live<"
+    refute html =~ ">1K<"
     refute html =~ "video-feed"
     assert html =~ "watch-cap"
     assert html =~ "Recent frames"

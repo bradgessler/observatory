@@ -151,9 +151,10 @@ defmodule Controller.Optical.AxisScan do
          :ok <- Mount.goto_relative(ref, axis, -delta),
          :ok <- settle(ref, axis) do
       send(parent, {:step, {:analyse, axis}})
-      vectors = Flow.between(before, after_frame, search: 8)
+      raw = Flow.between(before, after_frame, search: 8)
+      vectors = Pivot.coherent(raw)
       fit = Pivot.fit(vectors)
-      {:ok, %{vectors: vectors, fit: fit, frame_after: after_name, words: Pivot.words(fit)}}
+      {:ok, %{vectors: vectors, dropped: length(raw) - length(vectors), fit: fit, line: Pivot.axis_line(vectors), frame_after: after_name, words: Pivot.words(fit)}}
     else
       {:error, :limit} -> {:error, "#{axis}: soft limit — move the mount away from a limit and try again"}
       {:error, e} -> {:error, "#{axis}: #{inspect(e)}"}
@@ -189,9 +190,11 @@ defmodule Controller.Optical.AxisScan do
     |> Map.put("dec", axis_json(dec))
   end
 
-  defp axis_json(%{vectors: vs, fit: fit, frame_after: fa, words: words}) do
+  defp axis_json(%{vectors: vs, fit: fit, line: line, dropped: dropped, frame_after: fa, words: words}) do
     %{
       "vectors" => Enum.map(vs, &%{"x" => &1.x, "y" => &1.y, "dx" => &1.dx, "dy" => &1.dy}),
+      "dropped" => dropped,
+      "line" => line && Map.new(line, fn {k, v} -> {Atom.to_string(k), v} end),
       "fit" => fit && Map.new(fit, fn {k, v} -> {Atom.to_string(k), v} end),
       "frame_after" => fa,
       "words" => words

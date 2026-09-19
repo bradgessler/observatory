@@ -66,6 +66,18 @@ defmodule Controller.OpticalTest do
     assert_in_delta fit.mean_dx, 3.0, 0.6
     assert_in_delta fit.mean_dy, 1.0, 0.6
     assert Pivot.words(fit) =~ "slides"
+    # the axis line runs at right angles to the (3, 1) slide
+    line = Pivot.axis_line(vectors)
+    assert_in_delta abs(line.ux * 3 + line.uy * 1) / :math.sqrt(10), 0.0, 0.15
+  end
+
+  test "odd arrows are ignored" do
+    a = scene()
+    b = warp(a, 0.0, 0.0, 0.0, 3, 1)
+    vectors = Flow.between(a, b)
+    odd = [%{x: 10.0, y: 10.0, dx: -5.0, dy: 2.0}, %{x: 20.0, y: 30.0, dx: -4.0, dy: 3.0}]
+    kept = Pivot.coherent(vectors ++ odd)
+    assert length(kept) == length(vectors)
   end
 
   test "nothing moved, nothing found" do

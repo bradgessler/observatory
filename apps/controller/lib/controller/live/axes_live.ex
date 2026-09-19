@@ -97,6 +97,8 @@ defmodule Controller.AxesLive do
             <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
               <% ax = @result[axis] %>
               <line :for={v <- ax["vectors"]} x1={v["x"]} y1={v["y"]} x2={v["x"] + v["dx"] * 4} y2={v["y"] + v["dy"] * 4} stroke={colour} stroke-width="1.6" stroke-linecap="round" opacity="0.95" marker-end={"url(#ah-#{axis})"} />
+              <%!-- the axis direction across the picture, when the motion is a slide --%>
+              <line :if={ax["line"] && ax["fit"] && ax["fit"]["coherence"] > 0.5} x1={ax["line"]["x"] - ax["line"]["ux"] * 2000} y1={ax["line"]["y"] - ax["line"]["uy"] * 2000} x2={ax["line"]["x"] + ax["line"]["ux"] * 2000} y2={ax["line"]["y"] + ax["line"]["uy"] * 2000} stroke={colour} stroke-width="2" stroke-dasharray="10 8" opacity="0.8" />
               <g :if={ax["fit"] && ax["fit"]["cx"]}>
                 <circle cx={ax["fit"]["cx"]} cy={ax["fit"]["cy"]} r="9" fill="none" stroke={colour} stroke-width="2" />
                 <line x1={ax["fit"]["cx"] - 16} y1={ax["fit"]["cy"]} x2={ax["fit"]["cx"] + 16} y2={ax["fit"]["cy"]} stroke={colour} stroke-width="1.6" />
@@ -110,13 +112,13 @@ defmodule Controller.AxesLive do
           <strong class={"ax-#{axis}"}>{label}</strong>
           <span>{ax["words"]}</span>
           <span :if={ax["fit"]} class="dim">
-            {length(ax["vectors"])} blocks moved ·
+            {length(ax["vectors"])} blocks moved{if (ax["dropped"] || 0) > 0, do: " (#{ax["dropped"]} odd ones ignored)"} ·
             {if ax["fit"]["cx"], do: "pivot at (#{round(ax["fit"]["cx"] * @result["scale"])}, #{round(ax["fit"]["cy"] * @result["scale"])}) px · "}
             spin {Float.round(ax["fit"]["quality"] / 1, 2)} · slide {Float.round(ax["fit"]["coherence"] / 1, 2)}
           </span>
           <span :if={!ax["fit"]} class="dim">nothing moved enough to measure</span>
         </div>
-        <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A cross is the best-fit pivot when the motion looks like a spin. The numbers are in the original frame's pixels.</.hint>
+        <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide; a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 
       <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>

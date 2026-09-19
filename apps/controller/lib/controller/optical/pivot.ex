@@ -55,14 +55,53 @@ defmodule Controller.Optical.Pivot do
     end
   end
 
+  @doc """
+  Throw out arrows that disagree with the crowd: keep those within 60° of
+  the median direction. A shelf that happened to match itself one block over
+  should not vote on where the tube went.
+  """
+  def coherent(vectors) when length(vectors) < 6, do: vectors
+
+  def coherent(vectors) do
+    angles = Enum.map(vectors, fn v -> :math.atan2(v.dy, v.dx) end)
+    # circular median: the angle with the least total angular distance to the rest
+    median = Enum.min_by(angles, fn a -> Enum.sum(Enum.map(angles, &abs(wrap(&1 - a)))) end)
+    kept = Enum.filter(vectors, fn v -> abs(wrap(:math.atan2(v.dy, v.dx) - median)) <= :math.pi() / 3 end)
+    if length(kept) >= 4, do: kept, else: vectors
+  end
+
+  @pi :math.pi()
+  defp wrap(a) when a > @pi, do: wrap(a - 2 * @pi)
+  defp wrap(a) when a < -@pi, do: wrap(a + 2 * @pi)
+  defp wrap(a), do: a
+
+  @doc """
+  What one camera can say about an axis that lies across its view: the axis
+  projects to a line at right angles to the flow, through the moving body.
+  Its position along the flow is not knowable from one view (depth); the
+  direction is. `%{x, y, ux, uy}`: a point on the line and its unit direction.
+  """
+  def axis_line(vectors) when length(vectors) < 4, do: nil
+
+  def axis_line(vectors) do
+    n = length(vectors)
+    cx = Enum.sum(Enum.map(vectors, & &1.x)) / n
+    cy = Enum.sum(Enum.map(vectors, & &1.y)) / n
+    mdx = Enum.sum(Enum.map(vectors, & &1.dx)) / n
+    mdy = Enum.sum(Enum.map(vectors, & &1.dy)) / n
+    len = :math.sqrt(mdx * mdx + mdy * mdy)
+    if len < 1.0e-6, do: nil, else: %{x: cx, y: cy, ux: -mdy / len, uy: mdx / len}
+  end
+
   @doc "Plain words for a fit."
   def words(nil), do: "nothing moved enough to tell"
 
   def words(%{quality: q, coherence: c, cx: cx}) do
     cond do
-      is_nil(cx) or c > 0.9 -> "slides across the picture — the axis lies across the view; the pivot is off-frame or ill-defined"
-      q > 0.9 and c < 0.6 -> "turns about a point in the picture — the axis points roughly at the camera"
-      true -> "somewhere between a spin and a slide — the axis is at an angle to the camera"
+      is_nil(cx) or c > 0.85 -> "slides across the picture: the axis lies across the view — its direction is the dashed line; how far in or out, one camera can't say"
+      q > 0.9 and c < 0.5 -> "turns about a point in the picture: the axis points roughly at the camera — the cross is where it comes through"
+      c > 0.5 -> "mostly a slide with some turn: the axis crosses the view at an angle — the dashed line is its direction, the cross is a rough pivot"
+      true -> "mostly a turn with some slide: the axis is tilted toward the camera — the cross is a rough pivot"
     end
   end
 end

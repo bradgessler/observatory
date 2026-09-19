@@ -1,5 +1,19 @@
 import Config
 
+config :controller,
+  generators: [context_app: false]
+
+# Configures the endpoint
+config :controller, Controller.Endpoint,
+  url: [host: "localhost"],
+  adapter: Bandit.PhoenixAdapter,
+  render_errors: [
+    formats: [html: Controller.ErrorHTML, json: Controller.ErrorJSON],
+    layout: false
+  ],
+  pubsub_server: Telescope.PubSub,
+  live_view: [signing_salt: "4T+tSHI9"]
+
 # Mounts to drive. `:auto` watches USB for EQDIR cables (FTDI) and starts a
 # driver per cable; a list pins them down explicitly:
 #
@@ -17,7 +31,6 @@ config :mount,
 config :libcluster,
   topologies: [lan: [strategy: Cluster.Strategy.Gossip]]
 
-config :logger, :default_formatter,
-  format: "$time $metadata[$level] $message\n"
+config :logger, :default_formatter, format: "$time $metadata[$level] $message\n"
 
 import_config "#{config_env()}.exs"

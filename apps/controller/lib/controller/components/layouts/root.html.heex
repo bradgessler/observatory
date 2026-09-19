@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="theme-color" content="#07080c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <.live_title default="Observatory">{assigns[:page_title]}</.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static src={~p"/vendor/phoenix/phoenix.min.js"}></script>
+    <script defer phx-track-static src={~p"/vendor/live_view/phoenix_live_view.min.js"}></script>
+    <script defer phx-track-static src={~p"/assets/js/app.js"}></script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

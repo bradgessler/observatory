@@ -1,0 +1,73 @@
+:root {
+  --bg: #07080c;
+  --panel: #10131a;
+  --edge: #1e2330;
+  --text: #e6e8ee;
+  --dim: #7b8194;
+  --accent: #6ea8ff;
+  --on: #48d597;
+  --warn: #ff5d5d;
+  --btn: #171b25;
+  --btn-press: #232938;
+}
+.night {
+  --bg: #050000;
+  --panel: #0e0000;
+  --edge: #2a0000;
+  --text: #ff4a4a;
+  --dim: #8a2222;
+  --accent: #ff4a4a;
+  --on: #ff7a7a;
+  --warn: #ff9a9a;
+  --btn: #120000;
+  --btn-press: #1f0000;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.3 -apple-system, system-ui, sans-serif; }
+body { overscroll-behavior: none; }
+button, select, input { font: inherit; color: inherit; }
+button { background: var(--btn); border: 1px solid var(--edge); border-radius: 14px; padding: 14px 12px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+button:active, button.pressed { background: var(--btn-press); }
+button.on { border-color: var(--on); color: var(--on); }
+button.ghost { background: transparent; border: none; font-size: 22px; padding: 6px 10px; color: var(--dim); }
+
+.pad { max-width: 440px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; min-height: 100dvh; }
+header { display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 0; }
+header select { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 8px 10px; }
+
+.readout { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px; }
+.axis { display: grid; grid-template-columns: 44px 1fr 10px; align-items: baseline; }
+.axis .label { font-size: 12px; letter-spacing: .08em; color: var(--dim); }
+.axis .deg { font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 500; letter-spacing: .01em; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--edge); align-self: center; }
+.dot.on { background: var(--on); box-shadow: 0 0 10px var(--on); }
+.status { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.badge { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--edge); border-radius: 999px; padding: 3px 9px; }
+.badge.on { color: var(--on); border-color: var(--on); }
+.badge.dim { opacity: .6; }
+
+.dpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 10px; aspect-ratio: 1; }
+.arrow { font-size: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 18px; touch-action: none; }
+.arrow small { font-size: 11px; color: var(--dim); letter-spacing: .04em; }
+.arrow.pressed { border-color: var(--accent); color: var(--accent); }
+.stop { font-weight: 800; font-size: 20px; letter-spacing: .1em; border-radius: 50%; border: 2px solid var(--warn); color: var(--warn); }
+.stop:active { background: var(--warn); color: var(--bg); }
+
+.rates { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.rate { padding: 12px 0; font-variant-numeric: tabular-nums; }
+.rate.on { border-color: var(--accent); color: var(--accent); }
+
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+.goto { display: grid; gap: 8px; }
+.goto input { width: 100%; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 14px 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.goto form { display: flex; gap: 8px; }
+.goto form input { flex: 1; }
+.goto form button { flex: 1; }
+
+.estop { margin-top: auto; background: var(--warn); color: #000; border: none; font-weight: 800; letter-spacing: .1em; padding: 18px; }
+.night .estop { background: #b00000; color: #fff; }
+
+.empty { color: var(--dim); text-align: center; padding: 40px 12px; }
+.notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--warn); color: #000; padding: 10px 16px; border-radius: 999px; font-weight: 600; margin: 0; }

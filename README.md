@@ -87,6 +87,14 @@ phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any s
   *Tilt* (hold the dead-man, tilt the phone; needs HTTPS), *Position* (type an
   axis angle, go home), *Game controller* (a USB pad read by the server —
   see `apps/input`), *Watch* and *Sky*.
+* **Line up** (`/bench/lineup`) — no Polaris needed. Set home (counterweight
+  down; it arms the limits), then centre the star the page names and tap
+  *that's it*; a second star far from the first is enough to steer, a third
+  says how well they agree. Behind it is a real geometric model of the mount
+  (`Controller.Sky.Model`: polar axis anywhere + encoder offsets) fitted from
+  the stars; gotos, readouts and the orb all go through it, and after a goto
+  the software tracks through the model on both axes (`Controller.Sky.Tracker`).
+  The line-up shows as a mode on every page; `/docs/lineup` explains the words.
 * **Watch** — a camera on the mount, read by the server (`imagesnap` on a Mac,
   `fswebcam` on Linux). Every frame is kept under `~/.observatory/watch/frames`
   for the last 240 frames / 20 minutes / 256 MB, whichever comes first, so a

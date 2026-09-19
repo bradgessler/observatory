@@ -120,8 +120,8 @@ defmodule Controller.ObjectLive do
 
   def handle_event("sync", _, %{assigns: %{obj: obj, snap: snap}} = socket) do
     if snap && snap.homed do
-      off = Pointing.sync(snap, obj, socket.assigns.ctx)
-      {:noreply, socket |> assign(notice: "synced (offset RA #{fmt1(off["ra"])}°, Dec #{fmt1(off["dec"])}°)") |> compute()}
+      st = Pointing.sync(snap, obj, socket.assigns.ctx)
+      {:noreply, socket |> assign(notice: "lined up on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
     else
       {:noreply, assign(socket, notice: "set home first")}
     end

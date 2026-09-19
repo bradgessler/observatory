@@ -76,6 +76,21 @@ defmodule Controller.Optical.Axis3DTest do
     assert_in_delta between, 90.0, max(5.0, 3 * ((f1.tilt_sd_deg || 0.0) + (f2.tilt_sd_deg || 0.0)))
   end
 
+  test "the joint fit keeps the axes perpendicular and reads the commanded steps back" do
+    a1 = unit({0.5, -0.7, 0.4})
+    a2 = unit(cross(a1, {0.0, 0.0, 1.0}))
+    angles = [-20, -10, 0, 10, 20]
+    ra = synth(a1, {0.1, 0.05, 1.0}, angles, 20, 0.5)
+    dec = synth(a2, {0.1, 0.05, 1.0}, angles, 20, 0.5)
+    {:ok, f1} = Axis3D.fit(ra, angles, @cam, bootstrap: false)
+    {:ok, f2} = Axis3D.fit(dec, angles, @cam, bootstrap: false)
+    {:ok, pair} = Axis3D.fit_pair(ra, dec, angles, @cam, polar: f1, dec: f2, max_iter: 15)
+    assert_in_delta Axis3D.angle_between(pair.polar, pair.dec), 90.0, 0.01
+    assert :math.acos(abs(dot(pair.polar.dir, a1))) / @deg < 3.0
+    steps = Axis3D.measured_angles(pair.polar, ra, angles, @cam)
+    for s <- steps, do: assert_in_delta(s.measured_deg, s.commanded_deg, 1.0)
+  end
+
   test "too few tracks is an error, not a guess" do
     assert {:error, :too_few_tracks} = Axis3D.fit([%{points: [{1, 1}]}], [0], @cam)
   end

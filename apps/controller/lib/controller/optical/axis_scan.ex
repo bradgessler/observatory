@@ -145,7 +145,10 @@ defmodule Controller.Optical.AxisScan do
           _ -> nil
         end
 
-      {:ok, %{sweep: %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "hfov_deg" => hfov, "angles" => angles, "range_deg" => half, "between_deg" => between, "ref" => ref_enc, "ra" => ra, "dec" => dec}}}
+      send(parent, {:step, :pair_fit})
+      pair = pair_fit(ra, dec, angles, hfov)
+
+      {:ok, %{sweep: %{"at" => DateTime.to_iso8601(DateTime.utc_now()), "hfov_deg" => hfov, "angles" => angles, "range_deg" => half, "between_deg" => between, "ref" => ref_enc, "ra" => ra, "dec" => dec, "pair" => pair}}}
     end
   end
 
@@ -205,6 +208,45 @@ defmodule Controller.Optical.AxisScan do
   defp frames_alive(frames) do
     hashes = Enum.map(frames, fn {f, _} -> :erlang.phash2(f.pixels) end)
     if length(Enum.uniq(hashes)) <= 1, do: {:error, "the camera is frozen — every picture is identical; stop and restart the video, or replug the camera"}, else: :ok
+  end
+
+  # Both axes at once, perpendicular by construction, started from the single
+  # fits; plus what the camera says each commanded step actually turned.
+  defp pair_fit(%{"fit" => %{} = rf, "tracks" => rt, "w" => w, "h" => h}, %{"fit" => %{} = df, "tracks" => dt}, angles, hfov) do
+    alias Controller.Optical.Axis3D
+    cam = Axis3D.camera(w, h, hfov)
+    to_tracks = fn ts -> Enum.map(ts, fn pts -> %{points: Enum.map(pts, fn [x, y] -> {x, y} end)} end) end
+    ra_t = to_tracks.(rt)
+    dec_t = to_tracks.(dt)
+    single = fn f -> %{dir: List.to_tuple(f["dir"]), point: List.to_tuple(f["point"]), sense: f["sense"], tilt_ambiguous: f["tilt_ambiguous"]} end
+
+    case Axis3D.fit_pair(ra_t, dec_t, angles, cam, polar: single.(rf), dec: single.(df)) do
+      {:ok, r} ->
+        steps = fn fit, tracks -> Axis3D.measured_angles(fit, tracks, angles, cam) |> Enum.map(&Map.new(&1, fn {k, v} -> {Atom.to_string(k), v} end)) end
+        ra_steps = steps.(r.polar, ra_t)
+        dec_steps = steps.(r.dec, dec_t)
+
+        %{
+          "polar" => fit_json(r.polar, cam),
+          "dec" => fit_json(r.dec, cam),
+          "rms_px" => Float.round(r.rms_px, 2),
+          "steps" => %{"ra" => ra_steps, "dec" => dec_steps},
+          # the practical margin: how far the camera's reading of a step strays from the command
+          "step_error_deg" => %{"ra" => step_error(ra_steps), "dec" => step_error(dec_steps)}
+        }
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  defp pair_fit(_, _, _, _), do: nil
+
+  # rms over the sweep of (measured − commanded), after removing the constant offset of the reference frame
+  defp step_error(steps) do
+    diffs = Enum.map(steps, &(&1["measured_deg"] - &1["commanded_deg"]))
+    mean = Enum.sum(diffs) / max(length(diffs), 1)
+    Float.round(:math.sqrt(Enum.sum(Enum.map(diffs, &((&1 - mean) * (&1 - mean)))) / max(length(diffs), 1)), 2)
   end
 
   # the fit plus two projected points on the axis so the page can draw it

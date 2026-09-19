@@ -41,6 +41,25 @@ single camera; a second camera at roughly a right angle turns two such
 lines into an axis in space. Arrows that disagree with the crowd by more
 than 60° (a shelf matching itself one block over) are ignored and counted.
 
+## The sweep
+
+*Sweep* takes five stills per axis across ±6° (or ±20° for the wide sweep),
+follows spots frame to frame and fits the axis in space: every spot rides a
+circle around the axis, and with the turn angle known at each frame the
+arcs' curvature says where the axis is in depth as well as in the picture.
+A small sweep's arcs are nearly straight, so "toward" and "away" fit
+equally well — the page says so rather than picking one. The two axes are
+then fitted **together, perpendicular by construction**, which removes the
+weakness a lone axis has when it points near the camera.
+
+**Camera's reading of each step**: with the axis and the spots' circles
+known, each frame gives the one turn angle that best explains every spot.
+Commanded 10°, camera saw 9.75° — that is the hardware doing what it was
+told, measured from outside the encoders. The *stray* (how far those
+readings scatter from the commands) is the practical margin; it includes
+tracking noise and lens distortion, which the fit's own ± does not know
+about.
+
 ## Honest limits
 
 * This is a 2-D reading of a 3-D motion. It says where the axis *appears*
@@ -50,3 +69,9 @@ than 60° (a shelf matching itself one block over) are ignored and counted.
   arrows. Tape, labels and the counterweight bar all help.
 * Anything else moving during the scan — a person walking past — adds
   arrows that don't belong. Run it when the scene is still.
+* The camera is assumed to be an ideal pinhole with the field of view on
+  the Camera page. Real lenses distort toward the edges; that shows up as
+  step readings straying by a degree or two. A checkerboard calibration is
+  the cure, later.
+* Depth is in units of the distance to the axis: one camera never knows
+  how big the mount is, only its shape.

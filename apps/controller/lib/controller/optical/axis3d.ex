@@ -97,6 +97,154 @@ defmodule Controller.Optical.Axis3D do
 
   def fit(_, _, _, _), do: {:error, :too_few_tracks}
 
+  @doc """
+  Both axes at once, perpendicular by construction: the polar axis as before,
+  the Dec axis as an angle around it in its perpendicular plane, each with its
+  own point. Removes the degeneracy a lone axis near the line of sight has.
+  Returns `{:ok, %{polar: fit, dec: fit, rms_px}}` with the same fields per
+  axis as `fit/4` (bootstrap over both track sets).
+  """
+  def fit_pair(ra_tracks, dec_tracks, angles_deg, cam, opts \\ []) do
+    n = length(angles_deg)
+    ra_t = Enum.filter(ra_tracks, &(length(&1.points) == n))
+    dec_t = Enum.filter(dec_tracks, &(length(&1.points) == n))
+
+    if length(ra_t) < 4 or length(dec_t) < 4 do
+      {:error, :too_few_tracks}
+    else
+      thetas = Enum.map(angles_deg, &(&1 * @deg))
+
+      # start from the single-axis fits when we have them (their in-picture
+      # directions and senses are reliable even when their tilts are not)
+      {az0, el0, up0, vp0, sp0} =
+        case opts[:polar] do
+          %{dir: {x, y, z}, point: {px, py, pz}, sense: s} -> {:math.atan2(y, x), :math.asin(z), cam.f * px / pz + cam.cx, cam.f * py / pz + cam.cy, s}
+          _ -> [a, e, u, v] = initial_axis(ra_t, cam); {a, e, u, v, nil}
+        end
+
+      {ud0, vd0, sd0} =
+        case opts[:dec] do
+          %{point: {px, py, pz}, sense: s} -> {cam.f * px / pz + cam.cx, cam.f * py / pz + cam.cy, s}
+          _ -> [_, _, u, v] = initial_axis(dec_t, cam); {u, v, nil}
+        end
+
+      senses = fn known -> if known, do: [known], else: [1.0, -1.0] end
+      els = if opts[:polar] && !opts[:polar][:tilt_ambiguous], do: [el0], else: [el0, -el0]
+      starts = for el <- els, phi <- [0.0, 0.5 * :math.pi(), :math.pi(), 1.5 * :math.pi()], do: [az0, el, up0, vp0, ud0, vd0, phi]
+
+      fits =
+        for x0 <- starts, sp <- senses.(sp0), sd <- senses.(sd0) do
+          res = Fit.lm(&pair_residuals(&1, ra_t, dec_t, thetas, cam, sp, sd), x0, max_iter: opts[:max_iter] || 25)
+          {res, sp, sd}
+        end
+        |> Enum.sort_by(fn {res, _, _} -> res.cost end)
+
+      {res, sp, sd} = hd(fits)
+      [az, el, up, vp, ud, vd, phi] = res.x
+      p = dir_from(az, el)
+      d = dec_from(p, phi)
+      rms = :math.sqrt(res.cost / max(length(res.residuals), 1))
+      # mirror check on the polar tilt, as for a single axis
+      mirror = fits |> Enum.filter(fn {r, _, _} -> [_, e | _] = r.x; e * el < 0 end) |> Enum.map(fn {r, _, _} -> r.cost end) |> Enum.min(fn -> :infinity end)
+      ambiguous = mirror != :infinity and mirror < res.cost * 1.1
+
+      mk = fn dir, point, sense, sd_img, sd_tilt ->
+        %{
+          dir: dir,
+          point: point,
+          sense: sense,
+          n: nil,
+          rms_px: rms,
+          image_angle_deg: image_angle(dir),
+          tilt_deg: tilt(dir),
+          image_angle_sd_deg: sd_img,
+          tilt_sd_deg: if(ambiguous, do: 90.0, else: sd_tilt),
+          tilt_ambiguous: ambiguous,
+          bootstrap_sd_deg: nil,
+          iterations: res.iterations
+        }
+      end
+
+      sd_az = Fit.sd(res.cov, 0) && Fit.sd(res.cov, 0) / @deg
+      sd_el = Fit.sd(res.cov, 1) && Fit.sd(res.cov, 1) / @deg
+      sd_phi = Fit.sd(res.cov, 6) && Fit.sd(res.cov, 6) / @deg
+
+      {:ok,
+       %{
+         polar: %{mk.(p, point_from(up, vp, cam), sp, sd_az, sd_el) | n: length(ra_t)},
+         dec: %{mk.(d, point_from(ud, vd, cam), sd, sd_phi, sd_phi) | n: length(dec_t)},
+         rms_px: rms,
+         between_deg: 90.0
+       }}
+    end
+  end
+
+  @doc """
+  What the camera says each frame's turn actually was: with the axis and every
+  spot's circle fixed, the single rotation angle per frame that best fits all
+  the spots — compared with what the encoders were commanded. Returns
+  `[%{commanded_deg, measured_deg, sd_deg}]`. This is the offset-confirmation
+  number: does the hardware do what it was told, as seen from outside.
+  """
+  def measured_angles(fit, tracks, angles_deg, cam) do
+    n = length(angles_deg)
+    tracks = Enum.filter(tracks, &(length(&1.points) == n))
+    thetas = Enum.map(angles_deg, &(&1 * @deg))
+    a = fit.dir
+    c = fit.point
+    sense = fit.sense
+    {e1, e2} = basis(a)
+
+    # each spot's circle under this axis, from the full sweep
+    circles =
+      Enum.map(tracks, fn track ->
+        x0 = spot_initial(track, a, c, e1, e2, cam)
+        Fit.lm(&spot_residuals(&1, track, thetas, a, c, e1, e2, cam, sense), x0, max_iter: 20).x
+      end)
+
+    for {th, k} <- Enum.with_index(thetas) do
+      res =
+        Fit.lm(
+          fn [t] ->
+            Enum.zip(circles, tracks)
+            |> Enum.flat_map(fn {[h, r, phi], %{points: pts}} ->
+              {u, v} = Enum.at(pts, k)
+              ang = phi + sense * t
+              x = add(add(c, scale(a, h)), add(scale(e1, r * :math.cos(ang)), scale(e2, r * :math.sin(ang))))
+              {pu, pv} = project(x, cam)
+              [pu - u, pv - v]
+            end)
+          end,
+          [th],
+          max_iter: 15
+        )
+
+      [t] = res.x
+      %{commanded_deg: Float.round(th / @deg, 2), measured_deg: Float.round(t / @deg, 2), sd_deg: (Fit.sd(res.cov, 0) && Float.round(Fit.sd(res.cov, 0) / @deg, 2)) || nil}
+    end
+  end
+
+  # the Dec axis: an angle in the plane perpendicular to the polar axis
+  defp dec_from(p, phi) do
+    {e1, e2} = basis(p)
+    add(scale(e1, :math.cos(phi)), scale(e2, :math.sin(phi)))
+  end
+
+  defp pair_residuals([az, el, up, vp, ud, vd, phi], ra_t, dec_t, thetas, cam, sp, sd) do
+    p = dir_from(az, el)
+    d = dec_from(p, phi)
+    axis_residuals(p, point_from(up, vp, cam), ra_t, thetas, cam, sp) ++ axis_residuals(d, point_from(ud, vd, cam), dec_t, thetas, cam, sd)
+  end
+
+  defp axis_residuals(a, c, tracks, thetas, cam, sense) do
+    {e1, e2} = basis(a)
+
+    Enum.flat_map(tracks, fn track ->
+      x0 = spot_initial(track, a, c, e1, e2, cam)
+      Fit.lm(&spot_residuals(&1, track, thetas, a, c, e1, e2, cam, sense), x0, max_iter: 20).residuals
+    end)
+  end
+
   @doc "Angle in degrees between two fitted axes (90° for a healthy mount)."
   def angle_between(%{dir: a}, %{dir: b}), do: :math.acos(min(max(dot(a, b), -1.0), 1.0)) / @deg
 
@@ -180,7 +328,8 @@ defmodule Controller.Optical.Axis3D do
   defp dir_from(az, el), do: {:math.cos(el) * :math.cos(az), :math.cos(el) * :math.sin(az), :math.sin(el)}
   defp point_from(u0, v0, cam), do: {(u0 - cam.cx) / cam.f, (v0 - cam.cy) / cam.f, 1.0}
 
-  # in-picture direction of the axis (undirected, 0..180, y down) and its tilt out of the image plane
+  # in-picture direction of the axis (undirected, 0..180, y down) and its tilt out
+  # of the image plane: positive = the far end points away from the camera
   defp image_angle({x, y, _}) do
     a = :math.atan2(y, x) / @deg
     if a < 0, do: a + 180, else: a

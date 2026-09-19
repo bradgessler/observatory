@@ -24,6 +24,11 @@ defmodule Controller.Optical.Rig do
   @doc "Build a rig from a stored sweep result (string-keyed, as in Settings) and the encoder angles it was taken at. nil if a fit is missing or a tilt unresolved."
   def from_sweep(sweep, ref_encoders, hfov \\ nil)
 
+  # the joint fit is perpendicular by construction and free of the lone-axis degeneracy
+  def from_sweep(%{"pair" => %{"polar" => %{} = ra, "dec" => %{} = dec}} = sweep, ref_encoders, hfov) do
+    from_sweep(sweep |> Map.delete("pair") |> put_in(["ra", "fit"], ra) |> put_in(["dec", "fit"], dec), ref_encoders, hfov)
+  end
+
   def from_sweep(%{"ra" => %{"fit" => %{} = ra}, "dec" => %{"fit" => %{} = dec}} = sweep, ref_encoders, hfov) do
     if ra["tilt_ambiguous"] or dec["tilt_ambiguous"] do
       nil

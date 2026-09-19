@@ -147,10 +147,27 @@ defmodule Controller.AxesLive do
             <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
               <% ax = sw[axis] %>
               <polyline :for={t <- ax["tracks"]} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.9" />
-              <line :if={ax["fit"]} x1={ax["fit"]["line"] |> hd() |> hd()} y1={ax["fit"]["line"] |> hd() |> Enum.at(1)} x2={ax["fit"]["line"] |> Enum.at(1) |> hd()} y2={ax["fit"]["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="2.4" stroke-dasharray="12 8" />
+              <% pf = sw["pair"] && sw["pair"][if(axis == "ra", do: "polar", else: "dec")] %>
+              <% lf = pf || ax["fit"] %>
+              <line :if={lf} x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="2.4" stroke-dasharray="12 8" />
             <% end %>
           </svg>
         </div>
+        <%!-- both axes fitted together, perpendicular by construction: the number that matters --%>
+        <% pair = sw["pair"] %>
+        <div :if={pair} class="axes-row">
+          <strong>Both axes together (perpendicular by construction)</strong>
+          <span>
+            polar axis <b>{pair["polar"]["image_angle_deg"]}° ± {margin(pair["polar"]["image_angle_sd_deg"], nil)}°</b> across the picture, <b>{abs(pair["polar"]["tilt_deg"])}° ± {margin(pair["polar"]["tilt_sd_deg"], nil)}°</b> out of it ·
+            Dec axis <b>{pair["dec"]["image_angle_deg"]}°</b> across, <b>{abs(pair["dec"]["tilt_deg"])}°</b> out · arcs fit to {pair["rms_px"]} px
+          </span>
+          <span class="dim">
+            camera's reading of each commanded step — RA: {Enum.map_join(pair["steps"]["ra"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["ra"]}°) ·
+            Dec: {Enum.map_join(pair["steps"]["dec"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["dec"]}°)
+          </span>
+          <span class="dim">the stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
+        </div>
+
         <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
           <% f = sw[axis]["fit"] %>
           <strong class={"ax-#{axis}"}>{label}</strong>
@@ -159,7 +176,7 @@ defmodule Controller.AxesLive do
             <%= if f["tilt_ambiguous"] do %>
               tilt <b>about {abs(f["tilt_deg"])}° — toward or away the camera can't tell</b> from a sweep this small; the arcs are too nearly straight. Try the wide sweep.
             <% else %>
-              tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> {if f["tilt_deg"] >= 0, do: "toward", else: "away from"} the camera
+              tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> out of the picture
             <% end %>
           </span>
           <span :if={f} class="dim">{f["n"]} spots followed through {length(sw["angles"])} positions · arcs fit to {f["rms_px"]} px · depth is in units of the distance to the axis (one camera can't scale it)</span>
@@ -233,6 +250,7 @@ defmodule Controller.AxesLive do
   defp step_words(%{step: {:move, ax}}), do: "turning #{ax}"
   defp step_words(%{step: {:capture, ax}}), do: "picture after #{ax}"
   defp step_words(%{step: {:sweep, ax, i, n}}), do: "#{ax} · position #{i} of #{n}"
+  defp step_words(%{step: :pair_fit}), do: "fitting both axes together"
   defp step_words(%{step: {:analyse, ax}}), do: "looking at #{ax}"
   defp step_words(_), do: "working"
 end

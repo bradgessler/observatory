@@ -22,6 +22,7 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 3. Bench › **Line up**: centre the suggested star, *That's it*; do a second far away; a third to see the agreement.
 4. Sky › Tonight: tap Saturn / the Pleiades → Slew. Tracking follows through the model; STOP ends it.
 5. If a goto misses by more than an eyepiece field, add the object as a star (Sync) and go on.
+6. Tube somewhere odd? `/events` says who moved it and when; nothing there means it was moved by hand — set home and line up again.
 
 ## Before dark (laptop, indoors)
 

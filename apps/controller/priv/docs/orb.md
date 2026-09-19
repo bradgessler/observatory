@@ -1,0 +1,28 @@
+# Orb
+
+The mount's geometry as a small 3-D sphere: the polar axis, the Dec axis and
+the tube, drawn where they really are and turning as the motors turn.
+
+## Why it exists
+
+A German equatorial mount is confusing the first ten times: "east" turns the
+polar axis, "up" is toward the pole, and the same spot in the sky can be
+reached two ways. The keypad hides all that behind arrows; the orb shows it.
+Watch the strips move the axes on the sphere and the mount stops being a
+mystery.
+
+## What it draws
+
+* The **celestial sphere** from your standing spot (pick *from S/E/N/W* to
+  match where you are in the yard).
+* The **polar axis** (blue) tilted by the latitude knob and turned by the
+  heading you set on Setup — or by the line-up, once you have one.
+* The **Dec axis** (green) and the **tube** (red) at the current encoder angles.
+* Arrowheads chase around an axis while it is running.
+
+## Notes
+
+* The two strips under the sphere are honest: each drives one axis.
+* Once the line-up exists, the orb draws the solved geometry, not the ideal one.
+* Planned: uncertainty caps that shrink as stars are added, and drag to look
+  around (#49).

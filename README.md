@@ -79,7 +79,13 @@ phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any s
     and plate-solved (needs a free `NOVA_API_KEY` from nova.astrometry.net)
     into that direction's horizon.
 
-* **Bench** `/` — the front door while control surfaces are being worked out.
+* **Home** `/` — the front door: a grouped list of everything, one line each
+  (Star Lock, Controls, Watch, Plumbing), each with a `?` to the page that
+  says why it exists.
+* **Events** `/events` — every command to the mount with who sent it (which
+  page, the game pad, the tracker), plus line-up stars and video starts.
+  In memory; the durable version is an issue.
+* **Bench** `/bench` — every control surface side by side.
   One header with the scope's live state, the game pad, the camera and one
   always-visible STOP; a nav of surfaces, each rendered below:
   *Axis strips* (pull-to-speed per axis), *Plain keypad*, *Nudge* (tap = one

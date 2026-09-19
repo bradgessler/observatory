@@ -21,31 +21,31 @@ defmodule Controller.HomeLive do
      [
        {"Line Up", ~p"/bench/lineup", "name a few stars; the software works out how the mount really sits", ~p"/docs/lineup"},
        {"Sky", ~p"/bench/sky", "the sky right now, tonight's targets, your tree line; tap and slew", ~p"/docs/sky"},
-       {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", nil}
+       {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"}
      ]},
     {"Controls",
      "ways to move the scope; each is an experiment in what feels right in the dark",
      [
        {"Axis Strips", ~p"/bench/strips", "one pull-to-speed strip per axis; the field keypad", ~p"/docs/keypad"},
        {"Plain Keypad", ~p"/bench/dpad", "four arrows and a rate row; the baseline", ~p"/docs/keypad"},
-       {"Nudge", ~p"/bench/nudge", "tap to move an exact 1′, 5′, 30′ or 2°; for centring", nil},
-       {"Tilt", ~p"/bench/tilt", "hold the button, tilt the phone; for when your eye is on the eyepiece", nil},
-       {"Position", ~p"/bench/position", "type an axis angle, go there; go home", nil},
+       {"Nudge", ~p"/bench/nudge", "tap to move an exact 1′, 5′, 30′ or 2°; for centring", ~p"/docs/nudge"},
+       {"Tilt", ~p"/bench/tilt", "hold the button, tilt the phone; for when your eye is on the eyepiece", ~p"/docs/tilt"},
+       {"Position", ~p"/bench/position", "type an axis angle, go there; go home", ~p"/docs/position"},
        {"Game Controller", ~p"/bench/gamepad", "a USB pad read by the server: trigger is the dead-man, the ball is speed", ~p"/docs/devices"}
      ]},
     {"Watch",
      "eyes on the hardware from anywhere",
      [
-       {"Watch", ~p"/controls/watch", "the latest still, kept fresh; press Play for live video", nil},
-       {"Recent Frames", ~p"/controls/watch/frames", "the last twenty minutes of stills, for looking back at a slew", nil},
-       {"Camera", ~p"/controls/watch/camera", "which camera, timed stills, video size and frame rate", nil}
+       {"Watch", ~p"/controls/watch", "the latest still, kept fresh; press Play for live video", ~p"/docs/watch"},
+       {"Recent Frames", ~p"/controls/watch/frames", "the last twenty minutes of stills, for looking back at a slew", ~p"/docs/watch"},
+       {"Camera", ~p"/controls/watch/camera", "which camera, timed stills, video size and frame rate", ~p"/docs/watch"}
      ]},
     {"Plumbing",
      "what is plugged in and how to reach this machine",
      [
        {"Devices", ~p"/devices", "the telescope cable, the mount answering or not, the addresses", ~p"/docs/devices"},
-       {"Events", ~p"/events", "what happened and who did it: every move, stop, star and stream, newest first", nil},
-       {"Bench", ~p"/bench", "every surface side by side with the live scope state; where new things get tried", nil}
+       {"Events", ~p"/events", "what happened and who did it: every move, stop, star and stream, newest first", ~p"/docs/events"},
+       {"Bench", ~p"/bench", "every surface side by side with the live scope state; where new things get tried", ~p"/docs/bench"}
      ]}
     ]
   end

@@ -150,7 +150,7 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
   .sky { max-width: 1400px; display: grid; grid-template-columns: minmax(420px, 1fr) minmax(360px, 520px); grid-template-rows: auto auto 1fr auto; column-gap: 28px; align-content: start; }
   .sky header { grid-column: 1 / -1; }
   .sky .tabs { grid-column: 2; grid-row: 2; }
-  .sky .map { grid-column: 1; grid-row: 2 / 5; max-height: calc(100dvh - 120px); width: auto; justify-self: center; }
+  .sky .map { grid-column: 1; grid-row: 2 / 5; width: min(100%, calc(100dvh - 140px)); height: auto; align-self: start; justify-self: center; }
   .sky .targets, .sky section:not(.pick):not(.targets) { grid-column: 2; grid-row: 3; overflow: auto; max-height: calc(100dvh - 260px); }
   .sky .pick { grid-column: 2; grid-row: 4; }
   .sky .fine { grid-column: 1 / -1; }

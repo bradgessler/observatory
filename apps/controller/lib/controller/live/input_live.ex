@@ -151,7 +151,7 @@ defmodule Controller.InputLive do
         <.kv :for={s <- @seen.devices} label={"#{Integer.to_string(s.vendor_id, 16)}:#{Integer.to_string(s.product_id, 16)}"} value={"#{s.product} · usage #{s.usage_page}/#{s.usage}#{if s.reading, do: " · reading", else: ""}"} />
       </.card>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </.page>
     """
   end

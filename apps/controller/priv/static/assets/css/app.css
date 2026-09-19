@@ -572,3 +572,7 @@ a.banner strong { color: var(--warn); }
 .events time { color: var(--dim); }
 .ev-by { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 420px) { .events li { grid-template-columns: 56px 1fr; } .events .ev-what { grid-column: 1 / -1; } }
+
+/* notices never sit between a finger and a button: they fade, and taps go through them */
+.notice { pointer-events: none; animation: notice-fade 6s forwards; }
+@keyframes notice-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }

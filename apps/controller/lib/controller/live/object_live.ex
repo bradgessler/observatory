@@ -200,7 +200,7 @@ defmodule Controller.ObjectLive do
         <p :if={!@snap} class="horizon-hint">No mount connected.</p>
       </section>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </main>
     """
   end

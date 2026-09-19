@@ -297,7 +297,7 @@ defmodule Controller.LineupLive do
         <.hint :if={!@tracker}>Centre anything by hand, tap, and both motors keep it there — through the line-up if there is one. Gotos from the Sky page do this by themselves.</.hint>
       </.card>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </.page>
     """
   end

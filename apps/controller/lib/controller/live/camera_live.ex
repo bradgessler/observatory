@@ -127,7 +127,7 @@ defmodule Controller.CameraLive do
         <.hint>HLS from FFmpeg on this machine, 1-second segments. Heavy: on a Pi, run it on a bigger machine.</.hint>
       </.card>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </.page>
     """
   end

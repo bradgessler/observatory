@@ -251,7 +251,7 @@ defmodule Controller.OrbLive do
         </section>
       <% end %>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </.page>
     """
   end

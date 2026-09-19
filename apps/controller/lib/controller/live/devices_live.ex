@@ -152,7 +152,7 @@ defmodule Controller.DevicesLive do
 
       <.hint>Won't connect? <.link href={~p"/docs/devices"}>The checklist ›</.link></.hint>
 
-      <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
+      <p :if={@notice} id={"notice-#{:erlang.phash2(@notice)}"} class="notice">{@notice}</p>
     </.page>
     """
   end

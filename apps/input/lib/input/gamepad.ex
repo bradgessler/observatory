@@ -1,15 +1,15 @@
-defmodule Controller.Input.Gamepad do
+defmodule Input.Gamepad do
   @moduledoc """
-  Turns a gamepad's state into mount motion. Pure functions; the state arrives
-  from whatever node the pad is plugged into (browser Gamepad API on a laptop,
-  evdev on a Pi) as `%{axes: [floats -1..1], buttons: [%{pressed, value}], hat: ...}`.
+  Turns a gamepad's state into mount motion. Pure functions; the state comes
+  from `Input.Device` (server-side HID) as `%{axes: [floats -1..1],
+  buttons: [bool], hat: {x, y} | nil}`.
 
   Default mapping (SideWinder Dual Strike, but any pad with two axes works):
 
-    * hold the **trigger** (button 0) and tilt the ball → RA from X, Dec from Y;
-      tilt sets speed on a log scale, dead zone 12%, up to `max_rate`
+    * hold the **trigger** (button index `trigger`) and tilt the ball → RA from X,
+      Dec from Y; tilt sets speed on a log scale, dead zone, up to `max_rate`
     * **hat / D-pad** → fine nudges at `fine_rate` (no trigger needed)
-    * button 1 → STOP
+    * button `stop` → STOP
 
   Everything is a parameter so a different pad is a different map, not code.
   """
@@ -51,15 +51,15 @@ defmodule Controller.Input.Gamepad do
         if mag < m.dead do
           :idle
         else
-          # 0 at the dead zone edge → 1 at full tilt, then log speed 1×..max
+          # 0 at the dead-zone edge → 1 at full tilt, then log speed 1×..max
           t = min((mag - m.dead) / (1 - m.dead), 1.0)
           rate = :math.pow(m.max_rate, t)
           scale = rate / max(abs(x), abs(y))
           {:move, [{:ra, x * scale}, {:dec, y * scale}] |> Enum.reject(fn {_, r} -> abs(r) < 0.5 end)}
         end
 
-      hat(state) != nil ->
-        {hx, hy} = hat(state)
+      state[:hat] != nil ->
+        {hx, hy} = state.hat
         {:nudge, [{:ra, hx * m.fine_rate}, {:dec, hy * m.fine_rate}] |> Enum.reject(fn {_, r} -> r == 0 end)}
 
       true ->
@@ -86,17 +86,5 @@ defmodule Controller.Input.Gamepad do
   defp flip(v, true), do: -v
   defp flip(v, false), do: v
 
-  defp pressed?(buttons, i) do
-    case Enum.at(buttons, i) do
-      %{"pressed" => p} -> p == true
-      %{pressed: p} -> p == true
-      _ -> false
-    end
-  end
-
-  # Hats arrive either as {x, y} in -1..1 or as a 0..7 direction; nil when centred.
-  defp hat(%{hat: {x, y}}) when x != 0 or y != 0, do: {x, y}
-  defp hat(%{"hat" => [x, y]}) when x != 0 or y != 0, do: {x, y}
-  defp hat(%{"hat" => d}) when is_integer(d) and d in 0..7, do: Enum.at([{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}], d)
-  defp hat(_), do: nil
+  defp pressed?(buttons, i), do: Enum.at(buttons, i) == true
 end

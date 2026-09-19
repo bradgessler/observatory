@@ -40,6 +40,7 @@ defmodule Controller.MixProject do
     [
       {:telescope, in_umbrella: true},
       {:mount, in_umbrella: true},
+      {:input, in_umbrella: true},
       {:phoenix, "~> 1.8.5"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},

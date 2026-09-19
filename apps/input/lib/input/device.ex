@@ -1,0 +1,91 @@
+defmodule Input.Device do
+  @moduledoc """
+  One open HID device. Owns the port process, parses every report, keeps the
+  latest state, and broadcasts `{:input, id, state}` on `"input"` (and on
+  `"input:<id>"`) whenever the state changes. Dies with the device; Discovery
+  starts it again when the device is back.
+  """
+  use GenServer
+  require Logger
+
+  alias Input.HIDPort
+
+  def start_link(dev), do: GenServer.start_link(__MODULE__, dev, name: via(id_of(dev)))
+
+  def via(id), do: {:via, Registry, {Input.Registry, id}}
+
+  def child_spec(dev), do: %{id: {__MODULE__, id_of(dev)}, start: {__MODULE__, :start_link, [dev]}, restart: :transient}
+
+  @doc "Stable id from vendor/product/path: `045e:0028@<path hash>`."
+  def id_of(%{vendor_id: v, product_id: p, path: path}) do
+    :io_lib.format("~4.16.0b:~4.16.0b@~s", [v, p, path |> :erlang.phash2() |> Integer.to_string(36)]) |> to_string()
+  end
+
+  def state(id), do: GenServer.call(via(id), :state)
+
+  @impl true
+  def init(dev) do
+    Process.flag(:trap_exit, true)
+    parser = Input.Parsers.for(dev)
+    port = HIDPort.open(dev.path)
+
+    {:ok,
+     %{
+       id: id_of(dev),
+       dev: dev,
+       parser: parser,
+       port: port,
+       state: %{axes: [], buttons: [], hat: nil, extra: %{}, raw: <<>>},
+       reports: 0,
+       opened: false
+     }}
+  end
+
+  @impl true
+  def handle_call(:state, _from, s), do: {:reply, info(s), s}
+
+  @impl true
+  def handle_info({port, {:data, {:eol, "O " <> _}}}, %{port: port} = s) do
+    Logger.info("input #{s.id}: #{s.parser.name()} open (#{s.dev.product})")
+    {:noreply, broadcast(%{s | opened: true})}
+  end
+
+  def handle_info({port, {:data, {:eol, "R " <> hex}}}, %{port: port} = s) do
+    report = Base.decode16!(hex, case: :lower)
+    state = s.parser.parse(report)
+    s = %{s | reports: s.reports + 1}
+
+    if state == s.state, do: {:noreply, s}, else: {:noreply, broadcast(%{s | state: state})}
+  end
+
+  def handle_info({port, {:data, {:eol, "E " <> why}}}, %{port: port} = s) do
+    Logger.warning("input #{s.id}: #{why}")
+    {:stop, :normal, s}
+  end
+
+  def handle_info({port, {:exit_status, code}}, %{port: port} = s) do
+    Logger.info("input #{s.id}: device gone (hidport exit #{code})")
+    Telescope.broadcast("input", {:input_gone, s.id})
+    {:stop, :normal, %{s | port: nil}}
+  end
+
+  def handle_info(_other, s), do: {:noreply, s}
+
+  @impl true
+  def terminate(_reason, %{port: port}) when is_port(port) do
+    Port.close(port)
+  catch
+    _, _ -> :ok
+  end
+
+  def terminate(_reason, _s), do: :ok
+
+  defp info(s), do: %{id: s.id, device: s.dev, parser: s.parser.name(), state: s.state, reports: s.reports, node: node()}
+
+  defp broadcast(s) do
+    msg = {:input, s.id, info(s)}
+    Telescope.broadcast("input", msg)
+    Telescope.broadcast("input:#{s.id}", msg)
+    s
+  end
+end

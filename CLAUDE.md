@@ -60,6 +60,19 @@ it.
 **Elixir all the way down.** No side-scripts in the product path. `hack/` is
 the one exception: day-one Python probes kept as a record.
 
+**Hardware is read by the server, never the browser.** Serial goes through
+`circuits_uart`; USB HID (game controllers) goes through `apps/input`, a
+GenServer per device over a tiny C port program linked to libhidapi
+(`apps/input/c_src/hidport.c`), which builds the same on macOS and Linux. The
+UI shows device state and never depends on a browser's device APIs, so
+everything works in Safari, Firefox, a phone — web standards only, no
+Chrome-only paths.
+
+**When state needs a store, it's Ecto + SQLite with migrations from day one**
+(hardware registrations, sites, sessions). Not yet: `~/.observatory/settings.json`
+is enough while we're playing. The moment a second table appears, add the
+Repo and migrate the settings into it.
+
 ## Working here
 
 - `mix test` at the root runs every app. The driver is tested against

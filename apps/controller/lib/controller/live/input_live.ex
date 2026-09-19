@@ -1,52 +1,62 @@
 defmodule Controller.InputLive do
   @moduledoc """
-  Hardware inputs. A gamepad plugged into the machine showing this page is
-  read by the browser (macOS/Windows have no device file to read from Elixir)
-  and its state is sent here ~20×/s while something is pressed. The mapping
-  to mount motion is server-side and pure (`Controller.Input.Gamepad`), so a
-  Pi reading the same pad over evdev drives the mount identically.
-
-  Shows the raw axes/buttons so an unknown pad can be mapped by looking.
+  Hardware inputs, read by the server. This page only shows what `Input` sees
+  and lets you arm the mapper; there is no browser-side device code, so it
+  works the same in Safari, Firefox, a phone, anything.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
-  alias Controller.Input.Gamepad
   alias Controller.Settings
 
   @impl true
   def mount(params, _session, socket) do
     if connected?(socket) do
-      send(self(), :rescan)
+      Input.subscribe()
       Settings.subscribe()
+      send(self(), :rescan)
     end
 
     {:ok,
      socket
-     |> assign(
-       night: Settings.get("night", false),
-       refs: %{},
-       selected: params["mount"],
-       snap: nil,
-       pads: [],
-       state: nil,
-       action: :idle,
-       held: [],
-       start: nil,
-       notice: nil,
-       armed: true
-     )
+     |> assign(night: Settings.get("night", false), refs: %{}, selected: params["mount"], snap: nil, notice: nil, start: nil)
+     |> load()
      |> rescan()}
+  end
+
+  defp load(socket) do
+    assign(socket, devices: Input.devices(), seen: Input.seen(), mapper: Input.status())
   end
 
   @impl true
   def handle_info(:rescan, socket) do
-    Process.send_after(self(), :rescan, 5_000)
-    {:noreply, rescan(socket)}
+    Process.send_after(self(), :rescan, 3_000)
+    {:noreply, socket |> rescan() |> load()}
   end
 
   def handle_info({:mount, snap}, socket) do
     if snap.id == socket.assigns.selected, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
+  end
+
+  def handle_info({:input, id, info}, socket) do
+    devices = Enum.reject(socket.assigns.devices, &(&1.id == id)) ++ [info]
+    {:noreply, assign(socket, devices: Enum.sort_by(devices, & &1.id))}
+  end
+
+  def handle_info({:input_gone, id}, socket) do
+    {:noreply, assign(socket, devices: Enum.reject(socket.assigns.devices, &(&1.id == id)))}
+  end
+
+  def handle_info({:mapper, status}, socket) do
+    start =
+      cond do
+        status.held == [] -> nil
+        socket.assigns.start -> socket.assigns.start
+        socket.assigns.snap -> {socket.assigns.snap.axes.ra.degrees, socket.assigns.snap.axes.dec.degrees}
+        true -> nil
+      end
+
+    {:noreply, assign(socket, mapper: status, start: start)}
   end
 
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
@@ -60,113 +70,97 @@ defmodule Controller.InputLive do
     assign(socket, refs: refs, selected: selected, snap: snap)
   end
 
-  # -- events from the hook ---------------------------------------------------------
+  # -- events -------------------------------------------------------------------------
 
   @impl true
-  def handle_event("pads", %{"pads" => pads}, socket), do: {:noreply, assign(socket, pads: pads)}
-
-  def handle_event("gamepad", %{"axes" => axes, "buttons" => buttons} = st, socket) do
-    state = %{axes: axes, buttons: buttons, hat: hat_from(st["hat"])}
-    action = Gamepad.interpret(state)
-    ref = socket.assigns.refs[socket.assigns.selected]
-    socket = assign(socket, state: state, action: action)
-
-    cond do
-      is_nil(ref) or not socket.assigns.armed ->
-        {:noreply, socket}
-
-      action == :stop ->
-        safe(fn -> Mount.emergency_stop(ref) end)
-        {:noreply, assign(socket, held: [], start: nil, notice: "STOP from the pad")}
-
-      match?({_, _}, action) ->
-        {_, rates} = action
-        for {axis, r} <- rates, do: safe(fn -> Mount.slew(ref, axis, r, hold: true) end)
-        start = socket.assigns.start || (socket.assigns.snap && {socket.assigns.snap.axes.ra.degrees, socket.assigns.snap.axes.dec.degrees})
-        {:noreply, assign(socket, held: Enum.map(rates, &elem(&1, 0)), start: start)}
-
-      true ->
-        {:noreply, release(socket)}
-    end
+  def handle_event("arm", _, socket) do
+    on? = not socket.assigns.mapper.armed
+    if on? and socket.assigns.selected, do: Input.target(socket.assigns.selected)
+    Input.arm(on?)
+    {:noreply, socket |> assign(notice: if(on?, do: "armed: the pad moves #{socket.assigns.selected}", else: "disarmed")) |> load()}
   end
 
-  def handle_event("gamepad_idle", _, socket), do: {:noreply, release(socket)}
+  def handle_event("scan", _, socket) do
+    Input.scan()
+    {:noreply, load(socket)}
+  end
 
-  def handle_event("arm", _, socket), do: {:noreply, assign(socket, armed: !socket.assigns.armed)}
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
-
-  defp release(%{assigns: %{held: []}} = socket), do: socket
-
-  defp release(socket) do
-    ref = socket.assigns.refs[socket.assigns.selected]
-    snap = socket.assigns.snap
-
-    for axis <- socket.assigns.held do
-      if axis == :ra and snap && snap.tracking != :off,
-        do: safe(fn -> Mount.track(ref, snap.tracking) end),
-        else: safe(fn -> Mount.stop(ref, axis) end)
-    end
-
-    assign(socket, held: [])
-  end
-
-  defp hat_from([x, y]) when is_number(x) and is_number(y), do: {round(x), round(y)}
-  defp hat_from(_), do: nil
 
   defp safe(fun) do
     try do
       fun.()
     catch
-      :exit, _ -> {:error, :unreachable}
+      _, _ -> {:error, :unreachable}
     end
   end
 
   defp ok_or_nil({:error, _}), do: nil
   defp ok_or_nil(v), do: v
 
-  # -- render -----------------------------------------------------------------------
+  # -- render -------------------------------------------------------------------------
 
   @impl true
   def render(assigns) do
     ~H"""
-    <.page id="input" night={@night} phx-hook="Gamepad">
+    <.page id="input" night={@night}>
       <:header>
         <.back navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} label="keypad" />
         <.title>controller</.title>
-        <.actions><.btn variant="danger" phx-click="arm" on={!@armed}>{if @armed, do: "Disarm", else: "Armed off"}</.btn></.actions>
+        <.actions>
+          <.btn phx-click="scan">Scan</.btn>
+          <.btn variant={if @mapper.armed, do: "danger", else: "primary"} phx-click="arm" disabled={@devices == []}>{if @mapper.armed, do: "Disarm", else: "Arm"}</.btn>
+        </.actions>
       </:header>
 
-      <.card title="Pads seen by this browser">
-        <div :for={p <- @pads} class="line"><strong>{p["id"]}</strong><.badge on>{p["axes"]} axes · {p["buttons"]} buttons</.badge></div>
-        <.hint :if={@pads == []}>No gamepad yet. Plug it in and press any button — browsers only reveal a pad after it's touched.</.hint>
-      </.card>
-
       <.card title="What it's doing">
-        <:aside><.badge on={@action != :idle} warn={@action == :stop}>{Gamepad.describe(@action)}</.badge></:aside>
-        <.kv label="mount" value={@selected || "none"} />
+        <:aside>
+          <.badge on={@mapper.armed} warn={!@mapper.armed}>{if @mapper.armed, do: "armed", else: "disarmed"}</.badge>
+          <.badge on={@mapper.action != :idle} warn={@mapper.action == :stop}>{@mapper.action_text}</.badge>
+        </:aside>
+        <.kv label="mount" value={@mapper.target || "none"} />
         <.kv :if={@snap} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the <strong>trigger</strong> (button 0) and tilt the ball: X turns the polar axis, Y the Dec axis; more tilt, more speed. D-pad nudges at 8×. Button 1 is STOP.</.hint>
+        <.hint>Hold the <strong>trigger</strong> (button {@mapper.map.trigger}) and tilt the ball: X turns the polar axis, Y the Dec axis; more tilt, more speed. D-pad nudges at {round(@mapper.map.fine_rate)}×. Button {@mapper.map.stop} is STOP. Disarmed, the pad only shows here.</.hint>
       </.card>
 
-      <.card :if={@state} title="Raw">
+      <.card :for={d <- @devices} title={d.parser}>
+        <:aside><.badge on>{d.reports} reports</.badge><.badge :if={d.node != :nonode@nohost} dim>{d.node}</.badge></:aside>
+        <.kv label="device" value={"#{d.device.manufacturer} #{d.device.product}"} />
         <div class="axes">
-          <div :for={{v, i} <- Enum.with_index(@state.axes)} class="axis-bar">
-            <span class="axis-i">{i}</span>
-            <div class="bar"><div class="fill" style={"left:#{50 + min(max(v, -1), 1) * 50 * (if v < 0, do: 1, else: 0) + (if v < 0, do: v * 50, else: 0)}%; width:#{abs(min(max(v, -1), 1)) * 50}%"}></div></div>
+          <div :for={{v, i} <- Enum.with_index(d.state.axes)} class="axis-bar">
+            <span class="axis-i">{axis_name(i)}</span>
+            <div class="bar"><div class="fill" style={bar_style(v)}></div></div>
             <span class="axis-v">{fmt2(v)}</span>
           </div>
         </div>
         <div class="buttons">
-          <span :for={{b, i} <- Enum.with_index(@state.buttons)} class={["btn-dot", (b["pressed"] || b[:pressed]) && "on"]}>{i}</span>
+          <span :for={{b, i} <- Enum.with_index(d.state.buttons)} class={["btn-dot", b && "on"]}>{i}</span>
         </div>
-        <.kv label="hat" value={if @state.hat, do: inspect(@state.hat), else: "centred"} />
+        <.kv label="hat" value={if d.state.hat, do: inspect(d.state.hat), else: "centred"} />
+        <.kv label="raw" value={Base.encode16(d.state.raw, case: :lower)} />
+      </.card>
+
+      <.card :if={@devices == []} title="No game controller open">
+        <.hint>Plug one into <strong>this machine</strong> (the one running the server). Joysticks and gamepads are opened automatically within 3 s.</.hint>
+        <.kv :for={s <- @seen.devices} label={"#{Integer.to_string(s.vendor_id, 16)}:#{Integer.to_string(s.product_id, 16)}"} value={"#{s.product} · usage #{s.usage_page}/#{s.usage}#{if s.reading, do: " · reading", else: ""}"} />
       </.card>
 
       <p :if={@notice} class="notice" phx-click="dismiss">{@notice}</p>
     </.page>
     """
   end
+
+  defp axis_name(0), do: "X"
+  defp axis_name(1), do: "Y"
+  defp axis_name(i), do: to_string(i)
+
+  defp bar_style(v) when is_number(v) do
+    v = v |> max(-1.0) |> min(1.0)
+    if v >= 0, do: "left:50%;width:#{v * 50}%", else: "left:#{50 + v * 50}%;width:#{-v * 50}%"
+  end
+
+  defp bar_style(_), do: "left:50%;width:0"
 
   defp fmt1(x), do: :erlang.float_to_binary(x * 1.0, decimals: 1)
   defp fmt2(x) when is_number(x), do: :erlang.float_to_binary(x * 1.0, decimals: 2)

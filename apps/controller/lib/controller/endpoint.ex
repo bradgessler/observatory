@@ -28,6 +28,8 @@ defmodule Controller.Endpoint do
     at: "/",
     from: :controller,
     gzip: not code_reloading?,
+    # No bundler and no digests: make browsers revalidate assets every load.
+    cache_control_for_etags: "no-cache",
     only: Controller.static_paths(),
     raise_on_missing_only: code_reloading?
 

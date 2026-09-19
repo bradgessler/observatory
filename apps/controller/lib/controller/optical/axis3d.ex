@@ -129,18 +129,27 @@ defmodule Controller.Optical.Axis3D do
         end
 
       senses = fn known -> if known, do: [known], else: [1.0, -1.0] end
-      els = if opts[:polar] && !opts[:polar][:tilt_ambiguous], do: [el0], else: [el0, -el0]
+      confident = opts[:polar] != nil and !opts[:polar][:tilt_ambiguous]
+      els = if confident, do: [el0], else: [el0, -el0]
       starts = for el <- els, phi <- [0.0, 0.5 * :math.pi(), :math.pi(), 1.5 * :math.pi()], do: [az0, el, up0, vp0, ud0, vd0, phi]
+
+      # with a confident polar fit its direction is frozen: the Dec set, often the
+      # weaker view, then only decides where the Dec axis sits around it
+      residual_fn =
+        if confident,
+          do: fn [_, _, up, vp, ud, vd, phi], sp, sd -> pair_residuals([az0, el0, up, vp, ud, vd, phi], ra_t, dec_t, thetas, cam, sp, sd) end,
+          else: fn x, sp, sd -> pair_residuals(x, ra_t, dec_t, thetas, cam, sp, sd) end
 
       fits =
         for x0 <- starts, sp <- senses.(sp0), sd <- senses.(sd0) do
-          res = Fit.lm(&pair_residuals(&1, ra_t, dec_t, thetas, cam, sp, sd), x0, max_iter: opts[:max_iter] || 25)
+          res = Fit.lm(&residual_fn.(&1, sp, sd), x0, max_iter: opts[:max_iter] || 25)
           {res, sp, sd}
         end
         |> Enum.sort_by(fn {res, _, _} -> res.cost end)
 
       {res, sp, sd} = hd(fits)
       [az, el, up, vp, ud, vd, phi] = res.x
+      {az, el} = if confident, do: {az0, el0}, else: {az, el}
       p = dir_from(az, el)
       d = dec_from(p, phi)
       rms = :math.sqrt(res.cost / max(length(res.residuals), 1))
@@ -165,8 +174,8 @@ defmodule Controller.Optical.Axis3D do
         }
       end
 
-      sd_az = Fit.sd(res.cov, 0) && Fit.sd(res.cov, 0) / @deg
-      sd_el = Fit.sd(res.cov, 1) && Fit.sd(res.cov, 1) / @deg
+      sd_az = if confident, do: opts[:polar][:image_angle_sd_deg], else: Fit.sd(res.cov, 0) && Fit.sd(res.cov, 0) / @deg
+      sd_el = if confident, do: opts[:polar][:tilt_sd_deg], else: Fit.sd(res.cov, 1) && Fit.sd(res.cov, 1) / @deg
       sd_phi = Fit.sd(res.cov, 6) && Fit.sd(res.cov, 6) / @deg
 
       {:ok,

@@ -221,7 +221,7 @@ defmodule Controller.Optical.AxisScan do
     to_tracks = fn ts -> Enum.map(ts, fn pts -> %{points: Enum.map(pts, fn [x, y] -> {x, y} end)} end) end
     ra_t = to_tracks.(rt)
     dec_t = to_tracks.(dt)
-    single = fn f -> %{dir: List.to_tuple(f["dir"]), point: List.to_tuple(f["point"]), sense: f["sense"], tilt_ambiguous: f["tilt_ambiguous"]} end
+    single = fn f -> %{dir: List.to_tuple(f["dir"]), point: List.to_tuple(f["point"]), sense: f["sense"], tilt_ambiguous: f["tilt_ambiguous"], image_angle_sd_deg: f["image_angle_sd_deg"], tilt_sd_deg: f["tilt_sd_deg"]} end
 
     case Axis3D.fit_pair(ra_t, dec_t, angles, cam, polar: single.(rf), dec: single.(df)) do
       {:ok, r} ->

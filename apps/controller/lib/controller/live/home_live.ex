@@ -13,7 +13,9 @@ defmodule Controller.HomeLive do
 
   alias Controller.Settings
 
-  @groups [
+  # ~p only works inside functions; this is a function that returns the list
+  defp groups do
+    [
     {"Star Lock",
      "getting a mount that was set down anyhow onto the sky, and keeping it there",
      [
@@ -44,12 +46,13 @@ defmodule Controller.HomeLive do
        {"Devices", ~p"/devices", "the telescope cable, the mount answering or not, the addresses", ~p"/docs/devices"},
        {"Bench", ~p"/bench", "every surface side by side with the live scope state; where new things get tried", nil}
      ]}
-  ]
+    ]
+  end
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Settings.subscribe()
-    {:ok, assign(socket, night: Settings.get("night", false), groups: @groups, mounts: mounts())}
+    {:ok, assign(socket, night: Settings.get("night", false), groups: groups(), mounts: mounts())}
   end
 
   defp mounts do

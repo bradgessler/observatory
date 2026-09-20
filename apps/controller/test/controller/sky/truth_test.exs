@@ -90,7 +90,7 @@ defmodule Controller.Sim.TruthTest do
 
     fitted = Lineup.model(id)
     assert_in_delta fitted.axis_alt, truth.axis_alt, 0.3
-    assert_in_delta fitted.axis_az, truth.axis_az, 0.5
+    assert abs(Astro.norm180(fitted.axis_az - truth.axis_az)) < 0.5
     assert Lineup.status(id).rms_arcmin < 5.0
   end
 end

@@ -729,3 +729,63 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 /* "not aligned" is where every night starts, not a problem: plain panel until there is something to say */
 .page .card.lineup-status { background: var(--panel); }
 .page .card.lineup-status.ok { background: var(--lit-on); }
+/* the full-width STOP is a key too: red words on a raised key, red fill only while pressed */
+.stop-bar, .estop { background: var(--key); color: var(--warn); box-shadow: var(--bevel); }
+.stop-bar:active, .estop:active { background: var(--warn); color: var(--bg); box-shadow: var(--bevel-in); filter: none; }
+.night .estop { background: var(--key); color: var(--warn); }
+.sim-line { text-align: center; text-decoration: none; color: var(--dim); }
+.sky .sim-line { grid-column: 1 / -1; }
+
+/* ---- corrections: the law lit, the pole target, the authority bars ---- */
+.corr { display: grid; gap: var(--s2); }
+.laws { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: var(--r); }
+.law-key { text-align: center; padding: 8px 4px; border-radius: 11px; font-size: 12px; color: var(--dim); background: var(--key); box-shadow: var(--bevel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.law-key b { margin-right: 4px; }
+.law-key.on { background: var(--lit); color: var(--text); box-shadow: var(--bevel-in); }
+.corr-body { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: center; }
+.corr-target { display: block; }
+.corr-target .ring { fill: none; stroke: var(--panel2); stroke-width: 1.5; }
+.corr-target .hair { stroke: var(--panel2); stroke-width: 1; }
+.corr-target .lbl { fill: var(--dim); font-size: 9px; letter-spacing: .06em; }
+.corr-target .lbl.scale { font-size: 10px; }
+.corr-target .pole { fill: var(--dim); }
+.corr-target .lead { stroke: var(--warn); stroke-width: 1; opacity: .5; }
+.corr-target .axis { fill: var(--warn); }
+.corr-text { display: grid; gap: 6px; min-width: 0; }
+.corr-text .kv { grid-template-columns: 64px 1fr; }
+.auth { display: grid; gap: 6px; }
+.auth-row { display: grid; grid-template-columns: 32px 1fr 64px; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px; }
+.auth-k { color: var(--dim); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.auth-track { position: relative; height: 12px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: 6px; overflow: hidden; }
+.auth-tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--dim); opacity: .6; }
+.auth-fill { position: absolute; top: 2px; bottom: 2px; background: var(--accent); border-radius: 4px; }
+.auth-v { text-align: right; }
+.auth-note { font-size: 12px; }
+.corr.compact .corr-body { grid-template-columns: auto 1fr; }
+.page.nested, .flow-nested .page { min-height: 0; }
+.night .seg-opt.seg-live.on { background: var(--lit-warn); color: var(--warn); }
+.notice { background: var(--panel); box-shadow: var(--bevel); }
+
+/* ---- rows read top to bottom: the name, then the words under it ---- */
+.item-text { display: grid; gap: 2px; }
+.item-text strong { font-size: var(--fs-3); }
+.item-text span { font-size: var(--fs-2); }
+.item .btn { min-height: 44px; }
+
+/* ---- one type scale: 12 labels · 14 secondary · 16 body and keys · 20 emphasis · 28 readouts ---- */
+html, body { font-size: var(--fs-3); }
+.hint, .dim, .page .dim, .setup .dim, .devices .dim, .kv-v, .setting-text span, .state-line span, .watch-cap, .watch-links a, .home-btn span, .home-lede, .home-group > .dim, .events, .flow-more, .sim-line, .checklist, .devices .checklist ol, .auth-row, .auth-note, .pick .dim, .target .t span, .target .when, .horizon-hint, .fine, .strip-end, .strip .strip-only, .strip .strip-only b, .orb-key, .orb-key b, .orb-later, .ss-axis, .scope-status, .dev-chip, .bench-tab strong, .bench-brand, .stick-foot .ghost, .dpad-mode .ghost, .video-log, .mode .dim, .devices .err, .devices .mono, .page .mono, .more-toggle, .stop-mini, .back, .doc-nav a {
+  font-size: var(--fs-2);
+}
+.card-title, .kv-k, .badge, .ss-badge, .ss-id, .ss-axis b, .dev-chip b, .page-title, .axis .label, .strip-mid, .pos-k, .auth-k, .object .kind, .object .facts .k, .law-key, .flow-steps li, .watch-live, .arrow small, .dpad-centre small, .frame-grid time, .watch-strip time, .seg-opt small, .orb-key .orb-k, .setup h2, .devices h2, .doc article h2, .chip, .bench-tab span {
+  font-size: var(--fs-1);
+}
+.btn, button, .seg-opt, .field, .goto input, .horizon input, .rate, .tabs .seg-opt, .home-btn strong, .setting-text strong, .mode > div strong, .kv-v, .pos-now, .strip-mid b, .doc article, .object .blurb, .devices .state strong, .target .t strong, .play-btn, .stop-bar, .estop, .stop, .seg.seg-4 .seg-opt {
+  font-size: var(--fs-3);
+}
+.state-line strong, .star-next strong, .object h1, .doc article h1, .tilt-pad b, .dpad-centre b, .home-brand, .arrow, .lineup-status strong {
+  font-size: var(--fs-4);
+}
+.axis .deg, .stick-face .rate-lbl { font-size: var(--fs-5); }
+.arrow { font-size: var(--fs-4); }
+.stop-mini { font-size: var(--fs-2); }

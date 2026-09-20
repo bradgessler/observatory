@@ -50,7 +50,8 @@ defmodule Controller.StartLive do
   def handle_info({:mount, snap}, socket) do
     if snap.id == socket.assigns.selected do
       # the step changes on zeroed/connected, not on every 250 ms position
-      changed? = socket.assigns.snap == nil or snap.homed != socket.assigns.snap.homed or snap.connected != socket.assigns.snap.connected
+      old = socket.assigns.snap
+      changed? = old == nil or snap.homed != old.homed or snap.connected != old.connected or snap[:homed_at] != old[:homed_at]
       socket = assign(socket, snap: snap)
       {:noreply, if(changed?, do: compute(socket), else: socket)}
     else
@@ -103,7 +104,7 @@ defmodule Controller.StartLive do
 
     targets =
       if step == :look,
-        do: Controller.SkyLive.targets(now, site, Settings.horizon(), Settings.get("aperture_mm", 100)) |> Enum.take(@targets_shown),
+        do: Controller.SkyLive.targets(now, site, Settings.horizon(), Settings.get("aperture_mm", 100)) |> Enum.reject(&(&1.status == :rising)) |> Enum.take(@targets_shown),
         else: []
 
     assign(socket,
@@ -133,7 +134,8 @@ defmodule Controller.StartLive do
     ctx = Pointing.context(DateTime.utc_now(), socket.assigns.selected)
 
     text =
-      case obj && Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true) do
+      case obj && (if moving?(socket.assigns.snap, socket.assigns.tracker), do: {:error, :moving}, else: Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true)) do
+        {:error, :moving} -> "still moving: let go, or wait for it to land"
         {:ok, _, _} -> "heading to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
         {:error, :not_connected} -> "no mount"
@@ -142,6 +144,19 @@ defmodule Controller.StartLive do
       end
 
     {:noreply, notice(socket, text)}
+  end
+
+  # the target is centred in the eyepiece right now: that is one more alignment
+  # star, so the model tightens as the night goes on
+  def handle_event("centred", _, socket) do
+    case {socket.assigns.snap, socket.assigns.tracker} do
+      {%{homed: true} = snap, %{target: %{ra_deg: ra, dec_deg: dec, name: name}}} ->
+        st = Lineup.add(snap, %{name: name, ra_deg: ra, dec_deg: dec})
+        {:noreply, socket |> compute() |> notice("#{name} added · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′")}
+
+      _ ->
+        {:noreply, notice(socket, "nothing being held")}
+    end
   end
 
   def handle_event("release", _, socket) do
@@ -180,8 +195,11 @@ defmodule Controller.StartLive do
       </:header>
 
       <ol class="flow-steps" aria-label="setup steps">
-        <li :for={{key, label} <- steps(@status)} class={state(key, @step)}>{label}</li>
+        <li :for={{key, label} <- steps(@status)} class={state(key, @step)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step) == "done"} aria-label="done"> ✓</span></li>
       </ol>
+
+      <%!-- the scope's live state, one line, on every step that has a scope --%>
+      <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
 
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
@@ -210,13 +228,22 @@ defmodule Controller.StartLive do
 
         <.card title="On Target" :if={@tracker}>
           <div class="state-line">
-            <strong>{@tracker.name}{if @tracker.paused, do: " · paused while you drive", else: ""}</strong>
+            <strong>{@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
             <span class="dim">holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
           </div>
           <.row>
             <.btn variant="primary" navigate={~p"/controls/nudge/#{@selected}"}>Centre it ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's centred</.btn>
             <.btn phx-click="release">Stop holding</.btn>
           </.row>
+          <.row>
+            <.btn :if={@tracker[:target] && @tracker.target[:id]} class="btn-ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected]}"}>About {@tracker.name} ›</.btn>
+            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>Corrections ›</.btn>
+          </.row>
+        </.card>
+
+        <.card title="Corrections">
+          <Controller.Components.Corrections.corrections law={3} status={@status} model={Lineup.model(@selected)} lat={Pointing.site().lat} tracker={@tracker} compact />
         </.card>
 
         <.card title="Look At">
@@ -281,6 +308,14 @@ defmodule Controller.StartLive do
   defp title(:zero, id), do: "#{id} · Setup"
   defp title(:stars, id), do: "#{id} · Star Align"
   defp title(:look, id), do: "#{id} · Locked"
+
+  # a goto in flight, or an axis running that is not the tracker's own hold
+  defp moving?(%{axes: axes}, tracker) when is_map(axes) do
+    Enum.any?(axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) end) or
+      (is_nil(tracker) and Enum.any?(axes, fn {_, ax} -> ax.running end))
+  end
+
+  defp moving?(_, _), do: false
 
   defp pad_on?(m, id), do: Map.get(m, :armed, false) and Map.get(m, :target) == id
 

@@ -25,12 +25,20 @@ defmodule Controller.Components.UI do
 
   def page(assigns) do
     ~H"""
-    <main id={@id} class={["page", @class, @night && "night"]} {@rest}>
+    <.wrap nested={@class && String.contains?(to_string(@class), "nested")} id={@id} class={["page", @class, @night && "night"]} {@rest}>
       <header :if={@header != []} class="page-header">{render_slot(@header)}</header>
       {render_slot(@inner_block)}
-    </main>
+    </.wrap>
     """
   end
+
+  # one <main> per document: a page nested in another renders as a plain block
+  attr :nested, :boolean, default: false
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  defp wrap(%{nested: true} = assigns), do: ~H"<div {@rest}>{render_slot(@inner_block)}</div>"
+  defp wrap(assigns), do: ~H"<main {@rest}>{render_slot(@inner_block)}</main>"
 
   attr :navigate, :string, required: true
   attr :label, :string, required: true
@@ -190,7 +198,7 @@ defmodule Controller.Components.UI do
     assigns = assign_new(assigns, :key, fn -> :erlang.phash2(assigns.notice) end)
 
     ~H"""
-    <p :if={@notice} id={"notice-#{@key}"} class="notice">{@notice}</p>
+    <p :if={@notice} id={"notice-#{@key}"} class="notice" role="status" aria-live="polite">{@notice}</p>
     """
   end
 
@@ -245,7 +253,7 @@ defmodule Controller.Components.UI do
   def item(assigns) do
     ~H"""
     <div class="item" {@rest}>
-      <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim"> · {@detail}</span></div>
+      <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{@detail}</span></div>
       {render_slot(@inner_block)}
     </div>
     """

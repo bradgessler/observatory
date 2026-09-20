@@ -35,7 +35,7 @@ defmodule Controller.EventsLive do
     ~H"""
     <.page id="events" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>Events</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>
@@ -69,7 +69,9 @@ defmodule Controller.EventsLive do
   defp words(%{module: :tracker, name: :start, data: d}), do: "holding #{d.target}"
   defp words(%{module: :tracker, name: :end, data: d}), do: "stopped holding #{d.target} (#{d.why})"
   defp words(%{module: :tracker, name: :rates, data: d}), do: "#{d.id} · RA #{d.ra}× · Dec #{d.dec}× on #{d.target}"
-  defp words(%{module: :input, name: :ignored, data: d}), do: "pad: #{d.action} ignored — #{d.why}"
+  defp words(%{module: :input, name: :ignored, data: d}), do: "pad: #{d.action} ignored · #{d.why}"
+  defp words(%{module: :input, name: :armed, data: d}), do: "pad on · moves #{d.target || "?"}"
+  defp words(%{module: :input, name: :off, data: d}), do: "pad off · #{d.why}"
   defp words(%{module: :lineup, name: :reset, data: d}), do: "#{d.id} · alignment reset: #{d.why}"
   defp words(%{module: :lineup, name: :star, data: d}), do: "alignment star: #{d.name} at RA #{fmt(d.theta_ra)}° Dec #{fmt(d.theta_dec)}°"
   defp words(%{module: :optical, name: :axes_found, data: d}), do: "#{d.id} · axes scanned · RA #{d.ra} · Dec #{d.dec}"

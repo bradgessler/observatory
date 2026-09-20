@@ -49,7 +49,7 @@ defmodule Controller.ObjectLive do
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
 
   def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket) do
-    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at >= Map.get(search, :started, 0)
+    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at > Map.get(search, :started, 0)
 
     case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
       :stopped ->

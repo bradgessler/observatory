@@ -334,7 +334,7 @@ defmodule Controller.Optical.AxisScan do
 
   defp stopped_since?(ref, started_at) do
     case driver(fn -> Mount.snapshot(ref) end) do
-      %{estop_at: t} when is_integer(t) and is_integer(started_at) and t >= started_at -> true
+      %{estop_at: t} when is_integer(t) and is_integer(started_at) and t > started_at -> true
       _ -> false
     end
   end

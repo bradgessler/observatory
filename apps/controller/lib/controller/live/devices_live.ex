@@ -97,7 +97,7 @@ defmodule Controller.DevicesLive do
     ~H"""
     <.page id="devices" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>Devices</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>

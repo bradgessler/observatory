@@ -111,3 +111,5 @@
 .ss-badge.on { background: var(--lit-on); color: var(--on); }
 .ss-badge.warn { background: var(--lit-warn); color: var(--warn); }
 .ss-badge.on, .ss-badge.warn, .mode-chip, .night .mode-chip { border-color: transparent; }
+.ss-axis .dot { background: var(--sunk); }
+.night .seg-opt.seg-live.on { background: var(--lit-warn); color: var(--warn); }

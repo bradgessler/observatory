@@ -101,12 +101,13 @@ defmodule Controller.Sky.Lineup do
   def stale?(id, e \\ nil) do
     e = e || entry(id)
 
-    case {e["home_at"], safe_snapshot(id)} do
-      {nil, _} -> false
-      {_, nil} -> false
+    case {e["home_at"], e["model"], safe_snapshot(id)} do
+      {_, nil, _} -> false
+      {_, _, nil} -> false
       # not zeroed at all (a restart, a power cycle): the stars counted from a zero that is gone
-      {_, %{homed: false}} -> true
-      {at, %{homed_at: now_at}} when is_integer(now_at) -> at != now_at
+      {_, _, %{homed: false}} -> true
+      {nil, _, _} -> false
+      {at, _, %{homed_at: now_at}} when is_integer(now_at) -> at != now_at
       _ -> false
     end
   end

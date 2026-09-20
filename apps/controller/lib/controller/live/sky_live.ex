@@ -124,7 +124,7 @@ defmodule Controller.SkyLive do
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
 
   def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket) do
-    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at >= Map.get(search, :started, 0)
+    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at > Map.get(search, :started, 0)
 
     case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
       :stopped ->
@@ -606,7 +606,7 @@ defmodule Controller.SkyLive do
     <main class={["sky", @night && "night", @nested && "nested"]} id="sky">
       <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
       <header :if={!@nested}>
-        <.link navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} class="ghost">‹ Keypad</.link>
+        <.link navigate={~p"/"} class="ghost">‹ Start</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
           <.stop />
@@ -614,7 +614,7 @@ defmodule Controller.SkyLive do
         </span>
       </header>
 
-      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
+      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
       <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
 
       <.seg label="sky page" class="tabs">

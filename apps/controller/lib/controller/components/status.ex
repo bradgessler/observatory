@@ -21,6 +21,7 @@ defmodule Controller.Components.Status do
         <% model_track = Controller.Sky.Tracker.status(@id) %>
         <span class={["ss-badge", (@snap.tracking != :off or model_track) && "on"]}>
           {cond do
+            model_track && model_track.paused == :goto -> "slewing · #{model_track.name}"
             model_track && model_track.paused -> "tracking · paused"
             model_track -> "tracking · #{model_track.name}"
             @snap.tracking != :off -> "tracking"

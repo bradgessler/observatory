@@ -65,6 +65,21 @@ about location it cannot have.
 **Copy lives in docs.** Explanations go in `priv/docs/*.md` (rendered at
 `/docs/:slug`); the UI carries one-line hints and a `?` link.
 
+**WCAG 2.1 AA is the floor, in every theme.** It is good design and it is
+how you read a phone at an eyepiece. Concretely: text 4.5:1 against the
+surface it sits on and 3:1 for a key's edge and for any lit state
+(`test/controller/design_test.exs` computes this from `tokens.css` and
+fails the build otherwise); every control at least 44 px tall; a visible
+focus ring; state carried by words or a mark as well as a tone (a lit key
+also changes its text; a done step also gets a ✓); roles and states in the
+markup (`radiogroup`/`radio` with `aria-checked`, `aria-current="step"`,
+`role="status"` on notices, an `aria-label` on every icon-only key); no
+motion that cannot be turned off. Show, don't tell: state is drawn (a
+greyed key, a lit key, a dot on a target), words are for what a picture
+can't say, and a list row is two lines, the name over its detail, never
+crammed onto one. One type scale: 12, 14, 16, 20, 28 px. No em dashes in
+the UI, no red except STOP and a real warning.
+
 **Safety in the driver, not the UI.** Held slews self-stop unless refreshed
 (`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. Every
 page has STOP. The driver exits and restarts on a lost serial link, and stops

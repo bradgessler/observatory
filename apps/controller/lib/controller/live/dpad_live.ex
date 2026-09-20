@@ -126,7 +126,7 @@ defmodule Controller.DpadLive do
     ~H"""
     <.page id="dpad" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/dpad?#{[mount: @selected]}"} label="Bench" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Plain Keypad</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>

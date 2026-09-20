@@ -214,7 +214,7 @@ defmodule Mount.Server do
       |> stop_axis(:dec)
       |> send!("E", :ra, P.from_int(P.center()))
       |> send!("E", :dec, P.from_int(P.center()))
-      |> Map.merge(%{tracking: :off, homed: true, homed_at: System.os_time(:millisecond)})
+      |> Map.merge(%{tracking: :off, homed: true, homed_at: System.os_time(:millisecond), estop_at: System.monotonic_time(:millisecond)})
 
     # Survives a driver restart (USB hiccup) within this VM; see connect/1.
     :persistent_term.put({__MODULE__, state.id, :homed}, state.homed_at)

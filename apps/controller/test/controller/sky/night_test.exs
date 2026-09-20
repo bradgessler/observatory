@@ -43,9 +43,11 @@ defmodule Controller.Sky.NightTest do
     Lineup.add(Mount.snapshot(id), star, DateTime.utc_now())
   end
 
-  # landed = the gotos are done; the tracker may already be running the axes
+  # landed = the gotos are done; the tracker may already be running either axis
+  # (a crooked polar axis needs Dec too)
   defp settle(id) do
-    wait_until(fn -> s = Mount.snapshot(id); not s.axes.ra.goto_pending and not s.axes.dec.goto_pending and not s.axes.dec.running end, 90_000)
+    wait_until(fn -> s = Mount.snapshot(id); not s.axes.ra.goto_pending and not s.axes.dec.goto_pending end, 90_000)
+    Process.sleep(1_000)
   end
 
   @tag timeout: 400_000

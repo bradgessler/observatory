@@ -155,7 +155,7 @@ defmodule Controller.AxesLive do
           <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
-        <.hint :if={@selected && !@homed}>Set home first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>) — the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
+        <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>) — the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
         <.hint :if={@scan.error} class="err">{@scan.error}</.hint>
       </.card>
 

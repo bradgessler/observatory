@@ -89,6 +89,8 @@ defmodule Controller.Sky.Tracker do
         entry = %{
           ref: ref,
           obj: obj,
+          # the catalogue object, untouched by re-basing: for "that's centred" and "about"
+          target: Map.take(obj, [:id, :name, :ra_deg, :dec_deg]),
           cmd: %{ra: 0.0, dec: 0.0},
           paused: false,
           settled: false,
@@ -123,15 +125,17 @@ defmodule Controller.Sky.Tracker do
       %{connected: true, axes: axes} = snap ->
         cond do
           # STOP was pressed somewhere since we started: that is the end of it
-          is_integer(snap[:estop_at]) and snap.estop_at >= entry.started_ms ->
+          is_integer(snap[:estop_at]) and snap.estop_at > entry.started_ms ->
             Logger.info("tracker: #{id} stop pressed — ending")
             drop(s, id, :estop)
 
+          # our own goto (or a nudge) still in flight, or a hand on a control:
+          # stand back; the readout says which
           busy?(axes) ->
-            {:noreply_entry, %{entry | paused: true}} |> commit(id, s, nil)
+            {:noreply_entry, %{entry | paused: :goto}} |> commit(id, s, nil)
 
           driven_by_someone_else?(axes, entry.cmd) ->
-            {:noreply_entry, %{entry | paused: true}} |> commit(id, s, nil)
+            {:noreply_entry, %{entry | paused: :hand}} |> commit(id, s, nil)
 
           true ->
             case drive(id, entry, snap) do
@@ -166,7 +170,7 @@ defmodule Controller.Sky.Tracker do
     # Any pause after that was a hand (a nudge, a pull) centring the object:
     # from then on hold where the tube is, not where the model says — the
     # hand knows better than the fit.
-    entry = if entry.paused and entry.settled, do: rebase(entry, snap, ctx), else: entry
+    entry = if entry.paused == :hand and entry.settled, do: rebase(entry, snap, ctx), else: entry
 
     {r1, d1} = Pointing.axes_for(entry.obj, ctx, near: {:stay, cur})
     {r2, d2} = Pointing.axes_for(entry.obj, later, near: {:stay, {r1, d1}})
@@ -213,19 +217,34 @@ defmodule Controller.Sky.Tracker do
   # a goto still in flight: the driver clears the flag once it has landed
   defp busy?(axes), do: Enum.any?(axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) end)
 
-  # an axis moving at a rate we did not ask for means a hand on a control
+  # an axis moving at a rate we did not ask for means a hand on a control;
+  # the driver's rate estimate is too coarse to tell 1× from 2×, so the game
+  # pad (whose slowest band is 2×) is asked directly whether it is holding
   defp driven_by_someone_else?(axes, cmd) do
+    held = pad_held()
+
     Enum.any?(axes, fn {axis, ax} ->
       actual = Map.get(ax, :deg_per_s, 0.0) / @sidereal_deg_s
-      ax.running and abs(abs(actual) - abs(Map.get(cmd, axis))) > 3.0
+      axis in held or (ax.running and abs(abs(actual) - abs(Map.get(cmd, axis))) > 3.0)
     end)
+  end
+
+  defp pad_held do
+    case Input.status() do
+      %{held: held} when is_list(held) -> held
+      _ -> []
+    end
+  rescue
+    _ -> []
+  catch
+    :exit, _ -> []
   end
 
   defp drop(s, id, why) do
     if entry = s[id] do
       Telescope.Events.emit(:tracker, :end, %{id: id, target: entry.obj.name, why: why})
-      # :handoff — the caller is about to command the axes itself; :estop — already stopped
-      if why not in [:handoff, :estop], do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
+      # :handoff — the caller is about to command the axes itself; every other end stops what we ran
+      if why != :handoff, do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
       :persistent_term.erase({__MODULE__, id})
       Telescope.broadcast("tracker", {:tracker, id, nil})
     end
@@ -240,7 +259,8 @@ defmodule Controller.Sky.Tracker do
       dec_rate: entry.cmd.dec,
       error_arcmin: readout && readout.error_arcmin,
       paused: entry.paused,
-      since: entry.since
+      since: entry.since,
+      target: entry.target
     }
 
     :persistent_term.put({__MODULE__, id}, status)

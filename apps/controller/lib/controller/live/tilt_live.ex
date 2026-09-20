@@ -138,7 +138,7 @@ defmodule Controller.TiltLive do
     ~H"""
     <.page id="tilt" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/tilt?#{[mount: @selected]}"} label="Bench" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Tilt</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>

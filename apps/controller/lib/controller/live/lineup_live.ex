@@ -54,8 +54,10 @@ defmodule Controller.LineupLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   defp rescan(socket) do
-    refs = Map.new(Mount.list(), &{&1.id, &1})
-    for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
+    refs = Map.new(safe_list(), &{&1.id, &1})
+    seen = socket.assigns[:subscribed] || MapSet.new()
+    for {id, ref} <- refs, not MapSet.member?(seen, id), do: Mount.subscribe(ref)
+    socket = assign(socket, subscribed: Enum.reduce(Map.keys(refs), seen, &MapSet.put(&2, &1)))
     selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
 
     snap =
@@ -95,7 +97,10 @@ defmodule Controller.LineupLive do
   # -- events -------------------------------------------------------------------------
 
   @impl true
-  def handle_event("home", _, socket), do: {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("zeroed")}
+  def handle_event("home", _, socket) do
+    Tracker.stop(socket.assigns.selected)
+    {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("zeroed")}
+  end
 
   # Rough slew toward the suggested star through whatever model we have so far
   def handle_event("slew", %{"id" => sid}, socket) do
@@ -174,7 +179,7 @@ defmodule Controller.LineupLive do
   defp words_after(%{n: 2}, star), do: "#{star.name} · 2 stars"
   defp words_after(st, star), do: "#{star.name} · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′"
 
-  defp put_notice(socket, text), do: assign(socket, notice: text)
+  defp put_notice(socket, text), do: assign(socket, notice: {text, System.unique_integer([:positive])})
 
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
@@ -214,8 +219,8 @@ defmodule Controller.LineupLive do
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.n < 3} class="dim">{3 - @status.n} more to check it</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and @status.rms_arcmin < 120} class="dim">one star is off: forget the worst below</span>
-          <span :if={@status.solved? and @status.n >= 2 and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
+          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="dim">one star is off: forget the worst below</span>
+          <span :if={@status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
           <span :if={@status.signs_corrected?} class="dim">axis sign corrected (Modes)</span>
         </div>
       </.card>
@@ -282,7 +287,7 @@ defmodule Controller.LineupLive do
       <%!-- tracking: hold whatever is in the eyepiece, or see how the hold is going --%>
       <.card :if={@snap && @snap.homed} title="Tracking">
         <div :if={@tracker} class="state-line">
-          <strong>Holding {@tracker.name}{if @tracker.paused, do: " · paused while you drive", else: ""}</strong>
+          <strong>Holding {@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
           <span class="dim">RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
         </div>
         <.row>
@@ -291,7 +296,7 @@ defmodule Controller.LineupLive do
         </.row>
       </.card>
 
-      <.notice notice={@notice} />
+      <.notice :if={!@nested} notice={@notice} />
     </.page>
     """
   end
@@ -312,6 +317,12 @@ defmodule Controller.LineupLive do
   defp fmt2(x), do: :erlang.float_to_binary(x / 1, decimals: 2)
   defp fmt(nil), do: "—"
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
+
+  defp safe_list do
+    Mount.list()
+  catch
+    :exit, _ -> []
+  end
 
   # keep the compiler honest about the alias we use in guesses/candidates words
   @doc false

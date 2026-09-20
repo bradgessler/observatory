@@ -96,8 +96,10 @@ phone, iPad, or the laptop itself. Phone-first, night-mode (◐), works on any s
 * **Start** (`/`) — the front door is a flow, not a menu: *Plug in → Zero →
   Stars 0/3 → Look*. It shows the step you are on and moves on by itself; once
   three stars agree it becomes the control surface (tonight's targets with Go,
-  what the tube is holding, the ways to centre, the pad switch, STOP). The
-  menu of everything else is `/all`.
+  what the tube is holding, the ways to centre, the pad switch, STOP) and
+  draws the corrections in force: the law in charge, the mount's polar axis
+  against the true pole, the offsets, and how much authority the tracker is
+  using on each axis. The menu of everything else is `/all`.
 * **Star Align** (`/controls/align`) — no Polaris needed. Zero the axes (mount
   upright; it arms the limits), then centre the star the page names and tap
   *that's it*; a second star far from the first is enough to steer, a third

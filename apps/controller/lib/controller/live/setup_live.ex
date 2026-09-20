@@ -196,7 +196,17 @@ defmodule Controller.SetupLive do
         true -> nil
       end
 
-    %{law: law, corrections: corrections, tracking: tracking}
+    %{
+      law: law,
+      # the drawn part: only the sign flips and the sync stay as words
+      corrections: Enum.filter(corrections, &String.contains?(&1, ["sign", "sync"])),
+      tracking: tracking,
+      align: align,
+      model: Controller.Sky.Lineup.model(id),
+      lat: Pointing.site().lat,
+      tracker: tracker,
+      offset: off
+    }
   end
 
   @impl true
@@ -204,7 +214,7 @@ defmodule Controller.SetupLive do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
-        <.back navigate={~p"/#{@id}"} label="Keypad" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>{@id} · Setup</.title>
         <.actions><.help href={~p"/docs/keypad"} /></.actions>
       </:header>
@@ -216,11 +226,8 @@ defmodule Controller.SetupLive do
           <strong>{elem(@steering.law, 1)}</strong>
           <span class="dim">{elem(@steering.law, 2)}</span>
         </div>
-        <ul :if={@steering.corrections != []} class="checklist">
-          <li :for={c <- @steering.corrections}>{c}</li>
-        </ul>
-        <.kv label="tracking" value={@steering.tracking || (if @snap && @snap.tracking != :off, do: "mount's own #{@snap.tracking} rate on RA (law 2)", else: "not tracking")} />
-        <.hint>1 raw axes · 2 ideal mount · 3 this mount, as the stars measured it. <.link navigate={~p"/controls/align/#{@id}"}>Star Align</.link> · <.link href={~p"/docs/align"}>?</.link></.hint>
+      <Controller.Components.Corrections.corrections law={elem(@steering.law, 0)} status={@steering.align} model={@steering.model} lat={@steering.lat} tracker={@steering.tracker} offset={@steering.offset} />
+      <ul :if={@steering.corrections != []} class="checklist"><li :for={c <- @steering.corrections}>{c}</li></ul>
       </.card>
 
       <.card title="Zero the Axes">

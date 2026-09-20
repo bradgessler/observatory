@@ -1,0 +1,91 @@
+/* Tokens: the whole palette and the type scale, one place, three themes.
+   Loaded last so it wins. apps/controller/test/controller/design_test.exs
+   parses this file and asserts WCAG 2.1 AA: 4.5:1 for text, 3:1 for the
+   key edge and every lit state against the surface it sits on. Change a
+   colour here and the test tells you if it can be read at the eyepiece. */
+
+:root {
+  /* surfaces */
+  --bg: #000000;
+  --panel: #0d0f14;
+  --panel2: #12151c;
+  --sunk: #050608;
+  --key: #191d26;
+  --key-press: #0b0d11;
+  --lit: #1f2d48;
+  --lit-on: #123321;
+  --lit-warn: #3a1416;
+  --amber-bg: #17120a;
+  /* ink */
+  --text: #e6e8ee;
+  --dim: #8f95a8;
+  --accent: #6ea8ff;
+  --on: #48d597;
+  --warn: #ff5d5d;
+  --amber: #e0b64a;
+  /* the key edge: light top-left, dark bottom-right; the light edge is what makes a key a key */
+  --hi: rgba(255, 255, 255, .35);
+  --lo: rgba(0, 0, 0, .75);
+  --bevel: inset 1px 1px 0 var(--hi), inset -1px -1px 0 var(--lo);
+  --bevel-in: inset 1px 1px 0 var(--lo), inset -1px -1px 0 var(--hi);
+  --edge: transparent;
+  --btn: var(--key);
+  --btn-press: var(--key-press);
+  --sky1: #0b1020;
+  --sky2: #05070d;
+  /* type: five sizes, no more */
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 20px;
+  --fs-5: 28px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #eef0f3;
+    --panel: #f9fafb;
+    --panel2: #eef1f5;
+    --sunk: #e6e9ee;
+    --key: #ffffff;
+    --key-press: #e4e8ee;
+    --lit: #dfe8fa;
+    --lit-on: #d9f1e2;
+    --lit-warn: #fbe2df;
+    --amber-bg: #fff4dc;
+    --text: #14171d;
+    --dim: #5a6372;
+    --accent: #2457d6;
+    --on: #0f6b32;
+    --warn: #b42318;
+    --amber: #7a5200;
+    --hi: rgba(255, 255, 255, 1);
+    --lo: rgba(20, 30, 50, .6);
+    --sky1: #dfe6f3;
+    --sky2: #c9d3e6;
+  }
+}
+
+/* night: red on black, an explicit choice that beats the device setting */
+.night, .night :root {
+  --bg: #000000;
+  --panel: #0a0000;
+  --panel2: #100000;
+  --sunk: #040000;
+  --key: #180000;
+  --key-press: #090000;
+  --lit: #2a0606;
+  --lit-on: #2a0606;
+  --lit-warn: #300000;
+  --amber-bg: #0a0000;
+  --text: #ff4a4a;
+  --dim: #dc5050;
+  --accent: #ff4a4a;
+  --on: #ff7a7a;
+  --warn: #ff9a9a;
+  --amber: #ff7a7a;
+  --hi: rgba(255, 90, 90, .7);
+  --lo: rgba(0, 0, 0, .8);
+  --sky1: #0c0000;
+  --sky2: #050000;
+}

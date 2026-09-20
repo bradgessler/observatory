@@ -193,7 +193,7 @@ defmodule Controller.OrbLive do
     ~H"""
     <.page id="orb" night={@night} class={if @nested, do: "orb-page nested", else: "orb-page"}>
       <:header :if={!@nested}>
-        <.back navigate={if @selected, do: ~p"/#{@selected}", else: ~p"/"} label="Keypad" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>{@selected || "No Mount"} · Orb</.title>
         <.actions>
           <.help href={~p"/docs/keypad"} />

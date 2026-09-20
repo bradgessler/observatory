@@ -262,7 +262,7 @@ defmodule Controller.MountLive do
         </span>
       </header>
 
-      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="banner">No telescope connected — simulator. <strong>Connect ›</strong></.link>
+      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
 
       <%= if @snap && @snap.connected do %>
         <section :if={!@nested} class="readout">

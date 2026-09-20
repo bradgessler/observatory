@@ -39,6 +39,9 @@ defmodule Input.Mapper do
 
   @impl true
   def init(_) do
+    # calls into the driver run in linked tasks: a driver that dies mid-call
+    # must not take the mapper down with it (it would come back disarmed and silent)
+    Process.flag(:trap_exit, true)
     Telescope.subscribe("input")
     Telescope.Events.tag("game pad")
     # monotonic time can be negative; "long ago" must be relative to now, not 0
@@ -53,6 +56,7 @@ defmodule Input.Mapper do
     # a freshly armed pad must never have its first command rate-limited away
     long_ago = System.monotonic_time(:millisecond) - 60_000
     s = if on?, do: Map.merge(s, %{armed: true, failures: 0, off_reason: nil, last_cmd: long_ago}), else: Map.merge(release(s), %{armed: false, off_reason: nil})
+    Telescope.Events.emit(:input, if(on?, do: :armed, else: :off), %{target: (ref(s) || %{})[:id], why: if(on?, do: "pad moves scope", else: "watch only")})
     {:reply, :ok, announce(s)}
   end
 
@@ -80,6 +84,8 @@ defmodule Input.Mapper do
 
         s =
           cond do
+            # the pad's STOP button is a STOP button, armed or not
+            action == :stop -> act(s, :stop, now)
             s.armed -> act(s, action, now)
             # a hand on a pad that is off: say so once per hold, in the log and on the page
             action != :idle and not Map.get(s, :ignoring, false) ->
@@ -107,10 +113,23 @@ defmodule Input.Mapper do
 
   def handle_info({:input_gone, _id}, s) do
     Logger.warning("input mapper: device gone — releasing and disarming")
-    {:noreply, announce(Map.merge(release(s), %{armed: false, off_reason: "turned off: the controller was unplugged"}))}
+    {:noreply, announce(turn_off(s, "turned off: the controller was unplugged"))}
+  end
+
+  # a linked task died abnormally: the driver went away under a call
+  def handle_info({:EXIT, _pid, :normal}, s), do: {:noreply, s}
+
+  def handle_info({:EXIT, _pid, reason}, s) do
+    Logger.warning("input mapper: a driver call died (#{inspect(reason)}) — turning the pad off")
+    {:noreply, announce(turn_off(%{s | held: []}, "turned off: the mount stopped answering"))}
   end
 
   def handle_info(_, s), do: {:noreply, s}
+
+  defp turn_off(s, why) do
+    if s.armed, do: Telescope.Events.emit(:input, :off, %{target: (ref(s) || %{})[:id], why: why})
+    Map.merge(release(s), %{armed: false, failures: 0, off_reason: why})
+  end
 
   # -- acting -------------------------------------------------------------------------
 
@@ -139,7 +158,7 @@ defmodule Input.Mapper do
 
               if failures >= 3 do
                 Logger.error("input mapper: mount not answering (#{failures}×) — turning the pad off")
-                Map.merge(s, %{held: [], armed: false, failures: 0, off_reason: "turned off: the mount stopped answering"})
+                turn_off(%{s | held: []}, "turned off: the mount stopped answering")
               else
                 Map.put(s, :failures, failures)
               end
@@ -164,9 +183,8 @@ defmodule Input.Mapper do
 
         # the trigger is a dead-man switch: release = halt now, no ramp
         for axis <- s.held do
-          if axis == :ra and is_map(snap) and snap.tracking != :off,
-            do: safe(fn -> Mount.track(ref, snap.tracking) end),
-            else: safe(fn -> Mount.stop(ref, axis, instant: true) end)
+          safe(fn -> Mount.stop(ref, axis, instant: true) end)
+          if axis == :ra and is_map(snap) and snap.tracking != :off, do: safe(fn -> Mount.track(ref, snap.tracking) end)
         end
     end
 

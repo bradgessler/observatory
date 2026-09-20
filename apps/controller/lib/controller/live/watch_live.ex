@@ -188,7 +188,7 @@ defmodule Controller.WatchLive do
     ~H"""
     <.page id="watch" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/bench/watch"} label="Bench" />
+        <.back navigate={~p"/"} label="Start" />
         <.title>Watch</.title>
         <.actions><.help href={~p"/docs/devices"} /></.actions>
       </:header>

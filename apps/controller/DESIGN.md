@@ -31,6 +31,22 @@ people who may have never used a telescope.
 - **One affordance per thing.** A tile is the tile; no second button beside it.
   Docs are reached from the destination page's `?`, never from a list.
 
+## Accessible by default (WCAG 2.1 AA)
+
+- **Contrast is tested, not guessed.** `priv/static/assets/css/tokens.css`
+  is the whole palette, three themes, and `test/controller/design_test.exs`
+  asserts 4.5:1 for every ink on every surface and 3:1 for a key's edge on
+  the panel. Change a colour there or nowhere.
+- **Targets ≥ 44 px, focus visible, no colour alone.** A lit key also
+  changes its text; a done step also gets a ✓; a notice is `role="status"`;
+  segmented controls are `radiogroup`/`radio` with `aria-checked`; the flow
+  strip marks `aria-current="step"`; icon-only keys carry an `aria-label`.
+- **One type scale.** `--fs-1` 12 (labels, badges), `--fs-2` 14 (secondary,
+  hints), `--fs-3` 16 (body, keys, fields), `--fs-4` 20 (the one strong line
+  on a card), `--fs-5` 28 (axis readouts). Nothing else.
+- **Rows are two lines.** A list row is the name, then its detail under it,
+  then the keys; never a bold word with small text crammed after it.
+
 ## Night vision first
 
 - **Two palettes, one toggle (◐), remembered.** `default` is a dim dark-sky

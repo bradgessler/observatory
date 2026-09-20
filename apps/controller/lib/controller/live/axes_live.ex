@@ -388,7 +388,7 @@ defmodule Controller.AxesLive do
     cond do
       spread <= 2 -> "#{n} runs agree within #{round1(spread)}°: solid"
       spread <= 8 -> "#{n} runs agree within #{round1(spread)}°: usable, run it again to be sure"
-      true -> "#{n} runs disagree by #{round1(spread)}°: not reliable yet, run it again"
+      true -> "#{n} runs disagree by #{round1(spread)}°: not reliable yet. Moved the camera? Forget these results and start again"
     end
   end
 

@@ -53,13 +53,27 @@ defmodule Mix.Tasks.Site.Build do
     {meta, body} = split_front_matter(raw)
     slug = path |> Path.basename(".md")
 
+    {hero, hero_alt} = hero_image(meta, body)
+
     %{
       slug: slug,
       title: meta["title"] || slug,
       summary: meta["summary"] || "",
       date: parse_date(meta["date"], slug),
+      hero: hero,
+      hero_alt: hero_alt,
       html: MDEx.to_html!(body, extension: [table: true, autolink: true], render: [unsafe: false])
     }
+  end
+
+  # The picture that sells the post: `hero:` in the front matter if it is
+  # there, otherwise the first image in the body, which is the one the author
+  # led with.
+  defp hero_image(meta, body) do
+    case Regex.run(~r/!\[([^\]]*)\]\((images\/[^)]+)\)/, body) do
+      [_, alt, src] -> {meta["hero"] || src, meta["hero_alt"] || alt}
+      _ -> {meta["hero"], meta["hero_alt"] || ""}
+    end
   end
 
   # A tiny front-matter reader: key: value, quotes optional. The posts are ours.
@@ -103,10 +117,15 @@ defmodule Mix.Tasks.Site.Build do
     items =
       Enum.map_join(posts, "\n", fn p ->
         """
-        <li>
-          <a href="#{p.slug}.html"><strong>#{esc(p.title)}</strong></a>
-          <time datetime="#{p.date}">#{pretty(p.date)}</time>
-          <p>#{esc(p.summary)}</p>
+        <li class="card">
+          <a href="#{p.slug}.html">
+            #{hero_tag(p)}
+            <div class="card-body">
+              <h2>#{esc(p.title)}</h2>
+              <time datetime="#{p.date}">#{pretty(p.date)}</time>
+              <p>#{esc(p.summary)}</p>
+            </div>
+          </a>
         </li>
         """
       end)
@@ -121,10 +140,15 @@ defmodule Mix.Tasks.Site.Build do
       <p class="lede"><a href="https://github.com/bradgessler/observatory">Source on GitHub</a></p>
     </header>
     <ul class="posts">#{items}</ul>
-    """)
+    """, "wide")
   end
 
-  defp post_page(post, _all) do
+  defp post_page(post, all) do
+    i = Enum.find_index(all, &(&1.slug == post.slug))
+    # `all` is newest first, so the one before it in the list is the newer one
+    newer = if i > 0, do: Enum.at(all, i - 1)
+    older = Enum.at(all, i + 1)
+
     layout(post.title, """
     <p class="back"><a href="index.html">‹ Observatory</a></p>
     <article>
@@ -132,10 +156,30 @@ defmodule Mix.Tasks.Site.Build do
       <time datetime="#{post.date}">#{pretty(post.date)}</time>
       #{post.html}
     </article>
+    <nav class="prevnext">
+      #{nav_link(older, "Earlier")}
+      #{nav_link(newer, "Later")}
+    </nav>
     """)
   end
 
-  defp layout(title, inner) do
+  defp nav_link(nil, _), do: ~s(<span></span>)
+
+  defp nav_link(p, label) do
+    """
+    <a href="#{p.slug}.html" class="#{String.downcase(label)}">
+      <span class="dir">#{label}</span>
+      <strong>#{esc(p.title)}</strong>
+    </a>
+    """
+  end
+
+  defp hero_tag(%{hero: nil}), do: ""
+  defp hero_tag(%{hero: src, hero_alt: alt}), do: ~s(<img src="#{src}" alt="#{esc(alt)}" loading="lazy" />)
+
+  defp layout(title, inner), do: layout(title, inner, "")
+
+  defp layout(title, inner, class) do
     """
     <!doctype html>
     <html lang="en">
@@ -146,7 +190,7 @@ defmodule Mix.Tasks.Site.Build do
     <link rel="stylesheet" href="style.css" />
     </head>
     <body>
-    <main>
+    <main class="#{class}">
     #{inner}
     </main>
     </body>
@@ -172,17 +216,28 @@ defmodule Mix.Tasks.Site.Build do
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 -apple-system, system-ui, sans-serif; }
     main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 6rem; }
+    main.wide { max-width: 68rem; }
+    main.wide header.site { max-width: 46rem; }
     a { color: var(--accent); }
     h1 { font-size: 2rem; line-height:1.2; margin: 0 0 .5rem; }
     h2 { font-size: 1.25rem; margin: 2.5rem 0 .5rem; }
     time { color: var(--dim); font-size: .9rem; }
     .lede { color: var(--dim); }
     .back a { color: var(--dim); text-decoration: none; }
-    ul.posts { list-style:none; padding:0; display:grid; gap:1.5rem; margin-top:2.5rem; }
-    ul.posts li { background:var(--panel); border-radius:14px; padding:1.25rem 1.5rem; }
-    ul.posts strong { font-size:1.15rem; }
-    ul.posts p { color:var(--dim); margin:.35rem 0 0; }
-    ul.posts a { text-decoration:none; }
+    ul.posts { list-style:none; padding:0; display:grid; gap:1.75rem; margin-top:2.5rem; grid-template-columns:repeat(auto-fit,minmax(20rem,1fr)); }
+    .card { background:var(--panel); border-radius:16px; overflow:hidden; transition:transform .12s ease; }
+    .card:hover { transform:translateY(-2px); }
+    .card a { text-decoration:none; color:inherit; display:block; }
+    .card img { width:100%; aspect-ratio:16/10; object-fit:cover; object-position:center; display:block; margin:0; border-radius:0; background:#000; }
+    .card-body { padding:1.1rem 1.35rem 1.4rem; }
+    .card h2 { font-size:1.2rem; margin:0 0 .15rem; color:var(--accent); }
+    .card p { color:var(--dim); margin:.5rem 0 0; font-size:.95rem; }
+    nav.prevnext { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:4rem; padding-top:2rem; border-top:1px solid var(--panel); }
+    nav.prevnext a { background:var(--panel); border-radius:12px; padding:1rem 1.15rem; text-decoration:none; color:inherit; }
+    nav.prevnext .later { text-align:right; }
+    nav.prevnext .dir { display:block; color:var(--dim); font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.2rem; }
+    nav.prevnext strong { color:var(--accent); font-weight:600; }
+    @media (max-width:32rem) { nav.prevnext { grid-template-columns:1fr; } nav.prevnext .later { text-align:left; } }
     article img { max-width:100%; height:auto; border-radius:12px; display:block; margin:1.5rem auto; }
     article pre { background:var(--panel); padding:1rem; border-radius:10px; overflow-x:auto; font-size:.85rem; }
     article code { font-size:.9em; }

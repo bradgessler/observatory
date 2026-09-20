@@ -2,6 +2,8 @@
 title: "Finding the axes with one camera"
 date: 2026-09-19
 summary: "A webcam watches the mount turn a few degrees on each axis. Block-matching optical flow, a 2-D pivot fit that works, a 3-D fit that wanders 30° between sweeps, and an honest review of why. An experiment, not a calibration."
+hero: "images/watch-live-axes.png"
+hero_alt: "The fitted axes drawn over the live picture of the mount: polar blue, Dec green, tube red"
 ---
 
 A camera that knows where the mount's axes are in its picture can draw them over the live view, notice when the mount moves without being told to, and eventually, with more cameras, measure how a mount really behaves. This is the first step, and it's an experiment. The page says so.

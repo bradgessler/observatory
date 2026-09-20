@@ -1,0 +1,16 @@
+#!/bin/sh
+# Build the blog and publish it to the public site repo.
+# The code stays in this private repo; only the rendered site is published.
+set -e
+cd "$(dirname "$0")/.."
+mix site.build
+WORK="${TMPDIR:-/tmp}/observatory-blog"
+rm -rf "$WORK"
+git clone -q git@github.com:bradgessler/observatory-blog.git "$WORK"
+find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+cp -R _site/. "$WORK"/
+cd "$WORK"
+git add -A
+git commit -q -m "${1:-Rebuild the site}" || { echo "nothing to publish"; exit 0; }
+git push -q
+echo "published: https://bradgessler.github.io/observatory-blog/"

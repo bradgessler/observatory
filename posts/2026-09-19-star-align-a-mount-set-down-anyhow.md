@@ -2,6 +2,8 @@
 title: "Star Align: a mount set down anyhow"
 date: 2026-09-19
 summary: "A geometric model of a German equatorial with the polar axis anywhere, fitted from two or three stars centred by eye, and a tracker that holds a target through it on both axes. No Polaris, no level tripod."
+hero: "images/corrections-bad-setup.png"
+hero_alt: "A deliberately bad set-up: the polar axis 4.7 degrees off the pole, and the corrections holding Venus anyway"
 ---
 
 Polar alignment is the part of an equatorial mount that makes people give up. You crouch behind the tripod, squint through a little scope at Polaris, and turn knobs until a reticle lines up. I wanted to skip it. Set the mount down roughly north, roughly at my latitude, and let the stars do the rest.

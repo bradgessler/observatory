@@ -2,6 +2,8 @@
 title: "Observatory: a telescope you just plug in"
 date: 2026-09-19
 summary: "An EQ6-R, an EQDIR cable, and a Phoenix LiveView page a phone opens. Plug in, zero, three stars, look. What got built, how tonight goes, and the three bugs that would have ruined it."
+hero: "images/start-on-target.png"
+hero_alt: "Locked on Venus: three stars agree to a tenth of an arcminute and the tracker is holding"
 ---
 
 I have a Sky-Watcher EQ6-R and I don't like its hand controller. So the hand controller went in a drawer, an EQDIR cable went from the mount's HAND CONTROL jack to my laptop, and I wrote the other end in Elixir. The whole thing is called Observatory and it's [open source](https://github.com/bradgessler/observatory).

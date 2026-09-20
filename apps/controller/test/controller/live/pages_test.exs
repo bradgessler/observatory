@@ -107,6 +107,19 @@ defmodule Controller.PagesTest do
       assert html =~ "Home ›"
     end
 
+    test "the scopes themselves come first, live, one badge each", %{conn: conn, id: id} do
+      {:ok, view, html} = live(conn, "/")
+      assert html =~ "scope-badge"
+      assert html =~ id
+      assert html =~ "Not zeroed"
+      # the badge draws the mount, and says the numbers for a screen reader
+      assert html =~ ~s(role="img")
+      assert html =~ "RA +0°00′"
+
+      Mount.set_home(id)
+      assert render(view) =~ "Zeroed, still"
+    end
+
     test "everything else lists every group with one line each", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
       for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Start", "Star Align", "Orb", "Bench"], do: assert(html =~ name)

@@ -956,3 +956,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .sc-spin-ra, .sc-spin-dec { animation: sc-spin .9s linear infinite; }
 }
 @keyframes sc-spin { to { stroke-dashoffset: -18; } }
+
+/* ---- scope badges: one telescope each, in a row; several scopes is the point ---- */
+.home-scopes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s2); }
+.scope-badge { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: center; padding: var(--s2); background: var(--panel); border: 1px solid var(--key-edge); border-radius: var(--r-lg); color: var(--text); text-decoration: none; min-width: 0; }
+.sb-pic { display: grid; place-items: center; }
+.sb-blank { display: block; width: 104px; height: 88px; background: var(--sunk); border-radius: var(--r); box-shadow: var(--bevel-in); }
+.sb-text { display: grid; gap: 2px; min-width: 0; }
+.sb-text strong { font-size: var(--fs-3); overflow: hidden; text-overflow: ellipsis; }
+.sb-state { font-size: var(--fs-2); color: var(--dim); }
+.sb-state.on { color: var(--on); }
+.sb-state.warn { color: var(--warn); }
+.sb-nums { font-size: var(--fs-2); color: var(--dim); font-variant-numeric: tabular-nums; }
+.sb-sim { font-size: var(--fs-1); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
+@media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } }

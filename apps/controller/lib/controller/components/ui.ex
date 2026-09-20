@@ -192,6 +192,12 @@ defmodule Controller.Components.UI do
     """
   end
 
+  @doc "A fragment as a sentence: the first letter up, the rest untouched (\"high in the east\" → \"High in the east\")."
+  def sentence(nil), do: nil
+  def sentence(""), do: ""
+  def sentence(text) when is_binary(text), do: String.upcase(String.first(text)) <> String.slice(text, 1..-1//1)
+  def sentence(other), do: other
+
   @doc "STOP, the one loud key: in a header (`mini`) or full width (`bar`)."
   attr :click, :string, default: "stop"
   attr :size, :string, default: "mini"
@@ -270,7 +276,7 @@ defmodule Controller.Components.UI do
   def item(assigns) do
     ~H"""
     <.dynamic_tag tag_name={@as} class="item" {@rest}>
-      <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{@detail}</span></div>
+      <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{sentence(@detail)}</span></div>
       {render_slot(@inner_block)}
     </.dynamic_tag>
     """

@@ -64,7 +64,7 @@ defmodule Controller.PagesTest do
     test "slewing before home explains itself", %{conn: conn, id: id} do
       {:ok, view, _} = live(conn, "/sky/#{id}")
       render_click(view, "pick", %{"id" => "m13"})
-      assert render_click(view, "goto", %{}) =~ "zero the axes"
+      assert render_click(view, "goto", %{}) =~ ~r/zero the axes/i
     end
   end
 
@@ -93,7 +93,7 @@ defmodule Controller.PagesTest do
     test "devices lists the simulated mount", %{conn: conn, id: id} do
       {:ok, _view, html} = live(conn, "/devices")
       assert html =~ id
-      assert html =~ "Drive it"
+      assert html =~ "Drive It"
     end
   end
 
@@ -102,7 +102,7 @@ defmodule Controller.PagesTest do
       {:ok, _view, html} = live(conn, "/start")
       for step <- ["Plug in", "Zero", "Stars 0/3", "Look"], do: assert(html =~ step)
       # a simulated mount is connected but not zeroed: step 2 is on
-      assert html =~ "Zero the axes here"
+      assert html =~ "Zero the Axes Here"
       refute html =~ "Look At"
       assert html =~ "Home ›"
     end
@@ -110,7 +110,7 @@ defmodule Controller.PagesTest do
     test "everything else lists every group with one line each", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
       for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Start", "Star Align", "Orb", "Bench"], do: assert(html =~ name)
-      assert html =~ "name a few stars"
+      assert html =~ "Name a few stars"
     end
   end
 

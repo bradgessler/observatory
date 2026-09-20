@@ -27,7 +27,7 @@ defmodule Controller.Components.Corrections do
     ~H"""
     <div class={["corr", @compact && "compact"]}>
       <ol class="laws" aria-label="control law in charge">
-        <li :for={{n, words} <- [{1, "axes"}, {2, "ideal sky"}, {3, "this mount"}]} class={["law-key", n == @law && "on"]} aria-current={if n == @law, do: "true"}>
+        <li :for={{n, words} <- [{1, "Axes"}, {2, "Ideal Sky"}, {3, "This Mount"}]} class={["law-key", n == @law && "on"]} aria-current={if n == @law, do: "true"}>
           <b>{n}</b> {words}<span :if={n == @law} class="sr-only"> (in charge)</span>
         </li>
       </ol>
@@ -49,11 +49,11 @@ defmodule Controller.Components.Corrections do
 
         <div class="corr-text">
           <div class="state-line">
-            <strong :if={@model}>polar axis {fmt(@pole.off)}° from the pole</strong>
-            <strong :if={!@model}>polar axis assumed on the pole</strong>
+            <strong :if={@model}>Polar axis {fmt(@pole.off)}° from the pole</strong>
+            <strong :if={!@model}>Polar axis assumed on the pole</strong>
             <span :if={@model} class="dim">{fmt(abs(@pole.east))}° {if @pole.east >= 0, do: "east", else: "west"} · {fmt(abs(@pole.up))}° too {if @pole.up >= 0, do: "steep", else: "shallow"}</span>
-            <span :if={!@model and (abs(@offset["ra"]) > 0.01 or abs(@offset["dec"]) > 0.01)} class="dim">no stars yet; one sync offset in force</span>
-            <span :if={!@model and abs(@offset["ra"]) <= 0.01 and abs(@offset["dec"]) <= 0.01} class="dim">no stars yet; no correction in force</span>
+            <span :if={!@model and (abs(@offset["ra"]) > 0.01 or abs(@offset["dec"]) > 0.01)} class="dim">No stars yet; one sync offset in force</span>
+            <span :if={!@model and abs(@offset["ra"]) <= 0.01 and abs(@offset["dec"]) <= 0.01} class="dim">No stars yet; no correction in force</span>
           </div>
           <div class="kv"><span class="kv-k">offsets</span><span class="kv-v">RA {sgn(off(@model, @offset, :ra))}° · Dec {sgn(off(@model, @offset, :dec))}°</span></div>
           <div :if={@status && @status.n > 0} class="kv"><span class="kv-k">stars</span><span class="kv-v">{@status.n}{if @status.rms_arcmin && @status.n >= 3, do: " · agree to #{fmt(@status.rms_arcmin)}′", else: ""}</span></div>
@@ -65,10 +65,10 @@ defmodule Controller.Components.Corrections do
         <.bar label="Dec" rate={@tracker && @tracker.dec_rate} tick={0.0} />
         <span class="dim auth-note">
           {cond do
-            @tracker && @tracker.paused == :goto -> "holding #{@tracker.name} · slewing"
-            @tracker && @tracker.paused -> "holding #{@tracker.name} · paused while a hand is on a control"
+            @tracker && @tracker.paused == :goto -> "Holding #{@tracker.name} · slewing"
+            @tracker && @tracker.paused -> "Holding #{@tracker.name} · paused while a hand is on a control"
             @tracker -> "holding #{@tracker.name}#{if @tracker.error_arcmin, do: " · #{fmt(@tracker.error_arcmin)}′ off", else: ""}"
-            true -> "not holding anything · sidereal would be RA 1×, Dec 0"
+            true -> "Not holding anything · sidereal would be RA 1×, Dec 0"
           end}
         </span>
       </div>

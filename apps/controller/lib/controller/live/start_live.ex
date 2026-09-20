@@ -136,12 +136,12 @@ defmodule Controller.StartLive do
 
     text =
       case obj && (if moving?(socket.assigns.snap, socket.assigns.tracker), do: {:error, :moving}, else: Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true)) do
-        {:error, :moving} -> "still moving: let go, or wait for it to land"
-        {:ok, _, _} -> "heading to #{obj.name}"
+        {:error, :moving} -> "Still moving: let go, or wait for it to land"
+        {:ok, _, _} -> "Heading to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
-        {:error, :not_connected} -> "no mount"
+        {:error, :not_connected} -> "No mount"
         {:error, e} -> inspect(e)
-        nil -> "not on the list any more"
+        nil -> "Not on the list any more"
       end
 
     {:noreply, notice(socket, text)}
@@ -156,7 +156,7 @@ defmodule Controller.StartLive do
         {:noreply, socket |> compute() |> notice("#{name} added · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′")}
 
       _ ->
-        {:noreply, notice(socket, "nothing being held")}
+        {:noreply, notice(socket, "Nothing being held")}
     end
   end
 
@@ -206,7 +206,7 @@ defmodule Controller.StartLive do
       <.card :if={@step == :plug} title="Plug In the Telescope">
         <.hint>Mount powered, EQDIR cable in this machine. This page moves on by itself.</.hint>
         <.kv :if={@snap} label="mount" value={"#{@selected} · not answering"} />
-        <.row><.btn navigate={~p"/devices"}>What's plugged in ›</.btn></.row>
+        <.row><.btn navigate={~p"/devices"}>What's Plugged in ›</.btn></.row>
       </.card>
 
       <%!-- steps 2 and 3 are the star-align page, nested --%>
@@ -222,20 +222,20 @@ defmodule Controller.StartLive do
             <span class="dim">{@status.axis_words} · good for {Enum.join(@status.good_for, " · ")}</span>
           </div>
           <.row>
-            <.btn class="btn-ghost" navigate={~p"/controls/align/#{@selected}"}>Add a star ›</.btn>
-            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>How it's steered ›</.btn>
+            <.btn class="btn-ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
+            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
           </.row>
         </.card>
 
         <.card title="On Target" :if={@tracker}>
           <div class="state-line">
             <strong>{@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
-            <span class="dim">holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
+            <span class="dim">Holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
           </div>
           <.row>
-            <.btn variant="primary" navigate={~p"/controls/nudge/#{@selected}"}>Centre it ›</.btn>
-            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's centred</.btn>
-            <.btn phx-click="release">Stop holding</.btn>
+            <.btn variant="primary" navigate={~p"/controls/nudge/#{@selected}"}>Centre It ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's Centred</.btn>
+            <.btn phx-click="release">Stop Holding</.btn>
           </.row>
           <.row>
             <.btn :if={@tracker[:target] && @tracker.target[:id]} class="btn-ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected]}"}>About {@tracker.name} ›</.btn>
@@ -255,8 +255,8 @@ defmodule Controller.StartLive do
           </.items>
           <.hint :if={@targets == []}>Nothing up right now.</.hint>
           <.row>
-            <.btn navigate={~p"/sky/#{@selected}"}>Whole sky ›</.btn>
-            <.btn navigate={~p"/sky/#{@selected}?tab=targets"}>Tonight's list ›</.btn>
+            <.btn navigate={~p"/sky/#{@selected}"}>Whole Sky ›</.btn>
+            <.btn navigate={~p"/sky/#{@selected}?tab=targets"}>Tonight's List ›</.btn>
           </.row>
         </.card>
 
@@ -269,8 +269,8 @@ defmodule Controller.StartLive do
           </.row>
           <%!-- a plugged-in pad shows itself here, with the one switch that matters --%>
           <.item :if={@pads != []} label="Pad" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
-            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Pad moves scope</.btn>
-            <.btn :if={pad_on?(@mapper, @selected)} phx-click="pad" phx-value-on="false">Watch only</.btn>
+            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Pad Moves Scope</.btn>
+            <.btn :if={pad_on?(@mapper, @selected)} phx-click="pad" phx-value-on="false">Watch Only</.btn>
           </.item>
         </.card>
       <% end %>
@@ -281,8 +281,8 @@ defmodule Controller.StartLive do
 
       <p class="flow-more">
         <.link navigate={~p"/"}>Home ›</.link>
-        · <.link href={~p"/docs/start"}>how this works</.link>
-        · <.link navigate={~p"/events"}>events</.link>
+        · <.link href={~p"/docs/start"}>How This Works</.link>
+        · <.link navigate={~p"/events"}>Events</.link>
       </p>
 
       <.notice notice={@notice} />
@@ -329,10 +329,10 @@ defmodule Controller.StartLive do
 
   defp pad_words(m, id) do
     cond do
-      pad_on?(m, id) -> "moves the scope"
+      pad_on?(m, id) -> "Moves the scope"
       Map.get(m, :off_reason) -> m.off_reason
-      Map.get(m, :ignoring) -> "held, but off"
-      true -> "watch only"
+      Map.get(m, :ignoring) -> "Held, but off"
+      true -> "Watch only"
     end
   end
 

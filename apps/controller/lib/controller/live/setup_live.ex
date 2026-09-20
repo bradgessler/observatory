@@ -82,13 +82,13 @@ defmodule Controller.SetupLive do
          |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d), "moving #{axis} #{d}°")}
 
       :error ->
-        {:noreply, assign(socket, notice: "degrees?")}
+        {:noreply, assign(socket, notice: "Degrees?")}
     end
   end
 
   def handle_event("clear_sync", _, socket) do
     Modes.clear_sync()
-    {:noreply, socket |> assign(notice: "sync offset cleared") |> load()}
+    {:noreply, socket |> assign(notice: "Sync offset cleared") |> load()}
   end
 
   def handle_event("flip", %{"what" => what}, socket) do
@@ -107,14 +107,14 @@ defmodule Controller.SetupLive do
 
   def handle_event("reset_pointing", _, socket) do
     Modes.reset_pointing()
-    {:noreply, socket |> assign(notice: "pointing back to config defaults") |> load()}
+    {:noreply, socket |> assign(notice: "Pointing back to config defaults") |> load()}
   end
 
   def handle_event("tracking_direction", _, socket) do
     dir = if socket.assigns.tracking_direction == "forward", do: "reverse", else: "forward"
     Settings.put("tracking_direction", dir)
     if socket.assigns.ref, do: safe(fn -> Mount.configure(socket.assigns.ref, tracking_direction: String.to_atom(dir)) end)
-    {:noreply, socket |> assign(notice: "tracking direction: #{dir}") |> load()}
+    {:noreply, socket |> assign(notice: "Tracking direction: #{dir}") |> load()}
   end
 
   # The physical mount: latitude knob and which way the tripod's north leg points.
@@ -125,7 +125,7 @@ defmodule Controller.SetupLive do
       {:noreply, load(socket)}
     else
       # nothing is saved until both read as numbers; say which is off (3.3.1)
-      _ -> {:noreply, assign(socket, notice: "not saved: tilt is 0 to 90 degrees, heading a number of degrees")}
+      _ -> {:noreply, assign(socket, notice: "Not saved: tilt is 0 to 90 degrees, heading a number of degrees")}
     end
   end
 
@@ -136,12 +136,12 @@ defmodule Controller.SetupLive do
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
-  defp run(%{assigns: %{ref: nil}} = socket, _fun, _ok), do: assign(socket, notice: "no mount")
+  defp run(%{assigns: %{ref: nil}} = socket, _fun, _ok), do: assign(socket, notice: "No mount")
 
   defp run(socket, fun, ok_msg) do
     case safe(fn -> fun.(socket.assigns.ref) end) do
       :ok -> assign(socket, notice: ok_msg)
-      {:error, :limit} -> assign(socket, notice: "soft limit")
+      {:error, :limit} -> assign(socket, notice: "Soft limit")
       {:error, e} -> assign(socket, notice: inspect(e))
     end
   end
@@ -173,10 +173,10 @@ defmodule Controller.SetupLive do
 
     law =
       cond do
-        align.solved? and align.n >= 3 -> {3, "sky · star-aligned", "gotos and tracking go through the fitted geometry of this mount"}
-        align.solved? -> {3, "sky · star-aligned (#{align.n} star#{if align.n == 1, do: "", else: "s"})", "steerable in the sky; a third star would grade it"}
-        abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01 -> {2, "sky · ideal geometry + sync offset", "assumes the mount is polar-aligned; one star fixed the offsets"}
-        true -> {2, "sky · ideal geometry", "assumes the mount is polar-aligned and zeroed upright; no correction yet"}
+        align.solved? and align.n >= 3 -> {3, "Sky · star-aligned", "Gotos and tracking go through the fitted geometry of this mount"}
+        align.solved? -> {3, "Sky · star-aligned (#{align.n} star#{if align.n == 1, do: "", else: "s"})", "Steerable in the sky; a third star would grade it"}
+        abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01 -> {2, "Sky · ideal geometry + sync offset", "Assumes the mount is polar-aligned; one star fixed the offsets"}
+        true -> {2, "Sky · ideal geometry", "Assumes the mount is polar-aligned and zeroed upright; no correction yet"}
       end
 
     corrections =
@@ -192,7 +192,7 @@ defmodule Controller.SetupLive do
 
     tracking =
       cond do
-        tracker && tracker.paused -> "model tracker on #{tracker.name} · paused while a hand is on a control"
+        tracker && tracker.paused -> "Model tracker on #{tracker.name} · paused while a hand is on a control"
         tracker -> "model tracker on #{tracker.name} · RA #{fmt1(tracker.ra_rate)}× Dec #{fmt1(tracker.dec_rate)}×#{if tracker.error_arcmin, do: " · #{fmt1(tracker.error_arcmin)}′ off"}"
         true -> nil
       end
@@ -210,13 +210,16 @@ defmodule Controller.SetupLive do
     }
   end
 
+  defp short("cu.usbserial-" <> tail), do: tail
+  defp short(id), do: id
+
   @impl true
   def render(assigns) do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
         <.back navigate={~p"/"} label="Home" />
-        <.title>{@id} · Setup</.title>
+        <.title>{short(@id)} · Setup</.title>
         <.actions><.help href={~p"/docs/keypad"} label="setup and modes" /></.actions>
       </:header>
 
@@ -236,11 +239,11 @@ defmodule Controller.SetupLive do
           <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "zeroed · limits armed", else: "not zeroed"}</.badge>
         </:aside>
         <.hint>Counterweight straight down, tube along the polar axis, by eye. Arms the cable-safety limits; the stars do the sky.</.hint>
-        <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
+        <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the Axes Here</.btn>
       </.card>
 
       <.row>
-        <.btn navigate={~p"/bench/position?#{[mount: @id]}"}>Move to an exact angle ›</.btn>
+        <.btn navigate={~p"/bench/position?#{[mount: @id]}"}>Move to an Exact Angle ›</.btn>
       </.row>
 
       <.card title="Modes">
@@ -264,7 +267,7 @@ defmodule Controller.SetupLive do
           <.btn phx-click="auto_track" aria-label={"Turn auto-track after slew #{if @auto_track, do: "off", else: "on"}"} aria-pressed={to_string(@auto_track)}>{if @auto_track, do: "Turn off", else: "Turn on"}</.btn>
         </.setting>
         <.setting label="Soft limits from home" value={"RA #{lim(@limits, :ra)} · Dec #{lim(@limits, :dec)}"} />
-        <.btn variant="ghost" phx-click="reset_pointing" data-confirm="Reset pointing to the config defaults? Axis signs and the sync offset go back to stock.">Reset pointing to defaults</.btn>
+        <.btn variant="ghost" phx-click="reset_pointing" data-confirm="Reset pointing to the config defaults? Axis signs and the sync offset go back to stock.">Reset Pointing to Defaults</.btn>
       </.card>
 
       <.card title="Mount As It Stands">
@@ -291,9 +294,9 @@ defmodule Controller.SetupLive do
   defp lim(%{} = l, axis) do
     case l[axis] do
       {lo, hi} -> "#{round(lo)}°…#{round(hi)}°"
-      _ -> "off"
+      _ -> "Off"
     end
   end
 
-  defp lim(_, _), do: "off"
+  defp lim(_, _), do: "Off"
 end

@@ -91,17 +91,17 @@ defmodule Controller.NudgeLive do
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
-        assign(socket, notice: "no mount")
+        assign(socket, notice: "No mount")
 
       ref ->
         try do
           case fun.(ref) do
             :ok -> socket
-            {:error, :limit} -> assign(socket, notice: "soft limit")
+            {:error, :limit} -> assign(socket, notice: "Soft limit")
             {:error, e} -> assign(socket, notice: inspect(e))
           end
         catch
-          :exit, _ -> assign(socket, notice: "mount unreachable")
+          :exit, _ -> assign(socket, notice: "Mount unreachable")
         end
     end
   end

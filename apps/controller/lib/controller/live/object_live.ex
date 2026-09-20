@@ -54,10 +54,10 @@ defmodule Controller.ObjectLive do
 
     case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
       :stopped ->
-        {:noreply, assign(socket, search: nil, notice: "search stopped")}
+        {:noreply, assign(socket, search: nil, notice: "Search stopped")}
 
       nil ->
-        {:noreply, assign(socket, search: nil, notice: "search finished")}
+        {:noreply, assign(socket, search: nil, notice: "Search finished")}
 
       {dra, ddec} ->
         ref = socket.assigns.refs[socket.assigns.selected]
@@ -110,10 +110,10 @@ defmodule Controller.ObjectLive do
 
     notice =
       case Pointing.slew(ref, snap, obj, socket.assigns.ctx, track: Settings.get("auto_track", true)) do
-        {:ok, d_ra, d_dec} -> "slewing (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
-        {:error, :not_connected} -> "no mount connected"
-        {:error, :not_homed} -> "zero the axes first (Setup, mount upright)"
-        {:error, :limit} -> "outside the soft limits"
+        {:ok, d_ra, d_dec} -> "Slewing (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
+        {:error, :not_connected} -> "No mount connected"
+        {:error, :not_homed} -> "Zero the axes first (Setup, mount upright)"
+        {:error, :limit} -> "Outside the soft limits"
         {:error, e} -> inspect(e)
       end
 
@@ -123,15 +123,15 @@ defmodule Controller.ObjectLive do
   def handle_event("stop", _, socket) do
     Controller.Sky.Tracker.stop(socket.assigns.selected)
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.stop(ref) end)
-    {:noreply, assign(socket, notice: "stopped", search: nil)}
+    {:noreply, assign(socket, notice: "Stopped", search: nil)}
   end
 
   def handle_event("sync", _, %{assigns: %{obj: obj, snap: snap}} = socket) do
     if snap && snap.homed do
       st = Pointing.sync(snap, obj, socket.assigns.ctx)
-      {:noreply, socket |> assign(notice: "aligned on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
+      {:noreply, socket |> assign(notice: "Aligned on #{obj.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′") |> compute()}
     else
-      {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
+      {:noreply, assign(socket, notice: "Zero the axes first (Setup)")}
     end
   end
 
@@ -140,7 +140,7 @@ defmodule Controller.ObjectLive do
       {:noreply, socket}
     else
       Process.send_after(self(), :search_step, @spiral_pause_ms)
-      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "searching… Stop when you see it")}
+      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "Searching… Stop when you see it")}
     end
   end
 
@@ -204,7 +204,7 @@ defmodule Controller.ObjectLive do
         <button class="go big" phx-click="slew" disabled={!@snap || !@snap.connected} aria-label={"Slew to #{@obj.name}"}>Slew</button>
         <div class="row">
           <button :if={!@search} phx-click="search" disabled={!@snap || !@snap.connected} aria-label={"Search around #{@obj.name} in a spiral"}>Search</button>
-          <button :if={@search} class="on" phx-click="stop" aria-pressed="true">Stop search</button>
+          <button :if={@search} class="on" phx-click="stop" aria-pressed="true">Stop Search</button>
           <button phx-click="sync" disabled={!@snap || !@snap.homed} aria-label={"Sync: the scope is centred on #{@obj.name}"}>Sync</button>
         </div>
         <p :if={@snap && !@snap.homed} class="horizon-hint">Zero the axes first (Setup, mount upright) before slewing.</p>
@@ -216,24 +216,24 @@ defmodule Controller.ObjectLive do
     """
   end
 
-  defp verdict(%{visible: false, alt: alt, tree: tree}) when alt > 0, do: "behind your tree line (#{fmt0(alt)}° up, trees to #{tree}°)"
-  defp verdict(%{visible: false}), do: "not up right now"
+  defp verdict(%{visible: false, alt: alt, tree: tree}) when alt > 0, do: "Behind your tree line (#{fmt0(alt)}° up, trees to #{tree}°)"
+  defp verdict(%{visible: false}), do: "Not up right now"
   defp verdict(%{entry: %{words: w}}), do: w
-  defp verdict(_), do: "faint for this scope tonight"
+  defp verdict(_), do: "Faint for this scope tonight"
 
-  defp kind_name(:moon), do: "the Moon"
-  defp kind_name(:planet), do: "planet"
-  defp kind_name(:star), do: "star"
-  defp kind_name(:cluster), do: "star cluster"
-  defp kind_name(:galaxy), do: "galaxy"
-  defp kind_name(:nebula), do: "nebula"
-  defp kind_name(:planetary), do: "planetary nebula"
+  defp kind_name(:moon), do: "The Moon"
+  defp kind_name(:planet), do: "Planet"
+  defp kind_name(:star), do: "Star"
+  defp kind_name(:cluster), do: "Star cluster"
+  defp kind_name(:galaxy), do: "Galaxy"
+  defp kind_name(:nebula), do: "Nebula"
+  defp kind_name(:planetary), do: "Planetary nebula"
   defp kind_name(k), do: to_string(k)
 
-  defp when_text(:good), do: "up for 2h+"
-  defp when_text(:sets_later), do: "sets within 2h"
-  defp when_text(:sets_soon), do: "sets within the hour, look now"
-  defp when_text(:rising), do: "rises within 2h"
+  defp when_text(:good), do: "Up for 2h+"
+  defp when_text(:sets_later), do: "Sets within 2h"
+  defp when_text(:sets_soon), do: "Sets within the hour, look now"
+  defp when_text(:rising), do: "Rises within 2h"
 
   defp compass(az), do: Enum.at(~w(N NE E SE S SW W NW), round(Astro.norm360(az) / 45) |> rem(8))
   defp fmt1(x), do: :erlang.float_to_binary(x * 1.0, decimals: 1)

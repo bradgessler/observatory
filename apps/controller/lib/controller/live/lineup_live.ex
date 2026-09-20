@@ -110,11 +110,11 @@ defmodule Controller.LineupLive do
 
     notice =
       case star && Pointing.slew(ref, socket.assigns.snap, star, ctx, track: true) do
-        {:ok, _, _} -> "slewing to #{star.name}"
-        {:error, :not_homed} -> "zero the axes first"
+        {:ok, _, _} -> "Slewing to #{star.name}"
+        {:error, :not_homed} -> "Zero the axes first"
         {:error, :limit} -> "#{star.name} is outside the soft limits from here"
         {:error, e} -> inspect(e)
-        nil -> "no such star"
+        nil -> "No such star"
       end
 
     {:noreply, socket |> assign(picking: false) |> put_notice(notice)}
@@ -126,9 +126,9 @@ defmodule Controller.LineupLive do
     snap = socket.assigns.snap
 
     cond do
-      is_nil(star) or is_nil(snap) -> {:noreply, put_notice(socket, "no mount")}
-      not snap.homed -> {:noreply, put_notice(socket, "zero the axes first")}
-      slewing?(snap) -> {:noreply, put_notice(socket, "still slewing")}
+      is_nil(star) or is_nil(snap) -> {:noreply, put_notice(socket, "No mount")}
+      not snap.homed -> {:noreply, put_notice(socket, "Zero the axes first")}
+      slewing?(snap) -> {:noreply, put_notice(socket, "Still slewing")}
       true ->
         st = Lineup.add(snap, star)
         {:noreply, socket |> assign(picking: false) |> compute() |> put_notice(words_after(st, star))}
@@ -163,7 +163,7 @@ defmodule Controller.LineupLive do
         {:noreply, socket |> compute() |> put_notice("holding #{name}")}
 
       _ ->
-        {:noreply, put_notice(socket, "zero the axes first")}
+        {:noreply, put_notice(socket, "Zero the axes first")}
     end
   end
 
@@ -189,7 +189,7 @@ defmodule Controller.LineupLive do
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
-        put_notice(socket, "no mount")
+        put_notice(socket, "No mount")
 
       ref ->
         try do
@@ -198,7 +198,7 @@ defmodule Controller.LineupLive do
             {:error, e} -> put_notice(socket, inspect(e))
           end
         catch
-          :exit, _ -> put_notice(socket, "mount unreachable")
+          :exit, _ -> put_notice(socket, "Mount unreachable")
         end
     end
   end
@@ -222,40 +222,40 @@ defmodule Controller.LineupLive do
           <strong :if={@status.solved? and @status.n >= 3}>{@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
           <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · aligned, not yet checked</strong>
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
-          <span :if={@status.solved? and @status.good_for != []} class="dim">good for {Enum.join(@status.good_for, " · ")}</span>
+          <span :if={@status.solved? and @status.good_for != []} class="dim">Good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.n < 3} class="dim">{3 - @status.n} more to check it</span>
           <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="dim">one star is off: forget the worst below</span>
           <span :if={@status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
-          <span :if={@status.signs_corrected?} class="dim">axis sign corrected (Modes)</span>
+          <span :if={@status.signs_corrected?} class="dim">Axis sign corrected (Modes)</span>
         </div>
       </.card>
 
       <%!-- the two facts the maths needs, and where to change them; calm, never a nag --%>
       <.hint :if={@status} class="site-line">
         Site {@site.name} · {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
-        <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>change site ›</.link>
+        <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>Change Site ›</.link>
         <span :if={@site.name == "nowhere"}> · <b>no site set</b></span>
       </.hint>
 
       <%!-- step 0: home, for the limits --%>
       <.card :if={@snap && !@snap.homed} title="First: Zero the Axes">
         <.hint>Counterweight down, tube along the polar axis. By eye is fine.</.hint>
-        <.btn variant="primary" phx-click="home" data-confirm="Zero both axes at the current position?">Zero the axes here</.btn>
+        <.btn variant="primary" phx-click="home" data-confirm="Zero both axes at the current position?">Zero the Axes Here</.btn>
       </.card>
 
       <%!-- the next star --%>
       <.card :if={@snap && @snap.homed && @next && !@picking} title={"Star #{length(@samples) + 1}"}>
         <div class="star-next">
           <strong>{@next.name}</strong>
-          <span>{@next.where} · magnitude {fmt(@next.mag)}</span>
+          <span>{sentence(@next.where)} · magnitude {fmt(@next.mag)}</span>
         </div>
         <.row>
-          <.btn phx-click="slew" phx-value-id={@next.id} disabled={slewing?(@snap)}>{if slewing?(@snap), do: "Slewing…", else: "Slew near it"}</.btn>
-          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)}>On it</.btn>
+          <.btn phx-click="slew" phx-value-id={@next.id} disabled={slewing?(@snap)}>{if slewing?(@snap), do: "Slewing…", else: "Slew Near It"}</.btn>
+          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)}>On It</.btn>
         </.row>
         <.row>
-          <.btn class="btn-ghost" phx-click="pick">A different star ›</.btn>
-          <.btn class="btn-ghost" navigate={~p"/controls/nudge/#{@selected}"}>Centre it ›</.btn>
+          <.btn class="btn-ghost" phx-click="pick">A Different Star ›</.btn>
+          <.btn class="btn-ghost" navigate={~p"/controls/nudge/#{@selected}"}>Centre It ›</.btn>
         </.row>
         <.hint :if={@samples == []}>First slew is a guess. Watch the cable.</.hint>
       </.card>
@@ -264,7 +264,7 @@ defmodule Controller.LineupLive do
         <.items label="stars up now">
           <.item :for={c <- @candidates} as="li" label={c.name} detail={c.where}>
             <.btn phx-click="slew" phx-value-id={c.id} aria-label={"Slew near #{c.name}"}>Slew</.btn>
-            <.btn variant="primary" phx-click="centred" phx-value-id={c.id} aria-label={"On it: #{c.name} is centred"}>On it</.btn>
+            <.btn variant="primary" phx-click="centred" phx-value-id={c.id} aria-label={"On it: #{c.name} is centred"}>On It</.btn>
           </.item>
         </.items>
         <.row><.btn class="btn-ghost" phx-click="pick">Back</.btn></.row>
@@ -278,7 +278,7 @@ defmodule Controller.LineupLive do
       <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably Pointing At">
         <.items label="likely stars">
           <.item :for={g <- @guesses} as="li" label={g.name} detail={"#{fmt(g.away_deg)}° away · #{g.where}"}>
-            <.btn phx-click="centred" phx-value-id={g.id} aria-label={"On it: #{g.name} is centred"}>On it</.btn>
+            <.btn phx-click="centred" phx-value-id={g.id} aria-label={"On it: #{g.name} is centred"}>On It</.btn>
           </.item>
         </.items>
       </.card>
@@ -291,7 +291,7 @@ defmodule Controller.LineupLive do
           </.item>
         </.items>
         <.row>
-          <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the whole line-up?">Start over</.btn>
+          <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the whole line-up?">Start Over</.btn>
         </.row>
       </.card>
 
@@ -302,8 +302,8 @@ defmodule Controller.LineupLive do
           <span class="dim">RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
         </div>
         <.row>
-          <.btn :if={!@tracker} variant="primary" phx-click="hold">Hold what I'm on</.btn>
-          <.btn :if={@tracker} phx-click="release">Stop holding</.btn>
+          <.btn :if={!@tracker} variant="primary" phx-click="hold">Hold What I'm On</.btn>
+          <.btn :if={@tracker} phx-click="release">Stop Holding</.btn>
         </.row>
       </.card>
 

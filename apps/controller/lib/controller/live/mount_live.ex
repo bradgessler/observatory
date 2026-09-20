@@ -196,7 +196,7 @@ defmodule Controller.MountLive do
         {:noreply, socket |> assign(goto_deg: deg) |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d))}
 
       :error ->
-        {:noreply, assign(socket, notice: "degrees?")}
+        {:noreply, assign(socket, notice: "Degrees?")}
     end
   end
 
@@ -211,25 +211,25 @@ defmodule Controller.MountLive do
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
-        assign(socket, notice: "no mount")
+        assign(socket, notice: "No mount")
 
       ref ->
         try do
           case fun.(ref) do
             :ok -> assign(socket, notice: nil)
-            {:error, :limit} -> assign(socket, notice: "soft limit")
-            {:error, :not_connected} -> assign(socket, notice: "mount not connected")
+            {:error, :limit} -> assign(socket, notice: "Soft limit")
+            {:error, :not_connected} -> assign(socket, notice: "Mount not connected")
             {:error, other} -> assign(socket, notice: inspect(other))
           end
         catch
-          :exit, _ -> assign(socket, notice: "mount unreachable")
+          :exit, _ -> assign(socket, notice: "Mount unreachable")
         end
     end
   end
 
   defp current(socket), do: socket.assigns.mounts[socket.assigns.selected]
 
-  # Default is the honest control: one strip per axis of the actual mount.
+  # Default is the honest control: One strip per axis of the actual mount.
   # "Blended" (move as you see it, both motors at once) is opt-in and needs home.
   defp effective_mode(socket) do
     snap = current(socket)
@@ -342,7 +342,7 @@ defmodule Controller.MountLive do
           </section>
         <% end %>
         <div class="stick-foot">
-          <button class="ghost" phx-click="mode" aria-label={"strip layout: #{if mode == :sky, do: "blended, moves as you see it", else: "one strip per axis"}; switch"}>{if mode == :sky, do: "blended · moves as you see it (both motors)", else: "one strip per axis"} <span aria-hidden="true">▾</span></button>
+          <button class="ghost" phx-click="mode" aria-label={"strip layout: #{if mode == :sky, do: "blended, moves as you see it", else: "One strip per axis"}; switch"}>{if mode == :sky, do: "blended · moves as you see it (both motors)", else: "One strip per axis"} <span aria-hidden="true">▾</span></button>
           <small :if={mode == :axes and @mode == "sky" and not @snap.homed} class="dim">blended needs home set</small>
         </div>
         <%!-- the strips are a pull gesture and the motion stops when you let go, by design (2.5.1, 2.5.2); the keyboard is the one-key path --%>

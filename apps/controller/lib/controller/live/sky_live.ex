@@ -129,10 +129,10 @@ defmodule Controller.SkyLive do
 
     case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
       :stopped ->
-        {:noreply, assign(socket, search: nil, notice: "search stopped")}
+        {:noreply, assign(socket, search: nil, notice: "Search stopped")}
 
       nil ->
-        {:noreply, assign(socket, search: nil, notice: "search finished; nothing? try a wider eyepiece or re-check home")}
+        {:noreply, assign(socket, search: nil, notice: "Search finished; nothing? try a wider eyepiece or re-check home")}
 
       {dra, ddec} ->
         ref = socket.assigns.refs[socket.assigns.selected]
@@ -307,7 +307,7 @@ defmodule Controller.SkyLive do
     dir = if Settings.get("tracking_direction", "forward") == "forward", do: "reverse", else: "forward"
     Settings.put("tracking_direction", dir)
     for {_id, ref} <- socket.assigns.refs, do: safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(dir)) end)
-    {:noreply, assign(socket, notice: "tracking direction now #{dir}")}
+    {:noreply, assign(socket, notice: "Tracking direction now #{dir}")}
   end
 
   def handle_event("auto_track", _, socket) do
@@ -325,11 +325,11 @@ defmodule Controller.SkyLive do
       {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo, name: if(from_phone?, do: "here", else: socket.assigns.site.name)}, notice: note) |> compute()}
     else
       # say what is wrong with what was typed (3.3.1); nothing is saved until it is right
-      _ -> {:noreply, assign(socket, notice: "site not saved: latitude is −90 to 90, longitude −180 to 180")}
+      _ -> {:noreply, assign(socket, notice: "Site not saved: latitude is −90 to 90, longitude −180 to 180")}
     end
   end
 
-  def handle_event("site_error", %{"reason" => r}, socket), do: {:noreply, assign(socket, notice: "location: #{r}")}
+  def handle_event("site_error", %{"reason" => r}, socket), do: {:noreply, assign(socket, notice: "Location: #{r}")}
 
   def handle_event("equipment", %{"aperture" => a}, socket) do
     aperture =
@@ -363,9 +363,9 @@ defmodule Controller.SkyLive do
 
     notice =
       case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
-        {:ok, d_ra, d_dec} -> "slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
-        {:error, :not_connected} -> "no mount connected"
-        {:error, :not_homed} -> "zero the axes first (Setup, mount upright); it arms the cable-safety limits"
+        {:ok, d_ra, d_dec} -> "Slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
+        {:error, :not_connected} -> "No mount connected"
+        {:error, :not_homed} -> "Zero the axes first (Setup, mount upright); it arms the cable-safety limits"
         {:error, :limit} -> "#{t.name} is outside the soft limits"
         {:error, e} -> inspect(e)
       end
@@ -378,7 +378,7 @@ defmodule Controller.SkyLive do
   def handle_event("stop", _, socket) do
     Controller.Sky.Tracker.stop(socket.assigns.selected)
     if ref = socket.assigns.refs[socket.assigns.selected], do: Mount.stop(ref)
-    {:noreply, assign(socket, notice: "stopped", search: nil)}
+    {:noreply, assign(socket, notice: "Stopped", search: nil)}
   end
 
   # "The scope is centred on the target right now." One tap is a one-star sync;
@@ -386,9 +386,9 @@ defmodule Controller.SkyLive do
   def handle_event("sync", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
     if snap && snap.homed do
       st = Pointing.sync(snap, t, ctx(socket.assigns))
-      {:noreply, assign(socket, notice: "aligned on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
+      {:noreply, assign(socket, notice: "Aligned on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
     else
-      {:noreply, assign(socket, notice: "zero the axes first (Setup)")}
+      {:noreply, assign(socket, notice: "Zero the axes first (Setup)")}
     end
   end
 
@@ -402,7 +402,7 @@ defmodule Controller.SkyLive do
       {:noreply, socket}
     else
       Process.send_after(self(), :search_step, @spiral_pause_ms)
-      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "searching around #{t.name}… Stop when you see it")}
+      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "Searching around #{t.name}… Stop when you see it")}
     end
   end
 
@@ -565,21 +565,21 @@ defmodule Controller.SkyLive do
   defp moon_penalty(_, _), do: 0.0
 
   # Magnitude translated for this scope and this sky. Nobody remembers the scale.
-  defp words(%{kind: :moon}, _lim, _moon), do: "can't miss it"
-  defp words(%{kind: :planet}, _lim, _moon), do: "bright, easy"
+  defp words(%{kind: :moon}, _lim, _moon), do: "Can't miss it"
+  defp words(%{kind: :planet}, _lim, _moon), do: "Bright, easy"
 
   defp words(%{kind: k, mag: m}, lim, moon) do
     headroom = lim - extended_margin(k) - m
 
     base =
       cond do
-        m <= 1.5 -> "naked eye, obvious"
-        m <= 4.0 and k == :star -> "naked eye"
-        m <= 4.5 and k != :star -> "naked eye, faint smudge · great in the scope"
-        headroom >= 3 -> "easy in the scope"
-        headroom >= 1 -> "in the scope"
-        headroom >= 0 -> "faint, needs dark-adapted eyes"
-        true -> "too faint for this scope"
+        m <= 1.5 -> "Naked eye, obvious"
+        m <= 4.0 and k == :star -> "Naked eye"
+        m <= 4.5 and k != :star -> "Naked eye, faint smudge · great in the scope"
+        headroom >= 3 -> "Easy in the scope"
+        headroom >= 1 -> "In the scope"
+        headroom >= 0 -> "Faint, needs dark-adapted eyes"
+        true -> "Too faint for this scope"
       end
 
     if k in [:galaxy, :nebula] and moon.up and moon.illumination > 0.5,
@@ -700,7 +700,7 @@ defmodule Controller.SkyLive do
           <form phx-change="site" class="horizon" aria-label="site">
             <label>lat<input name="lat" type="text" inputmode="decimal" autocomplete="off" value={@site.lat} /></label>
             <label>lon<input name="lon" type="text" inputmode="decimal" autocomplete="off" value={@site.lon} /></label>
-            <span class="hcell"><span aria-hidden="true">&nbsp;</span><button type="button" id="use-location" phx-hook="Geo" class="ro">Use my location</button></span>
+            <span class="hcell"><span aria-hidden="true">&nbsp;</span><button type="button" id="use-location" phx-hook="Geo" class="ro">Use My Location</button></span>
             <span class="hcell"><span aria-hidden="true">&nbsp;</span><.link navigate={~p"/setup/#{@selected}"} class="ro">Setup ›</.link></span>
           </form>
         </div>
@@ -709,8 +709,8 @@ defmodule Controller.SkyLive do
           <p class="horizon-hint" id="photo-lede">Tree line from a Night-mode photo <.help href={~p"/docs/horizon"} label="tree line from a photo" /></p>
           <form phx-change="validate" phx-submit="solve" aria-labelledby="photo-lede">
             <.live_file_input upload={@uploads.photo} aria-label="a photo of the sky and tree line" />
-            <button :if={@photo_cols && !@solving} class="go">Solve &amp; apply</button>
-            <span :if={@solving} class="dim">solving… (30–90 s)</span>
+            <button :if={@photo_cols && !@solving} class="go">Solve &amp; Apply</button>
+            <span :if={@solving} class="dim">Solving… (30–90 s)</span>
           </form>
           <p :if={@photo_cols} class="horizon-hint">Traced {length(@photo_cols)} columns; sky/tree boundary found in {Enum.count(@photo_cols, fn [_, y] -> y < 1.0 end)} of them.</p>
           <p :if={@solve_note} class="horizon-hint">{@solve_note}</p>
@@ -756,17 +756,17 @@ defmodule Controller.SkyLive do
   end
 
   defp glyph(:moon), do: "☾"
-  defp glyph(:planet), do: "pl"
-  defp glyph(:planetary), do: "pn"
-  defp glyph(:galaxy), do: "gal"
-  defp glyph(:nebula), do: "neb"
-  defp glyph(:cluster), do: "cl"
+  defp glyph(:planet), do: "Pl"
+  defp glyph(:planetary), do: "Pn"
+  defp glyph(:galaxy), do: "Gal"
+  defp glyph(:nebula), do: "Neb"
+  defp glyph(:cluster), do: "Cl"
   defp glyph(_), do: "★"
 
-  defp when_text(:good), do: "up 2h+"
-  defp when_text(:sets_later), do: "sets <2h"
-  defp when_text(:sets_soon), do: "sets <1h"
-  defp when_text(:rising), do: "rises <2h"
+  defp when_text(:good), do: "Up 2h+"
+  defp when_text(:sets_later), do: "Sets <2h"
+  defp when_text(:sets_soon), do: "Sets <1h"
+  defp when_text(:rising), do: "Rises <2h"
 
   defp when_class(:sets_soon), do: "soon"
   defp when_class(:rising), do: "rising"

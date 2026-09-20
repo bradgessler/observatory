@@ -24,17 +24,17 @@ defmodule Controller.DevicesLive do
   @impl true
   def handle_event("scan", _, socket) do
     Mount.scan()
-    {:noreply, socket |> assign(notice: "scanned") |> refresh()}
+    {:noreply, socket |> assign(notice: "Scanned") |> refresh()}
   end
 
   def handle_event("connect", %{"port" => port}, socket) do
     Mount.connect_port(port)
-    {:noreply, socket |> assign(notice: "starting a driver on #{Path.basename(port)}…") |> refresh()}
+    {:noreply, socket |> assign(notice: "Starting a driver on #{Path.basename(port)}…") |> refresh()}
   end
 
   def handle_event("disconnect", %{"port" => port}, socket) do
     Mount.disconnect_port(port)
-    {:noreply, socket |> assign(notice: "disconnected #{Path.basename(port)}") |> refresh()}
+    {:noreply, socket |> assign(notice: "Disconnected #{Path.basename(port)}") |> refresh()}
   end
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
@@ -105,7 +105,7 @@ defmodule Controller.DevicesLive do
       <.card class={if @any_real, do: "state ok", else: "state"}>
         <div class="state-line" role="status" aria-live="polite">
           <strong>{if @any_real, do: "Telescope connected", else: "No telescope connected"}</strong>
-          <span :if={!@any_real} class="dim">looking for a cable every few seconds</span>
+          <span :if={!@any_real} class="dim">Looking for a cable every few seconds</span>
         </div>
       </.card>
 
@@ -118,7 +118,7 @@ defmodule Controller.DevicesLive do
         <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "zeroed", else: "axes not zeroed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />
         <.kv :if={!m.connected && m[:error]} label="problem"><span class="err">{describe_error(m.error)}</span></.kv>
         <.row>
-          <.btn navigate={~p"/bench?#{[mount: m.id]}"}>Drive it ›</.btn>
+          <.btn navigate={~p"/bench?#{[mount: m.id]}"}>Drive It ›</.btn>
           <.btn navigate={~p"/setup/#{m.id}"}>Setup ›</.btn>
           <.btn :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)} aria-label={"Disconnect #{m.id}"}>Disconnect</.btn>
         </.row>
@@ -142,7 +142,7 @@ defmodule Controller.DevicesLive do
         </ul>
         <.hint :if={likely == []}>No EQDIR cable seen on this machine. Plug it into this machine's USB, then Scan.</.hint>
         <.row>
-          <.btn navigate={~p"/devices/ports"} class="btn-ghost">All serial ports · {length(@ports)} ›</.btn>
+          <.btn navigate={~p"/devices/ports"} class="btn-ghost">All Serial Ports · {length(@ports)} ›</.btn>
         </.row>
       </.card>
 
@@ -152,18 +152,18 @@ defmodule Controller.DevicesLive do
         <.kv :if={node() != :nonode@nohost} label="node" value={to_string(node())} />
       </.card>
 
-      <.hint>Won't connect? <.link href={~p"/docs/devices"}>The checklist ›</.link></.hint>
+      <.hint>Won't connect? <.link href={~p"/docs/devices"}>The Checklist ›</.link></.hint>
 
       <.notice notice={@notice} />
     </.page>
     """
   end
 
-  defp describe_error({"e", :ra, :timeout}), do: "port opened but the mount didn't answer: power? wrong jack? another program on the port?"
-  defp describe_error({_, _, :timeout}), do: "the mount stopped answering"
-  defp describe_error(:eacces), do: "permission denied opening the port"
-  defp describe_error(:enoent), do: "the port vanished (cable unplugged?)"
-  defp describe_error(:eagain), do: "the port is busy: another program has it open"
+  defp describe_error({"e", :ra, :timeout}), do: "Port opened but the mount didn't answer: power? wrong jack? another program on the port?"
+  defp describe_error({_, _, :timeout}), do: "The mount stopped answering"
+  defp describe_error(:eacces), do: "Permission denied opening the port"
+  defp describe_error(:enoent), do: "The port vanished (cable unplugged?)"
+  defp describe_error(:eagain), do: "The port is busy: another program has it open"
   defp describe_error(e), do: inspect(e)
 
   defp port_of(id, manual), do: Enum.find(manual, &(Path.basename(&1) == id)) || id

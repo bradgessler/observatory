@@ -104,7 +104,7 @@ defmodule Controller.SurfacesTest do
     render_click(view, "home", %{})
     html = render(view)
     assert html =~ "Star 1"
-    assert html =~ "I&#39;m on"
+    assert html =~ "On It"
     [cand | _] = Controller.Sky.Lineup.candidates(id, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
     html = render_click(view, "centred", %{"id" => cand.id})
     assert html =~ "1 star"
@@ -139,9 +139,9 @@ defmodule Controller.SurfacesTest do
 
   test "optical axes page renders idle and refuses a scan without a camera or with one running", %{conn: conn, id: id} do
     {:ok, view, html} = live(conn, "/controls/watch/axes/#{id}")
-    assert html =~ "Quick look"
-    assert html =~ "Find the axes"
-    assert html =~ "idle"
+    assert html =~ "Quick Look"
+    assert html =~ "Find the Axes"
+    assert html =~ ~r/idle/i
     # no camera tool in CI: the button is disabled, and the scan says why
     assert Controller.Optical.AxisScan.status().running == false
   end

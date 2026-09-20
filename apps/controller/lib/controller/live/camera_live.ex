@@ -55,7 +55,7 @@ defmodule Controller.CameraLive do
       %{rungs: rungs} = Video.qualities()
       {:noreply, assign(socket, rungs: rungs)}
     catch
-      :exit, _ -> {:noreply, assign(socket, notice: "video app not running")}
+      :exit, _ -> {:noreply, assign(socket, notice: "Video app not running")}
     end
   end
 
@@ -117,7 +117,7 @@ defmodule Controller.CameraLive do
         <.kv label="Encoder" value={to_string(@video.encoder || "chosen when video starts")} />
         <.kv label="State" value={"#{@video.state}#{if @video.quality, do: " · #{@video.quality}"}"} />
         <.row>
-          <.btn phx-click="probe" disabled={@video.state != :off}>What sizes can this camera do?</.btn>
+          <.btn phx-click="probe" disabled={@video.state != :off}>What Sizes Can This Camera Do?</.btn>
         </.row>
         <ul :if={@rungs} class="checklist" aria-label="sizes this camera can do">
           <li :for={r <- @rungs}>{r.label} · {Video.Ladder.size_string(r.size)} · {if r.available?, do: "yes", else: "no"}</li>

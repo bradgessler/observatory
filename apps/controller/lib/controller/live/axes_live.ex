@@ -116,7 +116,7 @@ defmodule Controller.AxesLive do
   @impl true
   def handle_event("run", _, socket) do
     case AxisScan.run(socket.assigns.selected) do
-      :ok -> {:noreply, assign(socket, notice: "scanning: the mount will move ±3° on each axis")}
+      :ok -> {:noreply, assign(socket, notice: "Scanning: the mount will move ±3° on each axis")}
       {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
@@ -130,27 +130,27 @@ defmodule Controller.AxesLive do
       end
 
     case half && AxisScan.sweep(socket.assigns.selected, range: half) do
-      nil -> {:noreply, assign(socket, notice: "that sweep range is not one on offer")}
-      :ok -> {:noreply, assign(socket, notice: "sweeping: five positions per axis, ±#{round(half)}°, about three minutes")}
+      nil -> {:noreply, assign(socket, notice: "That sweep range is not one on offer")}
+      :ok -> {:noreply, assign(socket, notice: "Sweeping: five positions per axis, ±#{round(half)}°, about three minutes")}
       {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
 
   def handle_event("refine", _, socket) do
     case AxisScan.refine(socket.assigns.selected, range: 6.0) do
-      :ok -> {:noreply, assign(socket, notice: "refining: a sweep every few minutes until you stop it")}
+      :ok -> {:noreply, assign(socket, notice: "Refining: a sweep every few minutes until you stop it")}
       {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
 
   def handle_event("stop_refining", _, socket) do
     AxisScan.stop_refining()
-    {:noreply, assign(socket, notice: "this run finishes, then it stops")}
+    {:noreply, assign(socket, notice: "This run finishes, then it stops")}
   end
 
   def handle_event("cancel", _, socket) do
     AxisScan.cancel()
-    {:noreply, assign(socket, notice: "cancelled; going back to where it started")}
+    {:noreply, assign(socket, notice: "Cancelled; going back to where it started")}
   end
 
   def handle_event("clear", _, socket) do
@@ -160,8 +160,8 @@ defmodule Controller.AxesLive do
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
-  defp refused(:busy), do: "a scan is already running"
-  defp refused(:no_mount), do: "no mount to scan"
+  defp refused(:busy), do: "A scan is already running"
+  defp refused(:no_mount), do: "No mount to scan"
   defp refused(why) when is_binary(why), do: why
   defp refused(why), do: inspect(why)
 
@@ -185,16 +185,16 @@ defmodule Controller.AxesLive do
           <span class="dim">{if @scan[:loop], do: "refining: run after run until you stop it", else: "about ten minutes"} · STOP on any page ends it</span>
         </div>
         <.row :if={!@scan.running}>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the axes · 10 min</.btn>
-          <.btn phx-click="refine" disabled={cannot}>Keep refining</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the Axes · 10 min</.btn>
+          <.btn phx-click="refine" disabled={cannot}>Keep Refining</.btn>
         </.row>
         <.row :if={@scan.running}>
-          <.btn :if={@scan[:loop]} phx-click="stop_refining">Stop after this run</.btn>
-          <.btn phx-click="cancel">Cancel and go back</.btn>
+          <.btn :if={@scan[:loop]} phx-click="stop_refining">Stop After This Run</.btn>
+          <.btn phx-click="cancel">Cancel and Go Back</.btn>
         </.row>
         <.row :if={!@scan.running}>
-          <.btn class="btn-ghost" phx-click="run" disabled={cannot}>Quick look · 1 min</.btn>
-          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide sweep · 20 min</.btn>
+          <.btn class="btn-ghost" phx-click="run" disabled={cannot}>Quick Look · 1 min</.btn>
+          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide Sweep · 20 min</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
         <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
@@ -264,11 +264,11 @@ defmodule Controller.AxesLive do
         </div>
         <div class="state-line">
           <strong>{confidence_words(sw)}</strong>
-          <span class="dim">the direction across the picture is the part one camera can measure; how far in or out needs a second camera</span>
+          <span class="dim">The direction across the picture is the part one camera can measure; how far in or out needs a second camera</span>
         </div>
         <.row>
-          <.btn :if={@selected} navigate={~p"/controls/watch"}>See them on the live picture ›</.btn>
-          <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the numbers ›</.btn>
+          <.btn :if={@selected} navigate={~p"/controls/watch"}>See Them on the Live Picture ›</.btn>
+          <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn>
         </.row>
       </.card>
 
@@ -280,13 +280,13 @@ defmodule Controller.AxesLive do
           <strong>Dec axis · {@result["dec"]["words"]}</strong>
         </div>
         <.hint>A quick look only says how each axis moves the picture. Find the axes for the lines.</.hint>
-        <.row><.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the numbers ›</.btn></.row>
+        <.row><.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn></.row>
       </.card>
 
       <%= if @details do %>
       <.row>
-        <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}"}>‹ Back to the answer</.btn>
-        <.btn :if={@result} class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget these results</.btn>
+        <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}"}>‹ Back to the Answer</.btn>
+        <.btn :if={@result} class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget These Results</.btn>
       </.row>
       <%!-- the sweep: the axis in space, with margins --%>
       <% sw = @result && @result["sweep"] %>
@@ -313,11 +313,11 @@ defmodule Controller.AxesLive do
             Dec axis <b>{pair["dec"]["image_angle_deg"]}°</b> across, <b>{abs(pair["dec"]["tilt_deg"])}°</b> out · arcs fit to {pair["rms_px"]} px
           </span>
           <span class="dim">
-            camera's reading of each commanded step · RA: {Enum.map_join(pair["steps"]["ra"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["ra"]}°) ·
+            Camera's reading of each commanded step · RA: {Enum.map_join(pair["steps"]["ra"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["ra"]}°) ·
             Dec: {Enum.map_join(pair["steps"]["dec"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["dec"]}°)
           </span>
-          <span class="dim">the stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
-          <span :if={sw["history_spread_deg"]} class="dim">the last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other: repeatability, the margin that counts</span>
+          <span class="dim">The stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
+          <span :if={sw["history_spread_deg"]} class="dim">The last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other: repeatability, the margin that counts</span>
         </div>
 
         <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
@@ -332,7 +332,7 @@ defmodule Controller.AxesLive do
             <% end %>
           </span>
           <span :if={f} class="dim">{f["n"]} spots followed through {length(sw["angles"])} positions · arcs fit to {f["rms_px"]} px · depth is in units of the distance to the axis (one camera can't scale it)</span>
-          <span :if={!f} class="dim">not enough spots could be followed through the whole sweep</span>
+          <span :if={!f} class="dim">Not enough spots could be followed through the whole sweep</span>
         </div>
         <% ambiguous = sw["ra"]["fit"]["tilt_ambiguous"] == true or sw["dec"]["fit"]["tilt_ambiguous"] == true %>
         <div :if={sw["between_deg"] && !ambiguous} class="axes-row">
@@ -341,7 +341,7 @@ defmodule Controller.AxesLive do
         </div>
         <div :if={sw["between_deg"] && ambiguous} class="axes-row">
           <strong>Between the two axes</strong>
-          <span class="dim">not known yet: with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]) / 1, 0)}° up; a wider sweep settles it</span>
+          <span class="dim">Not known yet: with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]) / 1, 0)}° up; a wider sweep settles it</span>
         </div>
         <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored; both bias the tilt more than the in-picture direction.</.hint>
       </.card>
@@ -376,7 +376,7 @@ defmodule Controller.AxesLive do
             {if ax["fit"]["cx"], do: "pivot at (#{round(ax["fit"]["cx"] * @result["scale"])}, #{round(ax["fit"]["cy"] * @result["scale"])}) px · "}
             spin {Float.round(ax["fit"]["quality"] / 1, 2)} · slide {Float.round(ax["fit"]["coherence"] / 1, 2)}
           </span>
-          <span :if={!ax["fit"]} class="dim">nothing moved enough to measure</span>
+          <span :if={!ax["fit"]} class="dim">Nothing moved enough to measure</span>
           <%!-- the line only means something for a slide; a turn has a pivot, not a direction --%>
           <span :if={ax["line"] && @predicted && ax["fit"] && ax["fit"]["coherence"] > 0.5} class="dim">
             camera sees this axis at {round(measured(ax))}° · the orb, viewed from {@predicted["from"]}°, draws it at {round(@predicted[axis])}° · {apart(measured(ax), @predicted[axis])}° apart
@@ -425,14 +425,14 @@ defmodule Controller.AxesLive do
   defp long_line(_, _, _), do: nil
 
   # what the running view says it is doing right now
-  defp doing_words(%{step: {:sweep, ax, i, n}}), do: "turning #{axis_name(ax)} to position #{i} of #{n}, then a picture"
-  defp doing_words(%{step: {:capture, ax}}), do: "picture after #{axis_name(ax)} moved"
-  defp doing_words(%{step: {:move, ax}}), do: "turning #{axis_name(ax)}"
-  defp doing_words(%{step: :capture_before}), do: "first picture, before anything moves"
-  defp doing_words(%{step: :pair_fit}), do: "fitting both axes together"
-  defp doing_words(%{step: {:analyse, ax}}), do: "working out the #{axis_name(ax)} axis from what moved"
-  defp doing_words(%{step: :starting}), do: "getting the camera"
-  defp doing_words(_), do: "working"
+  defp doing_words(%{step: {:sweep, ax, i, n}}), do: "Turning #{axis_name(ax)} to position #{i} of #{n}, then a picture"
+  defp doing_words(%{step: {:capture, ax}}), do: "Picture after #{axis_name(ax)} moved"
+  defp doing_words(%{step: {:move, ax}}), do: "Turning #{axis_name(ax)}"
+  defp doing_words(%{step: :capture_before}), do: "First picture, before anything moves"
+  defp doing_words(%{step: :pair_fit}), do: "Fitting both axes together"
+  defp doing_words(%{step: {:analyse, ax}}), do: "Working out the #{axis_name(ax)} axis from what moved"
+  defp doing_words(%{step: :starting}), do: "Getting the camera"
+  defp doing_words(_), do: "Working"
 
   defp axis_name(:ra), do: "RA"
   defp axis_name(:dec), do: "Dec"
@@ -446,12 +446,12 @@ defmodule Controller.AxesLive do
   defp running_axis?(%{step: {:move, ax}}, axis), do: Atom.to_string(ax) == axis
   defp running_axis?(_, _), do: false
 
-  defp elapsed_words(nil), do: "just started"
+  defp elapsed_words(nil), do: "Just started"
 
   defp elapsed_words(t0) do
     case div(System.monotonic_time(:second) - t0, 60) do
-      0 -> "under a minute in"
-      1 -> "a minute in"
+      0 -> "Under a minute in"
+      1 -> "A minute in"
       m -> "#{m} min in"
     end
   end
@@ -459,12 +459,12 @@ defmodule Controller.AxesLive do
   # one sentence per axis for the answer card; the numbers live in the details
   defp answer_across(%{"image_angle_deg" => a} = f, _), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"
   defp answer_across(_, %{"image_angle_deg" => a} = f), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"
-  defp answer_across(_, _), do: "not found in this run"
+  defp answer_across(_, _), do: "Not found in this run"
 
   defp answer_depth(%{"tilt_deg" => t} = f, _) when is_number(t), do: "#{round1(abs(t))}° in or out of the picture#{sd(f["tilt_sd_deg"])}"
-  defp answer_depth(_, %{"tilt_ambiguous" => true, "tilt_deg" => t}), do: "about #{round1(abs(t))}° in or out; which way, this run can't tell"
+  defp answer_depth(_, %{"tilt_ambiguous" => true, "tilt_deg" => t}), do: "About #{round1(abs(t))}° in or out; which way, this run can't tell"
   defp answer_depth(_, %{"tilt_deg" => t} = f) when is_number(t), do: "#{round1(abs(t))}° in or out of the picture#{sd(f["tilt_sd_deg"])}"
-  defp answer_depth(_, _), do: "not enough spots followed"
+  defp answer_depth(_, _), do: "Not enough spots followed"
 
   defp confidence_words(%{"history_spread_deg" => spread, "history_n" => n}) when is_number(spread) and n >= 2 do
     cond do
@@ -474,7 +474,7 @@ defmodule Controller.AxesLive do
     end
   end
 
-  defp confidence_words(_), do: "one run so far: run it again to see if it repeats"
+  defp confidence_words(_), do: "One run so far: run it again to see if it repeats"
 
   defp sd(nil), do: ""
   defp sd(x) when is_number(x), do: " (±#{round1(x)}°)"
@@ -482,15 +482,15 @@ defmodule Controller.AxesLive do
   defp round1(x) when is_number(x), do: Float.round(x / 1, 1)
   defp round1(x), do: x
 
-  defp step_words(%{running: false, step: :done}), do: "done"
-  defp step_words(%{running: false, step: :failed}), do: "failed"
-  defp step_words(%{running: false, step: :cancelled}), do: "cancelled"
-  defp step_words(%{running: false}), do: "idle"
-  defp step_words(%{step: :capture_before}), do: "first picture"
-  defp step_words(%{step: {:move, ax}}), do: "turning #{ax}"
-  defp step_words(%{step: {:capture, ax}}), do: "picture after #{ax}"
+  defp step_words(%{running: false, step: :done}), do: "Done"
+  defp step_words(%{running: false, step: :failed}), do: "Failed"
+  defp step_words(%{running: false, step: :cancelled}), do: "Cancelled"
+  defp step_words(%{running: false}), do: "Idle"
+  defp step_words(%{step: :capture_before}), do: "First picture"
+  defp step_words(%{step: {:move, ax}}), do: "Turning #{ax}"
+  defp step_words(%{step: {:capture, ax}}), do: "Picture after #{ax}"
   defp step_words(%{step: {:sweep, ax, i, n}}), do: "#{ax} · position #{i} of #{n}"
-  defp step_words(%{step: :pair_fit}), do: "fitting both axes together"
-  defp step_words(%{step: {:analyse, ax}}), do: "looking at #{ax}"
-  defp step_words(_), do: "working"
+  defp step_words(%{step: :pair_fit}), do: "Fitting both axes together"
+  defp step_words(%{step: {:analyse, ax}}), do: "Looking at #{ax}"
+  defp step_words(_), do: "Working"
 end

@@ -181,18 +181,18 @@ defmodule Controller.OrbLive do
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
-        assign(socket, notice: "no mount")
+        assign(socket, notice: "No mount")
 
       ref ->
         try do
           case fun.(ref) do
             :ok -> assign(socket, notice: nil)
-            {:error, :limit} -> assign(socket, notice: "soft limit")
-            {:error, :not_connected} -> assign(socket, notice: "mount not connected")
+            {:error, :limit} -> assign(socket, notice: "Soft limit")
+            {:error, :not_connected} -> assign(socket, notice: "Mount not connected")
             {:error, other} -> assign(socket, notice: inspect(other))
           end
         catch
-          :exit, _ -> assign(socket, notice: "mount unreachable")
+          :exit, _ -> assign(socket, notice: "Mount unreachable")
         end
     end
   end
@@ -553,7 +553,7 @@ defmodule Controller.OrbLive do
 
   # -- text -----------------------------------------------------------------------------
 
-  defp motion(%{running: false}), do: "still"
+  defp motion(%{running: false}), do: "Still"
   defp motion(%{glyph: g, rate: r}) when r >= 0.5, do: "#{g} #{round(r)}×"
   defp motion(%{glyph: g}), do: "#{g} …"
 

@@ -16,12 +16,12 @@ defmodule Controller.Modes do
 
     [
       if(abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01,
-        do: {"sync offset", "RA #{fmt(off["ra"])}° · Dec #{fmt(off["dec"])}°"}),
+        do: {"Sync offset", "RA #{fmt(off["ra"])}° · Dec #{fmt(off["dec"])}°"}),
       if(p.ha_sign != base.ha_sign, do: {"RA axis flipped", "sign #{p.ha_sign}"}),
       if(p.dec_sign != base.dec_sign, do: {"Dec axis flipped", "sign #{p.dec_sign}"}),
-      if(Settings.get("tracking_direction") == "reverse", do: {"tracking reversed", "RA runs the other way"}),
-      if(Settings.get("auto_track", true) == false, do: {"auto-track off", "slews won't start tracking"}),
-      if(is_map(Settings.get("site")), do: {"site override", "lat/lon set by hand or phone"}),
+      if(Settings.get("tracking_direction") == "reverse", do: {"Tracking reversed", "RA runs the other way"}),
+      if(Settings.get("auto_track", true) == false, do: {"Auto-track off", "slews won't start tracking"}),
+      if(is_map(Settings.get("site")), do: {"Site override", "lat/lon set by hand or phone"}),
       mount_tilt_mode(),
       mount_heading_mode(),
       lineup_mode(),
@@ -33,7 +33,7 @@ defmodule Controller.Modes do
   # the optical axis scan drives the mount by itself for a few minutes: say so everywhere
   defp axis_scan_mode do
     case Controller.Optical.AxisScan.status() do
-      %{running: true, id: id} -> {"axis scan running", "#{id} is being moved by the camera scan · Watch › Axes"}
+      %{running: true, id: id} -> {"Axis scan running", "#{id} is being moved by the camera scan · Watch › Axes"}
       _ -> nil
     end
   catch
@@ -47,14 +47,14 @@ defmodule Controller.Modes do
     lat = Pointing.site().lat
 
     case Settings.get("mount_tilt_deg") do
-      t when is_number(t) and abs(t - lat) > 0.5 -> {"mount tilt #{fmt(t * 1.0)}°", "site latitude is #{fmt(lat * 1.0)}°"}
+      t when is_number(t) and abs(t - lat) > 0.5 -> {"Mount tilt #{fmt(t * 1.0)}°", "site latitude is #{fmt(lat * 1.0)}°"}
       _ -> nil
     end
   end
 
   defp mount_heading_mode do
     case Settings.get("mount_heading_deg") do
-      h when is_number(h) and abs(h) > 0.5 -> {"polar axis #{fmt(abs(h) * 1.0)}° #{if h > 0, do: "E", else: "W"} of true north", "e.g. aligned to a compass"}
+      h when is_number(h) and abs(h) > 0.5 -> {"Polar axis #{fmt(abs(h) * 1.0)}° #{if h > 0, do: "E", else: "W"} of true north", "e.g. aligned to a compass"}
       _ -> nil
     end
   end
@@ -68,7 +68,7 @@ defmodule Controller.Modes do
         st = Controller.Sky.Lineup.status(id)
 
         if st.solved?,
-          do: {"star-aligned · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
+          do: {"Star-aligned · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
           else: nil
 
       _ ->

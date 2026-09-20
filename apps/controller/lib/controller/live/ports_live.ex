@@ -29,7 +29,7 @@ defmodule Controller.PortsLive do
   @impl true
   def handle_event("connect", %{"port" => port}, socket) do
     Mount.connect_port(port)
-    {:noreply, socket |> assign(notice: "connecting #{Path.basename(port)}") |> refresh()}
+    {:noreply, socket |> assign(notice: "Connecting #{Path.basename(port)}") |> refresh()}
   end
 
   def handle_event("disconnect", %{"port" => port}, socket) do

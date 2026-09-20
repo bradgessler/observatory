@@ -892,7 +892,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tilt-dot, .knob, .orb-svg .ax { transition: none; }
   button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed { transform: none; }
 }
-.page-header .page-title { max-width: 60%; }
 /* the running view's position strip: five dots per axis, filled as pictures land */
 .run-axis { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: start; }
 .run-dots { display: inline-flex; gap: 6px; padding-top: 6px; }
@@ -901,3 +900,5 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .run-dot.now { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 @media (prefers-reduced-motion: no-preference) { .run-dot.now { animation: run-pulse 1.2s ease-in-out infinite; } }
 @keyframes run-pulse { 50% { opacity: .4; } }
+/* the header title keeps its words; a long mount name is shortened at the source */
+.page-header .page-title { white-space: normal; overflow: visible; text-overflow: clip; text-align: center; }

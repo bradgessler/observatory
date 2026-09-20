@@ -50,7 +50,7 @@ defmodule Controller.FramesLive do
         <div class="watch-frame">
           <img src={~p"/watch/frames/#{@pin.name}"} alt={"frame from #{Calendar.strftime(@pin.at, "%H:%M:%S")} UTC"} />
         </div>
-        <.hint>{Calendar.strftime(@pin.at, "%H:%M:%S")} UTC · {div(@pin.bytes, 1024)} KB · <button type="button" class="linklike" phx-click="pin">close the big frame</button></.hint>
+        <.hint>{Calendar.strftime(@pin.at, "%H:%M:%S")} UTC · {div(@pin.bytes, 1024)} KB · <button type="button" class="linklike" phx-click="pin">Close the Big Frame</button></.hint>
       </.card>
 
       <.hint :if={@history == []}>Nothing kept yet. Frames arrive whenever the camera captures: timed stills, a tap on Capture, or a running stream.</.hint>

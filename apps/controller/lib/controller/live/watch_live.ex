@@ -112,7 +112,7 @@ defmodule Controller.WatchLive do
   def handle_event("capture", _, socket) do
     case Watch.capture() do
       %{} -> {:noreply, load(socket)}
-      {:error, why} -> {:noreply, socket |> assign(notice: "capture failed: #{why}") |> load()}
+      {:error, why} -> {:noreply, socket |> assign(notice: "Capture failed: #{why}") |> load()}
     end
   end
 
@@ -137,7 +137,7 @@ defmodule Controller.WatchLive do
   def handle_event("mode", %{"m" => "live"}, socket) do
     case Video.start(quality: Settings.get("video_quality", "auto"), fps: Settings.get("video_fps", 30)) do
       :ok -> {:noreply, assign(socket, player: nil, tele: nil, video: safe_video())}
-      {:error, why} -> {:noreply, socket |> assign(notice: "stream: #{why}") |> assign(video: safe_video())}
+      {:error, why} -> {:noreply, socket |> assign(notice: "Stream: #{why}") |> assign(video: safe_video())}
     end
   end
 
@@ -167,14 +167,14 @@ defmodule Controller.WatchLive do
 
   defp age_words(%{at: at}, now) do
     case DateTime.diff(now, at, :second) do
-      s when s < 2 -> "just now"
+      s when s < 2 -> "Just now"
       s when s < 90 -> "#{s} s ago"
       s -> "#{div(s, 60)} min ago"
     end
   end
 
-  defp behind_words(nil), do: "measuring…"
-  defp behind_words(%{latency: nil}), do: "delay unknown"
+  defp behind_words(nil), do: "Measuring…"
+  defp behind_words(%{latency: nil}), do: "Delay unknown"
   defp behind_words(%{latency: l, exact: exact}), do: "#{if exact, do: "", else: "≥ "}#{:erlang.float_to_binary(l / 1, decimals: 1)} s behind"
 
   defp fps_words(%{fps: f}) when is_number(f) and f > 0, do: " · #{round(f)} fps"
@@ -224,7 +224,7 @@ defmodule Controller.WatchLive do
         </svg>
       </div>
       <p :if={@rig} class="watch-cap">
-        axes from the camera's sweep · <span class="ax-ra">polar (solid)</span> · <span class="ax-dec">Dec (dashed)</span> · <span class="ax-tube">tube (long dashes; needs the axes zeroed upright)</span> ·
+        Axes from the camera's sweep · <span class="ax-ra">polar (solid)</span> · <span class="ax-dec">Dec (dashed)</span> · <span class="ax-tube">tube (long dashes; needs the axes zeroed upright)</span> ·
         <button type="button" class="linklike" phx-click="axes" phx-value-on={to_string(!@axes_on)} aria-pressed={to_string(@axes_on)}>{if @axes_on, do: "hide axes", else: "show axes"}</button>
       </p>
 
@@ -247,7 +247,7 @@ defmodule Controller.WatchLive do
 
       <%!-- no mode to pick: the still is what you see; Play starts video, Stop returns --%>
       <.row :if={@busy}>
-        <.btn phx-click="mode" phx-value-m="off">Stop video · back to stills</.btn>
+        <.btn phx-click="mode" phx-value-m="off">Stop Video · Back to Stills</.btn>
       </.row>
 
       <p class="watch-links">

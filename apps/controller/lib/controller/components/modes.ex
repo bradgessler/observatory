@@ -10,7 +10,7 @@ defmodule Controller.Components.Modes do
     ~H"""
     <.link :if={@modes != []} navigate={if @id, do: ~p"/setup/#{@id}", else: ~p"/devices"} class="modes">
       <span :for={{label, detail} <- @modes} class="mode-badge"><strong>{label}</strong> {detail}</span>
-      <span class="mode-more">setup ›</span>
+      <span class="mode-more">Setup ›</span>
     </.link>
     """
   end

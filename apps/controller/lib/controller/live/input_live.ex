@@ -93,7 +93,7 @@ defmodule Controller.InputLive do
     Input.arm(false)
     Controller.Sky.Tracker.stop_all()
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.emergency_stop(ref) end)
-    {:noreply, socket |> assign(notice: "stopped · pad is watch only") |> load()}
+    {:noreply, socket |> assign(notice: "Stopped · pad is watch only") |> load()}
   end
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
@@ -130,15 +130,15 @@ defmodule Controller.InputLive do
         </:aside>
         <%!-- two explicit states, not a toggle: you always see which one you're in --%>
         <.seg label="what the pad does">
-          <:opt on={!@mapper.armed} click="arm" value={%{on: "false"}}>Watch only</:opt>
-          <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Pad moves scope</:opt>
+          <:opt on={!@mapper.armed} click="arm" value={%{on: "false"}}>Watch Only</:opt>
+          <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Pad Moves Scope</:opt>
         </.seg>
         <.hint :if={@mapper.off_reason}><strong>{@mapper.off_reason}</strong></.hint>
-        <.hint :if={Map.get(@mapper, :ignoring)}><strong>pad is off: tap Pad moves scope</strong></.hint>
-        <.kv label="mount" value={@mapper.target || "none"} />
+        <.hint :if={Map.get(@mapper, :ignoring)}><strong>Pad is off: tap Pad moves scope</strong></.hint>
+        <.kv label="Mount" value={@mapper.target || "none"} />
         <.kv :if={@snap && @snap.axes[:ra]} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap && @snap.axes[:ra]} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>more about the pad ›</.link></.hint>
+        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>More About the Pad ›</.link></.hint>
       </.card>
 
       <.card :for={d <- @devices} title={d.parser}>
@@ -157,7 +157,7 @@ defmodule Controller.InputLive do
       </.card>
 
       <.card :if={@devices == []} title="No game controller open">
-        <.hint>Plug one into <strong>this machine</strong> (the one running the server). Joysticks and gamepads are opened automatically within 3 s.</.hint>
+        <.hint>Plug one into <strong>This machine</strong> (the one running the server). Joysticks and gamepads are opened automatically within 3 s.</.hint>
         <.kv :for={s <- @seen.devices} label={"#{Integer.to_string(s.vendor_id, 16)}:#{Integer.to_string(s.product_id, 16)}"} value={"#{s.product} · usage #{s.usage_page}/#{s.usage}#{if s.reading, do: " · reading", else: ""}"} />
       </.card>
 

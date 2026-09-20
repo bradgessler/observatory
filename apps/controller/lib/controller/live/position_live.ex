@@ -73,7 +73,7 @@ defmodule Controller.PositionLive do
     with %{axes: axes} <- socket.assigns.snap, {t, _} <- Float.parse(target) do
       {:noreply, run(socket, &Mount.goto_relative(&1, axis, t - axes[axis].degrees))}
     else
-      nil -> {:noreply, assign(socket, notice: "no mount")}
+      nil -> {:noreply, assign(socket, notice: "No mount")}
       _ -> {:noreply, assign(socket, notice: "#{String.upcase(to_string(axis))} target must be a number of degrees, like 12.5 or -30")}
     end
   end
@@ -83,7 +83,7 @@ defmodule Controller.PositionLive do
       socket = run(socket, &Mount.goto_relative(&1, :ra, -axes.ra.degrees))
       {:noreply, run(socket, &Mount.goto_relative(&1, :dec, -axes.dec.degrees))}
     else
-      _ -> {:noreply, assign(socket, notice: "no mount")}
+      _ -> {:noreply, assign(socket, notice: "No mount")}
     end
   end
 
@@ -93,17 +93,17 @@ defmodule Controller.PositionLive do
   defp run(socket, fun) do
     case socket.assigns.refs[socket.assigns.selected] do
       nil ->
-        assign(socket, notice: "no mount")
+        assign(socket, notice: "No mount")
 
       ref ->
         try do
           case fun.(ref) do
             :ok -> socket
-            {:error, :limit} -> assign(socket, notice: "soft limit")
+            {:error, :limit} -> assign(socket, notice: "Soft limit")
             {:error, e} -> assign(socket, notice: inspect(e))
           end
         catch
-          :exit, _ -> assign(socket, notice: "mount unreachable")
+          :exit, _ -> assign(socket, notice: "Mount unreachable")
         end
     end
   end
@@ -132,7 +132,7 @@ defmodule Controller.PositionLive do
           <.btn type="button" phx-click="go" phx-value-axis="dec" aria-label="Go to the Dec target">Go</.btn>
         </form>
         <.row>
-          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0°?">Back to zero (0°, 0°)</.btn>
+          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0°?">Back to Zero (0°, 0°)</.btn>
           <.btn :if={!@nested} phx-click="stop">Stop</.btn>
         </.row>
         <.hint>Zero is where the axes were zeroed: counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>

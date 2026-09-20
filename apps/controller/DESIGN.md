@@ -108,6 +108,15 @@ Phone first, but the same pages run on an iPad, a laptop, and a 5K desktop.
   badges, the picked object ringed on the map, the scope marker.
 - One primary action per panel (`.go`), secondaries plain.
 
+## Casing
+
+One rule, everywhere: **Title Case** for page titles, card titles, nav and
+tab labels and every key label ("Zero the Axes Here", "Hold What I'm On");
+**sentence case** for every sentence, subtitle, hint, state line and notice
+(a capital first letter, the rest as written); badges stay small uppercase.
+Nothing on a page starts with a lowercase letter. Dynamic fragments go
+through `UI.sentence/1` when they open a line.
+
 ## Copy
 
 - Plain words over jargon. "Set home" not "park"; "tree line" not "horizon

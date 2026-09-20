@@ -103,6 +103,7 @@ defmodule Controller.Optical.AxisScan do
       opts = Keyword.put(opts, :started_at, System.monotonic_time(:millisecond))
       task = Task.async(fn -> if(opts[:mode] == :sweep, do: sweep_scan(parent, ref, opts), else: scan(parent, ref, id, opts)) end)
       loop? = Keyword.get(opts, :loop, s.loop && s.id == id)
+      s = Map.put(s, :started_at, System.monotonic_time(:second))
       {:reply, :ok, announce(%{s | task: task, id: id, ref: ref, start: start, step: :starting, error: nil, interim: %{}, loop: loop?, loop_opts: Keyword.delete(opts, :started_at)})}
     else
       {:mount, nil} -> {:reply, {:error, :no_mount}, s}
@@ -733,7 +734,7 @@ defmodule Controller.Optical.AxisScan do
     :exit, _ -> :ok
   end
 
-  defp public(s), do: Map.take(s, [:id, :step, :error, :interim, :loop]) |> Map.put(:running, s.task != nil)
+  defp public(s), do: Map.take(s, [:id, :step, :error, :interim, :loop, :started_at]) |> Map.put(:running, s.task != nil)
 
   defp announce(s) do
     Telescope.broadcast(@topic, {:optical, public(s)})

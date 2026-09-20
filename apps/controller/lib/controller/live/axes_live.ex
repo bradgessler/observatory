@@ -220,7 +220,7 @@ defmodule Controller.AxesLive do
         </div>
         <div class="state-line" role="status" aria-live="polite">
           <strong>{doing_words(@scan)}</strong>
-          <span class="dim">{elapsed_words(@run_started)} · the mount comes back to where it started · STOP on any page ends it</span>
+          <span class="dim">{elapsed_words(@scan[:started_at] || @run_started)} · the mount comes back to where it started · STOP on any page ends it</span>
         </div>
         <div :for={{axis, label} <- [{"ra", "RA (polar) axis"}, {"dec", "Dec axis"}]} class="run-axis">
           <span class="run-dots" aria-label={"#{label}: #{positions_done(@scan, axis)} of 5 positions"}>
@@ -419,8 +419,15 @@ defmodule Controller.AxesLive do
   defp running_axis?(%{step: {:move, ax}}, axis), do: Atom.to_string(ax) == axis
   defp running_axis?(_, _), do: false
 
-  defp elapsed_words(nil), do: "starting"
-  defp elapsed_words(t0), do: "#{div(System.monotonic_time(:second) - t0, 60)} min in"
+  defp elapsed_words(nil), do: "just started"
+
+  defp elapsed_words(t0) do
+    case div(System.monotonic_time(:second) - t0, 60) do
+      0 -> "under a minute in"
+      1 -> "a minute in"
+      m -> "#{m} min in"
+    end
+  end
 
   # one sentence per axis for the answer card; the numbers live in the details
   defp answer_across(%{"image_angle_deg" => a} = f, _), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"

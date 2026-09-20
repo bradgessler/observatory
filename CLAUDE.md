@@ -131,6 +131,12 @@ Repo and migrate the settings into it.
 
 ## Working here
 
+- **Never recompile under a running scan or hold.** In dev the code reloader
+  purges old module versions on the next request, and a task executing inside
+  a purged module dies (`scan crashed: :killed`). Before `mix compile` or a
+  server restart, check `/controls/watch/axes` is idle and nothing is being
+  held; a restart also puts the game pad back to watch only.
+
 - `mix test` at the root runs every app. The driver is tested against
   `Mount.Transport.Sim`, which speaks the real wire protocol; LiveViews are
   tested with `Phoenix.LiveViewTest` against a simulated mount.

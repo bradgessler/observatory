@@ -14,6 +14,7 @@ defmodule Watch do
 
   defdelegate history(opts \\ []), to: Watch.History, as: :list
   defdelegate frame(name), to: Watch.History, as: :read
+  defdelegate keep(name), to: Watch.History
   defdelegate history_summary, to: Watch.History, as: :summary
 
   defdelegate latest, to: Watch.Camera

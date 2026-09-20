@@ -35,8 +35,28 @@ defmodule Watch.History do
 
   @doc "Bytes of one frame by name (`\"1758300000000.jpg\"`)."
   def read(name) do
-    with true <- valid_name?(name), {:ok, bin} <- File.read(Path.join(dir(), name)) do
+    with true <- valid_name?(name), {:ok, bin} <- read_either(name) do
       {:ok, bin}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  # the ring prunes; a kept copy (a scan's answer picture) lives beside it and never expires
+  defp read_either(name) do
+    case File.read(Path.join(dir(), name)) do
+      {:ok, bin} -> {:ok, bin}
+      _ -> File.read(Path.join([dir(), "keep", name]))
+    end
+  end
+
+  @doc "Copy a frame out of the ring so it survives pruning (an answer picture)."
+  def keep(name) do
+    with true <- valid_name?(name),
+         src = Path.join(dir(), name),
+         true <- File.exists?(src) do
+      File.mkdir_p!(Path.join(dir(), "keep"))
+      File.cp(src, Path.join([dir(), "keep", name]))
     else
       _ -> {:error, :not_found}
     end

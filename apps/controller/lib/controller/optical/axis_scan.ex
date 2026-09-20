@@ -149,6 +149,8 @@ defmodule Controller.Optical.AxisScan do
           sweep = Map.merge(sweep, %{"history" => history, "history_n" => length(history), "history_spread_deg" => spread_deg(history)})
           entry = Map.get(all, s.id, %{}) |> Map.put("sweep", sweep)
           Settings.put("optical_axes", Map.put(all, s.id, entry))
+          # the answer's picture outlives the frame ring
+          for ax <- ["ra", "dec"], name <- Enum.take(sweep[ax]["frames"] || [], 1), do: safe_keep(name)
           if s.loop, do: Process.send_after(self(), :next_run, 3_000)
           %{s | task: nil, step: :done}
 
@@ -699,6 +701,14 @@ defmodule Controller.Optical.AxisScan do
       _ ->
         Map.put(sw, "pair", nil)
     end
+  end
+
+  defp safe_keep(name) do
+    Watch.keep(name)
+  rescue
+    _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 
   defp public(s), do: Map.take(s, [:id, :step, :error, :interim, :loop]) |> Map.put(:running, s.task != nil)

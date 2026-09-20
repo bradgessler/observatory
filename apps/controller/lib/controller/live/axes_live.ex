@@ -169,10 +169,10 @@ defmodule Controller.AxesLive do
         <.hint>Turns each axis a few degrees with the camera watching and works out where the two axes are in the picture. The mount comes back to where it started.</.hint>
         <div :if={@scan.running} class="state-line" role="status" aria-live="polite">
           <strong>{step_words(@scan)}</strong>
-          <span class="dim">{if @scan[:loop], do: "refining: run after run until you stop it", else: "about five minutes"} · STOP on any page ends it</span>
+          <span class="dim">{if @scan[:loop], do: "refining: run after run until you stop it", else: "about ten minutes"} · STOP on any page ends it</span>
         </div>
         <.row :if={!@scan.running}>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the axes · 5 min</.btn>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the axes · 10 min</.btn>
           <.btn phx-click="refine" disabled={cannot}>Keep refining</.btn>
         </.row>
         <.row :if={@scan.running}>
@@ -181,7 +181,7 @@ defmodule Controller.AxesLive do
         </.row>
         <.row :if={!@scan.running}>
           <.btn class="btn-ghost" phx-click="run" disabled={cannot}>Quick look · 1 min</.btn>
-          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide sweep · 15 min</.btn>
+          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide sweep · 20 min</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
         <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>

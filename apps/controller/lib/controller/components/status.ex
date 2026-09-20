@@ -29,7 +29,7 @@ defmodule Controller.Components.Status do
           end}
         </span>
         <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "zeroed", else: "not zeroed"}</span>
-        <span :if={@snap.id == "sim"} class="ss-badge warn">simulator</span>
+        <span :if={Mount.simulated?(@snap.id)} class="ss-badge">Simulator</span>
       <% else %>
         <span class="ss-id">{@id || "no mount"}</span>
         <span class="ss-badge warn">{if @snap, do: "not answering", else: "not connected"}</span>

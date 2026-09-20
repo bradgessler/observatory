@@ -618,7 +618,7 @@ defmodule Controller.SkyLive do
       </header>
       <.skip_target :if={!@nested} />
 
-      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
+      <.link :if={Mount.simulated?(@selected)} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
       <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
 
       <.seg label="sky page" class="tabs">

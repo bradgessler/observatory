@@ -64,7 +64,7 @@ defmodule Controller.DevicesLive do
       ports: Mount.ports(),
       status: Mount.discovery_status(),
       subscribed: subscribed,
-      any_real: Enum.any?(mounts, &(&1.id != "sim" and &1.connected)),
+      any_real: Enum.any?(mounts, &(not Mount.simulated?(&1.id) and &1.connected)),
       host: host_addresses(),
       tunnel: tunnel_url()
     )
@@ -112,7 +112,7 @@ defmodule Controller.DevicesLive do
       <.card :for={m <- @mounts} title={m.id}>
         <:aside>
           <.badge on={m.connected}>{if m.connected, do: "answering", else: "not answering"}</.badge>
-          <.badge :if={m.id == "sim"}>simulator</.badge>
+          <.badge :if={Mount.simulated?(m.id)}>Simulator</.badge>
           <.badge :if={m.node != :nonode@nohost} dim>{m.node}</.badge>
         </:aside>
         <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "zeroed", else: "axes not zeroed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />

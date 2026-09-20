@@ -268,7 +268,7 @@ defmodule Controller.MountLive do
       </header>
       <.skip_target :if={!@nested} />
 
-      <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
+      <.link :if={Mount.simulated?(@selected)} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
 
       <%= if @snap && @snap.connected do %>
         <section :if={!@nested} class="readout">

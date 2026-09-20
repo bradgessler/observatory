@@ -54,7 +54,7 @@ defmodule Controller.Components.ScopeBadge do
       <span :if={@snap && @snap[:axes][:ra]} class="sb-nums">
         RA {deg(@snap.axes.ra.degrees)} · Dec {deg(@snap.axes.dec.degrees)}
       </span>
-      <span :if={@snap && @snap[:id] && sim?(@id)} class="sb-sim">Simulator</span>
+      <span :if={@snap && @snap[:id] && Mount.simulated?(@id)} class="sb-sim">Simulator</span>
     </span>
     """
   end
@@ -64,8 +64,7 @@ defmodule Controller.Components.ScopeBadge do
   def short("tty.usbserial-" <> tail), do: tail
   def short(id), do: id
 
-  def sim?(id) when is_binary(id), do: String.starts_with?(id, "sim")
-  def sim?(_), do: false
+  defdelegate sim?(id), to: Mount, as: :simulated?
 
   defp state_words(nil, _), do: "Not connected"
   defp state_words(%{connected: false}, _), do: "Not answering"

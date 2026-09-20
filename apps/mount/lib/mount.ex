@@ -39,6 +39,11 @@ defmodule Mount do
 
   def snapshot(ref), do: call(ref, :snapshot)
 
+  @doc "Is this a simulated mount? One rule, so no page invents its own."
+  def simulated?(id) when is_binary(id), do: String.starts_with?(id, "sim")
+  def simulated?(%{id: id}), do: simulated?(id)
+  def simulated?(_), do: false
+
   @doc """
   Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it
   self-stop unless refreshed. `quiet: true` skips the event (for a refresh of a

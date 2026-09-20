@@ -19,8 +19,7 @@ defmodule Controller.Sim.Truth do
   @key "sim_truth"
 
   @doc "True for a simulated mount; only those have a truth."
-  def sim?(id) when is_binary(id), do: String.starts_with?(id, "sim")
-  def sim?(_), do: false
+  defdelegate sim?(id), to: Mount, as: :simulated?
 
   @doc "A mount set down badly on purpose: a few degrees off the pole, encoders not quite zeroed."
   def default(lat), do: %{axis_alt: lat / 1 + 2.5, axis_az: 3.0, off_ra: 1.0, off_dec: -1.5}

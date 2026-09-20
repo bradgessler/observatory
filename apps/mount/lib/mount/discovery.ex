@@ -137,5 +137,5 @@ defmodule Mount.Discovery do
   defp serial(port),
     do: [id: Path.basename(port), transport: {Mount.Transport.Serial, port: port}]
 
-  defp sim, do: [id: "sim", transport: {Mount.Transport.Sim, []}]
+  defp sim, do: [id: "sim-eq", transport: {Mount.Transport.Sim, []}]
 end

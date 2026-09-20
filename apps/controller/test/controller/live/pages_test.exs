@@ -150,7 +150,7 @@ defmodule Controller.PagesTest do
   describe "accessibility" do
     defp routes(id) do
       [
-        "/", "/start", "/controls/scope/#{id}", "/controls/eyepiece/#{id}", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
+        "/", "/start", "/provision", "/controls/scope/#{id}", "/controls/eyepiece/#{id}", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
         "/devices", "/devices/ports", "/input?mount=#{id}", "/bench?mount=#{id}", "/bench/sky?mount=#{id}",
         "/controls/watch", "/controls/watch/frames", "/controls/watch/camera", "/controls/watch/axes/#{id}",
         "/controls/dpad/#{id}", "/controls/nudge/#{id}", "/controls/position/#{id}", "/controls/align/#{id}",

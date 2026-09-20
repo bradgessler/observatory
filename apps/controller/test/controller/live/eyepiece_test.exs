@@ -84,10 +84,10 @@ defmodule Controller.EyepieceTest do
     assert html =~ "Vega"
   end
 
-  defp wait_still(id, tries \\ 60) do
+  defp wait_still(id, tries \\ 240) do
     s = Mount.snapshot(id)
 
-    if (s.axes.ra.running or s.axes.dec.running) and tries > 0 do
+    if (s.axes.ra.running or s.axes.dec.running or s.axes.ra.goto_pending or s.axes.dec.goto_pending) and tries > 0 do
       Process.sleep(250)
       wait_still(id, tries - 1)
     end

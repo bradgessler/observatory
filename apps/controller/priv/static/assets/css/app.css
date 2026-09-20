@@ -986,3 +986,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ep-target { fill: none; stroke: var(--on); stroke-width: 1.6; }
 .ep-arrow { stroke: var(--on); stroke-width: 1.2; stroke-dasharray: 4 3; }
 .dpad-eyepiece { max-width: 260px; margin: 0 auto; }
+
+/* ---- stamping a box: the steps, a bar, and what the tools are saying ---- */
+.job-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.job-step { display: grid; grid-template-columns: 1.5rem 1fr; gap: var(--s2); align-items: start; padding: 6px 0; }
+.job-mark { font-size: var(--fs-3); color: var(--dim); text-align: center; }
+.job-text { display: grid; gap: 2px; min-width: 0; }
+.job-running .job-mark { color: var(--accent); }
+.job-running .job-text strong { color: var(--text); }
+.job-done .job-mark { color: var(--on); }
+.job-failed .job-mark { color: var(--warn); }
+.job-failed .job-text strong { color: var(--warn); }
+.job-waiting .job-text strong { color: var(--dim); }
+.job-bar { position: relative; height: 20px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: 10px; overflow: hidden; }
+.job-bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width .3s ease; }
+.job-bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--fs-1); color: var(--text); font-variant-numeric: tabular-nums; }
+.job-log { background: var(--sunk); border-radius: var(--r); padding: var(--s2); }
+.job-log summary { color: var(--dim); font-size: var(--fs-2); cursor: pointer; }
+.job-log pre { margin: var(--s1) 0 0; font-size: var(--fs-1); color: var(--dim); white-space: pre-wrap; word-break: break-word; max-height: 12rem; overflow-y: auto; }
+/* the box's details: fields wide enough to read what you typed */
+.box-details { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
+.box-details label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--dim); letter-spacing: .05em; text-transform: uppercase; }
+.box-details .field { text-align: left; padding: 12px 14px; }
+@media (min-width: 620px) { .box-details { grid-template-columns: 1fr 1fr 1fr; } }
+/* a segmented control with more than four choices wraps instead of stranding one */
+.seg-5, .seg-6 { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+/* a card is as tall as its contents, not as tall as the row it sits in */
+@media (min-width: 960px) { .page > .card { align-self: start; } }

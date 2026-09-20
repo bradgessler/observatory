@@ -47,6 +47,7 @@ defmodule Controller.HomeLive do
     {"Plumbing",
      "What is plugged in and how to reach this machine",
      [
+       {"Stamp a Box", ~p"/provision", "Put a card in, choose what the box is for, and write a bootable Observatory onto it", ~p"/docs/provision"},
        {"Devices", ~p"/devices", "The telescope cable, the mount answering or not, the addresses", ~p"/docs/devices"},
        {"Events", ~p"/events", "What happened and who did it: every move, stop, star and stream, newest first", ~p"/docs/events"},
        {"Bench", ~p"/bench", "Every surface side by side with the live scope state; where new things get tried", ~p"/docs/bench"}

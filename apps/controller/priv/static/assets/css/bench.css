@@ -110,3 +110,5 @@
   .bench-stage > * { max-width: 760px; }
   .bench-stage .page { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: 0; padding-right: 0; }
 }
+/* a segmented control with five or six choices wraps rather than stranding one */
+.seg-5, .seg-6 { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }

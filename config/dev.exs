@@ -11,7 +11,10 @@ config :controller, Controller.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {0, 0, 0, 0}, port: 4000],
   check_origin: false,
-  code_reloader: true,
+  # Hot reloading purges old module versions on the next request, which kills
+  # any task running inside them (an axis scan, a long hold). A field session
+  # must not lose a run to an edit: reload only when asked for.
+  code_reloader: System.get_env("OBS_RELOAD") == "1",
   debug_errors: true,
   secret_key_base: "C/JehPi8qBCmyw8RFr8aKkeUqVpE9PSgx1QvDGQv+A8i0m8QbtzrYqufw/p1G1cJ",
   watchers: []

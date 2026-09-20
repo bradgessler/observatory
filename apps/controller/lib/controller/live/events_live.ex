@@ -75,7 +75,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :input, name: :ignored, data: d}), do: "pad: #{d.action} ignored · #{d.why}"
   defp words(%{module: :input, name: :buttons, data: d}), do: "pad: buttons #{inspect(d.pressed)} · hat #{inspect(d.hat)} · axes #{inspect(d.axes)} · raw #{d.raw}#{if d.armed, do: "", else: " · pad off"}"
   defp words(%{module: :input, name: :stale, data: d}), do: "pad: report #{d.age_ms} ms old, dropped"
-  defp words(%{module: :input, name: :trigger, data: d}), do: "pad: trigger squeezed · ball rest #{inspect(d.center)} is zero for this hold#{if d.armed, do: "", else: " · pad off"}"
+  defp words(%{module: :input, name: :trigger, data: d}), do: "pad: trigger squeezed · head at #{inspect(d[:head] || d[:center])}#{if d.armed, do: "", else: " · pad off"}"
   defp words(%{module: :input, name: :armed, data: d}), do: "pad on · moves #{d.target || "?"}"
   defp words(%{module: :input, name: :off, data: d}), do: "pad off · #{d.why}"
   defp words(%{module: :lineup, name: :reset, data: d}), do: "#{d.id} · alignment reset: #{d.why}"

@@ -80,7 +80,7 @@ defmodule Input.Mapper do
 
       true ->
         s = note_buttons(s, info)
-        s = recentre(s, info)
+        s = note_trigger(s, info)
         action = Gamepad.interpret(info.state, Map.merge(device_defaults(info), s.map))
         s = %{s | action: action, device_map: device_defaults(info), last_fresh: now}
 
@@ -151,32 +151,32 @@ defmodule Input.Mapper do
 
   defp note_buttons(s, _), do: s
 
-  # The ball's rest when the trigger goes down is zero for that hold. A pad
-  # lying at an angle on the table, or a ball that sits 0.5 off centre,
-  # must not make the scope move the instant the trigger is squeezed.
-  defp recentre(s, %{state: st} = info) do
+  # The Dual Strike's head is not spring-centred: it stays where you leave
+  # it. So the law is absolute: displacement from the physical centre is the
+  # rate, the trigger is only the dead-man. (Re-zeroing at the squeeze was
+  # tried and made the feel depend on where the head was left: pushing past
+  # an end did nothing while the other way moved.) The squeeze is logged
+  # with the head's position so the log can say what the hand asked for.
+  defp note_trigger(s, %{state: st} = info) do
     m = Map.merge(Gamepad.defaults(), Map.merge(device_defaults(info), s.map))
     down? = Enum.at(st[:buttons] || [], m.trigger) == true
 
-    axes = st[:axes] || []
-
     cond do
       down? and not Map.get(s, :trigger_down, false) ->
-        # the rest is the last report before the squeeze (a squeeze and a tilt can land in one report)
-        rest = Map.get(s, :rest_axes) || axes
-        center = [Enum.at(rest, m.x_axis) || 0.0, Enum.at(rest, m.y_axis) || 0.0]
-        Telescope.Events.emit(:input, :trigger, %{center: Enum.map(center, &Float.round(&1 / 1, 2)), armed: s.armed})
-        %{s | map: Map.put(s.map, :center, center)} |> Map.put(:trigger_down, true)
+        axes = st[:axes] || []
+        at = [Enum.at(axes, m.x_axis) || 0.0, Enum.at(axes, m.y_axis) || 0.0]
+        Telescope.Events.emit(:input, :trigger, %{head: Enum.map(at, &Float.round(&1 / 1, 2)), armed: s.armed})
+        Map.put(s, :trigger_down, true)
 
       not down? ->
-        s |> Map.put(:trigger_down, false) |> Map.put(:rest_axes, axes)
+        Map.put(s, :trigger_down, false)
 
       true ->
         s
     end
   end
 
-  defp recentre(s, _), do: s
+  defp note_trigger(s, _), do: s
 
   # stale reports are dropped by design; say so once a second, not per report
   defp note_stale(s, age) do

@@ -515,11 +515,33 @@ defmodule Controller.Optical.AxisScan do
     match?(%{source: :stream}, driver(fn -> Watch.status() end))
   end
 
+  # The scan owns the camera while it runs: video is stopped first (its stills
+  # come at another size and on their own clock, and its watchdog restarts the
+  # encoder on a still scene), then the still camera takes every picture.
   defp camera_ready(opts) do
     cond do
-      is_function(opts[:capture], 0) -> :ok
-      match?(%{tool: nil}, driver(fn -> Watch.status() end)) -> {:error, "no camera tool on this machine"}
-      true -> :ok
+      is_function(opts[:capture], 0) ->
+        :ok
+
+      match?(%{tool: nil}, driver(fn -> Watch.status() end)) ->
+        {:error, "no camera tool on this machine"}
+
+      streaming?() ->
+        Telescope.Events.emit(:optical, :video_paused, %{why: "the scan takes its own pictures"})
+        _ = driver(fn -> Video.stop() end)
+        wait_camera_free(12)
+
+      true ->
+        :ok
+    end
+  end
+
+  defp wait_camera_free(0), do: {:error, "the video did not release the camera"}
+
+  defp wait_camera_free(n) do
+    case driver(fn -> Watch.status() end) do
+      %{streaming: false} -> Process.sleep(3_000); :ok
+      _ -> Process.sleep(1_000); wait_camera_free(n - 1)
     end
   end
 
@@ -545,7 +567,7 @@ defmodule Controller.Optical.AxisScan do
       case Process.get(:frame_size) do
         nil -> Process.put(:frame_size, {w, h}); {:ok, frame, name}
         {^w, ^h} -> {:ok, frame, name}
-        _ -> {:error, "camera size changed mid-scan"}
+        {w0, h0} -> {:ok, Frame.resample(frame, w0, h0), name}
       end
     end
   end

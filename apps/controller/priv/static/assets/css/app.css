@@ -893,3 +893,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed { transform: none; }
 }
 .page-header .page-title { max-width: 60%; }
+/* the running view's position strip: five dots per axis, filled as pictures land */
+.run-axis { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: start; }
+.run-dots { display: inline-flex; gap: 6px; padding-top: 6px; }
+.run-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sunk); box-shadow: var(--bevel-in); display: inline-block; }
+.run-dot.on { background: var(--on); box-shadow: none; }
+.run-dot.now { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .run-dot.now { animation: run-pulse 1.2s ease-in-out infinite; } }
+@keyframes run-pulse { 50% { opacity: .4; } }

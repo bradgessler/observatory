@@ -15,6 +15,7 @@ defmodule Controller.AxesLive do
     if connected?(socket) do
       AxisScan.subscribe()
       Settings.subscribe()
+      Watch.subscribe()
       send(self(), :rescan)
     end
 
@@ -23,7 +24,7 @@ defmodule Controller.AxesLive do
     {:ok,
      socket
      |> assign(page_title: "Optical Axes", night: Settings.get("night", false), nested: session["nested"] == true, selected: params["id"] || session["id"], mounts: [], notice: nil)
-     |> assign(scan: AxisScan.status())
+     |> assign(scan: AxisScan.status(), still_v: 0, run_started: nil)
      |> rescan()
      |> load()}
   end
@@ -95,7 +96,19 @@ defmodule Controller.AxesLive do
     {:noreply, socket |> rescan() |> load()}
   end
 
-  def handle_info({:optical, status}, socket), do: {:noreply, socket |> assign(scan: status) |> load()}
+  def handle_info({:optical, status}, socket) do
+    started =
+      cond do
+        status.running and socket.assigns.run_started == nil -> System.monotonic_time(:second)
+        status.running -> socket.assigns.run_started
+        true -> nil
+      end
+
+    {:noreply, socket |> assign(scan: status, run_started: started) |> load()}
+  end
+
+  # a new still: the running view shows the camera's latest picture
+  def handle_info({:watch, _}, socket), do: {:noreply, assign(socket, still_v: socket.assigns.still_v + 1)}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
   def handle_info({:settings, "optical_axes", _}, socket), do: {:noreply, load(socket)}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
@@ -188,13 +201,14 @@ defmodule Controller.AxesLive do
         <.hint :if={@scan.error} class="err" role="alert">{@scan.error}</.hint>
       </.card>
 
-      <%!-- while it runs: the fit on the positions so far, redrawn as each picture lands --%>
+      <%!-- while it runs: the camera's latest picture, what it is doing, which positions are done,
+           and the spots' tracks and fitted lines drawn over the picture as each one lands --%>
       <% im = @scan[:interim] || %{} %>
       <% first = im["ra"] || im["dec"] %>
-      <.card :if={@scan.running && first && !@details} title="Emerging">
+      <.card :if={@scan.running && !@details} title="Running">
         <div class="axes-pic">
-          <img src={~p"/watch/frames/#{first["frame"]}"} alt="the mount, with the axes found so far drawn over it" />
-          <svg viewBox={"0 0 #{first["w"]} #{first["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
+          <img src={~p"/watch/latest.jpg?#{[v: @still_v]}"} alt="the camera's latest picture of the mount" />
+          <svg :if={first} viewBox={"0 0 #{first["w"]} #{first["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
             <%= for {axis, colour} <- [{"ra", "var(--accent)"}, {"dec", "var(--on)"}], im[axis] do %>
               <polyline :for={t <- im[axis]["tracks"] || []} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.85" />
             <% end %>
@@ -204,9 +218,18 @@ defmodule Controller.AxesLive do
             <% end %>
           </svg>
         </div>
-        <div :for={{axis, label} <- [{"ra", "RA (polar) axis"}, {"dec", "Dec axis"}]} class="state-line">
-          <strong>{label} · {cond do im[axis] && im[axis]["fit"] -> answer_across(nil, im[axis]["fit"]); im[axis] -> "#{length(im[axis]["tracks"] || [])} spots on the move"; true -> "waiting for its turn" end}</strong>
-          <span :if={im[axis]} class="dim">after {im[axis]["positions"]} of {im[axis]["of"]} positions{if im[axis]["fit"], do: " · #{im[axis]["fit"]["n"]} spots · arcs fit to #{im[axis]["fit"]["rms_px"]} px", else: " · a fit needs three"}</span>
+        <div class="state-line" role="status" aria-live="polite">
+          <strong>{doing_words(@scan)}</strong>
+          <span class="dim">{elapsed_words(@run_started)} · the mount comes back to where it started · STOP on any page ends it</span>
+        </div>
+        <div :for={{axis, label} <- [{"ra", "RA (polar) axis"}, {"dec", "Dec axis"}]} class="run-axis">
+          <span class="run-dots" aria-label={"#{label}: #{positions_done(@scan, axis)} of 5 positions"}>
+            <i :for={i <- 1..5} class={["run-dot", i <= positions_done(@scan, axis) && "on", i == positions_done(@scan, axis) + 1 && running_axis?(@scan, axis) && "now"]}></i>
+          </span>
+          <div class="state-line">
+            <strong>{label} · {cond do im[axis] && im[axis]["fit"] -> answer_across(nil, im[axis]["fit"]); im[axis] -> "#{length(im[axis]["tracks"] || [])} spots on the move"; running_axis?(@scan, axis) -> "turning, taking pictures"; true -> "waiting its turn" end}</strong>
+            <span :if={im[axis] && im[axis]["fit"]} class="dim">{im[axis]["fit"]["n"]} spots · arcs fit to {im[axis]["fit"]["rms_px"]} px · will settle as positions come in</span>
+          </div>
         </div>
       </.card>
 
@@ -373,6 +396,31 @@ defmodule Controller.AxesLive do
   defp margin(a, b) do
     [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Kernel./(1) |> Float.round(1)
   end
+
+  # what the running view says it is doing right now
+  defp doing_words(%{step: {:sweep, ax, i, n}}), do: "turning #{axis_name(ax)} to position #{i} of #{n}, then a picture"
+  defp doing_words(%{step: {:capture, ax}}), do: "picture after #{axis_name(ax)} moved"
+  defp doing_words(%{step: {:move, ax}}), do: "turning #{axis_name(ax)}"
+  defp doing_words(%{step: :capture_before}), do: "first picture, before anything moves"
+  defp doing_words(%{step: :pair_fit}), do: "fitting both axes together"
+  defp doing_words(%{step: {:analyse, ax}}), do: "working out the #{axis_name(ax)} axis from what moved"
+  defp doing_words(%{step: :starting}), do: "getting the camera"
+  defp doing_words(_), do: "working"
+
+  defp axis_name(:ra), do: "RA"
+  defp axis_name(:dec), do: "Dec"
+  defp axis_name(other), do: to_string(other)
+
+  defp positions_done(%{interim: im}, axis) when is_map(im), do: (im[axis] && im[axis]["positions"]) || (if axis == "ra" and im["dec"], do: 5, else: 0)
+  defp positions_done(_, _), do: 0
+
+  defp running_axis?(%{step: {:sweep, ax, _, _}}, axis), do: Atom.to_string(ax) == axis
+  defp running_axis?(%{step: {:capture, ax}}, axis), do: Atom.to_string(ax) == axis
+  defp running_axis?(%{step: {:move, ax}}, axis), do: Atom.to_string(ax) == axis
+  defp running_axis?(_, _), do: false
+
+  defp elapsed_words(nil), do: "starting"
+  defp elapsed_words(t0), do: "#{div(System.monotonic_time(:second) - t0, 60)} min in"
 
   # one sentence per axis for the answer card; the numbers live in the details
   defp answer_across(%{"image_angle_deg" => a} = f, _), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"

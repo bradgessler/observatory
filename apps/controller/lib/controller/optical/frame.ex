@@ -28,6 +28,20 @@ defmodule Controller.Optical.Frame do
   @doc "Build a frame from a grey binary (tests, synthetic scenes)."
   def from_grey(w, h, pixels, scale \\ 1) when byte_size(pixels) == w * h, do: %{w: w, h: h, pixels: pixels, scale: scale}
 
+  @doc "The same picture on another grid (nearest neighbour): a still that came at a different size mid-scan is made to match."
+  def resample(%{w: w, h: h} = f, w, h), do: f
+
+  def resample(%{w: sw, h: sh, pixels: px, scale: scale}, w, h) do
+    pixels =
+      for y <- 0..(h - 1), x <- 0..(w - 1), into: <<>> do
+        sx = min(div(x * sw, w), sw - 1)
+        sy = min(div(y * sh, h), sh - 1)
+        <<:binary.at(px, sy * sw + sx)>>
+      end
+
+    %{w: w, h: h, pixels: pixels, scale: scale * sw / w}
+  end
+
   @doc "Pixel value at column x, row y (0 outside)."
   def at(%{w: w, h: h, pixels: px}, x, y) when x >= 0 and y >= 0 and x < w and y < h, do: :binary.at(px, y * w + x)
   def at(_, _, _), do: 0

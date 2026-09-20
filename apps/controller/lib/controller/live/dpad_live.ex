@@ -138,7 +138,7 @@ defmodule Controller.DpadLive do
     ~H"""
     <.page id="dpad" night={@night} class={@nested && "nested"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected} · Plain Keypad</.title>
         <.actions><.stop click="estop" /><.help href={~p"/docs/keypad"} label="the keypad" /></.actions>
       </:header>

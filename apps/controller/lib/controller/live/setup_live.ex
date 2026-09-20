@@ -215,7 +215,7 @@ defmodule Controller.SetupLive do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@id} · Setup</.title>
         <.actions><.help href={~p"/docs/keypad"} label="setup and modes" /></.actions>
       </:header>

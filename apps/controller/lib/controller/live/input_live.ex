@@ -116,7 +116,7 @@ defmodule Controller.InputLive do
     ~H"""
     <.page id="input" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>Game Controller</.title>
         <.actions>
           <.stop click="estop" />

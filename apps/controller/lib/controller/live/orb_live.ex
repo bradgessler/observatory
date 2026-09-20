@@ -210,7 +210,7 @@ defmodule Controller.OrbLive do
     ~H"""
     <.page id="orb" night={@night} class={if @nested, do: "orb-page nested", else: "orb-page"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected || "No Mount"} · Orb</.title>
         <.actions>
           <.help href={~p"/docs/orb"} label="the orb" />

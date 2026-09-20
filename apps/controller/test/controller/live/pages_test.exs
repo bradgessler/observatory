@@ -99,17 +99,17 @@ defmodule Controller.PagesTest do
 
   describe "home" do
     test "the front door is the flow: four steps, the current one first", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/")
+      {:ok, _view, html} = live(conn, "/start")
       for step <- ["Plug in", "Zero", "Stars 0/3", "Look"], do: assert(html =~ step)
       # a simulated mount is connected but not zeroed: step 2 is on
       assert html =~ "Zero the axes here"
       refute html =~ "Look At"
-      assert html =~ "Everything else"
+      assert html =~ "Home ›"
     end
 
     test "everything else lists every group with one line each", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/all")
-      for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Star Align", "Orb", "Bench"], do: assert(html =~ name)
+      {:ok, _view, html} = live(conn, "/")
+      for name <- ["Star Lock", "Controls", "Watch", "Plumbing", "Start", "Star Align", "Orb", "Bench"], do: assert(html =~ name)
       assert html =~ "name a few stars"
     end
   end
@@ -137,7 +137,7 @@ defmodule Controller.PagesTest do
   describe "accessibility" do
     defp routes(id) do
       [
-        "/", "/all", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
+        "/", "/start", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
         "/devices", "/devices/ports", "/input?mount=#{id}", "/bench?mount=#{id}", "/bench/sky?mount=#{id}",
         "/controls/watch", "/controls/watch/frames", "/controls/watch/camera", "/controls/watch/axes/#{id}",
         "/controls/dpad/#{id}", "/controls/nudge/#{id}", "/controls/position/#{id}", "/controls/align/#{id}",

@@ -280,7 +280,7 @@ defmodule Controller.StartLive do
       </.hint>
 
       <p class="flow-more">
-        <.link navigate={~p"/all"}>Everything else ›</.link>
+        <.link navigate={~p"/"}>Home ›</.link>
         · <.link href={~p"/docs/start"}>how this works</.link>
         · <.link navigate={~p"/events"}>events</.link>
       </p>

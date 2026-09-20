@@ -210,7 +210,7 @@ defmodule Controller.LineupLive do
     ~H"""
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected} · Star Align</.title>
         <.actions><.stop click="estop" /><.help href={~p"/docs/align"} label="star alignment" /></.actions>
       </:header>

@@ -19,6 +19,7 @@ defmodule Controller.HomeLive do
     {"Star Lock",
      "getting a mount that was set down anyhow onto the sky, and keeping it there",
      [
+       {"Start", ~p"/start", "experiment: one guided flow from plug in to looking, that locks once three stars agree", ~p"/docs/start"},
        {"Star Align", ~p"/bench/align", "name a few stars; the software works out how the mount really sits", ~p"/docs/align"},
        {"Sky", ~p"/bench/sky", "the sky right now, tonight's targets, your tree line; tap and slew", ~p"/docs/sky"},
        {"Orb", ~p"/bench/orb", "the mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"},
@@ -81,8 +82,8 @@ defmodule Controller.HomeLive do
     ~H"""
     <.page id="home" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Start" />
-        <.title>Everything</.title>
+        <span class="home-brand">Observatory</span>
+        <.title>Home</.title>
         <.actions><button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button></.actions>
       </:header>
 

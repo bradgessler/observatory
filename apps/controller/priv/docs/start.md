@@ -1,6 +1,6 @@
 # Start: from the box to looking at things
 
-The front page is a flow with four steps. It shows the step you are on and
+Start (`/start`, from the home list) is a flow with four steps. It shows the step you are on and
 moves on by itself as the telescope's state changes. Two phones see the same
 step because nothing here lives in a browser.
 

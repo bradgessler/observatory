@@ -154,7 +154,7 @@ defmodule Controller.TiltLive do
     ~H"""
     <.page id="tilt" night={@night} class={@nested && "nested"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected} · Tilt</.title>
         <.actions><.stop click="estop" /><.help href={~p"/docs/tilt"} label="tilt" /></.actions>
       </:header>

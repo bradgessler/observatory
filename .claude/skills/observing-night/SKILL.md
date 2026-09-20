@@ -18,7 +18,7 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 ## Star-align night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
-2. Power on, plug in, open `/` on the phone. It is a flow: **Plug in → Zero → Stars → Look**; it moves on by itself.
+2. Power on, plug in, open `/start` on the phone (Home › Start). It is a flow: **Plug in → Zero → Stars → Look**; it moves on by itself.
    **Zero the axes here** (mount upright: counterweight down, tube along the axis) — this arms the limits.
 3. Stars: *Slew near it* (first one is a guess — watch the cable), centre it with any control, *That's it*. Buttons grey out while a slew is in flight; wait. Three stars that agree to under half a degree **lock** the page.
 4. Locked: **Look At** › Go on Saturn / the Pleiades. Both motors hold it through the model; nudge to centre and the hold keeps where you left it. STOP on any page ends it. Setup › *How It's Steered* has the numbers (law, offsets, axis error, rates).

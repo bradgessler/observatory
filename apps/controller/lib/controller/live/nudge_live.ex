@@ -113,7 +113,7 @@ defmodule Controller.NudgeLive do
     ~H"""
     <.page id="nudge" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected} · Nudge</.title>
         <.actions><.stop /><.help href={~p"/docs/nudge"} label="nudging" /></.actions>
       </:header>

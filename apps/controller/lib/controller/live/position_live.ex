@@ -113,7 +113,7 @@ defmodule Controller.PositionLive do
     ~H"""
     <.page id="position" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>{@selected} · Position</.title>
         <.actions><.help href={~p"/docs/position"} label="position" /></.actions>
       </:header>

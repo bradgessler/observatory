@@ -38,7 +38,7 @@ defmodule Controller.EventsLive do
     ~H"""
     <.page id="events" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Start" />
+        <.back navigate={~p"/"} label="Home" />
         <.title>Events</.title>
         <.actions><.help href={~p"/docs/events"} label="events" /></.actions>
       </:header>

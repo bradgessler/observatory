@@ -212,9 +212,9 @@ defmodule Controller.AxesLive do
             <%= for {axis, colour} <- [{"ra", "var(--accent)"}, {"dec", "var(--on)"}], im[axis] do %>
               <polyline :for={t <- im[axis]["tracks"] || []} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.85" />
             <% end %>
-            <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}], f = im[axis] && im[axis]["fit"], f && f["line"] do %>
-              <line x1={f["line"] |> hd() |> hd()} y1={f["line"] |> hd() |> Enum.at(1)} x2={f["line"] |> Enum.at(1) |> hd()} y2={f["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
-              <text x={f["line"] |> Enum.at(1) |> hd()} y={(f["line"] |> Enum.at(1) |> Enum.at(1)) - 8} fill={colour} font-size={div(first["w"], 28)} font-weight="700">{name}</text>
+            <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}], f = im[axis] && im[axis]["fit"], ll = f && long_line(f, first["w"], first["h"]), ll do %>
+              <line x1={ll.x1} y1={ll.y1} x2={ll.x2} y2={ll.y2} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
+              <text x={ll.lx} y={ll.ly} fill={colour} font-size={div(first["w"], 28)} font-weight="700">{name}</text>
             <% end %>
           </svg>
         </div>
@@ -246,9 +246,10 @@ defmodule Controller.AxesLive do
             <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}] do %>
               <% pf = pair && pair[if(axis == "ra", do: "polar", else: "dec")] %>
               <% lf = if(pf && pf["line"], do: pf, else: sw[axis]["fit"]) %>
-              <%= if lf && lf["line"] do %>
-                <line x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
-                <text x={lf["line"] |> Enum.at(1) |> hd()} y={(lf["line"] |> Enum.at(1) |> Enum.at(1)) - 8} fill={colour} font-size={div(sw["ra"]["w"], 28)} font-weight="700">{name}</text>
+              <% ll = lf && long_line(lf, sw["ra"]["w"], sw["ra"]["h"]) %>
+              <%= if ll do %>
+                <line x1={ll.x1} y1={ll.y1} x2={ll.x2} y2={ll.y2} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
+                <text x={ll.lx} y={ll.ly} fill={colour} font-size={div(sw["ra"]["w"], 28)} font-weight="700">{name}</text>
               <% end %>
             <% end %>
           </svg>
@@ -396,6 +397,32 @@ defmodule Controller.AxesLive do
   defp margin(a, b) do
     [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Kernel./(1) |> Float.round(1)
   end
+
+  # The fit's projected segment can be short or off the picture (the axis point
+  # sits at an arbitrary depth): draw the axis as a long line through the
+  # segment's midpoint instead, falling back to the in-picture angle, and put
+  # the label where the line meets the picture's edge region.
+  defp long_line(%{"line" => [[x1, y1], [x2, y2]]} = f, w, h) do
+    {mx, my} = {(x1 + x2) / 2, (y1 + y2) / 2}
+    {dx, dy} = {x2 - x1, y2 - y1}
+    len = :math.sqrt(dx * dx + dy * dy)
+
+    {ux, uy} =
+      if len > 2.0 do
+        {dx / len, dy / len}
+      else
+        a = (f["image_angle_deg"] || 0.0) * :math.pi() / 180
+        {:math.cos(a), :math.sin(a)}
+      end
+
+    {mx, my} = if mx < 0 or mx > w or my < 0 or my > h, do: {w / 2, h / 2}, else: {mx, my}
+    reach = w + h
+    lx = mx + ux * w * 0.3
+    ly = my + uy * w * 0.3 - 8
+    %{x1: mx - ux * reach, y1: my - uy * reach, x2: mx + ux * reach, y2: my + uy * reach, lx: min(max(lx, 8), w - 60), ly: min(max(ly, 20), h - 8)}
+  end
+
+  defp long_line(_, _, _), do: nil
 
   # what the running view says it is doing right now
   defp doing_words(%{step: {:sweep, ax, i, n}}), do: "turning #{axis_name(ax)} to position #{i} of #{n}, then a picture"

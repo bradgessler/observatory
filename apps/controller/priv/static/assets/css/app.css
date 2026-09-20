@@ -789,3 +789,23 @@ html, body { font-size: var(--fs-3); }
 .axis .deg, .stick-face .rate-lbl { font-size: var(--fs-5); }
 .arrow { font-size: var(--fs-4); }
 .stop-mini { font-size: var(--fs-2); }
+
+/* ---- keys, calmer: a soft edge and a little lift; pressed goes flat; lit gets a faint accent edge ---- */
+button, .btn, .btn-link, .home-btn, .bench-tab, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .more-toggle, .tilt-pad, .law-key, .strip {
+  border: 1px solid var(--key-edge); box-shadow: var(--bevel);
+}
+button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed {
+  box-shadow: none; transform: translateY(1px); border-color: transparent;
+}
+button.on, .btn.on, .rate.on, .tabs .seg-opt.on, .seg-opt.on, .arrow.live, .bench-tab.on, .btn-dot.on, .law-key.on, .strip.live, .tilt-pad.live, .dpad .arrow.live {
+  box-shadow: none; border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.arrow.live, .dpad .arrow.live, .btn-dot.on, .tilt-pad.live, .strip.strip-dec.live { border-color: color-mix(in srgb, var(--on) 45%, transparent); }
+.seg-opt.seg-live.on { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.stop:active, .stop-mini:active, .stop-bar:active, .estop:active { transform: none; box-shadow: none; }
+.btn-ghost, button.ghost, .dpad-mode .ghost, .stick-foot .ghost { border-color: transparent; box-shadow: none; }
+.btn-ghost:active, button.ghost:active { transform: none; }
+button:disabled, .btn:disabled, .seg-opt:disabled { border-color: transparent; box-shadow: none; transform: none; }
+.seg, .laws { padding: 3px; gap: 3px; box-shadow: var(--bevel-in); }
+.field, .goto input, .horizon input, .ro, .bar, .auth-track { box-shadow: var(--bevel-in); }
+@media (prefers-reduced-motion: reduce) { button:active, .btn:active { transform: none; } }

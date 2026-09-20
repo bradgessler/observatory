@@ -9,12 +9,12 @@ people who may have never used a telescope.
 - **True black, tones for structure.** `--bg` is `#000`: on an OLED phone the
   ground is off. Surfaces are told apart by tone (`--panel`, `--panel2`,
   `--sunk`), never by hairlines. No borders anywhere.
-- **Keys, not buttons.** Anything you can push is a key: a raised two-tone
-  bevel (`--bevel`: light edge top-left, dark edge bottom-right) that sinks
-  when pressed (`--bevel-in`). A latched state is a lit key (`--lit`, `--lit-on`,
-  `--lit-warn`), not an outline. Fields and troughs are sunk. The look is the
-  panel of a 1970s machine room, kept calm: clear about what can be pushed,
-  quiet about everything else.
+- **Keys, not buttons.** Anything you can push is a key: a surface one step
+  lighter than the panel with a soft edge (`--key-edge`) and a little lift
+  (`--bevel`); pressed, it goes flat and dark. A latched state is a lit key
+  (`--lit`, `--lit-on`, `--lit-warn`) with a faint accent edge, not an
+  outline. Fields and troughs are sunk (`--bevel-in`). Calm and modern, and
+  still plainly something to push.
 - **One grid.** Spacing steps of 8 (`--s1` 8, `--s2` 12, `--s3` 16, `--s4` 24);
   one corner radius (`--r` 14, cards 16); page width 560 centred; headers are a
   three-column grid (back · title · actions) so every page's title sits in the
@@ -35,8 +35,10 @@ people who may have never used a telescope.
 
 - **Contrast is tested, not guessed.** `priv/static/assets/css/tokens.css`
   is the whole palette, three themes, and `test/controller/design_test.exs`
-  asserts 4.5:1 for every ink on every surface and 3:1 for a key's edge on
-  the panel. Change a colour there or nowhere.
+  asserts 4.5:1 for every ink on every surface. A key is identified by its
+  label, so its edge is soft on purpose (a lighter surface, a faint edge, a
+  little lift; flat when pressed; a faint accent edge when lit). Change a
+  colour there or nowhere.
 - **Targets ≥ 44 px, focus visible, no colour alone.** A lit key also
   changes its text; a done step also gets a ✓; a notice is `role="status"`;
   segmented controls are `radiogroup`/`radio` with `aria-checked`; the flow

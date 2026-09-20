@@ -23,11 +23,13 @@
   --on: #48d597;
   --warn: #ff5d5d;
   --amber: #e0b64a;
-  /* the key edge: light top-left, dark bottom-right; the light edge is what makes a key a key */
-  --hi: rgba(255, 255, 255, .35);
-  --lo: rgba(0, 0, 0, .75);
-  --bevel: inset 1px 1px 0 var(--hi), inset -1px -1px 0 var(--lo);
-  --bevel-in: inset 1px 1px 0 var(--lo), inset -1px -1px 0 var(--hi);
+  /* a key: a surface one step lighter than the panel, a soft edge, a little lift;
+     pressed it goes flat and dark. Calm, but plainly something to push. */
+  --key-edge: rgba(255, 255, 255, .09);
+  --hi: rgba(255, 255, 255, .05);
+  --lo: rgba(0, 0, 0, .55);
+  --bevel: inset 0 1px 0 var(--hi), 0 1px 2px var(--lo);
+  --bevel-in: inset 0 1px 2px var(--lo);
   --edge: transparent;
   --btn: var(--key);
   --btn-press: var(--key-press);
@@ -59,8 +61,9 @@
     --on: #0f6b32;
     --warn: #b42318;
     --amber: #7a5200;
-    --hi: rgba(255, 255, 255, 1);
-    --lo: rgba(20, 30, 50, .6);
+    --key-edge: rgba(20, 30, 50, .14);
+    --hi: rgba(255, 255, 255, .9);
+    --lo: rgba(20, 30, 50, .14);
     --sky1: #dfe6f3;
     --sky2: #c9d3e6;
   }
@@ -84,8 +87,9 @@
   --on: #ff7a7a;
   --warn: #ff9a9a;
   --amber: #ff7a7a;
-  --hi: rgba(255, 90, 90, .7);
-  --lo: rgba(0, 0, 0, .8);
+  --key-edge: rgba(255, 80, 80, .16);
+  --hi: rgba(255, 80, 80, .05);
+  --lo: rgba(0, 0, 0, .6);
   --sky1: #0c0000;
   --sky2: #050000;
 }

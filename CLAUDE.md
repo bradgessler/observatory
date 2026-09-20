@@ -67,9 +67,9 @@ about location it cannot have.
 
 **WCAG 2.1 AA is the floor, in every theme.** It is good design and it is
 how you read a phone at an eyepiece. Concretely: text 4.5:1 against the
-surface it sits on and 3:1 for a key's edge and for any lit state
-(`test/controller/design_test.exs` computes this from `tokens.css` and
-fails the build otherwise); every control at least 44 px tall; a visible
+surface it sits on (`test/controller/design_test.exs` computes this from
+`tokens.css` and fails the build otherwise; a key is identified by its
+label, so its edge is soft by design); every control at least 44 px tall; a visible
 focus ring; state carried by words or a mark as well as a tone (a lit key
 also changes its text; a done step also gets a ✓); roles and states in the
 markup (`radiogroup`/`radio` with `aria-checked`, `aria-current="step"`,

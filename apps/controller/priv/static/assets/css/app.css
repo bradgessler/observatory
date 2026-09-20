@@ -938,3 +938,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (min-width: 960px) {
   .page.nested > .card:only-of-type, .page > .card:only-of-type { grid-column: 1 / -1; max-width: 640px; }
 }
+
+/* ---- the scope drawing: structure dim, the tube bright, the axes in their inks ---- */
+.scope-svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.scope-svg line, .scope-svg path { stroke-linecap: round; fill: none; }
+.sc-ground { fill: var(--panel2); stroke: none; opacity: .55; }
+.sc-leg, .sc-pier { stroke: var(--dim); }
+.sc-ra { stroke: var(--accent); }
+.sc-dec { stroke: var(--on); }
+.sc-tube { stroke: var(--text); }
+.sc-aperture { fill: var(--panel); stroke: var(--text); stroke-width: 1.5; }
+.sc-weight { fill: var(--dim); stroke: none; }
+.sc-lamp { fill: var(--on); }
+.sc-spin-ra { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; opacity: .9; }
+.sc-spin-dec { stroke: var(--on); stroke-width: 2; stroke-dasharray: 5 4; opacity: .9; }
+@media (prefers-reduced-motion: no-preference) {
+  .sc-spin-ra, .sc-spin-dec { animation: sc-spin .9s linear infinite; }
+}
+@keyframes sc-spin { to { stroke-dashoffset: -18; } }

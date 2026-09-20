@@ -22,6 +22,7 @@ defmodule Controller.HomeLive do
        {"Start", ~p"/start", "Experiment: one guided flow from plug in to looking, that locks once three stars agree", ~p"/docs/start"},
        {"Star Align", ~p"/bench/align", "Name a few stars; the software works out how the mount really sits", ~p"/docs/align"},
        {"Sky", ~p"/bench/sky", "The sky right now, tonight's targets, your tree line; tap and slew", ~p"/docs/sky"},
+       {"Scope", ~p"/bench/scope", "The mount as a picture, posed from the encoders", ~p"/docs/scope"},
        {"Orb", ~p"/bench/orb", "The mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb"},
        {"Optical Axes", ~p"/controls/watch/axes", "Experiment: turn each axis a little with the camera watching, find where it pivots in the picture", ~p"/docs/axes"}
      ]},

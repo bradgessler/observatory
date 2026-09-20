@@ -16,6 +16,7 @@ defmodule Controller.BenchLive do
     {"align", "Star Align", Controller.LineupLive, "Name a few stars; the software works out how the mount really sits"},
     {"dpad", "Plain Keypad", Controller.DpadLive, "Four arrows and a rate row; the baseline"},
     {"nudge", "Nudge", Controller.NudgeLive, "Tap to move an exact 1′, 5′, 30′ or 2°; for centring"},
+    {"scope", "Scope", Controller.ScopeLive, "The mount as a picture, posed from the encoders"},
     {"orb", "Orb", Controller.OrbLive, "The mount's geometry as a 3-D gizmo, live, with strips to turn each axis"},
     {"tilt", "Tilt", Controller.TiltLive, "Hold the button, tilt the phone; for when your eye is on the eyepiece"},
     {"position", "Position", Controller.PositionLive, "Type an axis angle, go there; go home"},

@@ -12,16 +12,16 @@ defmodule Controller.BenchLive do
   alias Controller.Settings
 
   @surfaces [
-    {"strips", "Axis Strips", Controller.MountLive, "one pull-to-speed strip per mount axis; the field keypad"},
-    {"align", "Star Align", Controller.LineupLive, "name a few stars; the software works out how the mount sits"},
-    {"dpad", "Plain Keypad", Controller.DpadLive, "four arrows and a rate row; the boring one"},
-    {"nudge", "Nudge", Controller.NudgeLive, "tap to move an exact step: 1′, 5′, 30′, 2°; for centering"},
-    {"orb", "Orb", Controller.OrbLive, "the equatorial geometry as a 3-D gizmo, with analog strips"},
-    {"tilt", "Tilt", Controller.TiltLive, "eyepiece mode: hold the button, tilt the phone"},
-    {"position", "Position", Controller.PositionLive, "set an axis angle, go home; the put-it-back tool"},
-    {"gamepad", "Game Controller", Controller.InputLive, "a USB pad read by the server"},
-    {"watch", "Watch", Controller.WatchLive, "a camera on the mount, read by the server"},
-    {"sky", "Sky", Controller.SkyLive, "map, tonight's targets, horizon"}
+    {"strips", "Axis Strips", Controller.MountLive, "One pull-to-speed strip per axis; the field keypad"},
+    {"align", "Star Align", Controller.LineupLive, "Name a few stars; the software works out how the mount really sits"},
+    {"dpad", "Plain Keypad", Controller.DpadLive, "Four arrows and a rate row; the baseline"},
+    {"nudge", "Nudge", Controller.NudgeLive, "Tap to move an exact 1′, 5′, 30′ or 2°; for centring"},
+    {"orb", "Orb", Controller.OrbLive, "The mount's geometry as a 3-D gizmo, live, with strips to turn each axis"},
+    {"tilt", "Tilt", Controller.TiltLive, "Hold the button, tilt the phone; for when your eye is on the eyepiece"},
+    {"position", "Position", Controller.PositionLive, "Type an axis angle, go there; go home"},
+    {"gamepad", "Game Controller", Controller.InputLive, "A USB pad read by the server: trigger is the dead-man, the ball is speed"},
+    {"watch", "Watch", Controller.WatchLive, "The latest still, kept fresh; press Play for live video"},
+    {"sky", "Sky", Controller.SkyLive, "The sky right now, tonight's targets, your tree line; tap and slew"}
   ]
 
   @impl true

@@ -105,3 +105,8 @@
 .ss-badge.on, .ss-badge.warn, .mode-chip, .night .mode-chip { border-color: transparent; }
 .ss-axis .dot { background: var(--sunk); }
 .night .seg-opt.seg-live.on { background: var(--lit-warn); color: var(--warn); }
+/* the bench stage: a control surface stays a hand's width even on a wide screen */
+@media (min-width: 960px) {
+  .bench-stage > * { max-width: 760px; }
+  .bench-stage .page { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: 0; padding-right: 0; }
+}

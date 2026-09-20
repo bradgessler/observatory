@@ -902,3 +902,39 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes run-pulse { 50% { opacity: .4; } }
 /* the header title keeps its words; a long mount name is shortened at the source */
 .page-header .page-title { white-space: normal; overflow: visible; text-overflow: clip; text-align: center; }
+
+/* ---- desktop: the same pages, laid out for the width ----
+   A phone column in the middle of a 1200 px window is not a desktop layout.
+   From 960 px the page widens and becomes a two-column grid of cards; the
+   header, strips, hints and rows span both columns; the home list goes to
+   three columns. Nothing is designed twice: the same components, more room. */
+@media (min-width: 960px) {
+  .page { max-width: 1120px; padding-left: var(--s4); padding-right: var(--s4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); align-content: start; }
+  .page > * { grid-column: 1 / -1; min-width: 0; }
+  .page > .card { grid-column: auto; }
+  .page > .card.wide, .page > .card.lineup-status, .page > .card.state { grid-column: 1 / -1; }
+  .page.nested { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); }
+  .page.nested > * { grid-column: 1 / -1; }
+  .page.nested > .card { grid-column: auto; }
+  .page.nested > .card.lineup-status { grid-column: 1 / -1; }
+  .page-header { min-height: 56px; }
+  .page-title { font-size: var(--fs-2); }
+  .home-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-group { display: grid; gap: var(--s1); }
+  .home-lede { font-size: var(--fs-3); }
+  /* control pages: the pad in the left column, the rates and words beside it */
+  .page > .dpad, .page > .tilt-wrap, .page > .stick-wrap { grid-column: 1; }
+  .page > .rates, .page > .seg { grid-column: 1 / -1; }
+  .axes-pic img, .watch-frame img, .watch-frame video { max-height: 60vh; object-fit: contain; }
+  .flow-steps { max-width: 720px; }
+  .scope-status { max-width: 100%; }
+}
+@media (min-width: 1400px) {
+  .page { max-width: 1280px; }
+  .home-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* cards keep their content at the top when a grid row is taller than they are */
+.page .card { align-content: start; }
+@media (min-width: 960px) {
+  .page.nested > .card:only-of-type, .page > .card:only-of-type { grid-column: 1 / -1; max-width: 640px; }
+}

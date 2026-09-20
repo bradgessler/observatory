@@ -593,7 +593,7 @@ a.banner strong { color: var(--warn); }
 .flow-steps li.now { border-top-color: var(--accent); color: var(--text); font-weight: 700; }
 .flow-steps li.done { border-top-color: var(--on); color: var(--on); }
 .flow-nested .page { padding: 0; }
-.flow-modes b { color: var(--warn); }
+.flow-modes b { color: var(--amber); }
 .flow-more { margin: 8px 0 0; text-align: center; color: var(--dim); font-size: 13px; }
 .flow-more a { color: var(--dim); }
 
@@ -892,3 +892,4 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tilt-dot, .knob, .orb-svg .ax { transition: none; }
   button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed { transform: none; }
 }
+.page-header .page-title { max-width: 60%; }

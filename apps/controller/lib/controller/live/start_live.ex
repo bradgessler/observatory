@@ -308,9 +308,14 @@ defmodule Controller.StartLive do
   end
 
   defp title(:plug, _), do: "Setup"
-  defp title(:zero, id), do: "#{id} · Setup"
-  defp title(:stars, id), do: "#{id} · Star Align"
-  defp title(:look, id), do: "#{id} · Locked"
+  defp title(:zero, id), do: "#{short(id)} · Setup"
+  defp title(:stars, id), do: "#{short(id)} · Star Align"
+  defp title(:look, id), do: "#{short(id)} · Locked"
+
+  # a serial port's name is long and mostly noise in a header: keep the tail that tells cables apart
+  defp short("cu.usbserial-" <> tail), do: tail
+  defp short("ttyUSB" <> _ = id), do: id
+  defp short(id), do: id
 
   # a goto in flight, or an axis running that is not the tracker's own hold
   defp moving?(%{axes: axes}, tracker) when is_map(axes) do

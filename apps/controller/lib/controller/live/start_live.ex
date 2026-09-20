@@ -233,7 +233,7 @@ defmodule Controller.StartLive do
             <span class="dim">Holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
           </div>
           <.row>
-            <.btn variant="primary" navigate={~p"/controls/nudge/#{@selected}"}>Centre It ›</.btn>
+            <.btn variant="primary" navigate={~p"/controls/eyepiece/#{@selected}"}>Centre It ›</.btn>
             <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's Centred</.btn>
             <.btn phx-click="release">Stop Holding</.btn>
           </.row>

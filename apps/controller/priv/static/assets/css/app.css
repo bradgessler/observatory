@@ -973,3 +973,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* the drawing standing in for a camera picture */
 .watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: var(--r); }
 .watch-show { max-width: 360px; margin: 0 auto; }
+
+/* ---- the eyepiece: a field of view, drawn ---- */
+.eyepiece { display: block; width: 100%; max-width: 460px; margin: 0 auto; height: auto; }
+.ep-field { fill: var(--sunk); stroke: var(--key-edge); stroke-width: 1; }
+.ep-hair { stroke: var(--dim); stroke-width: .6; opacity: .5; }
+.ep-mark { fill: var(--dim); font-size: 8px; letter-spacing: .06em; }
+.ep-star { fill: var(--text); }
+.ep-dso { fill: none; stroke: var(--accent); stroke-width: 1.2; }
+.ep-planet { fill: var(--amber); }
+.ep-name { fill: var(--dim); font-size: 7px; }
+.ep-target { fill: none; stroke: var(--on); stroke-width: 1.6; }
+.ep-arrow { stroke: var(--on); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.dpad-eyepiece { max-width: 260px; margin: 0 auto; }

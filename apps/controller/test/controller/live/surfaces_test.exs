@@ -11,7 +11,7 @@ defmodule Controller.SurfacesTest do
   end
 
   test "every bench surface renders nested", %{conn: conn, id: id} do
-    for surface <- ~w(strips align scope dpad nudge orb tilt position gamepad watch sky) do
+    for surface <- ~w(strips align scope eyepiece dpad nudge orb tilt position gamepad watch sky) do
       {:ok, _view, html} = live(conn, "/bench/#{surface}?mount=#{id}")
       assert html =~ "bench-stage", surface
     end

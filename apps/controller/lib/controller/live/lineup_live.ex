@@ -255,7 +255,7 @@ defmodule Controller.LineupLive do
         </.row>
         <.row>
           <.btn class="btn-ghost" phx-click="pick">A Different Star ›</.btn>
-          <.btn class="btn-ghost" navigate={~p"/controls/nudge/#{@selected}"}>Centre It ›</.btn>
+          <.btn class="btn-ghost" navigate={~p"/controls/eyepiece/#{@selected}"}>Centre It ›</.btn>
         </.row>
         <.hint :if={@samples == []}>First slew is a guess. Watch the cable.</.hint>
       </.card>

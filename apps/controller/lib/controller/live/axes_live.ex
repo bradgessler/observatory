@@ -222,7 +222,7 @@ defmodule Controller.AxesLive do
             <% end %>
             <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}] do %>
               <% pf = pair && pair[if(axis == "ra", do: "polar", else: "dec")] %>
-              <% lf = pf || sw[axis]["fit"] %>
+              <% lf = if(pf && pf["line"], do: pf, else: sw[axis]["fit"]) %>
               <%= if lf && lf["line"] do %>
                 <line x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
                 <text x={lf["line"] |> Enum.at(1) |> hd()} y={(lf["line"] |> Enum.at(1) |> Enum.at(1)) - 8} fill={colour} font-size={div(sw["ra"]["w"], 28)} font-weight="700">{name}</text>

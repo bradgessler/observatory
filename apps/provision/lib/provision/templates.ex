@@ -17,45 +17,48 @@ defmodule Provision.Templates do
     %{
       id: :observatory,
       name: "Observatory",
-      blurb: "The whole thing: the mount driver, the web controller, the camera and the game pad. A telescope you plug a phone into.",
+      blurb: "A telescope you plug a phone into.",
+      parts: ["Mount", "Web", "Camera", "Pad"],
       apps: [:telescope, :mount, :controller, :watch, :video, :input],
-      wants: "A Pi 4 or 5. Video encoding is real work."
+      wants: :rpi4
     },
     %{
       id: :mount_only,
       name: "Mount Only",
-      blurb: "The driver and the cluster plumbing, no camera and no video. Small, quiet, and enough to move the telescope.",
+      blurb: "Moves the telescope. Nothing else.",
+      parts: ["Mount", "Web"],
       apps: [:telescope, :mount],
-      wants: "Any Pi, down to a Zero 2 W."
+      wants: :rpi0_2
     },
     %{
       id: :eyes,
       name: "Eyes",
-      blurb: "Camera and video only, no mount. A second box that watches a telescope driven by something else.",
+      blurb: "Watches a telescope something else is driving.",
+      parts: ["Camera", "Web"],
       apps: [:telescope, :watch, :video],
-      wants: "A Pi 4 or 5 for video; a Pi 3 does stills."
+      wants: :rpi4
     }
   ]
 
   @targets [
-    %{id: :rpi5, name: "Raspberry Pi 5"},
-    %{id: :rpi4, name: "Raspberry Pi 4"},
-    %{id: :rpi3, name: "Raspberry Pi 3"},
-    %{id: :rpi3a, name: "Raspberry Pi 3 Model A"},
-    %{id: :rpi0_2, name: "Raspberry Pi Zero 2 W"}
+    %{id: :rpi5, name: "Pi 5", note: "Fastest. Video without thinking about it."},
+    %{id: :rpi4, name: "Pi 4", note: "Enough for everything, including video."},
+    %{id: :rpi3, name: "Pi 3", note: "Stills yes, video no."},
+    %{id: :rpi3a, name: "Pi 3 Model A", note: "Smaller, one USB port."},
+    %{id: :rpi0_2, name: "Pi Zero 2 W", note: "Tiny. Mount only."}
   ]
 
   @flavours [
     %{
       id: :dev,
       name: "Development",
-      blurb: "You can get inside it: a shell over SSH, and new firmware pushed over the network so the card never comes out again.",
-      warn: "Anyone on the network who has your SSH key can open a shell on this box."
+      blurb: "A shell over SSH, and firmware pushed over the network.",
+      warn: "Anyone with your SSH key can open a shell on it."
     },
     %{
       id: :prod,
       name: "Production",
-      blurb: "Closed up: no shell, no firmware over the network, quiet logs. Re-stamp the card to change it.",
+      blurb: "No shell, no firmware over the network.",
       warn: nil
     }
   ]
@@ -122,10 +125,10 @@ defmodule Provision.Templates do
     network =
       case wifi do
         %{ssid: ssid} when is_binary(ssid) and ssid != "" ->
-          "Joins #{ssid}, and brings up its own network if that one is not there"
+          "Joins #{ssid}, or its own network if that is not there"
 
         _ ->
-          "Brings up its own network, #{opts[:ap_ssid] || "#{opts[:hostname] || "observatory"}-setup"}, for you to connect to in the field"
+          "Brings up #{opts[:ap_ssid] || "#{opts[:hostname] || "observatory"}-setup"} for you to join"
       end
 
     %{

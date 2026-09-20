@@ -25,6 +25,7 @@ defmodule Controller.Router do
     live "/controls/orb/:id", OrbLive, :show
     live "/events", EventsLive, :index
     live "/provision", ProvisionLive, :index
+    live "/provision/:step", ProvisionLive, :step
     live "/devices", DevicesLive, :index
     live "/devices/ports", PortsLive, :index
     live "/input", InputLive, :index

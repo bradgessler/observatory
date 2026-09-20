@@ -71,7 +71,7 @@ header select { background: var(--panel); border: 1px solid var(--edge); border-
 
 .empty { color: var(--dim); text-align: center; padding: 40px 12px; }
 /* a notice is a quiet line, not an alarm: panel on panel, dim text, gone in a few seconds */
-.notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--panel); color: var(--dim); border: 1px solid var(--edge); padding: 8px 14px; border-radius: var(--r); font-size: 13px; font-weight: 400; margin: 0; text-align: center; }
+.notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--panel); color: var(--dim); border: 1px solid var(--edge); padding: 8px 14px; border-radius: 14px; font-size: 13px; font-weight: 400; margin: 0; text-align: center; }
 
 /* ---- sky map ---- */
 :root { --sky1: #0b1020; --sky2: #05070d; }
@@ -284,7 +284,7 @@ a.banner strong { color: var(--warn); }
 .setting-action .btn { padding: 10px 16px; }
 .hint { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.45; display: block; }
 .hint strong { color: var(--text); font-weight: 600; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--btn); border: 1px solid var(--edge); border-radius: var(--r); padding: 14px 12px; color: var(--text); text-decoration: none; font: inherit; cursor: pointer; min-height: 44px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--btn); border: 1px solid var(--edge); border-radius: 14px; padding: 14px 12px; color: var(--text); text-decoration: none; font: inherit; cursor: pointer; min-height: 44px; }
 .btn:active { background: var(--btn-press); }
 .btn.on, .btn-primary { border-color: var(--on); color: var(--on); }
 .btn-primary { font-weight: 700; }
@@ -294,7 +294,7 @@ a.banner strong { color: var(--warn); }
 .btn:disabled { opacity: .4; }
 .badge.warn { color: var(--warn); border-color: var(--warn); }
 .row > .btn { flex: 1; }
-.field { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r); padding: 14px 12px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text); }
+.field { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 14px 12px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text); }
 .page .row { display: flex; gap: var(--s1); flex-wrap: wrap; }
 .page .row > * { flex: 1; }
 .page .row > form { display: contents; }
@@ -471,15 +471,15 @@ a.banner strong { color: var(--warn); }
 .watch-strip time { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center; background: rgba(0,0,0,.7); color: #fff; font-variant-numeric: tabular-nums; }
 
 /* ---- video feed ---- */
-.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--r); overflow: hidden; display: grid; place-items: center; }
+.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 14px; overflow: hidden; display: grid; place-items: center; }
 .video-frame video { width: 100%; height: 100%; display: block; background: #000; }
 .video-frame .hint { position: absolute; margin: 0; padding: 8px 12px; color: var(--dim); text-align: center; }
 .video-log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--dim); white-space: pre-wrap; word-break: break-all; margin: 0; }
 
 /* ---- watch: one frame, play on top ---- */
 .watch-frame { position: relative; }
-.watch-frame video, .watch-frame img { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; display: block; border-radius: var(--r); }
-.play-over { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%); border-radius: var(--r); }
+.watch-frame video, .watch-frame img { width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000; display: block; border-radius: 14px; }
+.play-over { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%); border-radius: 14px; }
 /* a plain pill that says Play; no triangle to centre */
 .play-btn { border: 2px solid #fff; border-radius: 999px; background: rgba(0,0,0,.7); color: #fff; font-size: 17px; font-weight: 700; letter-spacing: .06em; padding: 12px 26px; }
 .play-btn:active { background: rgba(255,255,255,.25); }
@@ -495,14 +495,14 @@ a.banner strong { color: var(--warn); }
 .frame-grid a.on { border-color: var(--accent); }
 .frame-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .frame-grid time { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center; background: rgba(0,0,0,.7); color: #fff; font-variant-numeric: tabular-nums; }
-.watch-empty { aspect-ratio: 16/9; display: grid; place-items: center; background: #000; border-radius: var(--r); }
+.watch-empty { aspect-ratio: 16/9; display: grid; place-items: center; background: #000; border-radius: 14px; }
 .play-over.playing { background: none; justify-content: flex-end; padding-bottom: 12px; pointer-events: none; }
 .play-over.playing > * { pointer-events: auto; }
 .play-over.playing .chips { opacity: .85; }
 .page .hint.err { color: var(--warn); }
 
 /* ---- watch: the one-line truth above the picture ---- */
-.watch-bar { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-radius: var(--r); border: 1px solid var(--edge); font-variant-numeric: tabular-nums; }
+.watch-bar { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-radius: 14px; border: 1px solid var(--edge); font-variant-numeric: tabular-nums; }
 .watch-bar b { font-size: 11px; letter-spacing: .08em; }
 .watch-bar b::before { content: "●"; margin-right: 6px; color: var(--dim); }
 .watch-bar span { font-size: 13px; color: var(--dim); }
@@ -557,10 +557,10 @@ a.banner strong { color: var(--warn); }
 .home-group > .dim { margin: 0 0 4px; font-size: 13px; }
 .home-list { display: grid; gap: 8px; }
 .home-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; }
-.home-btn { display: grid; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r); color: var(--text); text-decoration: none; }
+.home-btn { display: grid; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; color: var(--text); text-decoration: none; }
 .home-btn strong { font-size: 16px; }
 .home-btn span { color: var(--dim); font-size: 13px; line-height: 1.3; }
-.home-more { display: grid; place-items: center; width: 40px; border: 1px solid var(--edge); border-radius: var(--r); color: var(--dim); text-decoration: none; font-weight: 700; }
+.home-more { display: grid; place-items: center; width: 40px; border: 1px solid var(--edge); border-radius: 14px; color: var(--dim); text-decoration: none; font-weight: 700; }
 @media (min-width: 700px) { .home-list { grid-template-columns: 1fr 1fr; } }
 
 /* ---- events ---- */
@@ -576,7 +576,7 @@ a.banner strong { color: var(--warn); }
 @keyframes notice-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ---- optical axes ---- */
-.axes-pic { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--r); overflow: hidden; }
+.axes-pic { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 14px; overflow: hidden; }
 .axes-pic img { width: 100%; height: 100%; object-fit: fill; display: block; }
 .axes-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
 .axes-row { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--edge); font-size: 14px; }
@@ -717,7 +717,7 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 .orb-key.scope { border-left-color: var(--warn); }
 
 /* the flow strip: four keys, the current one lit, the done ones green */
-.flow-steps li { border-top: 0; background: var(--panel); border-radius: var(--r); padding: 8px 4px; }
+.flow-steps li { border-top: 0; background: var(--panel); border-radius: 14px; padding: 8px 4px; }
 .flow-steps li.now { background: var(--lit); color: var(--text); }
 .flow-steps li.done { background: var(--lit-on); color: var(--on); }
 
@@ -738,7 +738,7 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 
 /* ---- corrections: the law lit, the pole target, the authority bars ---- */
 .corr { display: grid; gap: var(--s2); }
-.laws { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: var(--r); }
+.laws { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: 14px; }
 .law-key { text-align: center; padding: 8px 4px; border-radius: 11px; font-size: 12px; color: var(--dim); background: var(--key); box-shadow: var(--bevel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .law-key b { margin-right: 4px; }
 .law-key.on { background: var(--lit); color: var(--text); box-shadow: var(--bevel-in); }
@@ -819,7 +819,7 @@ button:disabled, .btn:disabled, .seg-opt:disabled { border-color: transparent; b
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* the skip link: hidden until it has focus, then a key at the top left (2.4.1) */
-.skip { position: fixed; top: var(--s1); left: var(--s1); z-index: 100; padding: var(--s2) var(--s3); border-radius: var(--r); background: var(--key); color: var(--text); text-decoration: none; font-size: var(--fs-3); box-shadow: var(--bevel); transform: translateY(-200%); }
+.skip { position: fixed; top: var(--s1); left: var(--s1); z-index: 100; padding: var(--s2) var(--s3); border-radius: 14px; background: var(--key); color: var(--text); text-decoration: none; font-size: var(--fs-3); box-shadow: var(--bevel); transform: translateY(-200%); }
 .skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--accent); outline-offset: 2px; }
 .skip-target { position: absolute; width: 0; height: 0; overflow: hidden; }
 .skip-target:focus { outline: none; }
@@ -880,7 +880,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .object .facts dd, .object .facts dt { margin: 0; }
 
 /* a button that reads as a link, for the small in-text actions that change state without leaving the page */
-.linklike { background: none; border: 0; box-shadow: none; padding: 0 var(--s1); min-height: 44px; min-width: 44px; color: inherit; text-decoration: underline; font-size: inherit; font-weight: inherit; border-radius: var(--r); cursor: pointer; }
+.linklike { background: none; border: 0; box-shadow: none; padding: 0 var(--s1); min-height: 44px; min-width: 44px; color: inherit; text-decoration: underline; font-size: inherit; font-weight: inherit; border-radius: 14px; cursor: pointer; }
 .linklike:active { background: none; box-shadow: none; transform: none; }
 
 /* a pressed pad button says so, not just by colour (1.4.1) */
@@ -961,7 +961,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .home-scopes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s2); }
 .scope-badge { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: center; padding: var(--s2); background: var(--panel); border: 1px solid var(--key-edge); border-radius: var(--r-lg); color: var(--text); text-decoration: none; min-width: 0; }
 .sb-pic { display: grid; place-items: center; }
-.sb-blank { display: block; width: 104px; height: 88px; background: var(--sunk); border-radius: var(--r); box-shadow: var(--bevel-in); }
+.sb-blank { display: block; width: 104px; height: 88px; background: var(--sunk); border-radius: 14px; box-shadow: var(--bevel-in); }
 .sb-text { display: grid; gap: 2px; min-width: 0; }
 .sb-text strong { font-size: var(--fs-3); overflow: hidden; text-overflow: ellipsis; }
 .sb-state { font-size: var(--fs-2); color: var(--dim); }
@@ -971,7 +971,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sb-sim { font-size: var(--fs-1); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
 @media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
 /* the drawing standing in for a camera picture */
-.watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: var(--r); }
+.watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: 14px; }
 .watch-show { max-width: 360px; margin: 0 auto; }
 
 /* ---- the eyepiece: a field of view, drawn ---- */
@@ -1001,7 +1001,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .job-bar { position: relative; height: 20px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: 10px; overflow: hidden; }
 .job-bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width .3s ease; }
 .job-bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--fs-1); color: var(--text); font-variant-numeric: tabular-nums; }
-.job-log { background: var(--sunk); border-radius: var(--r); padding: var(--s2); }
+.job-log { background: var(--sunk); border-radius: 14px; padding: var(--s2); }
 .job-log summary { color: var(--dim); font-size: var(--fs-2); cursor: pointer; }
 .job-log pre { margin: var(--s1) 0 0; font-size: var(--fs-1); color: var(--dim); white-space: pre-wrap; word-break: break-word; max-height: 12rem; overflow-y: auto; }
 /* the box's details: fields wide enough to read what you typed */
@@ -1013,3 +1013,105 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .seg-5, .seg-6 { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
 /* a card is as tall as its contents, not as tall as the row it sits in */
 @media (min-width: 960px) { .page > .card { align-self: start; } }
+
+/* ── Picks ──────────────────────────────────────────────────────────────────
+   One option per row, because an option that needs a reason cannot live in a
+   segmented control. The chosen row is lit rather than outlined: tones, not
+   hairlines. Whole row is the target, so a thumb in the dark cannot miss. */
+.picks { display: grid; gap: 6px; }
+
+.pick {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: var(--key);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: var(--bevel);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pick:active { background: var(--key-press); box-shadow: var(--bevel-in); }
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pick.on { background: var(--lit); box-shadow: var(--bevel-in); }
+
+.pick-mark {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--sunk);
+  /* a faint ring, or an unlit mark on a black ground reads as nothing at all */
+  box-shadow: var(--bevel-in), inset 0 0 0 1px var(--key-edge);
+}
+
+.pick.on .pick-mark {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 4px var(--lit);
+}
+
+.pick-text { min-width: 0; display: grid; gap: 2px; }
+.pick-text strong { font-size: var(--fs-3); font-weight: 600; }
+.pick-text .dim { font-size: var(--fs-2); color: var(--dim); }
+.pick.on .pick-text .dim { color: var(--text); opacity: .75; }
+
+.pick-tag {
+  font-size: var(--fs-1);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--on);
+  white-space: nowrap;
+}
+
+/* What is on the box, as things you can count rather than a sentence. */
+.parts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+.part {
+  font-size: var(--fs-1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sunk);
+  box-shadow: var(--bevel-in);
+  color: var(--dim);
+}
+
+.pick.on .part { color: var(--text); }
+
+/* A five-step strip for the stamping flow. */
+.flow-steps.flow-5 { grid-template-columns: repeat(5, 1fr); }
+
+@media (max-width: 480px) {
+  .flow-steps.flow-5 li { font-size: var(--fs-1); }
+}
+
+/* Nothing to choose from yet: say so once, in the middle, and stop. */
+.empty { padding: var(--s4) 0; text-align: center; }
+.empty p { font-size: var(--fs-4); color: var(--text); margin: 0 0 var(--s1); }
+.empty .hint { font-size: var(--fs-2); max-width: 34ch; margin-inline: auto; }
+
+/* ── A flow page ────────────────────────────────────────────────────────────
+   A screen that asks one thing does not want a two-column grid with an empty
+   half. One column, centred, the same at every width: the choices stay where
+   the eye already is instead of hugging a corner of a wide window. */
+@media (min-width: 960px) {
+  .page.flow { max-width: 620px; grid-template-columns: minmax(0, 1fr); }
+  .page.flow > .card, .page.flow > .card:only-of-type { grid-column: 1 / -1; max-width: none; }
+  .page.flow .flow-steps { max-width: none; }
+}
+
+/* one key, its own size, at the end of the line rather than across it */
+.flow-next { display: flex; justify-content: flex-end; }
+.flow-next .btn { min-width: 180px; }
+
+/* On a phone the tag would squeeze the reason into a column of single words.
+   Put it under the text instead, where it still reads as a note on the row. */
+@media (max-width: 520px) {
+  .pick { grid-template-columns: 18px 1fr; }
+  .pick-tag { grid-column: 2; margin-top: 2px; }
+}

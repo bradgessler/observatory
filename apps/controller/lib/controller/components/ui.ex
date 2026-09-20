@@ -282,6 +282,74 @@ defmodule Controller.Components.UI do
     """
   end
 
+  @doc """
+  A choice made by tapping the choice itself.
+
+  A segmented control is fine for three short words (Off / Slow / Fast). It is
+  the wrong shape the moment an option needs a name *and* a reason, because the
+  reason has nowhere to go and the names get cut off. So: one full-width row
+  per option, the name, what it means, and a mark on the one that is chosen.
+  Big enough to hit with a thumb in the dark, and it reads as a list rather
+  than a row of buttons fighting each other.
+
+      <.picks label="which machine">
+        <:pick :for={t <- targets} on={@target == t.id} click="target" value={%{id: t.id}}
+               name={t.name} note={t.note} />
+      </.picks>
+  """
+  attr :label, :string, required: true
+  attr :class, :string, default: nil
+
+  slot :pick, required: true do
+    attr :name, :string, required: true
+    attr :note, :string
+    attr :tag, :string, doc: "a short word on the right, e.g. Suggested"
+    attr :on, :boolean
+    attr :click, :string
+    attr :value, :map
+    attr :navigate, :string
+    attr :patch, :string
+  end
+
+  def picks(assigns) do
+    ~H"""
+    <div class={["picks", @class]} role="radiogroup" aria-label={@label}>
+      <button
+        :for={p <- @pick}
+        type="button"
+        role="radio"
+        aria-checked={to_string(p[:on] || false)}
+        class={["pick", (p[:on] || false) && "on"]}
+        phx-click={p[:click]}
+        phx-value-id={p[:value] && p[:value][:id]}
+      >
+        <span class="pick-mark" aria-hidden="true"></span>
+        <span class="pick-text">
+          <strong>{p.name}</strong>
+          <span :if={p[:note]} class="dim">{sentence(p[:note])}</span>
+          <%!-- a self-closing option has no block at all --%>
+          {if p[:inner_block], do: render_slot(p)}
+        </span>
+        <span :if={p[:tag]} class="pick-tag">{p[:tag]}</span>
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
+  What is on a box, as things rather than a sentence. Four words in a row of
+  small tone chips says "mount, web, camera, pad" faster than a clause does.
+  """
+  attr :parts, :list, required: true
+
+  def parts(assigns) do
+    ~H"""
+    <span class="parts">
+      <span :for={p <- @parts} class="part">{p}</span>
+    </span>
+    """
+  end
+
   @doc "A list of `<.item as=\"li\">` rows: a real list, so its length and position are announced."
   attr :label, :string, default: nil
   attr :class, :string, default: nil

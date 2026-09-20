@@ -1,21 +1,28 @@
 defmodule Controller.ProvisionLive do
   @moduledoc """
-  Stamping a box: put a card in, say what the box is for, give it a network,
-  and write it.
+  Stamping a box, one decision at a time.
 
-  The page is a running commentary. Writing a card takes minutes and a first
-  build takes ten, so at every moment it says which step it is on, what that
-  step is doing right now, and what the tools themselves are saying. A person
-  should never have to wonder whether it is working or wedged.
+  Five screens, each asking one thing: which card, what the box is for, which
+  machine, how you reach it, and then writing it. Cramming those onto a page
+  produces a wall of choices where none of them look important; split up, each
+  screen has room for the option to say what it means, and a phone can show it
+  without a pinch.
 
-  It also refuses to be dangerous: only removable disks are ever listed, the
-  card is checked again immediately before the write, and the card's contents
-  are spelled out before anything happens.
+  State lives in the LiveView and the screens are `push_patch`es, so moving
+  between them is instant and nothing is lost going back. The URL is the step,
+  so Back in the browser does the obvious thing.
+
+  It refuses to be dangerous: only removable disks are ever listed, the card is
+  checked again in the moment before writing, and the card is named in the
+  confirmation.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
   alias Controller.Settings
+  alias Provision.Templates
+
+  @steps [card: "Card", role: "Job", machine: "Machine", network: "Network", write: "Write"]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -28,12 +35,12 @@ defmodule Controller.ProvisionLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Stamp a Box",
        night: Settings.get("night", false),
        disks: [],
        disk: nil,
        template: :observatory,
        target: :rpi4,
+       touched_target: false,
        flavour: :prod,
        hostname: "observatory",
        wifi_ssid: "",
@@ -43,6 +50,18 @@ defmodule Controller.ProvisionLive do
        notice: nil
      )}
   end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    step = step_of(params["step"])
+    {:noreply, assign(socket, step: step, page_title: "Stamp · " <> step_title(step))}
+  end
+
+  defp step_of(s) when is_binary(s) do
+    Enum.find_value(@steps, :card, fn {id, _} -> if to_string(id) == s, do: id end)
+  end
+
+  defp step_of(_), do: :card
 
   @impl true
   def handle_info(:rescan, socket) do
@@ -57,11 +76,37 @@ defmodule Controller.ProvisionLive do
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
+  # -- choices ---------------------------------------------------------------------------
+  # Tapping a choice is also the way forward: an option that needs confirming
+  # with a second key is an option asked twice.
+
   @impl true
-  def handle_event("pick", %{"disk" => id}, socket), do: {:noreply, assign(socket, disk: id)}
-  def handle_event("template", %{"id" => id}, socket), do: {:noreply, assign(socket, template: String.to_existing_atom(id))}
-  def handle_event("target", %{"id" => id}, socket), do: {:noreply, assign(socket, target: String.to_existing_atom(id))}
-  def handle_event("flavour", %{"id" => id}, socket), do: {:noreply, assign(socket, flavour: String.to_existing_atom(id))}
+  def handle_event("pick", %{"disk" => id}, socket) do
+    {:noreply, socket |> assign(disk: id) |> to_step(:role)}
+  end
+
+  def handle_event("template", %{"id" => id}, socket) do
+    template = String.to_existing_atom(id)
+
+    # the machine follows the job unless a person has said otherwise
+    socket =
+      if socket.assigns.touched_target,
+        do: socket,
+        else: assign(socket, target: Templates.get(template).wants)
+
+    {:noreply, socket |> assign(template: template) |> to_step(:machine)}
+  end
+
+  def handle_event("target", %{"id" => id}, socket) do
+    {:noreply,
+     socket
+     |> assign(target: String.to_existing_atom(id), touched_target: true)
+     |> to_step(:network)}
+  end
+
+  def handle_event("flavour", %{"id" => id}, socket) do
+    {:noreply, assign(socket, flavour: String.to_existing_atom(id))}
+  end
 
   def handle_event("details", params, socket) do
     {:noreply,
@@ -71,6 +116,8 @@ defmodule Controller.ProvisionLive do
        wifi_psk: params["wifi_psk"] || socket.assigns.wifi_psk
      )}
   end
+
+  def handle_event("go", %{"step" => step}, socket), do: {:noreply, to_step(socket, step_of(step))}
 
   def handle_event("start", _, socket) do
     a = socket.assigns
@@ -95,150 +142,260 @@ defmodule Controller.ProvisionLive do
     {:noreply, socket}
   end
 
+  defp to_step(socket, step), do: push_patch(socket, to: ~p"/provision/#{step}")
+
   # -- render ----------------------------------------------------------------------------
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, plan: Provision.Templates.describe(plan_opts(assigns)))
-
     ~H"""
-    <.page id="provision" night={@night}>
+    <.page id="provision" class="flow" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>Stamp a Box</.title>
+        <.back navigate={back_to(@step)} label={back_label(@step)} />
+        <.title>{step_title(@step)}</.title>
         <.actions><.help href={~p"/docs/provision"} label="stamping a box" /></.actions>
       </:header>
 
-      <.hint :if={@ready != :ok} class="err" role="alert">{elem(@ready, 1)}</.hint>
-
-      <%= if @job.running or @job.done or @job.error do %>
-        <.card title={if @job.running, do: "Working", else: "Finished"} class="wide">
-          <:aside>
-            <span role="status" aria-live="polite">
-              <.badge on={@job.done} warn={@job.error != nil}>{overall(@job)}</.badge>
-            </span>
-          </:aside>
-
-          <%!-- every step, with what it is doing right now --%>
-          <ol class="job-steps">
-            <li :for={{id, label} <- @job.order} class={step_class(@job.steps[id])}>
-              <span class="job-mark" aria-hidden="true">{mark(@job.steps[id])}</span>
-              <span class="job-text">
-                <strong>{label}</strong>
-                <span :if={@job.steps[id].detail} class="dim">{@job.steps[id].detail}</span>
-              </span>
-            </li>
-          </ol>
-
-          <div :if={@job.percent} class="job-bar" role="progressbar" aria-valuenow={@job.percent} aria-valuemin="0" aria-valuemax="100">
-            <i style={"width: #{@job.percent}%"}></i>
-            <span>{@job.percent}%</span>
-          </div>
-
-          <%!-- what the tools themselves are saying, so ten quiet minutes still look alive --%>
-          <details :if={@job.log != []} class="job-log" open={@job.running}>
-            <summary>What the tools are saying</summary>
-            <pre>{@job.log |> Enum.take(12) |> Enum.reverse() |> Enum.join("\n")}</pre>
-          </details>
-
-          <.hint :if={@job.error} class="err" role="alert">{@job.error}</.hint>
-
-          <.hint :if={@job.done}>
-            Put the card in the Pi and power it up. It answers at
-            <strong>{@hostname}.local</strong> once it has booted, which takes about half a minute.
-          </.hint>
-
-          <.row>
-            <.btn :if={@job.running} phx-click="cancel" data-confirm="Stop now? The card will be half written and must be done again.">Stop</.btn>
-            <.btn :if={!@job.running} navigate={~p"/provision"}>Stamp Another</.btn>
-          </.row>
-        </.card>
+      <%= if working?(@job) do %>
+        <.job job={@job} hostname={@hostname} />
       <% else %>
-        <%!-- 1. the card --%>
-        <.card title="The Card">
-          <.hint>
-            Only removable disks are listed, so this page cannot offer you the machine's own drive.
-            Everything on the card you choose will be erased.
-          </.hint>
+        <ol class="flow-steps flow-5" aria-label="stamping steps">
+          <li :for={{id, label} <- steps()} class={state(id, @step)} aria-current={if id == @step, do: "step"}>
+            {label}<span :if={state(id, @step) == "done"} role="img" aria-label="done"> ✓</span>
+          </li>
+        </ol>
 
-          <.item :for={d <- @disks} label={d.name} detail={"#{d.size} · #{d.id}#{if d.mounted != [], do: " · mounted at #{Enum.join(d.mounted, ", ")}"}"}>
-            <.btn variant={if @disk == d.id, do: "primary", else: "default"} phx-click="pick" phx-value-disk={d.id}>
-              {if @disk == d.id, do: "Chosen", else: "Choose"}
-            </.btn>
-          </.item>
+        <.hint :if={@ready != :ok} class="err" role="alert">{elem(@ready, 1)}</.hint>
 
-          <.hint :if={@disks == []}>No card or drive is plugged in. Put one in and it appears here.</.hint>
-        </.card>
-
-        <%!-- 2. what the box is for --%>
-        <.card title="What This Box Is For">
-          <.item :for={t <- Provision.templates()} label={t.name} detail={t.blurb}>
-            <.btn variant={if @template == t.id, do: "primary", else: "default"} phx-click="template" phx-value-id={t.id}>
-              {if @template == t.id, do: "Chosen", else: "Choose"}
-            </.btn>
-          </.item>
-
-          <.hint>{Provision.Templates.get(@template).wants}</.hint>
-
-          <.seg label="which machine">
-            <:opt :for={t <- Provision.targets()} on={@target == t.id} click="target" value={%{id: t.id}}>{t.name}</:opt>
-          </.seg>
-
-          <.seg label="how open the box is">
-            <:opt :for={f <- Provision.Templates.flavours()} on={@flavour == f.id} click="flavour" value={%{id: f.id}}>{f.name}</:opt>
-          </.seg>
-
-          <.hint>{Provision.Templates.flavour(@flavour).blurb}</.hint>
-          <.hint :if={Provision.Templates.flavour(@flavour).warn} class="err">{Provision.Templates.flavour(@flavour).warn}</.hint>
-        </.card>
-
-        <%!-- 3. how it gets on a network --%>
-        <.card title="How It Gets On A Network">
-          <.hint>
-            Give it your Wi-Fi and it joins that. Leave it blank and it brings up a network of
-            its own, which is how you reach it in a field with no signal. Either way it falls
-            back to its own network when yours is not there, so a box is never unreachable.
-          </.hint>
-
-          <form phx-change="details" class="box-details" aria-label="box details">
-            <label>Name<input name="hostname" type="text" autocomplete="off" value={@hostname} class="field" /></label>
-            <label>Wi-Fi network<input name="wifi_ssid" type="text" autocomplete="off" value={@wifi_ssid} class="field" placeholder="leave blank for its own" /></label>
-            <label>Wi-Fi password<input name="wifi_psk" type="password" autocomplete="off" value={@wifi_psk} class="field" /></label>
-          </form>
-
-          <.kv label="Reaches" value={"#{@hostname}.local, and its own network when yours is not there"} />
-        </.card>
-
-        <%!-- 4. do it --%>
-        <.card title="Write It">
-          <div class="state-line">
-            <strong>{@plan.template} · {@plan.target} · {@plan.flavour}</strong>
-            <span class="dim">{@plan.network}</span>
-          </div>
-
-          <.hint :if={@disk}>
-            <strong>Everything on {@disk} will be erased.</strong>
-            The first build of a machine takes about ten minutes; after that it is about two.
-          </.hint>
-
-          <.hint>Writing to a card needs administrator rights. If nothing happens, run <code>sudo -v</code> in a terminal once and try again.</.hint>
-
-          <.row>
-            <.btn
-              variant="primary"
-              phx-click="start"
-              disabled={is_nil(@disk) or @ready != :ok}
-              data-confirm={"Erase everything on #{@disk} and write a new Observatory onto it?"}
-            >
-              {if @disk, do: "Write It", else: "Choose a card first"}
-            </.btn>
-          </.row>
-        </.card>
+        {step_card(assigns)}
       <% end %>
 
       <.notice notice={@notice} />
     </.page>
     """
+  end
+
+  defp steps, do: @steps
+
+  defp working?(job), do: job.running or job.done or job.error != nil
+
+  # -- one screen per decision -------------------------------------------------------------
+
+  # 1. The card. Nothing else on this screen: the one thing that gets erased
+  # deserves a page where it is the only thing you are looking at.
+  defp step_card(%{step: :card} = assigns) do
+    ~H"""
+    <.card>
+      <.picks :if={@disks != []} label="which card">
+        <:pick
+          :for={d <- @disks}
+          on={@disk == d.id}
+          click="pick"
+          value={%{id: d.id}}
+          name={d.name}
+          note={"#{d.size} · #{d.id}"}
+          tag={if d.mounted != [], do: "Mounted"}
+        />
+      </.picks>
+
+      <div :if={@disks == []} class="empty">
+        <p>Nothing plugged in.</p>
+        <.hint>Put in a card or a drive. Built-in drives never appear.</.hint>
+      </div>
+
+      <.hint :if={@disks != []}>Everything on the card you pick is erased.</.hint>
+    </.card>
+    """
+  end
+
+  # 2. What it is for. Three jobs, each showing the parts it puts on the box.
+  defp step_card(%{step: :role} = assigns) do
+    ~H"""
+    <.card>
+      <.picks label="what the box is for">
+        <:pick :for={t <- Provision.templates()} on={@template == t.id} click="template" value={%{id: t.id}} name={t.name} note={t.blurb}>
+          <.parts parts={t.parts} />
+        </:pick>
+      </.picks>
+    </.card>
+    """
+  end
+
+  # 3. The machine. Five rows, the one that suits the job already chosen.
+  defp step_card(%{step: :machine} = assigns) do
+    ~H"""
+    <.card>
+      <.picks label="which machine">
+        <:pick
+          :for={t <- Provision.targets()}
+          on={@target == t.id}
+          click="target"
+          value={%{id: t.id}}
+          name={t.name}
+          note={t.note}
+          tag={if t.id == Templates.get(@template).wants, do: "Suits #{Templates.get(@template).name}"}
+        />
+      </.picks>
+    </.card>
+    """
+  end
+
+  # 4. How you reach it: its name, your Wi-Fi, and whether the door is open.
+  defp step_card(%{step: :network} = assigns) do
+    ~H"""
+    <.card title="Reaching It">
+      <form phx-change="details" class="box-details" aria-label="name and network">
+        <label>
+          Name
+          <input name="hostname" type="text" autocomplete="off" value={@hostname} class="field" />
+        </label>
+        <label>
+          Wi-Fi network
+          <input name="wifi_ssid" type="text" autocomplete="off" value={@wifi_ssid} class="field" placeholder="Leave blank" />
+        </label>
+        <label>
+          Wi-Fi password
+          <input name="wifi_psk" type="password" autocomplete="off" value={@wifi_psk} class="field" />
+        </label>
+      </form>
+
+      <.kv label="Answers at" value={"#{@hostname}.local"} />
+      <.kv label="Otherwise" value={"Brings up #{@hostname}-setup for you to join"} />
+    </.card>
+
+    <.card title="The Door">
+      <.picks label="how open the box is">
+        <:pick :for={f <- Templates.flavours()} on={@flavour == f.id} click="flavour" value={%{id: f.id}} name={f.name} note={f.blurb} />
+      </.picks>
+
+      <.hint :if={Templates.flavour(@flavour).warn} class="err">{Templates.flavour(@flavour).warn}</.hint>
+    </.card>
+
+    <.row class="flow-next">
+      <.btn variant="primary" phx-click="go" phx-value-step="write">Next</.btn>
+    </.row>
+    """
+  end
+
+  # 5. What is about to happen, then the one key that does it.
+  defp step_card(%{step: :write} = assigns) do
+    assigns = assign(assigns, plan: Templates.describe(plan_opts(assigns)))
+
+    ~H"""
+    <.card>
+      <.kv label="Card" value={card_words(@disks, @disk)} />
+      <.kv label="Box" value={"#{@plan.template} on a #{@plan.target}"} />
+      <.kv label="Door" value={@plan.flavour} />
+      <.kv label="Network" value={@plan.network} />
+
+      <.hint :if={@disk} class="err">Everything on {@disk} is erased.</.hint>
+      <.hint :if={is_nil(@disk)}>No card chosen yet.</.hint>
+
+      <.row>
+        <.btn
+          variant="primary"
+          phx-click="start"
+          disabled={is_nil(@disk) or @ready != :ok}
+          data-confirm={"Erase everything on #{@disk} and write a new Observatory onto it?"}
+        >
+          Write It
+        </.btn>
+        <.btn patch={~p"/provision/card"}>Change the card</.btn>
+      </.row>
+    </.card>
+
+    <.hint>A first build of a machine takes about ten minutes. After that, about two.</.hint>
+    """
+  end
+
+  # -- while it works ----------------------------------------------------------------------
+
+  attr :job, :map, required: true
+  attr :hostname, :string, required: true
+
+  defp job(assigns) do
+    ~H"""
+    <.card title={if @job.running, do: "Working", else: "Finished"} class="wide">
+      <:aside>
+        <span role="status" aria-live="polite">
+          <.badge on={@job.done} warn={@job.error != nil}>{overall(@job)}</.badge>
+        </span>
+      </:aside>
+
+      <ol class="job-steps">
+        <li :for={{id, label} <- @job.order} class={step_class(@job.steps[id])}>
+          <span class="job-mark" aria-hidden="true">{mark(@job.steps[id])}</span>
+          <span class="job-text">
+            <strong>{label}</strong>
+            <span :if={@job.steps[id].detail} class="dim">{@job.steps[id].detail}</span>
+          </span>
+        </li>
+      </ol>
+
+      <div :if={@job.percent} class="job-bar" role="progressbar" aria-valuenow={@job.percent} aria-valuemin="0" aria-valuemax="100">
+        <i style={"width: #{@job.percent}%"}></i>
+        <span>{@job.percent}%</span>
+      </div>
+
+      <%!-- ten quiet minutes look wedged unless the tools keep talking --%>
+      <details :if={@job.log != []} class="job-log" open={@job.running}>
+        <summary>What the tools are saying</summary>
+        <pre>{@job.log |> Enum.take(12) |> Enum.reverse() |> Enum.join("\n")}</pre>
+      </details>
+
+      <.hint :if={@job.error} class="err" role="alert">{@job.error}</.hint>
+
+      <.hint :if={@job.done}>
+        Put the card in and power it up. It answers at <strong>{@hostname}.local</strong> in about half a minute.
+      </.hint>
+
+      <.row>
+        <.btn :if={@job.running} phx-click="cancel" data-confirm="Stop now? The card will be half written and must be done again.">Stop</.btn>
+        <.btn :if={!@job.running} patch={~p"/provision/card"}>Stamp Another</.btn>
+      </.row>
+    </.card>
+    """
+  end
+
+  # -- words -------------------------------------------------------------------------------
+
+  defp step_title(:card), do: "The Card"
+  defp step_title(:role), do: "What It Does"
+  defp step_title(:machine), do: "The Machine"
+  defp step_title(:network), do: "The Network"
+  defp step_title(:write), do: "Write It"
+
+  defp back_to(:card), do: ~p"/"
+  defp back_to(:role), do: ~p"/provision/card"
+  defp back_to(:machine), do: ~p"/provision/role"
+  defp back_to(:network), do: ~p"/provision/machine"
+  defp back_to(:write), do: ~p"/provision/network"
+
+  defp back_label(:card), do: "Home"
+  defp back_label(step), do: step_title(prev(step))
+
+  defp prev(:role), do: :card
+  defp prev(:machine), do: :role
+  defp prev(:network), do: :machine
+  defp prev(:write), do: :network
+
+  defp state(id, now) do
+    order = Keyword.keys(@steps)
+    i = Enum.find_index(order, &(&1 == id))
+    j = Enum.find_index(order, &(&1 == now))
+
+    cond do
+      i == j -> "now"
+      i < j -> "done"
+      true -> ""
+    end
+  end
+
+  defp card_words(disks, id) do
+    case Enum.find(disks, &(&1.id == id)) do
+      nil -> "None chosen"
+      d -> "#{d.name}, #{d.size}, #{d.id}"
+    end
   end
 
   defp plan_opts(a),

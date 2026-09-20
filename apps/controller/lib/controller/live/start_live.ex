@@ -109,6 +109,7 @@ defmodule Controller.StartLive do
 
     assign(socket,
       step: step,
+      page_title: "Start · " <> title(step, id),
       status: status,
       targets: targets,
       tracker: id && Tracker.status(id),
@@ -190,12 +191,12 @@ defmodule Controller.StartLive do
         <.title>{title(@step, @selected)}</.title>
         <.actions>
           <.stop />
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </.actions>
       </:header>
 
       <ol class="flow-steps" aria-label="setup steps">
-        <li :for={{key, label} <- steps(@status)} class={state(key, @step)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step) == "done"} aria-label="done"> ✓</span></li>
+        <li :for={{key, label} <- steps(@status)} class={state(key, @step)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step) == "done"} role="img" aria-label="done"> ✓</span></li>
       </ol>
 
       <%!-- the scope's live state, one line, on every step that has a scope --%>
@@ -247,9 +248,11 @@ defmodule Controller.StartLive do
         </.card>
 
         <.card title="Look At">
-          <.item :for={t <- @targets} label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
-            <.btn variant="primary" phx-click="go" phx-value-id={t.id}>Go</.btn>
-          </.item>
+          <.items :if={@targets != []} label="tonight's targets">
+            <.item :for={t <- @targets} as="li" label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
+              <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go to #{t.name}"}>Go</.btn>
+            </.item>
+          </.items>
           <.hint :if={@targets == []}>Nothing up right now.</.hint>
           <.row>
             <.btn navigate={~p"/sky/#{@selected}"}>Whole sky ›</.btn>

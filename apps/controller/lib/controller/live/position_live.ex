@@ -59,7 +59,7 @@ defmodule Controller.PositionLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap)
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Position")
   end
 
   @impl true
@@ -73,7 +73,8 @@ defmodule Controller.PositionLive do
     with %{axes: axes} <- socket.assigns.snap, {t, _} <- Float.parse(target) do
       {:noreply, run(socket, &Mount.goto_relative(&1, axis, t - axes[axis].degrees))}
     else
-      _ -> {:noreply, assign(socket, notice: "degrees?")}
+      nil -> {:noreply, assign(socket, notice: "no mount")}
+      _ -> {:noreply, assign(socket, notice: "#{String.upcase(to_string(axis))} target must be a number of degrees, like 12.5 or -30")}
     end
   end
 
@@ -114,26 +115,27 @@ defmodule Controller.PositionLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Position</.title>
-        <.actions><.help href={~p"/docs/keypad"} /></.actions>
+        <.actions><.help href={~p"/docs/position"} label="position" /></.actions>
       </:header>
 
       <.card title="Axes, Degrees From Zero">
-        <form phx-change="targets" class="pos-grid">
-          <span class="pos-k">RA</span>
-          <span class="pos-now">{if @snap && @snap.axes[:ra], do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
-          <input name="ra" inputmode="decimal" value={@ra_target} class="field" aria-label="RA target degrees" />
-          <.btn type="button" phx-click="go" phx-value-axis="ra">Go</.btn>
+        <%!-- typing only stores the target; Go is a separate key (3.2.2) --%>
+        <form phx-change="targets" class="pos-grid" aria-label="axis targets">
+          <label for="pos-ra" class="pos-k">RA</label>
+          <span class="pos-now" aria-label="RA now">{if @snap && @snap.axes[:ra], do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
+          <input id="pos-ra" name="ra" type="text" inputmode="decimal" autocomplete="off" value={@ra_target} class="field" aria-label="RA target, degrees from zero" />
+          <.btn type="button" phx-click="go" phx-value-axis="ra" aria-label="Go to the RA target">Go</.btn>
 
-          <span class="pos-k">Dec</span>
-          <span class="pos-now">{if @snap && @snap.axes[:dec], do: fmt(@snap.axes.dec.degrees), else: "—"}</span>
-          <input name="dec" inputmode="decimal" value={@dec_target} class="field" aria-label="Dec target degrees" />
-          <.btn type="button" phx-click="go" phx-value-axis="dec">Go</.btn>
+          <label for="pos-dec" class="pos-k">Dec</label>
+          <span class="pos-now" aria-label="Dec now">{if @snap && @snap.axes[:dec], do: fmt(@snap.axes.dec.degrees), else: "—"}</span>
+          <input id="pos-dec" name="dec" type="text" inputmode="decimal" autocomplete="off" value={@dec_target} class="field" aria-label="Dec target, degrees from zero" />
+          <.btn type="button" phx-click="go" phx-value-axis="dec" aria-label="Go to the Dec target">Go</.btn>
         </form>
         <.row>
           <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0°?">Back to zero (0°, 0°)</.btn>
           <.btn :if={!@nested} phx-click="stop">Stop</.btn>
         </.row>
-        <.hint>Zero is where the axes were zeroed — counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>
+        <.hint>Zero is where the axes were zeroed: counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>
       </.card>
 
       <.notice notice={@notice} />

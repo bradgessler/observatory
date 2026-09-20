@@ -43,7 +43,8 @@ defmodule Controller.BenchLive do
   @impl true
   def handle_params(params, _uri, socket) do
     surface = if Enum.any?(@surfaces, fn {k, _, _, _} -> k == params["surface"] end), do: params["surface"], else: "strips"
-    {:noreply, assign(socket, surface: surface, selected: params["mount"] || socket.assigns.selected)}
+    {_, name, _, _} = Enum.find(@surfaces, fn {k, _, _, _} -> k == surface end)
+    {:noreply, assign(socket, surface: surface, page_title: "Bench · #{name}", selected: params["mount"] || socket.assigns.selected)}
   end
 
   @impl true
@@ -116,11 +117,12 @@ defmodule Controller.BenchLive do
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
         <.link navigate={~p"/"} class="bench-brand">‹ Bench</.link>
+        <h1 class="sr-only">Bench · {if @current, do: elem(@current, 1), else: "no surface"}</h1>
         <span class="hdr-actions">
           <%!-- one STOP, always visible, whatever surface is up --%>
           <.stop click="estop" />
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </span>
         <div class="bench-devices">
           <.status snap={@snap} id={@selected} compact />
@@ -144,12 +146,13 @@ defmodule Controller.BenchLive do
       </header>
 
       <nav class="bench-nav" aria-label="control surfaces">
-        <.link :for={{key, name, _mod, blurb} <- @surfaces} patch={~p"/bench/#{key}?#{[mount: @selected]}"} class={["bench-tab", key == @surface && "on"]}>
+        <.link :for={{key, name, _mod, blurb} <- @surfaces} patch={~p"/bench/#{key}?#{[mount: @selected]}"} class={["bench-tab", key == @surface && "on"]} aria-current={if key == @surface, do: "page"}>
           <strong>{name}</strong><span>{blurb}</span>
         </.link>
       </nav>
 
-      <section class="bench-stage">
+      <.skip_target />
+      <section class="bench-stage" aria-label={if @current, do: elem(@current, 1)}>
         <%= if @current do %>
           <% {key, _name, mod, _} = @current %>
           <%= live_render(@socket, mod, id: "surface-#{key}-#{@selected}", session: %{"id" => @selected, "mount" => @selected, "nested" => true}) %>

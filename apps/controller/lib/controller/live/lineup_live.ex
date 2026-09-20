@@ -69,7 +69,7 @@ defmodule Controller.LineupLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap)
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Star Align")
   end
 
   # Everything the page says, recomputed on a slow tick: the status, the
@@ -172,6 +172,11 @@ defmodule Controller.LineupLive do
     {:noreply, socket |> compute() |> put_notice("released")}
   end
 
+  def handle_event("estop", _, socket) do
+    Tracker.stop(socket.assigns.selected)
+    {:noreply, socket |> run(&Mount.emergency_stop/1) |> compute() |> put_notice("stopped")}
+  end
+
   def handle_event("pick", _, socket), do: {:noreply, assign(socket, picking: !socket.assigns.picking)}
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
@@ -207,12 +212,12 @@ defmodule Controller.LineupLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Star Align</.title>
-        <.actions><.help href={~p"/docs/align"} /></.actions>
+        <.actions><.stop click="estop" /><.help href={~p"/docs/align"} label="star alignment" /></.actions>
       </:header>
 
       <%!-- where we stand, in one line --%>
       <.card :if={@status} class={"lineup-status#{if @status.solved?, do: " ok", else: ""}"}>
-        <div class="state-line">
+        <div class="state-line" aria-live="polite">
           <strong :if={!@status.solved?}>Not aligned</strong>
           <strong :if={@status.solved? and @status.n >= 3}>{@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
           <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · aligned, not yet checked</strong>
@@ -228,7 +233,7 @@ defmodule Controller.LineupLive do
       <%!-- the two facts the maths needs, and where to change them; calm, never a nag --%>
       <.hint :if={@status} class="site-line">
         Site {@site.name} · {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
-        <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>change</.link>
+        <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>change site ›</.link>
         <span :if={@site.name == "nowhere"}> · <b>no site set</b></span>
       </.hint>
 
@@ -256,10 +261,12 @@ defmodule Controller.LineupLive do
       </.card>
 
       <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">
-        <.item :for={c <- @candidates} label={c.name} detail={c.where}>
-          <.btn phx-click="slew" phx-value-id={c.id}>Slew</.btn>
-          <.btn variant="primary" phx-click="centred" phx-value-id={c.id}>On it</.btn>
-        </.item>
+        <.items label="stars up now">
+          <.item :for={c <- @candidates} as="li" label={c.name} detail={c.where}>
+            <.btn phx-click="slew" phx-value-id={c.id} aria-label={"Slew near #{c.name}"}>Slew</.btn>
+            <.btn variant="primary" phx-click="centred" phx-value-id={c.id} aria-label={"On it: #{c.name} is centred"}>On it</.btn>
+          </.item>
+        </.items>
         <.row><.btn class="btn-ghost" phx-click="pick">Back</.btn></.row>
       </.card>
 
@@ -269,16 +276,20 @@ defmodule Controller.LineupLive do
 
       <%!-- what am I on? --%>
       <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably Pointing At">
-        <.item :for={g <- @guesses} label={g.name} detail={"#{fmt(g.away_deg)}° away · #{g.where}"}>
-          <.btn phx-click="centred" phx-value-id={g.id}>On it</.btn>
-        </.item>
+        <.items label="likely stars">
+          <.item :for={g <- @guesses} as="li" label={g.name} detail={"#{fmt(g.away_deg)}° away · #{g.where}"}>
+            <.btn phx-click="centred" phx-value-id={g.id} aria-label={"On it: #{g.name} is centred"}>On it</.btn>
+          </.item>
+        </.items>
       </.card>
 
       <%!-- the stars so far --%>
       <.card :if={@samples != []} title="Stars So Far">
-        <.item :for={{s, i} <- Enum.with_index(@samples)} label={s["name"]} detail={"#{String.slice(s["at"], 11, 5)} UTC#{residual(@status, i)}"}>
-          <.btn class="btn-ghost" phx-click="drop" phx-value-i={i} aria-label={"forget #{s["name"]}"}>✕</.btn>
-        </.item>
+        <.items label="alignment stars">
+          <.item :for={{s, i} <- Enum.with_index(@samples)} as="li" label={s["name"]} detail={"#{String.slice(s["at"], 11, 5)} UTC#{residual(@status, i)}"}>
+            <.btn class="btn-ghost" phx-click="drop" phx-value-i={i} aria-label={"forget #{s["name"]}"} data-confirm={"Forget #{s["name"]}? The alignment is refitted without it."}>✕</.btn>
+          </.item>
+        </.items>
         <.row>
           <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the whole line-up?">Start over</.btn>
         </.row>

@@ -22,7 +22,7 @@ defmodule Controller.InputLive do
 
     {:ok,
      socket
-     |> assign(night: Settings.get("night", false), nested: session["nested"] == true, refs: %{}, selected: params["mount"] || session["mount"], snap: nil, notice: nil, start: nil)
+     |> assign(page_title: "Game Controller", night: Settings.get("night", false), nested: session["nested"] == true, refs: %{}, selected: params["mount"] || session["mount"], snap: nil, notice: nil, start: nil)
      |> load()
      |> rescan()}
   end
@@ -88,6 +88,14 @@ defmodule Controller.InputLive do
     {:noreply, load(socket)}
   end
 
+  # STOP here disarms the pad as well as stopping the mount it was driving
+  def handle_event("estop", _, socket) do
+    Input.arm(false)
+    Controller.Sky.Tracker.stop_all()
+    if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.emergency_stop(ref) end)
+    {:noreply, socket |> assign(notice: "stopped · pad is watch only") |> load()}
+  end
+
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
   defp safe(fun) do
@@ -111,7 +119,8 @@ defmodule Controller.InputLive do
         <.back navigate={~p"/"} label="Start" />
         <.title>Game Controller</.title>
         <.actions>
-          <.btn phx-click="scan">Scan</.btn>
+          <.stop click="estop" />
+          <.btn phx-click="scan" aria-label="Scan for game controllers">Scan</.btn>
         </.actions>
       </:header>
 
@@ -125,25 +134,25 @@ defmodule Controller.InputLive do
           <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Pad moves scope</:opt>
         </.seg>
         <.hint :if={@mapper.off_reason}><strong>{@mapper.off_reason}</strong></.hint>
-        <.hint :if={Map.get(@mapper, :ignoring)}><strong>pad is off — tap Pad moves scope</strong></.hint>
+        <.hint :if={Map.get(@mapper, :ignoring)}><strong>pad is off: tap Pad moves scope</strong></.hint>
         <.kv label="mount" value={@mapper.target || "none"} />
         <.kv :if={@snap && @snap.axes[:ra]} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
         <.kv :if={@start && @snap && @snap.axes[:ra]} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>more ›</.link></.hint>
+        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>more about the pad ›</.link></.hint>
       </.card>
 
       <.card :for={d <- @devices} title={d.parser}>
         <:aside><.badge on>{d.reports} reports</.badge><.badge :if={d.node != :nonode@nohost} dim>{d.node}</.badge></:aside>
         <.hint :if={d.reports == 0}>Touch the stick or a button and it shows up here.</.hint>
-        <div class="axes">
-          <div :for={{v, i} <- Enum.with_index(d.state.axes)} class="axis-bar">
+        <div class="axes" role="list" aria-label="axes">
+          <div :for={{v, i} <- Enum.with_index(d.state.axes)} class="axis-bar" role="listitem">
             <span class="axis-i">{axis_name(i)}</span>
-            <div class="bar"><div class="fill" style={bar_style(v)}></div></div>
+            <div class="bar" aria-hidden="true"><div class="fill" style={bar_style(v)}></div></div>
             <span class="axis-v">{fmt2(v)}</span>
           </div>
         </div>
-        <div class="buttons">
-          <span :for={{b, i} <- Enum.with_index(d.state.buttons)} class={["btn-dot", b && "on"]}>{i}</span>
+        <div class="buttons" role="list" aria-label="buttons">
+          <span :for={{b, i} <- Enum.with_index(d.state.buttons)} class={["btn-dot", b && "on"]} role="listitem">{i}<span :if={b} class="sr-only"> down</span></span>
         </div>
       </.card>
 

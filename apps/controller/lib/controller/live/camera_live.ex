@@ -18,7 +18,7 @@ defmodule Controller.CameraLive do
       Settings.subscribe()
     end
 
-    {:ok, socket |> assign(night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30), size: Settings.get("video_quality", "auto")) |> load()}
+    {:ok, socket |> assign(page_title: "Camera", night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30), size: Settings.get("video_quality", "auto")) |> load()}
   end
 
   defp load(socket) do
@@ -82,13 +82,13 @@ defmodule Controller.CameraLive do
       <:header>
         <.back navigate={~p"/controls/watch"} label="Watch" />
         <.title>Camera</.title>
-        <.actions><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/watch"} label="the camera" /></.actions>
       </:header>
 
       <.card title="Camera">
-        <.kv label="Capture tool" value={to_string(@status.tool || "none — brew install imagesnap, or ffmpeg")} />
+        <.kv label="Capture tool" value={to_string(@status.tool || "none: brew install imagesnap, or ffmpeg")} />
         <form :if={@devices != []} phx-change="select" class="row">
-          <select name="device" class="field" disabled={@video.state != :off}>
+          <select name="device" class="field" disabled={@video.state != :off} aria-label="which camera">
             <option :for={d <- @devices} value={d} selected={d == @status.device}>{d}</option>
           </select>
         </form>
@@ -109,7 +109,7 @@ defmodule Controller.CameraLive do
         <.seg label="video size">
           <:opt :for={{lbl, q} <- [{"Auto", "auto"}, {"1K", "1k"}, {"2K", "2k"}, {"4K", "4k"}]} on={q == @size} click="size" value={%{q: q}}>{lbl}</:opt>
         </.seg>
-        <.hint>Auto is 720p: every camera does it and it's cheap to encode. Bigger is a choice, not a default — 1080p is twice the work, 4K eight times. A size the camera won't deliver falls back one step by itself.</.hint>
+        <.hint>Auto is 720p: every camera does it and it's cheap to encode. Bigger is a choice, not a default: 1080p is twice the work, 4K eight times. A size the camera won't deliver falls back one step by itself.</.hint>
         <.seg label="frame rate">
           <:opt :for={f <- Video.HLS.fps_choices()} on={f == @fps} click="fps" value={%{fps: f}}>{f} fps</:opt>
         </.seg>
@@ -119,11 +119,11 @@ defmodule Controller.CameraLive do
         <.row>
           <.btn phx-click="probe" disabled={@video.state != :off}>What sizes can this camera do?</.btn>
         </.row>
-        <ul :if={@rungs} class="checklist">
-          <li :for={r <- @rungs}>{r.label} · {Video.Ladder.size_string(r.size)} — {if r.available?, do: "yes", else: "no"}</li>
+        <ul :if={@rungs} class="checklist" aria-label="sizes this camera can do">
+          <li :for={r <- @rungs}>{r.label} · {Video.Ladder.size_string(r.size)} · {if r.available?, do: "yes", else: "no"}</li>
         </ul>
-        <.hint :if={@video.error} class="err">{@video.error}</.hint>
-        <pre :if={@video.log != []} class="video-log">{Enum.join(Enum.reverse(@video.log), "\n")}</pre>
+        <.hint :if={@video.error} class="err" role="alert">{@video.error}</.hint>
+        <pre :if={@video.log != []} class="video-log" aria-label="last lines from the encoder" tabindex="0">{Enum.join(Enum.reverse(@video.log), "\n")}</pre>
         <.hint>HLS from FFmpeg on this machine, 1-second segments. Heavy: on a Pi, run it on a bigger machine.</.hint>
       </.card>
 

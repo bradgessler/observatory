@@ -19,7 +19,7 @@ defmodule Controller.SetupLive do
 
     {:ok,
      socket
-     |> assign(id: id, ref: nil, snap: nil, notice: nil, goto_deg: "5", night: Settings.get("night", false))
+     |> assign(id: id, ref: nil, snap: nil, notice: nil, goto_deg: "5", night: Settings.get("night", false), page_title: "#{id} · Setup")
      |> rescan()
      |> load()}
   end
@@ -68,7 +68,7 @@ defmodule Controller.SetupLive do
 
   @impl true
   def handle_event("home", _, socket) do
-    {:noreply, socket |> run(&Mount.set_home/1, "home set — limits armed") |> load()}
+    {:noreply, socket |> run(&Mount.set_home/1, "home set · limits armed") |> load()}
   end
 
   def handle_event("goto", %{"axis" => axis, "sign" => sign, "deg" => deg}, socket) do
@@ -124,7 +124,8 @@ defmodule Controller.SetupLive do
       Settings.put("mount_heading_deg", heading)
       {:noreply, load(socket)}
     else
-      _ -> {:noreply, socket}
+      # nothing is saved until both read as numbers; say which is off (3.3.1)
+      _ -> {:noreply, assign(socket, notice: "not saved: tilt is 0 to 90 degrees, heading a number of degrees")}
     end
   end
 
@@ -216,7 +217,7 @@ defmodule Controller.SetupLive do
       <:header>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@id} · Setup</.title>
-        <.actions><.help href={~p"/docs/keypad"} /></.actions>
+        <.actions><.help href={~p"/docs/keypad"} label="setup and modes" /></.actions>
       </:header>
 
       <%!-- the one place to see what is steering the scope and what it is correcting for --%>
@@ -246,30 +247,31 @@ defmodule Controller.SetupLive do
         <:aside><.badge :if={@modes == []} on>all stock</.badge><.badge :if={@modes != []} warn>{length(@modes)} on</.badge></:aside>
         <.hint>Each of these changes where the scope goes and shows on every page while on.</.hint>
 
+        <%!-- every one of these changes where the scope goes: named keys, and a confirm where a flip also throws data away (3.3.4) --%>
         <.setting label="Sync offset" value={"RA #{fmt(@offset["ra"])}° · Dec #{fmt(@offset["dec"])}°"}>
-          <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01}>Clear</.btn>
+          <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01} aria-label="Clear the sync offset" data-confirm="Clear the sync offset? Gotos go back to the plain model until you sync again.">Clear</.btn>
         </.setting>
         <.setting label="RA axis sign" value={to_string(@pointing.ha_sign)}>
-          <.btn phx-click="flip" phx-value-what="ra">Flip</.btn>
+          <.btn phx-click="flip" phx-value-what="ra" aria-label="Flip the RA axis sign" data-confirm="Flip the RA axis sign? This also clears the sync offset.">Flip</.btn>
         </.setting>
         <.setting label="Dec axis sign" value={to_string(@pointing.dec_sign)}>
-          <.btn phx-click="flip" phx-value-what="dec">Flip</.btn>
+          <.btn phx-click="flip" phx-value-what="dec" aria-label="Flip the Dec axis sign" data-confirm="Flip the Dec axis sign? This also clears the sync offset.">Flip</.btn>
         </.setting>
         <.setting label="Tracking direction" value={@tracking_direction}>
-          <.btn phx-click="tracking_direction">Flip</.btn>
+          <.btn phx-click="tracking_direction" aria-label="Flip the tracking direction">Flip</.btn>
         </.setting>
         <.setting label="Auto-track after slew" value={if @auto_track, do: "on", else: "off"}>
-          <.btn phx-click="auto_track">{if @auto_track, do: "Turn off", else: "Turn on"}</.btn>
+          <.btn phx-click="auto_track" aria-label={"Turn auto-track after slew #{if @auto_track, do: "off", else: "on"}"} aria-pressed={to_string(@auto_track)}>{if @auto_track, do: "Turn off", else: "Turn on"}</.btn>
         </.setting>
         <.setting label="Soft limits from home" value={"RA #{lim(@limits, :ra)} · Dec #{lim(@limits, :dec)}"} />
-        <.btn variant="ghost" phx-click="reset_pointing">Reset pointing to defaults</.btn>
+        <.btn variant="ghost" phx-click="reset_pointing" data-confirm="Reset pointing to the config defaults? Axis signs and the sync offset go back to stock.">Reset pointing to defaults</.btn>
       </.card>
 
       <.card title="Mount As It Stands">
         <.hint>What the orb draws. Tilt is the latitude knob on the mount (30° on the bench); heading is where the tripod's north leg points, degrees east of true north. Defaults: site latitude, 0.</.hint>
-        <form phx-change="mount_geom" class="horizon">
-          <label>tilt °<input name="tilt" inputmode="decimal" value={@mount_tilt} class="field" /></label>
-          <label>heading °<input name="heading" inputmode="decimal" value={@mount_heading} class="field" /></label>
+        <form phx-change="mount_geom" class="horizon" aria-label="mount geometry">
+          <label>tilt °<input name="tilt" type="text" inputmode="decimal" autocomplete="off" value={@mount_tilt} class="field" /></label>
+          <label>heading °<input name="heading" type="text" inputmode="decimal" autocomplete="off" value={@mount_heading} class="field" /></label>
         </form>
       </.card>
 

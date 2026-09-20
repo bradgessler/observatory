@@ -61,6 +61,7 @@ defmodule Controller.SkyLive do
        selected: params["id"],
        target: nil,
        notice: nil,
+       page_title: "Sky",
        tab: "map"
      )
      # JPEG/PNG only: iOS converts HEIC to JPEG when HEIC isn't in the accept list,
@@ -190,7 +191,7 @@ defmodule Controller.SkyLive do
     Settings.put("pointing", %{"ha_sign" => p.ha_sign, "dec_sign" => p.dec_sign})
     # the sync offset was measured under the old signs; it's meaningless now
     Settings.put("pointing_offset", %{"ra" => 0.0, "dec" => 0.0})
-    assign(socket, pointing: p, offset: %{"ra" => 0.0, "dec" => 0.0}, notice: "#{key} flipped; sync offset cleared — re-Sync on a star")
+    assign(socket, pointing: p, offset: %{"ra" => 0.0, "dec" => 0.0}, notice: "#{key} flipped; sync offset cleared; re-Sync on a star")
   end
 
   defp safe(fun) do
@@ -323,7 +324,8 @@ defmodule Controller.SkyLive do
       note = if from_phone?, do: "site set from your phone (±#{round(params["accuracy"] || 0)} m)", else: nil
       {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo, name: if(from_phone?, do: "here", else: socket.assigns.site.name)}, notice: note) |> compute()}
     else
-      _ -> {:noreply, socket}
+      # say what is wrong with what was typed (3.3.1); nothing is saved until it is right
+      _ -> {:noreply, assign(socket, notice: "site not saved: latitude is −90 to 90, longitude −180 to 180")}
     end
   end
 
@@ -363,7 +365,7 @@ defmodule Controller.SkyLive do
       case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
         {:ok, d_ra, d_dec} -> "slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
         {:error, :not_connected} -> "no mount connected"
-        {:error, :not_homed} -> "zero the axes first (Setup, mount upright) — it arms the cable-safety limits"
+        {:error, :not_homed} -> "zero the axes first (Setup, mount upright); it arms the cable-safety limits"
         {:error, :limit} -> "#{t.name} is outside the soft limits"
         {:error, e} -> inspect(e)
       end
@@ -603,16 +605,18 @@ defmodule Controller.SkyLive do
     assigns = assign(assigns, scope: scope)
 
     ~H"""
-    <main class={["sky", @night && "night", @nested && "nested"]} id="sky">
+    <%!-- one <main> per document: inside the bench this is a plain block --%>
+    <.dynamic_tag tag_name={if @nested, do: "div", else: "main"} class={["sky", @night && "night", @nested && "nested"]} id="sky">
       <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
       <header :if={!@nested}>
         <.link navigate={~p"/"} class="ghost">‹ Start</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
           <.stop />
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </span>
       </header>
+      <.skip_target :if={!@nested} />
 
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
       <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
@@ -621,7 +625,9 @@ defmodule Controller.SkyLive do
         <:opt :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} on={t == @tab} click="tab" value={%{tab: t}}>{label}</:opt>
       </.seg>
 
-      <svg :if={@tab == "map"} id="skymap" phx-hook="SkyZoom" viewBox="-104 -104 208 208" class="map" phx-click="clear">
+      <%!-- the map is a picture to assistive tech: its objects are the Tonight list, which is the keyboard path (2.1.1) --%>
+      <p :if={@tab == "map"} id="skymap-note" class="sr-only">The map is a picture of the sky from {@site[:name]} right now, north up, east left, with your tree line shaded. The Tonight tab lists the same objects as links.</p>
+      <svg :if={@tab == "map"} id="skymap" phx-hook="SkyZoom" viewBox="-104 -104 208 208" class="map" phx-click="clear" role="img" aria-label={"the sky from #{@site[:name]}#{if @target, do: ", #{@target.name} picked", else: ""}"} aria-describedby="skymap-note">
         <defs>
           <radialGradient id="dome" cx="50%" cy="50%" r="50%">
             <stop offset="70%" stop-color="var(--sky1)" /><stop offset="100%" stop-color="var(--sky2)" />
@@ -663,42 +669,46 @@ defmodule Controller.SkyLive do
         <text x="102" y="1" class="card" text-anchor="start">W</text>
       </svg>
 
-      <section :if={@tab == "targets"} class="targets">
-        <p class="horizon-hint">Above your tree line now, ranked by how good they look and how long they stay up.</p>
-        <.link :for={{o, i} <- Enum.with_index(@targets, 1)} navigate={~p"/object/#{o.id}?#{[mount: @selected]}"} class={["target", i <= 5 && "top"]}>
-          <span class="k">{if i <= 5, do: "#{i}", else: glyph(o.kind)}</span>
-          <span class="t"><strong>{o.name}</strong><span>{fmt0(o.alt)}° up · {compass(o.az)} · {o.words}</span></span>
-          <span class={["when", when_class(o.status)]}>{when_text(o.status)}</span>
-        </.link>
+      <section :if={@tab == "targets"} class="targets-wrap" aria-labelledby="targets-lede">
+        <p class="horizon-hint" id="targets-lede">Above your tree line now, ranked by how good they look and how long they stay up.</p>
+        <ol :if={@targets != []} class="targets" role="list">
+          <li :for={{o, i} <- Enum.with_index(@targets, 1)}>
+            <.link navigate={~p"/object/#{o.id}?#{[mount: @selected]}"} class={["target", i <= 5 && "top"]}>
+              <span class="k" aria-hidden="true">{if i <= 5, do: "#{i}", else: glyph(o.kind)}</span>
+              <span class="t"><strong>{o.name}</strong><span>{fmt0(o.alt)}° up · {compass(o.az)} · {o.words}</span></span>
+              <span class={["when", when_class(o.status)]}>{when_text(o.status)}</span>
+            </.link>
+          </li>
+        </ol>
         <p :if={@targets == []} class="horizon-hint">Nothing above the tree line. Lower it on the Horizon tab if that's wrong.</p>
       </section>
 
-      <section :if={@tab == "horizon"}>
-        <p class="horizon-hint">Tree line, degrees above level, each direction. <.link href={~p"/docs/horizon"} class="help">?</.link></p>
-        <form phx-change="horizon" class="horizon">
-          <label :for={s <- Settings.sectors()}>{s}<input name={s} inputmode="numeric" value={@horizon[s]} /></label>
+      <section :if={@tab == "horizon"} aria-label="horizon, equipment and site">
+        <p class="horizon-hint">Tree line, degrees above level, each direction. <.help href={~p"/docs/horizon"} label="tree line" /></p>
+        <form phx-change="horizon" class="horizon" aria-label="tree line by direction, degrees">
+          <label :for={s <- Settings.sectors()}>{s}<input name={s} type="text" inputmode="numeric" autocomplete="off" value={@horizon[s]} /></label>
         </form>
-        <form phx-change="equipment" class="horizon">
-          <label>aperture mm<input name="aperture" inputmode="numeric" value={@aperture} /></label>
-          <label>limit<span class="ro">mag {fmt1(@lim)}</span></label>
-          <label>Moon<span class="ro">{if @moon.up, do: "up · #{fmt0(@moon.illumination * 100)}%", else: "down"}</span></label>
-          <label>&nbsp;<.link href={~p"/docs/magnitude"} class="help ro">?</.link></label>
+        <form phx-change="equipment" class="horizon" aria-label="equipment">
+          <label>aperture mm<input name="aperture" type="text" inputmode="numeric" autocomplete="off" value={@aperture} /></label>
+          <span class="hcell">limit<span class="ro">mag {fmt1(@lim)}</span></span>
+          <span class="hcell">Moon<span class="ro">{if @moon.up, do: "up · #{fmt0(@moon.illumination * 100)}%", else: "down"}</span></span>
+          <span class="hcell"><span aria-hidden="true">&nbsp;</span><.help href={~p"/docs/magnitude"} label="magnitude and limit" /></span>
         </form>
 
         <div class="photo">
-          <p class="horizon-hint">Site <.link href={~p"/docs/horizon"} class="help">?</.link></p>
-          <form phx-change="site" class="horizon">
-            <label>lat<input name="lat" inputmode="decimal" value={@site.lat} /></label>
-            <label>lon<input name="lon" inputmode="decimal" value={@site.lon} /></label>
-            <label>&nbsp;<button type="button" id="use-location" phx-hook="Geo" class="ro">Use my location</button></label>
-            <label>&nbsp;<.link navigate={~p"/setup/#{@selected}"} class="ro">Setup ›</.link></label>
+          <p class="horizon-hint">Site <.help href={~p"/docs/horizon"} label="site" /></p>
+          <form phx-change="site" class="horizon" aria-label="site">
+            <label>lat<input name="lat" type="text" inputmode="decimal" autocomplete="off" value={@site.lat} /></label>
+            <label>lon<input name="lon" type="text" inputmode="decimal" autocomplete="off" value={@site.lon} /></label>
+            <span class="hcell"><span aria-hidden="true">&nbsp;</span><button type="button" id="use-location" phx-hook="Geo" class="ro">Use my location</button></span>
+            <span class="hcell"><span aria-hidden="true">&nbsp;</span><.link navigate={~p"/setup/#{@selected}"} class="ro">Setup ›</.link></span>
           </form>
         </div>
 
         <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
-          <p class="horizon-hint">Tree line from a Night-mode photo <.link href={~p"/docs/horizon"} class="help">?</.link></p>
-          <form phx-change="validate" phx-submit="solve">
-            <.live_file_input upload={@uploads.photo} />
+          <p class="horizon-hint" id="photo-lede">Tree line from a Night-mode photo <.help href={~p"/docs/horizon"} label="tree line from a photo" /></p>
+          <form phx-change="validate" phx-submit="solve" aria-labelledby="photo-lede">
+            <.live_file_input upload={@uploads.photo} aria-label="a photo of the sky and tree line" />
             <button :if={@photo_cols && !@solving} class="go">Solve &amp; apply</button>
             <span :if={@solving} class="dim">solving… (30–90 s)</span>
           </form>
@@ -708,13 +718,13 @@ defmodule Controller.SkyLive do
         </div>
       </section>
 
-      <section class="pick" :if={@target}>
+      <section class="pick" :if={@target} aria-label="picked object" aria-live="polite">
         <div>
           <strong>{@target.name}</strong>
           <span class="dim">{describe(@target, @stars ++ @dsos, @lim, @moon)}</span>
         </div>
-        <button class="go" phx-click="goto">Slew</button>
-        <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected]}"} class="btn-link">Info ›</.link>
+        <button class="go" phx-click="goto" aria-label={"Slew to #{@target.name}"}>Slew</button>
+        <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected]}"} class="btn-link" aria-label={"Info about #{@target.name}"}>Info ›</.link>
       </section>
       <section class="pick hint" :if={!@target and @tab == "map"}>
         <span class="dim">
@@ -726,7 +736,7 @@ defmodule Controller.SkyLive do
 
       <p class="fine"><.link href={~p"/docs/sky"} class="help">how the sky page works</.link> · <.link href={~p"/docs/magnitude"} class="help">magnitude in plain words</.link></p>
       <.notice notice={@notice} />
-    </main>
+    </.dynamic_tag>
     """
   end
 

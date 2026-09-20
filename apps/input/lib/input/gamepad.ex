@@ -26,6 +26,8 @@ defmodule Input.Gamepad do
     # feel: see Input.Curve — null zone, where full speed starts, the bands
     dead: 0.30,
     full: 0.85,
+    # where the ball rested when the trigger was squeezed; the mapper sets it on each press
+    center: [0.0, 0.0],
     bands: [2.0, 8.0, 32.0, 200.0, 800.0],
     fine_rate: 8.0
   }
@@ -46,8 +48,9 @@ defmodule Input.Gamepad do
         :stop
 
       pressed?(buttons, m.trigger) ->
-        x = axis(axes, m.x_axis) |> flip(m.invert_x)
-        y = axis(axes, m.y_axis) |> flip(m.invert_y)
+        [cx, cy] = m.center
+        x = (axis(axes, m.x_axis) - cx) |> flip(m.invert_x)
+        y = (axis(axes, m.y_axis) - cy) |> flip(m.invert_y)
         mag = :math.sqrt(x * x + y * y)
         # the feel lives in Input.Curve: null zone, saturation, speed bands
         rate = Input.Curve.rate(mag, %{dead: m.dead, full: m.full, bands: m.bands})

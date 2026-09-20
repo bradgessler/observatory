@@ -10,13 +10,13 @@ defmodule Controller.EventsLive do
   alias Controller.Settings
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     if connected?(socket) do
       Telescope.Events.subscribe()
       Settings.subscribe()
     end
 
-    {:ok, assign(socket, night: Settings.get("night", false), filter: nil, events: Telescope.Events.recent(200))}
+    {:ok, assign(socket, page_title: "Events", night: Settings.get("night", false), filter: filter_from(params), events: Telescope.Events.recent(300))}
   end
 
   @impl true
@@ -26,7 +26,10 @@ defmodule Controller.EventsLive do
 
   @impl true
   def handle_event("filter", %{"m" => "all"}, socket), do: {:noreply, assign(socket, filter: nil)}
-  def handle_event("filter", %{"m" => m}, socket), do: {:noreply, assign(socket, filter: String.to_existing_atom(m))}
+  def handle_event("filter", %{"m" => m}, socket), do: {:noreply, assign(socket, filter: filter_from(%{"m" => m}))}
+
+  defp filter_from(%{"m" => m}) when m in ~w(mount tracker input video lineup optical), do: String.to_existing_atom(m)
+  defp filter_from(_), do: nil
 
   @impl true
   def render(assigns) do
@@ -37,18 +40,18 @@ defmodule Controller.EventsLive do
       <:header>
         <.back navigate={~p"/"} label="Start" />
         <.title>Events</.title>
-        <.actions><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/events"} label="events" /></.actions>
       </:header>
 
       <.seg label="which events">
-        <:opt :for={{lbl, m} <- [{"All", "all"}, {"Mount", "mount"}, {"Tracker", "tracker"}, {"Video", "video"}]} on={to_string(@filter || "all") == m} click="filter" value={%{m: m}}>{lbl}</:opt>
+        <:opt :for={{lbl, m} <- [{"All", "all"}, {"Mount", "mount"}, {"Tracker", "tracker"}, {"Pad", "input"}, {"Video", "video"}]} on={to_string(@filter || "all") == m} click="filter" value={%{m: m}}>{lbl}</:opt>
       </.seg>
 
       <.hint :if={@shown == []}>Nothing yet. Every move, stop, star and stream shows up here as it happens.</.hint>
 
-      <ol class="events">
+      <ol class="events" aria-label="events, newest first">
         <li :for={e <- @shown}>
-          <time>{Calendar.strftime(e.at, "%H:%M:%S")}</time>
+          <time datetime={Calendar.strftime(e.at, "%Y-%m-%dT%H:%M:%SZ")}>{Calendar.strftime(e.at, "%H:%M:%S")}</time>
           <span class="ev-by">{e.by}</span>
           <span class="ev-what">{words(e)}</span>
         </li>
@@ -70,6 +73,9 @@ defmodule Controller.EventsLive do
   defp words(%{module: :tracker, name: :end, data: d}), do: "stopped holding #{d.target} (#{d.why})"
   defp words(%{module: :tracker, name: :rates, data: d}), do: "#{d.id} · RA #{d.ra}× · Dec #{d.dec}× on #{d.target}"
   defp words(%{module: :input, name: :ignored, data: d}), do: "pad: #{d.action} ignored · #{d.why}"
+  defp words(%{module: :input, name: :buttons, data: d}), do: "pad: buttons #{inspect(d.pressed)} · hat #{inspect(d.hat)} · axes #{inspect(d.axes)} · raw #{d.raw}#{if d.armed, do: "", else: " · pad off"}"
+  defp words(%{module: :input, name: :stale, data: d}), do: "pad: report #{d.age_ms} ms old, dropped"
+  defp words(%{module: :input, name: :trigger, data: d}), do: "pad: trigger squeezed · ball rest #{inspect(d.center)} is zero for this hold#{if d.armed, do: "", else: " · pad off"}"
   defp words(%{module: :input, name: :armed, data: d}), do: "pad on · moves #{d.target || "?"}"
   defp words(%{module: :input, name: :off, data: d}), do: "pad off · #{d.why}"
   defp words(%{module: :lineup, name: :reset, data: d}), do: "#{d.id} · alignment reset: #{d.why}"
@@ -78,7 +84,7 @@ defmodule Controller.EventsLive do
   defp words(%{module: :optical, name: :sweep_done, data: d}), do: "#{d.id} · axes swept · RA #{d.ra} · Dec #{d.dec} · #{d.between}° between"
   defp words(%{module: :video, name: :start, data: d}), do: "video #{d.quality} · #{d.encoder} · #{d.fps} fps"
   defp words(%{module: :video, name: :stop, data: d}), do: "video stopped (#{d.quality})"
-  defp words(%{module: :video, name: :frozen, data: d}), do: "camera froze on one frame (#{d.quality}) — encoder restarted"
+  defp words(%{module: :video, name: :frozen, data: d}), do: "camera froze on one frame (#{d.quality}) · encoder restarted"
   defp words(e), do: "#{e.module} · #{e.name} · #{inspect(e.data)}"
 
   defp fmt(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 2)

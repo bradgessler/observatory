@@ -12,7 +12,7 @@ defmodule Controller.PortsLive do
       send(self(), :refresh)
     end
 
-    {:ok, socket |> assign(night: Settings.get("night", false), notice: nil) |> refresh()}
+    {:ok, socket |> assign(page_title: "Serial Ports", night: Settings.get("night", false), notice: nil) |> refresh()}
   end
 
   defp refresh(socket), do: assign(socket, ports: Mount.ports(), status: Mount.discovery_status())
@@ -46,26 +46,28 @@ defmodule Controller.PortsLive do
       <:header>
         <.back navigate={~p"/devices"} label="Devices" />
         <.title>Serial Ports</.title>
-        <.actions><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/devices"} label="devices" /></.actions>
       </:header>
 
       <.card title="On This Machine">
-        <div :for={p <- @ports} class="port">
-          <div class="line">
-            <strong>{Path.basename(p.path)}</strong>
-            <.badge :if={p.looks_like_mount} on>FTDI · EQDIR cable</.badge>
-            <.badge :if={p.mount_id}>driver: {p.mount_id}</.badge>
-          </div>
-          <span class="dim">
-            {p.manufacturer || "unknown maker"}<span :if={p.description}> · {p.description}</span>
-            <span :if={p.vendor_id}> · {hex(p.vendor_id)}:{hex(p.product_id)}</span>
-            <span :if={p.serial_number}> · s/n {p.serial_number}</span>
-          </span>
-          <.row :if={!p.mount_id or p.path in @status.manual}>
-            <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path}>Connect</.btn>
-            <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path}>Disconnect</.btn>
-          </.row>
-        </div>
+        <ul :if={@ports != []} class="ports" role="list" aria-label="serial ports">
+          <li :for={p <- @ports} class="port">
+            <div class="line">
+              <strong>{Path.basename(p.path)}</strong>
+              <.badge :if={p.looks_like_mount} on>FTDI · EQDIR cable</.badge>
+              <.badge :if={p.mount_id}>driver: {p.mount_id}</.badge>
+            </div>
+            <span class="dim">
+              {p.manufacturer || "unknown maker"}<span :if={p.description}> · {p.description}</span>
+              <span :if={p.vendor_id}> · {hex(p.vendor_id)}:{hex(p.product_id)}</span>
+              <span :if={p.serial_number}> · s/n {p.serial_number}</span>
+            </span>
+            <.row :if={!p.mount_id or p.path in @status.manual}>
+              <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path} aria-label={"Connect #{Path.basename(p.path)}"}>Connect</.btn>
+              <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path} aria-label={"Disconnect #{Path.basename(p.path)}"}>Disconnect</.btn>
+            </.row>
+          </li>
+        </ul>
         <.hint :if={@ports == []}>The OS lists no serial ports. The cable isn't plugged into this machine, or the hub isn't passing it through.</.hint>
         <.hint>Connect tries the Sky-Watcher protocol on that port. A port that isn't a telescope just won't answer.</.hint>
       </.card>

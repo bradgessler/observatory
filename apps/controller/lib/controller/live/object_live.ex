@@ -26,6 +26,7 @@ defmodule Controller.ObjectLive do
     {:ok,
      socket
      |> assign(id: id, obj: obj, now: now, refs: %{}, snap: nil, selected: params["mount"], notice: nil,
+       page_title: if(obj, do: obj.name, else: "Not in the catalog"),
        search: nil, night: Settings.get("night", false), aperture: Settings.get("aperture_mm", 100))
      |> rescan()
      |> compute()}
@@ -168,6 +169,8 @@ defmodule Controller.ObjectLive do
     ~H"""
     <main class={["object", @night && "night"]}>
       <header><.link navigate={~p"/sky"} class="ghost">‹ sky</.link></header>
+      <.skip_target />
+      <h1 class="sr-only">Not in the catalog</h1>
       <p class="empty">Nothing called "{@id}" in the catalog.</p>
     </main>
     """
@@ -182,6 +185,7 @@ defmodule Controller.ObjectLive do
           <.stop />
         </span>
       </header>
+      <.skip_target />
 
       <section class="card">
         <h1>{@obj.name}</h1>
@@ -189,19 +193,19 @@ defmodule Controller.ObjectLive do
         <p class="blurb">{Blurbs.for(@obj)}</p>
       </section>
 
-      <section class="card facts">
-        <div><span class="k">now</span><span class="v">{if @alt > 0, do: "#{fmt0(@alt)}° up, #{compass(@az)}", else: "below the horizon"}</span></div>
-        <div><span class="k">you'll see</span><span class="v">{verdict(assigns)}</span></div>
-        <div :if={@entry}><span class="k">window</span><span class="v">{when_text(@entry.status)}</span></div>
-        <div><span class="k">brightness</span><span class="v">mag {@obj.mag} <.link href={~p"/docs/magnitude"} class="help">?</.link></span></div>
-      </section>
+      <dl class="card facts">
+        <div><dt class="k">now</dt><dd class="v">{if @alt > 0, do: "#{fmt0(@alt)}° up, #{compass(@az)}", else: "below the horizon"}</dd></div>
+        <div><dt class="k">you'll see</dt><dd class="v">{verdict(assigns)}</dd></div>
+        <div :if={@entry}><dt class="k">window</dt><dd class="v">{when_text(@entry.status)}</dd></div>
+        <div><dt class="k">brightness</dt><dd class="v">mag {@obj.mag} <.help href={~p"/docs/magnitude"} label="magnitude" /></dd></div>
+      </dl>
 
       <section class="actions">
-        <button class="go big" phx-click="slew" disabled={!@snap || !@snap.connected}>Slew</button>
+        <button class="go big" phx-click="slew" disabled={!@snap || !@snap.connected} aria-label={"Slew to #{@obj.name}"}>Slew</button>
         <div class="row">
-          <button :if={!@search} phx-click="search" disabled={!@snap || !@snap.connected}>Search</button>
-          <button :if={@search} class="on" phx-click="stop">Stop search</button>
-          <button phx-click="sync" disabled={!@snap || !@snap.homed}>Sync</button>
+          <button :if={!@search} phx-click="search" disabled={!@snap || !@snap.connected} aria-label={"Search around #{@obj.name} in a spiral"}>Search</button>
+          <button :if={@search} class="on" phx-click="stop" aria-pressed="true">Stop search</button>
+          <button phx-click="sync" disabled={!@snap || !@snap.homed} aria-label={"Sync: the scope is centred on #{@obj.name}"}>Sync</button>
         </div>
         <p :if={@snap && !@snap.homed} class="horizon-hint">Zero the axes first (Setup, mount upright) before slewing.</p>
         <p :if={!@snap} class="horizon-hint">No mount connected.</p>
@@ -228,7 +232,7 @@ defmodule Controller.ObjectLive do
 
   defp when_text(:good), do: "up for 2h+"
   defp when_text(:sets_later), do: "sets within 2h"
-  defp when_text(:sets_soon), do: "sets within the hour — look now"
+  defp when_text(:sets_soon), do: "sets within the hour, look now"
   defp when_text(:rising), do: "rises within 2h"
 
   defp compass(az), do: Enum.at(~w(N NE E SE S SW W NW), round(Astro.norm360(az) / 45) |> rem(8))

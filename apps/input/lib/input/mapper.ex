@@ -76,9 +76,11 @@ defmodule Input.Mapper do
     cond do
       age > @max_age_ms ->
         # stale — never act on old intent; but a stale "idle" is still a fine reason to release
-        {:noreply, s}
+        {:noreply, note_stale(s, age)}
 
       true ->
+        s = note_buttons(s, info)
+        s = recentre(s, info)
         action = Gamepad.interpret(info.state, Map.merge(device_defaults(info), s.map))
         s = %{s | action: action, device_map: device_defaults(info), last_fresh: now}
 
@@ -125,6 +127,68 @@ defmodule Input.Mapper do
   end
 
   def handle_info(_, s), do: {:noreply, s}
+
+  # Every change of a button or the hat goes to the events log with the raw
+  # report, so "I pressed it and nothing happened" can be read back later:
+  # which bit moved, what the parser made of it, what the mapper decided.
+  defp note_buttons(s, %{state: st} = info) do
+    pressed = st[:buttons] |> List.wrap() |> Enum.with_index() |> Enum.filter(&elem(&1, 0)) |> Enum.map(&elem(&1, 1))
+    key = {pressed, st[:hat]}
+
+    if key != Map.get(s, :last_buttons) do
+      Telescope.Events.emit(:input, :buttons, %{
+        pressed: pressed,
+        hat: st[:hat],
+        axes: Enum.map(st[:axes] || [], &Float.round(&1 / 1, 2)),
+        raw: Base.encode16(st[:raw] || <<>>),
+        parser: info[:parser],
+        armed: s.armed
+      })
+    end
+
+    Map.put(s, :last_buttons, key)
+  end
+
+  defp note_buttons(s, _), do: s
+
+  # The ball's rest when the trigger goes down is zero for that hold. A pad
+  # lying at an angle on the table, or a ball that sits 0.5 off centre,
+  # must not make the scope move the instant the trigger is squeezed.
+  defp recentre(s, %{state: st} = info) do
+    m = Map.merge(Gamepad.defaults(), Map.merge(device_defaults(info), s.map))
+    down? = Enum.at(st[:buttons] || [], m.trigger) == true
+
+    axes = st[:axes] || []
+
+    cond do
+      down? and not Map.get(s, :trigger_down, false) ->
+        # the rest is the last report before the squeeze (a squeeze and a tilt can land in one report)
+        rest = Map.get(s, :rest_axes) || axes
+        center = [Enum.at(rest, m.x_axis) || 0.0, Enum.at(rest, m.y_axis) || 0.0]
+        Telescope.Events.emit(:input, :trigger, %{center: Enum.map(center, &Float.round(&1 / 1, 2)), armed: s.armed})
+        %{s | map: Map.put(s.map, :center, center)} |> Map.put(:trigger_down, true)
+
+      not down? ->
+        s |> Map.put(:trigger_down, false) |> Map.put(:rest_axes, axes)
+
+      true ->
+        s
+    end
+  end
+
+  defp recentre(s, _), do: s
+
+  # stale reports are dropped by design; say so once a second, not per report
+  defp note_stale(s, age) do
+    now = System.monotonic_time(:millisecond)
+
+    if now - Map.get(s, :last_stale_note, now - 10_000) > 1_000 do
+      Telescope.Events.emit(:input, :stale, %{age_ms: age})
+      Map.put(s, :last_stale_note, now)
+    else
+      s
+    end
+  end
 
   defp turn_off(s, why) do
     if s.armed, do: Telescope.Events.emit(:input, :off, %{target: (ref(s) || %{})[:id], why: why})

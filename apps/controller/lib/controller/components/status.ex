@@ -16,8 +16,8 @@ defmodule Controller.Components.Status do
     <.link navigate={if @id, do: ~p"/setup/#{@id}", else: ~p"/devices"} class={["scope-status", @compact && "compact"]}>
       <%= if @snap && @snap.connected do %>
         <span class="ss-id">{@id}</span>
-        <span class="ss-axis"><b>RA</b> {deg(@snap.axes.ra.degrees)}<i class={["dot", @snap.axes.ra.running && "on"]}></i></span>
-        <span class="ss-axis"><b>Dec</b> {deg(@snap.axes.dec.degrees)}<i class={["dot", @snap.axes.dec.running && "on"]}></i></span>
+        <span class="ss-axis"><b>RA</b> {deg(@snap.axes.ra.degrees)}<Controller.Components.UI.lamp on={@snap.axes.ra.running} /></span>
+        <span class="ss-axis"><b>Dec</b> {deg(@snap.axes.dec.degrees)}<Controller.Components.UI.lamp on={@snap.axes.dec.running} /></span>
         <% model_track = Controller.Sky.Tracker.status(@id) %>
         <span class={["ss-badge", (@snap.tracking != :off or model_track) && "on"]}>
           {cond do

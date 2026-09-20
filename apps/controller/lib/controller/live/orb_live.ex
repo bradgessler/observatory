@@ -82,7 +82,8 @@ defmodule Controller.OrbLive do
       end
 
     socket = assign(socket, refs: refs, mounts: mounts)
-    if socket.assigns.selected in Map.keys(refs), do: socket, else: assign(socket, selected: first_id(socket))
+    socket = if socket.assigns.selected in Map.keys(refs), do: socket, else: assign(socket, selected: first_id(socket))
+    assign(socket, page_title: "#{socket.assigns.selected || "no mount"} · Orb")
   end
 
   defp first_id(socket), do: socket.assigns.refs |> Map.keys() |> Enum.sort() |> List.first()
@@ -141,6 +142,22 @@ defmodule Controller.OrbLive do
     {:noreply, run(socket, &Mount.emergency_stop/1)}
   end
 
+  # Keyboard: arrows turn the axes at a fixed 64× (left/right the polar axis,
+  # up/down the dec axis), auto-repeat feeds the deadman, keyup lets go, space
+  # or Escape stops. The same events the strips send, so the same safety.
+  @key_mag :math.log(64.0) / :math.log(@stick_max)
+  @arrows %{"ArrowLeft" => {-1, 0, "ra"}, "ArrowRight" => {1, 0, "ra"}, "ArrowUp" => {1, 0, "dec"}, "ArrowDown" => {-1, 0, "dec"}}
+
+  def handle_event("keydown", %{"key" => k}, socket) when k in [" ", "Escape"], do: handle_event("estop", %{}, socket)
+
+  def handle_event("keydown", %{"key" => key}, socket) when is_map_key(@arrows, key) do
+    {x, y, axis} = @arrows[key]
+    handle_event("stick", %{"x" => x / 1, "y" => y / 1, "mag" => @key_mag, "axis" => axis}, socket)
+  end
+
+  def handle_event("keyup", %{"key" => key}, socket) when is_map_key(@arrows, key), do: handle_event("stick_end", %{}, socket)
+  def handle_event(k, _params, socket) when k in ["keydown", "keyup"], do: {:noreply, socket}
+
   def handle_event("night", _, socket) do
     night = !socket.assigns.night
     Settings.put("night", night)
@@ -191,13 +208,13 @@ defmodule Controller.OrbLive do
     assigns = assign(assigns, snap: snap, scene: if(live?, do: scene(snap, Pointing.context())))
 
     ~H"""
-    <.page id="orb" night={@night} class={if @nested, do: "orb-page nested", else: "orb-page"}>
+    <.page id="orb" night={@night} class={if @nested, do: "orb-page nested", else: "orb-page"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@selected || "No Mount"} · Orb</.title>
         <.actions>
-          <.help href={~p"/docs/keypad"} />
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+          <.help href={~p"/docs/orb"} label="the orb" />
+          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </.actions>
       </:header>
 
@@ -206,17 +223,17 @@ defmodule Controller.OrbLive do
           <.orb scene={@scene} held={@held} />
           <div class="orb-legend">
             <div class={["orb-key", "ra", @scene.ra.running && "running", :ra in @held && "live"]}>
-              <span class="orb-k">◯ RA · polar</span>
+              <span class="orb-k"><span aria-hidden="true">◯ </span>RA · polar</span>
               <b>{fmt(@snap.axes.ra.degrees)}</b>
               <span class="orb-motion">{motion(@scene.ra)}</span>
             </div>
             <div class={["orb-key", "dec", @scene.dec.running && "running", :dec in @held && "live"]}>
-              <span class="orb-k">■ Dec</span>
+              <span class="orb-k"><span aria-hidden="true">■ </span>Dec</span>
               <b>{fmt(@snap.axes.dec.degrees)}</b>
               <span class="orb-motion">{motion(@scene.dec)}</span>
             </div>
             <div class="orb-key scope">
-              <span class="orb-k">⌖ tube</span>
+              <span class="orb-k"><span aria-hidden="true">⌖ </span>tube</span>
               <b>alt {fmt0(@scene.scope.alt)}° · az {fmt0(@scene.scope.az)}°</b>
               <span class="orb-motion">{if @scene.radec, do: fmt_radec(@scene.radec), else: "axes not zeroed"}</span>
             </div>
@@ -225,18 +242,20 @@ defmodule Controller.OrbLive do
 
         <section class="eq">
           <%!-- each strip wears its axis's colour: this one turns that one --%>
-          <div class={["strip", "strip-ra", :ra in @held && "live"]} id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="application" aria-label="pull left or right to turn around the polar axis">
-            <span class="strip-mid strip-only"><i class="strip-dot ra"></i>RA · polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
-            <div class="knob knob-h" data-knob></div>
+          <div class={["strip", "strip-ra", :ra in @held && "live"]} id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="group" aria-label="pull left or right to turn around the polar axis" aria-describedby="orb-how">
+            <span class="strip-mid strip-only"><i class="strip-dot ra" aria-hidden="true"></i>RA · polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
+            <div class="knob knob-h" data-knob aria-hidden="true"></div>
           </div>
 
-          <div class={["strip", "strip-dec", :dec in @held && "live"]} id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="application" aria-label="pull left or right to turn around the declination axis">
-            <span class="strip-mid strip-only"><i class="strip-dot dec"></i>Dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
-            <div class="knob knob-h" data-knob></div>
+          <div class={["strip", "strip-dec", :dec in @held && "live"]} id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="group" aria-label="pull left or right to turn around the declination axis" aria-describedby="orb-how">
+            <span class="strip-mid strip-only"><i class="strip-dot dec" aria-hidden="true"></i>Dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "pull to turn"}</b></span>
+            <div class="knob knob-h" data-knob aria-hidden="true"></div>
           </div>
+          <%!-- a pull gesture that stops on release, by design (2.5.1, 2.5.2); arrow keys are the one-key path --%>
+          <.hint id="orb-how">Pull a strip to turn that axis; letting go stops. On a keyboard, left and right turn the polar axis and up and down the dec axis at 64×; space or Escape stops.</.hint>
         </section>
 
-        <button :if={!@nested} class="stop-bar" phx-click="estop">STOP</button>
+        <button :if={!@nested} class="stop-bar" phx-click="estop" aria-label="stop the mount">STOP</button>
 
         <%!-- where you're standing; pick the one that matches the camera or your own spot --%>
         <% view = Controller.Settings.get("orb_view_az", 150.0) / 1 %>
@@ -246,7 +265,7 @@ defmodule Controller.OrbLive do
         <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
-          <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>
+          <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> · {inspect(@snap.error)}</span></p>
           <p :if={!@snap}>No mount found. Plug the EQDIR cable into this machine, or connect to a node that has one.</p>
         </section>
       <% end %>
@@ -319,7 +338,7 @@ defmodule Controller.OrbLive do
       <% on_pole = abs(px(@scene.scope.pt) - px(@scene.ra.head)) < 12 and abs(py(@scene.scope.pt) - py(@scene.ra.head)) < 12 %>
       <text x={px(@scene.scope.pt) + if(on_pole, do: -9, else: 9)} y={py(@scene.scope.pt) + if(on_pole, do: 20, else: 11)} class="lbl lbl-scope" text-anchor={if on_pole, do: "end", else: "start"}>{if on_pole, do: "tube · at the pole", else: "tube points here"}</text>
 
-      <text :if={!@scene.radec} x="0" y={@scene.r + 16} class="note">axes not zeroed — assuming upright</text>
+      <text :if={!@scene.radec} x="0" y={@scene.r + 16} class="note">axes not zeroed · assuming upright</text>
     </svg>
     """
   end

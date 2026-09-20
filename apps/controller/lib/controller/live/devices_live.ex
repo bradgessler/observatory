@@ -14,7 +14,7 @@ defmodule Controller.DevicesLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: :timer.send_interval(@tick_ms, :tick)
-    {:ok, socket |> assign(night: Settings.get("night", false), notice: nil, subscribed: MapSet.new()) |> refresh()}
+    {:ok, socket |> assign(page_title: "Devices", night: Settings.get("night", false), notice: nil, subscribed: MapSet.new()) |> refresh()}
   end
 
   @impl true
@@ -99,11 +99,11 @@ defmodule Controller.DevicesLive do
       <:header>
         <.back navigate={~p"/"} label="Start" />
         <.title>Devices</.title>
-        <.actions><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/devices"} label="devices" /></.actions>
       </:header>
 
       <.card class={if @any_real, do: "state ok", else: "state"}>
-        <div class="state-line">
+        <div class="state-line" role="status" aria-live="polite">
           <strong>{if @any_real, do: "Telescope connected", else: "No telescope connected"}</strong>
           <span :if={!@any_real} class="dim">looking for a cable every few seconds</span>
         </div>
@@ -120,24 +120,26 @@ defmodule Controller.DevicesLive do
         <.row>
           <.btn navigate={~p"/bench?#{[mount: m.id]}"}>Drive it ›</.btn>
           <.btn navigate={~p"/setup/#{m.id}"}>Setup ›</.btn>
-          <.btn :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)}>Disconnect</.btn>
+          <.btn :if={m.id in Enum.map(@status.manual, &Path.basename/1)} phx-click="disconnect" phx-value-port={port_of(m.id, @status.manual)} aria-label={"Disconnect #{m.id}"}>Disconnect</.btn>
         </.row>
       </.card>
       <.hint :if={@mounts == []}>No drivers running.</.hint>
 
       <% likely = Enum.filter(@ports, &(&1.looks_like_mount or &1.mount_id)) %>
       <.card title="Telescope Cable">
-        <div :for={p <- likely} class="port">
-          <div class="line">
-            <strong>{Path.basename(p.path)}</strong>
-            <.badge :if={p.looks_like_mount} on>EQDIR cable</.badge>
-            <.badge :if={p.mount_id}>driver on</.badge>
-          </div>
-          <.row :if={!p.mount_id or p.path in @status.manual}>
-            <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path}>Connect</.btn>
-            <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path}>Disconnect</.btn>
-          </.row>
-        </div>
+        <ul :if={likely != []} class="ports" role="list" aria-label="likely telescope cables">
+          <li :for={p <- likely} class="port">
+            <div class="line">
+              <strong>{Path.basename(p.path)}</strong>
+              <.badge :if={p.looks_like_mount} on>EQDIR cable</.badge>
+              <.badge :if={p.mount_id}>driver on</.badge>
+            </div>
+            <.row :if={!p.mount_id or p.path in @status.manual}>
+              <.btn :if={!p.mount_id} phx-click="connect" phx-value-port={p.path} aria-label={"Connect #{Path.basename(p.path)}"}>Connect</.btn>
+              <.btn :if={p.mount_id && p.path in @status.manual} phx-click="disconnect" phx-value-port={p.path} aria-label={"Disconnect #{Path.basename(p.path)}"}>Disconnect</.btn>
+            </.row>
+          </li>
+        </ul>
         <.hint :if={likely == []}>No EQDIR cable seen on this machine. Plug it into this machine's USB, then Scan.</.hint>
         <.row>
           <.btn navigate={~p"/devices/ports"} class="btn-ghost">All serial ports · {length(@ports)} ›</.btn>
@@ -157,11 +159,11 @@ defmodule Controller.DevicesLive do
     """
   end
 
-  defp describe_error({"e", :ra, :timeout}), do: "port opened but the mount didn't answer — power? wrong jack? another program on the port?"
+  defp describe_error({"e", :ra, :timeout}), do: "port opened but the mount didn't answer: power? wrong jack? another program on the port?"
   defp describe_error({_, _, :timeout}), do: "the mount stopped answering"
   defp describe_error(:eacces), do: "permission denied opening the port"
   defp describe_error(:enoent), do: "the port vanished (cable unplugged?)"
-  defp describe_error(:eagain), do: "the port is busy — another program has it open"
+  defp describe_error(:eagain), do: "the port is busy: another program has it open"
   defp describe_error(e), do: inspect(e)
 
   defp port_of(id, manual), do: Enum.find(manual, &(Path.basename(&1) == id)) || id

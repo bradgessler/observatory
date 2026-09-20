@@ -54,7 +54,7 @@ defmodule Controller.HomeLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Settings.subscribe()
-    {:ok, assign(socket, night: Settings.get("night", false), groups: groups(), mounts: mounts())}
+    {:ok, assign(socket, page_title: "Everything", night: Settings.get("night", false), groups: groups(), mounts: mounts())}
   end
 
   defp mounts do
@@ -83,12 +83,12 @@ defmodule Controller.HomeLive do
       <:header>
         <.back navigate={~p"/"} label="Start" />
         <.title>Everything</.title>
-        <.actions><button class="ghost" phx-click="night" aria-label="night mode">◐</button></.actions>
+        <.actions><button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button></.actions>
       </:header>
 
       <p class="home-lede">
         {case @mounts do
-          [] -> "No mount connected yet — plug the EQDIR cable into this machine."
+          [] -> "No mount connected yet: plug the EQDIR cable into this machine."
           [one] -> "Talking to #{one}."
           many -> "Talking to #{Enum.join(many, ", ")}."
         end}
@@ -97,14 +97,14 @@ defmodule Controller.HomeLive do
       <section :for={{name, blurb, items} <- @groups} class="home-group">
         <h2>{name}</h2>
         <p class="dim">{blurb}</p>
-        <div class="home-list">
-          <div :for={{title, path, sub, _doc} <- items} class="home-item">
+        <ul class="home-list" role="list">
+          <li :for={{title, path, sub, _doc} <- items} class="home-item">
             <.link navigate={path} class="home-btn">
               <strong>{title}</strong>
               <span>{sub}</span>
             </.link>
-          </div>
-        </div>
+          </li>
+        </ul>
       </section>
     </.page>
     """

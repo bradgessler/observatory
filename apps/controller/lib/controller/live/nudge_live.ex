@@ -61,10 +61,12 @@ defmodule Controller.NudgeLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap)
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Nudge")
   end
 
   @impl true
+  def handle_event("stop", _, socket), do: {:noreply, run(socket, &Mount.stop/1)}
+
   def handle_event("step", %{"deg" => d}, socket) do
     {f, _} = Float.parse(d)
     {:noreply, assign(socket, step: f)}
@@ -113,24 +115,24 @@ defmodule Controller.NudgeLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Nudge</.title>
-        <.actions><.help href={~p"/docs/keypad"} /></.actions>
+        <.actions><.stop /><.help href={~p"/docs/nudge"} label="nudging" /></.actions>
       </:header>
 
-      <section class="dpad">
+      <section class="dpad" role="group" aria-label="nudge one step">
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="up">▲<small>toward pole</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="up"><span aria-hidden="true">▲</span><small>toward pole</small></button>
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="left">◀<small>E</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="left"><span aria-hidden="true">◀</span><small>E</small></button>
         <span class="dpad-centre"><b>{step_label(@step, @steps)}</b><small>per tap</small></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="right">▶<small>W</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="right"><span aria-hidden="true">▶</span><small>W</small></button>
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="down">▼<small>away</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="down"><span aria-hidden="true">▼</span><small>away</small></button>
         <span></span>
       </section>
 
-      <section class="rates rates-4">
-        <button :for={{lbl, deg} <- @steps} class={["rate", abs(deg - @step) < 1.0e-6 && "on"]} phx-click="step" phx-value-deg={deg}>{lbl}</button>
-      </section>
+      <.rates label="step per tap" class="rates-4">
+        <:opt :for={{lbl, deg} <- @steps} on={abs(deg - @step) < 1.0e-6} click="step" value={%{deg: deg}}>{lbl}</:opt>
+      </.rates>
 
       <.hint>Each tap moves exactly one step, at full speed with the mount's own ramps. Nothing to hold.</.hint>
 

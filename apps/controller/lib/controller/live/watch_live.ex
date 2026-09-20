@@ -27,6 +27,7 @@ defmodule Controller.WatchLive do
     {:ok,
      socket
      |> assign(
+       page_title: "Watch",
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        mount_id: params["id"] || session["id"],
@@ -181,6 +182,20 @@ defmodule Controller.WatchLive do
 
   defp busy?(video), do: video.state in [:starting, :streaming, :restarting]
 
+  # the one word that changes when the picture's state changes: its own live
+  # region, so a screen reader hears "Live" or "Still", not the age every second
+  defp state_word(video, player, frame, status) do
+    cond do
+      video.state == :streaming -> "Live"
+      video.state in [:starting, :restarting] -> "Starting video"
+      video.state == :error -> "Video didn't start"
+      player && elem(player, 0) in ["unsupported", "noscript", "error"] -> "This browser couldn't play the video"
+      frame -> "Still"
+      status.tool -> "No picture yet"
+      true -> "No camera tool on this machine"
+    end
+  end
+
   @impl true
   def render(assigns) do
     assigns = assign(assigns, busy: busy?(assigns.video))
@@ -190,44 +205,43 @@ defmodule Controller.WatchLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>Watch</.title>
-        <.actions><.help href={~p"/docs/devices"} /></.actions>
+        <.actions><.help href={~p"/docs/watch"} label="watching" /></.actions>
       </:header>
 
       <%!-- one picture: the latest still, or the video once it plays --%>
       <div class="watch-frame">
-        <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls></video>
-        <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt="latest frame of the telescope" />
-        <div :if={!@video.playlist and !@frame} class="watch-empty"></div>
+        <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls aria-label="live video of the telescope"></video>
+        <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt={"latest still of the telescope, #{age_words(@frame, @now)}"} />
+        <div :if={!@video.playlist and !@frame} class="watch-empty" aria-hidden="true"></div>
         <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
 
-        <%!-- the mount's axes as the camera sees them, turning with the encoders --%>
+        <%!-- the mount's axes as the camera sees them, turning with the encoders: solid polar, dashed Dec, long-dashed tube, in the tested inks --%>
         <% p = if @rig && @axes_on && @snap, do: pose(@rig, @snap) %>
         <svg :if={p} viewBox={"0 0 #{@rig.w} #{@rig.h}"} preserveAspectRatio="none" class="axes-overlay live-axes" aria-hidden="true">
-          <line x1={elem(elem(p.polar, 0), 0)} y1={elem(elem(p.polar, 0), 1)} x2={elem(elem(p.polar, 1), 0)} y2={elem(elem(p.polar, 1), 1)} stroke="#4f8cff" stroke-width="2.4" />
-          <line x1={elem(elem(p.dec, 0), 0)} y1={elem(elem(p.dec, 0), 1)} x2={elem(elem(p.dec, 1), 0)} y2={elem(elem(p.dec, 1), 1)} stroke="#2ec27e" stroke-width="2.4" />
-          <line x1={elem(elem(p.tube, 0), 0)} y1={elem(elem(p.tube, 0), 1)} x2={elem(elem(p.tube, 1), 0)} y2={elem(elem(p.tube, 1), 1)} stroke="#ff5a5a" stroke-width="2.4" stroke-dasharray="10 6" />
+          <line x1={elem(elem(p.polar, 0), 0)} y1={elem(elem(p.polar, 0), 1)} x2={elem(elem(p.polar, 1), 0)} y2={elem(elem(p.polar, 1), 1)} stroke="var(--accent)" stroke-width="2.4" />
+          <line x1={elem(elem(p.dec, 0), 0)} y1={elem(elem(p.dec, 0), 1)} x2={elem(elem(p.dec, 1), 0)} y2={elem(elem(p.dec, 1), 1)} stroke="var(--on)" stroke-width="2.4" stroke-dasharray="4 4" />
+          <line x1={elem(elem(p.tube, 0), 0)} y1={elem(elem(p.tube, 0), 1)} x2={elem(elem(p.tube, 1), 0)} y2={elem(elem(p.tube, 1), 1)} stroke="var(--warn)" stroke-width="2.4" stroke-dasharray="12 6" />
         </svg>
       </div>
       <p :if={@rig} class="watch-cap">
-        axes from the camera's sweep · <span class="ax-ra">polar</span> · <span class="ax-dec">Dec</span> · <span class="ax-tube">tube (needs the axes zeroed upright)</span> ·
-        <a href="#" phx-click="axes" phx-value-on={to_string(!@axes_on)}>{if @axes_on, do: "hide", else: "show"}</a>
+        axes from the camera's sweep · <span class="ax-ra">polar (solid)</span> · <span class="ax-dec">Dec (dashed)</span> · <span class="ax-tube">tube (long dashes; needs the axes zeroed upright)</span> ·
+        <button type="button" class="linklike" phx-click="axes" phx-value-on={to_string(!@axes_on)} aria-pressed={to_string(@axes_on)}>{if @axes_on, do: "hide axes", else: "show axes"}</button>
       </p>
 
-      <%!-- one quiet line: what this picture is --%>
-      <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]} aria-live="polite">
+      <%!-- one quiet line: what this picture is; only the state word is announced --%>
+      <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]}>
+        <span role="status" aria-live="polite">{state_word(@video, @player, @frame, @status)}</span>
         <%= cond do %>
           <% @video.state == :streaming -> %>
-            Live · {size_words(@video.quality)}{if @video.fell_back_from, do: " (#{@video.fell_back_from} gave no picture)", else: ""} · {behind_words(@tele)}{fps_words(@tele)}
+            · {size_words(@video.quality)}{if @video.fell_back_from, do: " (#{@video.fell_back_from} gave no picture)", else: ""} · {behind_words(@tele)}{fps_words(@tele)}
           <% @video.state in [:starting, :restarting] -> %>
-            Starting video · last still meanwhile
+            · last still meanwhile
           <% @video.state == :error -> %>
-            Video didn't start — showing stills · <.link navigate={~p"/controls/watch/camera"}>why</.link>
+            · showing stills · <.link navigate={~p"/controls/watch/camera"}>why the video didn't start</.link>
           <% @player && elem(@player, 0) in ["unsupported", "noscript", "error"] -> %>
-            This browser couldn't play the video
           <% @frame -> %>
-            Still · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}
+            · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}
           <% true -> %>
-            {if @status.tool, do: "No picture yet", else: "No camera tool on this machine"}
         <% end %>
       </p>
 

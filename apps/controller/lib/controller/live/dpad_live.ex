@@ -63,12 +63,14 @@ defmodule Controller.DpadLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap)
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Plain Keypad")
   end
 
   # -- events -------------------------------------------------------------------------
   # The Stick hook in fixed mode sends "stick" with x/y = the button's direction
-  # and mag = 1 while held, every 250 ms; "stick_end" on release.
+  # and mag = 1 while held, every 250 ms; "stick_end" on release. The arrow
+  # keys send the same: key auto-repeat feeds the deadman, keyup lets go.
+  @arrows %{"ArrowUp" => {0, 1}, "ArrowDown" => {0, -1}, "ArrowLeft" => {-1, 0}, "ArrowRight" => {1, 0}}
 
   @impl true
   def handle_event("rate", %{"rate" => r}, socket), do: {:noreply, assign(socket, rate: String.to_integer(r))}
@@ -97,6 +99,16 @@ defmodule Controller.DpadLive do
     Controller.Sky.Tracker.stop_all()
     {:noreply, run(socket, &Mount.emergency_stop/1)}
   end
+
+  def handle_event("keydown", %{"key" => k}, socket) when k in [" ", "Escape"], do: handle_event("estop", %{}, socket)
+
+  def handle_event("keydown", %{"key" => key}, socket) when is_map_key(@arrows, key) do
+    {x, y} = @arrows[key]
+    handle_event("stick", %{"x" => x, "y" => y, "mag" => 1}, socket)
+  end
+
+  def handle_event("keyup", %{"key" => key}, socket) when is_map_key(@arrows, key), do: handle_event("stick_end", %{}, socket)
+  def handle_event(k, _params, socket) when k in ["keydown", "keyup"], do: {:noreply, socket}
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
 
   defp run(socket, fun) do
@@ -124,31 +136,32 @@ defmodule Controller.DpadLive do
     assigns = assign(assigns, rates: @rates)
 
     ~H"""
-    <.page id="dpad" night={@night} class={@nested && "nested"}>
+    <.page id="dpad" night={@night} class={@nested && "nested"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Start" />
         <.title>{@selected} · Plain Keypad</.title>
-        <.actions><.help href={~p"/docs/keypad"} /></.actions>
+        <.actions><.stop click="estop" /><.help href={~p"/docs/keypad"} label="the keypad" /></.actions>
       </:header>
 
-      <section class="dpad">
+      <%!-- hold to move, release to stop: the dead-man is the point (2.5.2); arrow keys are the same controls --%>
+      <section class="dpad" role="group" aria-label="hold to move" aria-describedby="dpad-how">
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up">▲<small>N · toward pole</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▲</span><small>N · toward pole</small></button>
         <span></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left">◀<small>E</small></button>
-        <%!-- release stops; the always-visible STOP lives in the bench header --%>
-        <span class="dpad-centre"><b>{@rate}×</b></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right">▶<small>W</small></button>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">◀</span><small>E</small></button>
+        <%!-- release stops; the always-visible STOP lives in the header --%>
+        <span class="dpad-centre" aria-live="off"><b>{@rate}×</b></span>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">▶</span><small>W</small></button>
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down">▼<small>S · away</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▼</span><small>S · away</small></button>
         <span></span>
       </section>
 
-      <section class="rates">
-        <button :for={r <- @rates} class={["rate", r == @rate && "on"]} phx-click="rate" phx-value-rate={r}>{r}×</button>
-      </section>
+      <.rates label="slew rate">
+        <:opt :for={r <- @rates} on={r == @rate} click="rate" value={%{rate: r}}>{r}×</:opt>
+      </.rates>
 
-      <.hint>Hold an arrow; it moves at the chosen rate until you let go. E/W turn the polar axis, N/S the Dec axis.</.hint>
+      <.hint id="dpad-how">Hold an arrow; it moves at the chosen rate until you let go. E/W turn the polar axis, N/S the Dec axis. On a keyboard the arrow keys do the same; space or Escape stops.</.hint>
 
       <.notice notice={@notice} />
     </.page>

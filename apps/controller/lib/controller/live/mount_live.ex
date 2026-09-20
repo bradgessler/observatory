@@ -62,7 +62,8 @@ defmodule Controller.MountLive do
       end
 
     socket = assign(socket, refs: refs, mounts: mounts)
-    if socket.assigns.selected in Map.keys(refs), do: socket, else: assign(socket, selected: first_id(socket))
+    socket = if socket.assigns.selected in Map.keys(refs), do: socket, else: assign(socket, selected: first_id(socket))
+    assign(socket, page_title: "#{socket.assigns.selected || "no mount"} · Axis Strips")
   end
 
   defp first_id(socket), do: socket.assigns.refs |> Map.keys() |> Enum.sort() |> List.first()
@@ -123,7 +124,9 @@ defmodule Controller.MountLive do
   # sending keydown, which keeps refreshing the mount's hold deadman.
   @arrows %{"ArrowUp" => "up", "ArrowDown" => "down", "ArrowLeft" => "left", "ArrowRight" => "right"}
 
-  def handle_event("keydown", %{"key" => " "}, socket), do: handle_event("stop", %{}, socket)
+  # space and Escape both stop: Escape is not a character key (2.1.4), space is
+  # the big one a startled hand finds; an accidental stop is harmless
+  def handle_event("keydown", %{"key" => k}, socket) when k in [" ", "Escape"], do: handle_event("stop", %{}, socket)
 
   def handle_event("keydown", %{"key" => key}, socket) when is_map_key(@arrows, key),
     do: handle_event("hold", %{"dir" => @arrows[key]}, socket)
@@ -245,22 +248,25 @@ defmodule Controller.MountLive do
     assigns = assign(assigns, snap: current(%{assigns: assigns}), rates: @rates)
 
     ~H"""
-    <main class={["pad", @night && "night"]} id="pad" phx-window-keydown="keydown" phx-window-keyup="keyup">
+    <%!-- one <main> per document: inside the bench this is a plain block --%>
+    <.dynamic_tag tag_name={if @nested, do: "div", else: "main"} class={["pad", @night && "night"]} id="pad" phx-window-keydown="keydown" phx-window-keyup="keyup">
       <header :if={!@nested}>
         <form :if={map_size(@refs) > 1} phx-change="select">
-          <select name="id">
+          <%!-- picking another mount opens its keypad: the name says so before you change it (3.2.2) --%>
+          <select name="id" aria-label="switch to another mount's keypad">
             <option :for={id <- Enum.sort(Map.keys(@refs))} value={id} selected={id == @selected}>{id}</option>
           </select>
         </form>
-        <h1 :if={map_size(@refs) <= 1}>{@selected || "no mount"}</h1>
-        <span>
+        <h1 class={map_size(@refs) > 1 && "sr-only"}>{@selected || "no mount"}</h1>
+        <span class="hdr-actions">
           <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">✦ sky</.link>
           <.link navigate={~p"/input?#{[mount: @selected]}"} class="ghost" aria-label="game controller">🎮</.link>
           <.link navigate={~p"/devices"} class="ghost" aria-label="devices">⚙</.link>
-          <.link href={~p"/docs/keypad"} class="ghost help">?</.link>
-          <button class="ghost" phx-click="night" aria-label="night mode">◐</button>
+          <.link href={~p"/docs/keypad"} class="ghost help" aria-label="help: keypad">?</.link>
+          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </span>
       </header>
+      <.skip_target :if={!@nested} />
 
       <.link :if={@selected == "sim"} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
 
@@ -269,12 +275,12 @@ defmodule Controller.MountLive do
           <div class="axis">
             <span class="label">RA</span>
             <span class="deg">{fmt(@snap.axes.ra.degrees)}</span>
-            <span class={["dot", @snap.axes.ra.running && "on"]}></span>
+            <.lamp on={@snap.axes.ra.running} />
           </div>
           <div class="axis">
             <span class="label">DEC</span>
             <span class="deg">{fmt(@snap.axes.dec.degrees)}</span>
-            <span class={["dot", @snap.axes.dec.running && "on"]}></span>
+            <.lamp on={@snap.axes.dec.running} />
           </div>
           <div class="status">
             <span :if={@snap.tracking != :off} class="badge on">tracking {@snap.tracking}</span>
@@ -288,7 +294,7 @@ defmodule Controller.MountLive do
         <%= if mode == :axes do %>
           <section class="eq">
             <%!-- the mount as it stands: polar axis tilted to your latitude, Dec axis square to it --%>
-            <svg viewBox="0 0 200 120" class="eq-glyph" aria-hidden="true">
+            <svg viewBox="0 0 200 120" class="eq-glyph" role="img" aria-label={"the mount as it stands: polar axis tilted #{fmt0(@lat)}°, dec axis square to it"}>
               <% t = -@lat * :math.pi() / 180 %>
               <% {px, py} = {100 + 70 * :math.cos(t), 92 + 70 * :math.sin(t)} %>
               <% {qx, qy} = {100 - 30 * :math.cos(t), 92 - 30 * :math.sin(t)} %>
@@ -303,23 +309,23 @@ defmodule Controller.MountLive do
               <text x="180" y="104" class="lbl">N</text>
             </svg>
 
-            <div class="strip" id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="application" aria-label="pull left or right to turn around the polar axis">
-              <span class="strip-end">◀ E</span>
+            <div class="strip" id="strip-ra" phx-hook="Stick" data-lock="x" data-axis="ra" role="group" aria-label="pull left or right to turn around the polar axis" aria-describedby="pad-how">
+              <span class="strip-end"><span aria-hidden="true">◀ </span>E</span>
               <span class="strip-mid">around the polar axis<b>{if :ra in @held and @stick_rate, do: "#{@stick_rate}×", else: "RA"}</b></span>
-              <span class="strip-end">W ▶</span>
-              <div class="knob knob-h" data-knob></div>
+              <span class="strip-end">W<span aria-hidden="true"> ▶</span></span>
+              <div class="knob knob-h" data-knob aria-hidden="true"></div>
             </div>
 
-            <div class="strip" id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="application" aria-label="pull left or right to turn around the declination axis">
-              <span class="strip-end">◀ toward pole</span>
+            <div class="strip" id="strip-dec" phx-hook="Stick" data-lock="x" data-axis="dec" role="group" aria-label="pull left or right to turn around the declination axis" aria-describedby="pad-how">
+              <span class="strip-end"><span aria-hidden="true">◀ </span>toward pole</span>
               <span class="strip-mid">around the dec axis<b>{if :dec in @held and @stick_rate, do: "#{@stick_rate}×", else: "Dec"}</b></span>
-              <span class="strip-end">away ▶</span>
-              <div class="knob knob-h" data-knob></div>
+              <span class="strip-end">away<span aria-hidden="true"> ▶</span></span>
+              <div class="knob knob-h" data-knob aria-hidden="true"></div>
             </div>
           </section>
         <% else %>
           <section class="stick-wrap">
-            <div class="stick" id="stick" phx-hook="Stick" role="application" aria-label="touch and pull to move the view">
+            <div class="stick" id="stick" phx-hook="Stick" role="group" aria-label="touch and pull to move the view" aria-describedby="pad-how">
               <svg viewBox="-100 -100 200 200" class="stick-face" aria-hidden="true">
                 <circle r="98" class="rim" />
                 <circle r="62" class="ring" />
@@ -331,34 +337,36 @@ defmodule Controller.MountLive do
                 <text x="84" y="4" class="lbl">right</text>
                 <text x="0" y="6" class="rate-lbl">{if @stick_rate, do: "#{@stick_rate}×", else: ""}</text>
               </svg>
-              <div class="knob" data-knob></div>
+              <div class="knob" data-knob aria-hidden="true"></div>
             </div>
           </section>
         <% end %>
         <div class="stick-foot">
-          <button class="ghost" phx-click="mode">{if mode == :sky, do: "blended · moves as you see it (both motors)", else: "one strip per axis"} ▾</button>
+          <button class="ghost" phx-click="mode" aria-label={"strip layout: #{if mode == :sky, do: "blended, moves as you see it", else: "one strip per axis"}; switch"}>{if mode == :sky, do: "blended · moves as you see it (both motors)", else: "one strip per axis"} <span aria-hidden="true">▾</span></button>
           <small :if={mode == :axes and @mode == "sky" and not @snap.homed} class="dim">blended needs home set</small>
         </div>
+        <%!-- the strips are a pull gesture and the motion stops when you let go, by design (2.5.1, 2.5.2); the keyboard is the one-key path --%>
+        <.hint id="pad-how">Pull to turn; letting go stops. On a keyboard the arrow keys do the same and space or Escape stops.</.hint>
 
         <%!-- the bench header carries STOP and the modes chip; standalone, we carry our own --%>
-        <button :if={!@nested} class="stop-bar" phx-click="estop">STOP</button>
+        <button :if={!@nested} class="stop-bar" phx-click="estop" aria-label="stop the mount">STOP</button>
 
         <section class="row">
-          <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal">Track ☆</button>
-          <button :if={@snap.tracking != :off} class="on" phx-click="track" phx-value-mode="off">Tracking ☆</button>
+          <button :if={@snap.tracking == :off} phx-click="track" phx-value-mode="sidereal" aria-pressed="false">Track <span aria-hidden="true">☆</span></button>
+          <button :if={@snap.tracking != :off} class="on" phx-click="track" phx-value-mode="off" aria-pressed="true">Tracking <span aria-hidden="true">☆</span></button>
           <.link navigate={~p"/setup/#{@selected}"} class="btn-link">Setup ›</.link>
         </section>
 
         <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
       <% else %>
         <section class="empty">
-          <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> — {inspect(@snap.error)}</span></p>
+          <p :if={@snap}>{@selected}: not connected<span :if={@snap[:error]}> · {inspect(@snap.error)}</span></p>
           <p :if={!@snap}>No mount found. Plug the EQDIR cable into this machine, or connect to a node that has one.</p>
         </section>
       <% end %>
 
       <.notice notice={@notice} />
-    </main>
+    </.dynamic_tag>
     """
   end
 

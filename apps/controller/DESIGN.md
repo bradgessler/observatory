@@ -48,6 +48,14 @@ people who may have never used a telescope.
   on a card), `--fs-5` 28 (axis readouts). Nothing else.
 - **Rows are two lines.** A list row is the name, then its detail under it,
   then the keys; never a bold word with small text crammed after it.
+- **Every page, by keyboard and by screen reader.** A skip link to `#content`
+  (rendered once per document by `page`), one `<main>` and one `h1` per
+  document, a distinct `page_title` per LiveView, arrow keys drive the plain
+  keypad, the orb strips and the tilt pad (auto-repeat feeds the dead-man;
+  keyup releases) and Escape stops, `UI.rates` is a radiogroup, `UI.items`
+  is a list, `UI.lamp` says "moving"/"still" in words, toggles carry
+  `aria-pressed`, the current tab or step `aria-current`, destructive keys a
+  confirm. `pages_test.exs` "accessibility" checks these on every route.
 
 ## Night vision first
 

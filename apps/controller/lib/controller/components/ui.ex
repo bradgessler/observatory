@@ -27,8 +27,19 @@ defmodule Controller.Components.UI do
     ~H"""
     <.wrap nested={@class && String.contains?(to_string(@class), "nested")} id={@id} class={["page", @class, @night && "night"]} {@rest}>
       <header :if={@header != []} class="page-header">{render_slot(@header)}</header>
+      <.skip_target :if={!(@class && String.contains?(to_string(@class), "nested"))} />
       {render_slot(@inner_block)}
     </.wrap>
+    """
+  end
+
+  @doc """
+  Where the skip link lands: just past the header, before the first thing on
+  the page. Once per document, so a nested page never renders one.
+  """
+  def skip_target(assigns) do
+    ~H"""
+    <span id="content" tabindex="-1" class="skip-target"></span>
     """
   end
 
@@ -66,10 +77,13 @@ defmodule Controller.Components.UI do
   end
 
   attr :href, :string, required: true
+  attr :label, :string, default: nil, doc: "what the help is about; defaults to the doc's slug"
 
   def help(assigns) do
+    assigns = assign_new(assigns, :name, fn -> "help: " <> (assigns.label || Path.basename(assigns.href)) end)
+
     ~H"""
-    <.link href={@href} class="help" aria-label="help">?</.link>
+    <.link href={@href} class="help help-icon" aria-label={@name}>?</.link>
     """
   end
 
@@ -145,11 +159,12 @@ defmodule Controller.Components.UI do
   end
 
   attr :class, :string, default: nil
+  attr :rest, :global
   slot :inner_block, required: true
 
   def hint(assigns) do
     ~H"""
-    <p class={["hint", @class]}>{render_slot(@inner_block)}</p>
+    <p class={["hint", @class]} {@rest}>{render_slot(@inner_block)}</p>
     """
   end
 
@@ -244,18 +259,67 @@ defmodule Controller.Components.UI do
   defp values(nil), do: %{}
   defp values(map), do: Map.new(map, fn {k, v} -> {"phx-value-#{k}", v} end)
 
-  @doc "One row in a list: a name, a dim detail after it, and the keys that act on it."
+  @doc "One row in a list: a name, a dim detail under it, and the keys that act on it. Inside `<.items>` it is a list item."
   attr :label, :string, required: true
   attr :detail, :string, default: nil
+  attr :as, :string, default: "div", doc: "\"li\" inside an <.items> list"
   attr :rest, :global
   slot :inner_block
 
   def item(assigns) do
     ~H"""
-    <div class="item" {@rest}>
+    <.dynamic_tag tag_name={@as} class="item" {@rest}>
       <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{@detail}</span></div>
       {render_slot(@inner_block)}
+    </.dynamic_tag>
+    """
+  end
+
+  @doc "A list of `<.item as=\"li\">` rows: a real list, so its length and position are announced."
+  attr :label, :string, default: nil
+  attr :class, :string, default: nil
+  slot :inner_block, required: true
+
+  def items(assigns) do
+    ~H"""
+    <ul class={["items", @class]} role="list" aria-label={@label}>{render_slot(@inner_block)}</ul>
+    """
+  end
+
+  @doc """
+  A row of rate or step keys, exactly one chosen: a radio group, like `seg`,
+  in the keypad's larger key shape.
+
+      <.rates label="slew rate" class="rates-4">
+        <:opt :for={r <- @rates} on={r == @rate} click="rate" value={%{rate: r}}>{r}×</:opt>
+      </.rates>
+  """
+  attr :label, :string, required: true
+  attr :class, :string, default: nil
+
+  slot :opt, required: true do
+    attr :on, :boolean
+    attr :click, :string, required: true
+    attr :value, :map
+  end
+
+  def rates(assigns) do
+    ~H"""
+    <div class={["rates", @class]} role="radiogroup" aria-label={@label}>
+      <button :for={o <- @opt} class={["rate", o[:on] && "on"]} phx-click={o.click} {values(o[:value])} role="radio" aria-checked={to_string(o[:on] == true)}>
+        {render_slot(o)}
+      </button>
     </div>
+    """
+  end
+
+  @doc "A running/still lamp with words for a screen reader; the glow carries it for eyes."
+  attr :on, :boolean, default: false
+  attr :class, :string, default: nil
+
+  def lamp(assigns) do
+    ~H"""
+    <i class={["dot", @on && "on", @class]} role="img" aria-label={if @on, do: "moving", else: "still"}></i>
     """
   end
 end

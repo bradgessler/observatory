@@ -26,14 +26,14 @@ defmodule Controller.Components.Corrections do
 
     ~H"""
     <div class={["corr", @compact && "compact"]}>
-      <div class="laws" aria-label="control law">
-        <span :for={{n, words} <- [{1, "axes"}, {2, "ideal sky"}, {3, "this mount"}]} class={["law-key", n == @law && "on"]}>
-          <b>{n}</b> {words}
-        </span>
-      </div>
+      <ol class="laws" aria-label="control law in charge">
+        <li :for={{n, words} <- [{1, "axes"}, {2, "ideal sky"}, {3, "this mount"}]} class={["law-key", n == @law && "on"]} aria-current={if n == @law, do: "true"}>
+          <b>{n}</b> {words}<span :if={n == @law} class="sr-only"> (in charge)</span>
+        </li>
+      </ol>
 
       <div class="corr-body">
-        <svg class="corr-target" viewBox="-100 -100 200 200" width={@size} height={@size} role="img" aria-label="polar axis against the pole">
+        <svg class="corr-target" viewBox="-100 -100 200 200" width={@size} height={@size} role="img" aria-label={if @model, do: "the mount's polar axis is #{fmt(@pole.off)}° from the pole, on a #{fmt(@pole.scale)}° target", else: "polar axis assumed on the pole"}>
           <circle :for={f <- [1 / 3, 2 / 3, 1.0]} class="ring" r={f * 88} />
           <line class="hair" x1="-96" y1="0" x2="96" y2="0" />
           <line class="hair" x1="0" y1="-96" x2="0" y2="96" />
@@ -60,7 +60,7 @@ defmodule Controller.Components.Corrections do
         </div>
       </div>
 
-      <div class="auth" aria-label="tracking authority in use">
+      <div class="auth" role="group" aria-label="tracking authority in use">
         <.bar label="RA" rate={@tracker && @tracker.ra_rate} tick={1.0} />
         <.bar label="Dec" rate={@tracker && @tracker.dec_rate} tick={0.0} />
         <span class="dim auth-note">
@@ -88,7 +88,7 @@ defmodule Controller.Components.Corrections do
     ~H"""
     <div class="auth-row">
       <span class="auth-k">{@label}</span>
-      <span class="auth-track">
+      <span class="auth-track" aria-hidden="true">
         <i class="auth-tick" style={"left: #{@tick_pct}%"}></i>
         <i :if={@rate} class="auth-fill" style={fill_style(@pct)}></i>
       </span>

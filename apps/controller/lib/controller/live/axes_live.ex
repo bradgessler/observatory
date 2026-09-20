@@ -22,7 +22,7 @@ defmodule Controller.AxesLive do
 
     {:ok,
      socket
-     |> assign(night: Settings.get("night", false), nested: session["nested"] == true, selected: params["id"] || session["id"], mounts: [], notice: nil)
+     |> assign(page_title: "Optical Axes", night: Settings.get("night", false), nested: session["nested"] == true, selected: params["id"] || session["id"], mounts: [], notice: nil)
      |> assign(scan: AxisScan.status())
      |> rescan()
      |> load()}
@@ -100,7 +100,7 @@ defmodule Controller.AxesLive do
   @impl true
   def handle_event("run", _, socket) do
     case AxisScan.run(socket.assigns.selected) do
-      :ok -> {:noreply, assign(socket, notice: "scanning — the mount will move ±3° on each axis")}
+      :ok -> {:noreply, assign(socket, notice: "scanning: the mount will move ±3° on each axis")}
       {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
@@ -115,7 +115,7 @@ defmodule Controller.AxesLive do
 
     case half && AxisScan.sweep(socket.assigns.selected, range: half) do
       nil -> {:noreply, assign(socket, notice: "that sweep range is not one on offer")}
-      :ok -> {:noreply, assign(socket, notice: "sweeping — five positions per axis, ±#{round(half)}°, about three minutes")}
+      :ok -> {:noreply, assign(socket, notice: "sweeping: five positions per axis, ±#{round(half)}°, about three minutes")}
       {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
     end
   end
@@ -139,11 +139,11 @@ defmodule Controller.AxesLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/controls/watch"} label="Watch" />
         <.title>Optical Axes</.title>
-        <.actions><.help href={~p"/docs/axes"} /></.actions>
+        <.actions><.help href={~p"/docs/axes"} label="the optical axes" /></.actions>
       </:header>
 
       <.card title="Find the axes in the picture">
-        <:aside><.badge on={@scan.running} warn={@scan.step in [:failed, :cancelled]}>{step_words(@scan)}</.badge></:aside>
+        <:aside><span role="status" aria-live="polite"><.badge on={@scan.running} warn={@scan.step in [:failed, :cancelled]}>{step_words(@scan)}</.badge></span></:aside>
         <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <% cannot = @scan.running or is_nil(@selected) or is_nil(@camera.tool) or not @homed %>
         <.row>
@@ -152,11 +152,11 @@ defmodule Controller.AxesLive do
           <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide ±20°</.btn>
         </.row>
         <.row :if={@result}>
-          <.btn class="btn-ghost" phx-click="clear">Forget these results</.btn>
+          <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget these results</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
-        <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>) — the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
-        <.hint :if={@scan.error} class="err">{@scan.error}</.hint>
+        <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
+        <.hint :if={@scan.error} class="err" role="alert">{@scan.error}</.hint>
       </.card>
 
       <%!-- the sweep: the axis in space, with margins --%>
@@ -164,13 +164,14 @@ defmodule Controller.AxesLive do
       <.card :if={sw} title={"Sweep · #{String.slice(sw["at"], 11, 5)} UTC"}>
         <div class="axes-pic">
           <img :if={sw["ra"]["frames"] != []} src={~p"/watch/frames/#{hd(sw["ra"]["frames"])}"} alt="the first frame of the sweep" />
+          <%!-- the tested inks, and a dash pattern per axis, so RA and Dec are told apart by more than colour --%>
           <svg viewBox={"0 0 #{sw["ra"]["w"]} #{sw["ra"]["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
-            <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
+            <%= for {axis, colour, dash} <- [{"ra", "var(--accent)", "12 8"}, {"dec", "var(--on)", "4 4"}] do %>
               <% ax = sw[axis] %>
               <polyline :for={t <- ax["tracks"]} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.9" />
               <% pf = sw["pair"] && sw["pair"][if(axis == "ra", do: "polar", else: "dec")] %>
               <% lf = pf || ax["fit"] %>
-              <line :if={lf} x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="2.4" stroke-dasharray="12 8" />
+              <line :if={lf} x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="2.4" stroke-dasharray={dash} />
             <% end %>
           </svg>
         </div>
@@ -183,11 +184,11 @@ defmodule Controller.AxesLive do
             Dec axis <b>{pair["dec"]["image_angle_deg"]}°</b> across, <b>{abs(pair["dec"]["tilt_deg"])}°</b> out · arcs fit to {pair["rms_px"]} px
           </span>
           <span class="dim">
-            camera's reading of each commanded step — RA: {Enum.map_join(pair["steps"]["ra"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["ra"]}°) ·
+            camera's reading of each commanded step · RA: {Enum.map_join(pair["steps"]["ra"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["ra"]}°) ·
             Dec: {Enum.map_join(pair["steps"]["dec"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["dec"]}°)
           </span>
           <span class="dim">the stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
-          <span :if={sw["history_spread_deg"]} class="dim">the last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other — repeatability, the margin that counts</span>
+          <span :if={sw["history_spread_deg"]} class="dim">the last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other: repeatability, the margin that counts</span>
         </div>
 
         <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
@@ -196,7 +197,7 @@ defmodule Controller.AxesLive do
           <span :if={f}>
             runs at <b>{f["image_angle_deg"]}° ± {margin(f["image_angle_sd_deg"], f["bootstrap_sd_deg"])}°</b> across the picture,
             <%= if f["tilt_ambiguous"] do %>
-              tilt <b>about {abs(f["tilt_deg"])}° — toward or away the camera can't tell</b> from a sweep this small; the arcs are too nearly straight. Try the wide sweep.
+              tilt <b>about {abs(f["tilt_deg"])}°, toward or away the camera can't tell</b> from a sweep this small; the arcs are too nearly straight. Try the wide sweep.
             <% else %>
               tilted <b>{abs(f["tilt_deg"])}° ± {margin(f["tilt_sd_deg"], f["bootstrap_sd_deg"])}°</b> out of the picture
             <% end %>
@@ -207,13 +208,13 @@ defmodule Controller.AxesLive do
         <% ambiguous = sw["ra"]["fit"]["tilt_ambiguous"] == true or sw["dec"]["fit"]["tilt_ambiguous"] == true %>
         <div :if={sw["between_deg"] && !ambiguous} class="axes-row">
           <strong>Between the two axes</strong>
-          <span><b>{sw["between_deg"]}°</b> — a square mount reads 90°; the difference is measurement error plus whatever the mount really is</span>
+          <span><b>{sw["between_deg"]}°</b> · a square mount reads 90°; the difference is measurement error plus whatever the mount really is</span>
         </div>
         <div :if={sw["between_deg"] && ambiguous} class="axes-row">
           <strong>Between the two axes</strong>
-          <span class="dim">not known yet — with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]) / 1, 0)}° up; a wider sweep settles it</span>
+          <span class="dim">not known yet: with a tilt unresolved the angle between them could be anything from {Float.round(abs(sw["ra"]["fit"]["image_angle_deg"] - sw["dec"]["fit"]["image_angle_deg"]) / 1, 0)}° up; a wider sweep settles it</span>
         </div>
-        <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored — both bias the tilt more than the in-picture direction.</.hint>
+        <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored; both bias the tilt more than the in-picture direction.</.hint>
       </.card>
 
       <.card :if={@result && @result["ra"]} title={"Quick look · #{String.slice(@result["at"], 11, 5)} UTC"}>
@@ -221,14 +222,14 @@ defmodule Controller.AxesLive do
           <img :if={@result["frame"]} src={~p"/watch/frames/#{@result["frame"]}"} alt="the frame before any move" />
           <svg viewBox={"0 0 #{@result["w"]} #{@result["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
             <defs>
-              <marker id="ah-ra" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#4f8cff" /></marker>
-              <marker id="ah-dec" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2ec27e" /></marker>
+              <marker id="ah-ra" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="var(--accent)" /></marker>
+              <marker id="ah-dec" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="none" stroke="var(--on)" stroke-width="1" /></marker>
             </defs>
-            <%= for {axis, colour} <- [{"ra", "#4f8cff"}, {"dec", "#2ec27e"}] do %>
+            <%= for {axis, colour, dash} <- [{"ra", "var(--accent)", "10 8"}, {"dec", "var(--on)", "4 4"}] do %>
               <% ax = @result[axis] %>
               <line :for={v <- ax["vectors"]} x1={v["x"]} y1={v["y"]} x2={v["x"] + v["dx"] * 4} y2={v["y"] + v["dy"] * 4} stroke={colour} stroke-width="1.6" stroke-linecap="round" opacity="0.95" marker-end={"url(#ah-#{axis})"} />
               <%!-- the axis direction across the picture, when the motion is a slide --%>
-              <line :if={ax["line"] && ax["fit"] && ax["fit"]["coherence"] > 0.5} x1={ax["line"]["x"] - ax["line"]["ux"] * 2000} y1={ax["line"]["y"] - ax["line"]["uy"] * 2000} x2={ax["line"]["x"] + ax["line"]["ux"] * 2000} y2={ax["line"]["y"] + ax["line"]["uy"] * 2000} stroke={colour} stroke-width="2" stroke-dasharray="10 8" opacity="0.8" />
+              <line :if={ax["line"] && ax["fit"] && ax["fit"]["coherence"] > 0.5} x1={ax["line"]["x"] - ax["line"]["ux"] * 2000} y1={ax["line"]["y"] - ax["line"]["uy"] * 2000} x2={ax["line"]["x"] + ax["line"]["ux"] * 2000} y2={ax["line"]["y"] + ax["line"]["uy"] * 2000} stroke={colour} stroke-width="2" stroke-dasharray={dash} opacity="0.8" />
               <g :if={ax["fit"] && ax["fit"]["cx"]}>
                 <circle cx={ax["fit"]["cx"]} cy={ax["fit"]["cy"]} r="9" fill="none" stroke={colour} stroke-width="2" />
                 <line x1={ax["fit"]["cx"] - 16} y1={ax["fit"]["cy"]} x2={ax["fit"]["cx"] + 16} y2={ax["fit"]["cy"]} stroke={colour} stroke-width="1.6" />
@@ -253,7 +254,7 @@ defmodule Controller.AxesLive do
           </span>
         </div>
         <.hint :if={@predicted}>The comparison with the orb only means something if the orb's viewpoint (Orb › from N/E/S/W, or Setup) is roughly where the camera stands; camera roll and height are not accounted for yet.</.hint>
-        <.hint>Arrows show where the picture moved when that axis turned (blue RA, green Dec), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide; a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
+        <.hint>Arrows show where the picture moved when that axis turned (RA with solid arrowheads, Dec with open ones), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide (long dashes RA, short dashes Dec); a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 
       <.notice notice={@notice} />

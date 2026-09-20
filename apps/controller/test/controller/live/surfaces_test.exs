@@ -88,6 +88,15 @@ defmodule Controller.SurfacesTest do
     assert html =~ "Nothing kept yet"
   end
 
+  test "watch can draw the mount instead of a camera picture", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/controls/watch")
+    # the drawing stands in on demand, whatever the camera is doing
+    drawn = render_click(view, "show", %{"s" => "drawing"})
+    assert drawn =~ "Drawn from the encoders"
+    assert drawn =~ "scope-svg"
+    refute render_click(view, "show", %{"s" => "picture"}) =~ "Drawn from the encoders"
+  end
+
   test "camera page carries the technical detail, not the watch page", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/controls/watch/camera")
     assert html =~ "Timed Stills"

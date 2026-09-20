@@ -970,3 +970,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sb-nums { font-size: var(--fs-2); color: var(--dim); font-variant-numeric: tabular-nums; }
 .sb-sim { font-size: var(--fs-1); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
 @media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+/* the drawing standing in for a camera picture */
+.watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: var(--r); }
+.watch-show { max-width: 360px; margin: 0 auto; }

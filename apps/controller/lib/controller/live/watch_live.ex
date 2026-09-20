@@ -37,12 +37,32 @@ defmodule Controller.WatchLive do
        refs: %{},
        snap: nil,
        rig: nil,
-       axes_on: true
+       axes_on: true,
+       # :auto shows the drawing when there is no fresh picture; a person can pin either
+       show: :auto
      )
      |> load()}
   end
 
   @strip 12
+  # a picture older than this is not worth looking at; draw the mount instead
+  @stale_s 60
+
+  # The drawing stands in when there is nothing fresh to see: no camera, no
+  # still yet, or a still that has gone cold. Video always wins.
+  defp safe_snap(ref) do
+    Mount.snapshot(ref)
+  catch
+    :exit, _ -> nil
+  end
+
+  defp drawing?(_show, _frame, _now, %{playlist: p}) when not is_nil(p), do: false
+  defp drawing?(:drawing, _frame, _now, _video), do: true
+  defp drawing?(:picture, _frame, _now, _video), do: false
+  defp drawing?(:auto, nil, _now, _video), do: true
+
+  defp drawing?(:auto, %{at: at}, now, _video), do: DateTime.diff(now, at) > @stale_s
+  defp drawing?(_, _, _, _), do: false
 
   defp load(socket) do
     status = Watch.status()
@@ -94,7 +114,10 @@ defmodule Controller.WatchLive do
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
     id = if socket.assigns.mount_id in Map.keys(refs), do: socket.assigns.mount_id, else: refs |> Map.keys() |> Enum.sort() |> List.first()
-    {:noreply, socket |> assign(refs: refs, mount_id: id) |> load_rig()}
+    # take a snapshot now rather than waiting for the next broadcast: the
+    # drawing should be there on the first paint
+    snap = socket.assigns.snap || if(ref = refs[id], do: safe_snap(ref))
+    {:noreply, socket |> assign(refs: refs, mount_id: id, snap: snap) |> load_rig()}
   end
 
   def handle_info({:mount, snap}, %{assigns: %{mount_id: id}} = socket) when snap.id == id, do: {:noreply, assign(socket, snap: snap)}
@@ -149,6 +172,9 @@ defmodule Controller.WatchLive do
   end
 
   def handle_event("axes", %{"on" => on}, socket), do: {:noreply, assign(socket, axes_on: on == "true")}
+
+  def handle_event("show", %{"s" => s}, socket) when s in ~w(auto picture drawing),
+    do: {:noreply, assign(socket, show: String.to_existing_atom(s))}
 
   def handle_event("pin", %{"name" => name}, socket), do: {:noreply, assign(socket, pinned: name)}
   def handle_event("pin", _, socket), do: {:noreply, assign(socket, pinned: nil)}
@@ -208,12 +234,17 @@ defmodule Controller.WatchLive do
         <.actions><.help href={~p"/docs/watch"} label="watching" /></.actions>
       </:header>
 
-      <%!-- one picture: the latest still, or the video once it plays --%>
+      <%!-- one picture: the video, the latest still, or the mount drawn from its encoders --%>
+      <% drawn = drawing?(@show, @frame, @now, @video) %>
+      <% pose = drawn && @snap && Controller.Components.Scope.pose_from(@snap, Controller.Sky.Pointing.context(@now, @mount_id)) %>
       <div class="watch-frame">
+        <div :if={pose} class="watch-drawn">
+          <Controller.Components.Scope.scope pose={pose} size={520} label={"#{@mount_id} as drawn from its encoders"} />
+        </div>
         <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls aria-label="live video of the telescope"></video>
-        <img :if={!@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt={"latest still of the telescope, #{age_words(@frame, @now)}"} />
-        <div :if={!@video.playlist and !@frame} class="watch-empty" aria-hidden="true"></div>
-        <button :if={!@busy} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
+        <img :if={!drawn and !@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt={"latest still of the telescope, #{age_words(@frame, @now)}"} />
+        <div :if={!drawn and !@video.playlist and !@frame} class="watch-empty" aria-hidden="true"></div>
+        <button :if={!@busy and !drawn} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
 
         <%!-- the mount's axes as the camera sees them, turning with the encoders: solid polar, dashed Dec, long-dashed tube, in the tested inks --%>
         <% p = if @rig && @axes_on && @snap, do: pose(@rig, @snap) %>
@@ -227,6 +258,16 @@ defmodule Controller.WatchLive do
         Axes from the camera's sweep · <span class="ax-ra">polar (solid)</span> · <span class="ax-dec">Dec (dashed)</span> · <span class="ax-tube">tube (long dashes; needs the axes zeroed upright)</span> ·
         <button type="button" class="linklike" phx-click="axes" phx-value-on={to_string(!@axes_on)} aria-pressed={to_string(@axes_on)}>{if @axes_on, do: "hide axes", else: "show axes"}</button>
       </p>
+
+      <p :if={drawn} class="watch-cap">
+        Drawn from the encoders{if @frame, do: " · the camera's last picture is #{age_words(@frame, @now)}", else: " · no camera"}
+      </p>
+
+      <.seg :if={@status.tool && @frame} label="what to show" class="watch-show">
+        <:opt on={@show == :auto} click="show" value={%{s: "auto"}}>Auto</:opt>
+        <:opt on={@show == :picture} click="show" value={%{s: "picture"}}>Picture</:opt>
+        <:opt on={@show == :drawing} click="show" value={%{s: "drawing"}}>Drawing</:opt>
+      </.seg>
 
       <%!-- one quiet line: what this picture is; only the state word is announced --%>
       <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]}>

@@ -30,3 +30,12 @@ twenty minutes of frames and say what happened.
 * Ask AVFoundation for the pixel format the camera really delivers
   (`uyvy422`). Asking for `nv12` "works" — segments flow — and the H.264 is
   purple-and-green stripes.
+
+## When there is no camera
+
+Not every telescope has a camera watching it, and a still can go cold. When
+there is nothing fresh to look at, the frame shows the mount **drawn from its
+own encoders** instead of a black box: the same picture as the Scope page,
+turning as the mount turns. The caption says so, and how old the camera's last
+picture was. With a camera present you can pin either one: Auto, Picture or
+Drawing.

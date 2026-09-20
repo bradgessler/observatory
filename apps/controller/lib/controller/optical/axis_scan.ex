@@ -59,6 +59,12 @@ defmodule Controller.Optical.AxisScan do
   """
   def cancel(opts \\ []), do: GenServer.call(__MODULE__, {:cancel, opts})
 
+  @doc "Sweep after sweep until told to stop: each run joins the history and the agreement number settles."
+  def refine(id, opts \\ []), do: GenServer.call(__MODULE__, {:run, id, Keyword.merge([mode: :sweep, loop: true], opts)}, 15_000)
+
+  @doc "Finish the sweep in progress, then stop (a cancel stops it now)."
+  def stop_refining, do: GenServer.call(__MODULE__, {:loop, false})
+
   def status, do: GenServer.call(__MODULE__, :status)
 
   @doc "Forget the last scan's outcome (back to idle); no-op while one is running."
@@ -78,11 +84,12 @@ defmodule Controller.Optical.AxisScan do
   @impl true
   def init(_) do
     Process.flag(:trap_exit, true)
-    {:ok, %{task: nil, id: nil, ref: nil, start: nil, step: nil, error: nil}}
+    {:ok, %{task: nil, id: nil, ref: nil, start: nil, step: nil, error: nil, interim: %{}, loop: false, loop_opts: []}}
   end
 
   @impl true
-  def handle_call(:status, _from, s), do: {:reply, Map.take(s, [:id, :step, :error]) |> Map.put(:running, s.task != nil), s}
+  def handle_call(:status, _from, s), do: {:reply, public(s), s}
+  def handle_call({:loop, on?}, _from, s), do: {:reply, :ok, announce(%{s | loop: on?})}
   def handle_call(:reset, _from, %{task: nil} = s), do: {:reply, :ok, announce(%{s | step: nil, error: nil, id: nil})}
   def handle_call(:reset, _from, s), do: {:reply, {:error, :busy}, s}
 
@@ -95,7 +102,8 @@ defmodule Controller.Optical.AxisScan do
       # a STOP pressed anywhere after this moment ends the scan (estop_at is monotonic ms)
       opts = Keyword.put(opts, :started_at, System.monotonic_time(:millisecond))
       task = Task.async(fn -> if(opts[:mode] == :sweep, do: sweep_scan(parent, ref, opts), else: scan(parent, ref, id, opts)) end)
-      {:reply, :ok, announce(%{s | task: task, id: id, ref: ref, start: start, step: :starting, error: nil})}
+      loop? = Keyword.get(opts, :loop, s.loop && s.id == id)
+      {:reply, :ok, announce(%{s | task: task, id: id, ref: ref, start: start, step: :starting, error: nil, interim: %{}, loop: loop?, loop_opts: Keyword.delete(opts, :started_at)})}
     else
       {:mount, nil} -> {:reply, {:error, :no_mount}, s}
       {:error, _} = e -> {:reply, e, s}
@@ -109,12 +117,24 @@ defmodule Controller.Optical.AxisScan do
     return? = Keyword.get(opts, :return, true)
     Telescope.Events.emit(:optical, :scan_cancelled, %{id: s.id, returning_to: if(return?, do: s.start)})
     recover(s.ref, if(return?, do: s.start))
-    words = if return?, do: "cancelled — stopping the mount and going back to where the scan began", else: "cancelled by STOP — the mount stays where it is"
-    {:reply, :ok, announce(%{s | task: nil, step: :cancelled, error: words})}
+    words = if return?, do: "cancelled: stopping the mount and going back to where the scan began", else: "cancelled by STOP: the mount stays where it is"
+    {:reply, :ok, announce(%{s | task: nil, step: :cancelled, error: words, loop: false})}
   end
 
   @impl true
   def handle_info({:step, step}, s), do: {:noreply, announce(%{s | step: step})}
+
+  # a fit on the positions so far: the page draws it and watches it settle
+  def handle_info({:interim, axis, data}, s), do: {:noreply, announce(%{s | interim: Map.put(s.interim, axis, data)})}
+
+  def handle_info(:next_run, %{loop: true, task: nil, id: id} = s) when is_binary(id) do
+    case handle_call({:run, id, s.loop_opts}, nil, s) do
+      {:reply, :ok, s2} -> {:noreply, s2}
+      {:reply, {:error, why}, s2} -> {:noreply, announce(%{s2 | loop: false, step: :failed, error: "could not start the next run: #{inspect(why)}"})}
+    end
+  end
+
+  def handle_info(:next_run, s), do: {:noreply, s}
 
   def handle_info({ref, result}, %{task: %{ref: ref}} = s) do
     Process.demonitor(ref, [:flush])
@@ -129,6 +149,7 @@ defmodule Controller.Optical.AxisScan do
           sweep = Map.merge(sweep, %{"history" => history, "history_n" => length(history), "history_spread_deg" => spread_deg(history)})
           entry = Map.get(all, s.id, %{}) |> Map.put("sweep", sweep)
           Settings.put("optical_axes", Map.put(all, s.id, entry))
+          if s.loop, do: Process.send_after(self(), :next_run, 3_000)
           %{s | task: nil, step: :done}
 
         {:ok, res} ->
@@ -140,7 +161,7 @@ defmodule Controller.Optical.AxisScan do
 
         {:error, why} ->
           Logger.warning("optical: scan failed: #{inspect(why)}")
-          %{s | task: nil, step: :failed, error: to_string(why)}
+          %{s | task: nil, step: :failed, error: to_string(why), loop: false}
       end
 
     {:noreply, announce(s)}
@@ -153,7 +174,7 @@ defmodule Controller.Optical.AxisScan do
     Logger.warning("optical: scan crashed: #{inspect(reason)}")
     Telescope.Events.emit(:optical, :scan_crashed, %{id: s.id, reason: inspect(reason), returning_to: s.start})
     recover(s.ref, s.start)
-    {:noreply, announce(%{s | task: nil, step: :failed, error: "scan crashed: #{inspect(reason)} — stopping the mount and going back to where it started"})}
+    {:noreply, announce(%{s | task: nil, step: :failed, error: "scan crashed: #{inspect(reason)}: stopping the mount and going back to where it started", loop: false})}
   end
 
   def handle_info(_, s), do: {:noreply, s}
@@ -265,7 +286,9 @@ defmodule Controller.Optical.AxisScan do
           with :ok <- move(ref, axis, step, opts),
                :ok <- settle(ref, axis),
                {:ok, frame, name} <- capture(parent, {:sweep, axis, i + 1, n}, opts) do
-            {:cont, {:ok, [{frame, name} | frames]}}
+            frames = [{frame, name} | frames]
+            interim(parent, axis, Enum.reverse(frames), angles, hfov, n)
+            {:cont, {:ok, frames}}
           else
             {:error, :limit} -> {:halt, {:error, "#{axis}: soft limit during the sweep"}}
             {:error, :stopped} -> {:halt, {:error, @stopped_words}}
@@ -303,6 +326,39 @@ defmodule Controller.Optical.AxisScan do
        }}
     end
   end
+
+  # The fit on the positions so far, sent to the page as the sweep goes, so the
+  # lines appear after the third picture and settle as more come in. Never
+  # allowed to fail the sweep: a bad interim is just skipped.
+  defp interim(parent, axis, frames, angles, hfov, n) when length(frames) >= 2 do
+    try do
+      list = Enum.map(frames, &elem(&1, 0))
+      %{w: w, h: h} = hd(list)
+      cam = Controller.Optical.Axis3D.camera(w, h, hfov)
+      tracks = Controller.Optical.Track.trajectories(list)
+
+      # the tracks go too, fit or no fit: watching the spots trace their arcs is the point
+      fit =
+        case Controller.Optical.Axis3D.fit(tracks, Enum.take(angles, length(frames)), cam) do
+          {:ok, f} -> fit_json(f, cam)
+          _ -> nil
+        end
+
+      send(parent, {:interim, Atom.to_string(axis), %{
+        "fit" => fit,
+        "tracks" => Enum.map(tracks, fn %{points: pts} -> Enum.map(pts, fn {x, y} -> [x, y] end) end),
+        "frame" => elem(hd(frames), 1),
+        "w" => w,
+        "h" => h,
+        "positions" => length(frames),
+        "of" => n
+      }})
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp interim(_, _, _, _, _, _), do: :ok
 
   # every still the same bytes means the camera has frozen; say so instead of fitting noise
   defp frames_alive(frames) do
@@ -645,8 +701,10 @@ defmodule Controller.Optical.AxisScan do
     end
   end
 
+  defp public(s), do: Map.take(s, [:id, :step, :error, :interim, :loop]) |> Map.put(:running, s.task != nil)
+
   defp announce(s) do
-    Telescope.broadcast(@topic, {:optical, Map.take(s, [:id, :step, :error]) |> Map.put(:running, s.task != nil)})
+    Telescope.broadcast(@topic, {:optical, public(s)})
     s
   end
 end

@@ -87,6 +87,9 @@ defmodule Controller.AxesLive do
   defp apart(_, _), do: nil
 
   @impl true
+  def handle_params(params, _uri, socket), do: {:noreply, assign(socket, details: params["details"] == "1")}
+
+  @impl true
   def handle_info(:rescan, socket) do
     Process.send_after(self(), :rescan, 3_000)
     {:noreply, socket |> rescan() |> load()}
@@ -120,6 +123,23 @@ defmodule Controller.AxesLive do
     end
   end
 
+  def handle_event("refine", _, socket) do
+    case AxisScan.refine(socket.assigns.selected, range: 6.0) do
+      :ok -> {:noreply, assign(socket, notice: "refining: a sweep every few minutes until you stop it")}
+      {:error, why} -> {:noreply, assign(socket, notice: refused(why))}
+    end
+  end
+
+  def handle_event("stop_refining", _, socket) do
+    AxisScan.stop_refining()
+    {:noreply, assign(socket, notice: "this run finishes, then it stops")}
+  end
+
+  def handle_event("cancel", _, socket) do
+    AxisScan.cancel()
+    {:noreply, assign(socket, notice: "cancelled; going back to where it started")}
+  end
+
   def handle_event("clear", _, socket) do
     AxisScan.clear(socket.assigns.selected)
     {:noreply, load(socket)}
@@ -142,23 +162,108 @@ defmodule Controller.AxesLive do
         <.actions><.help href={~p"/docs/axes"} label="the optical axes" /></.actions>
       </:header>
 
-      <.card title="Find the axes in the picture">
+      <%!-- the procedure: one key, a line that says what it is doing, and an answer --%>
+      <.card title="Find the Axes">
         <:aside><span role="status" aria-live="polite"><.badge on={@scan.running} warn={@scan.step in [:failed, :cancelled]}>{step_words(@scan)}</.badge></span></:aside>
-        <.hint>Turns each axis 3° and back with the camera watching, then works out from what moved where the axis pivots in the picture. Experiment: an honest first look, not a calibration yet.</.hint>
         <% cannot = @scan.running or is_nil(@selected) or is_nil(@camera.tool) or not @homed %>
-        <.row>
-          <.btn variant="primary" phx-click="run" disabled={cannot}>Quick look</.btn>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Sweep ±6°</.btn>
-          <.btn variant="primary" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide ±20°</.btn>
+        <.hint>Turns each axis a few degrees with the camera watching and works out where the two axes are in the picture. The mount comes back to where it started.</.hint>
+        <div :if={@scan.running} class="state-line" role="status" aria-live="polite">
+          <strong>{step_words(@scan)}</strong>
+          <span class="dim">{if @scan[:loop], do: "refining: run after run until you stop it", else: "about five minutes"} · STOP on any page ends it</span>
+        </div>
+        <.row :if={!@scan.running}>
+          <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the axes · 5 min</.btn>
+          <.btn phx-click="refine" disabled={cannot}>Keep refining</.btn>
         </.row>
-        <.row :if={@result}>
-          <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget these results</.btn>
+        <.row :if={@scan.running}>
+          <.btn :if={@scan[:loop]} phx-click="stop_refining">Stop after this run</.btn>
+          <.btn phx-click="cancel">Cancel and go back</.btn>
+        </.row>
+        <.row :if={!@scan.running}>
+          <.btn class="btn-ghost" phx-click="run" disabled={cannot}>Quick look · 1 min</.btn>
+          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide sweep · 15 min</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
         <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
         <.hint :if={@scan.error} class="err" role="alert">{@scan.error}</.hint>
       </.card>
 
+      <%!-- while it runs: the fit on the positions so far, redrawn as each picture lands --%>
+      <% im = @scan[:interim] || %{} %>
+      <% first = im["ra"] || im["dec"] %>
+      <.card :if={@scan.running && first && !@details} title="Emerging">
+        <div class="axes-pic">
+          <img src={~p"/watch/frames/#{first["frame"]}"} alt="the mount, with the axes found so far drawn over it" />
+          <svg viewBox={"0 0 #{first["w"]} #{first["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
+            <%= for {axis, colour} <- [{"ra", "var(--accent)"}, {"dec", "var(--on)"}], im[axis] do %>
+              <polyline :for={t <- im[axis]["tracks"] || []} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.85" />
+            <% end %>
+            <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}], f = im[axis] && im[axis]["fit"], f && f["line"] do %>
+              <line x1={f["line"] |> hd() |> hd()} y1={f["line"] |> hd() |> Enum.at(1)} x2={f["line"] |> Enum.at(1) |> hd()} y2={f["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
+              <text x={f["line"] |> Enum.at(1) |> hd()} y={(f["line"] |> Enum.at(1) |> Enum.at(1)) - 8} fill={colour} font-size={div(first["w"], 28)} font-weight="700">{name}</text>
+            <% end %>
+          </svg>
+        </div>
+        <div :for={{axis, label} <- [{"ra", "RA (polar) axis"}, {"dec", "Dec axis"}]} class="state-line">
+          <strong>{label} · {cond do im[axis] && im[axis]["fit"] -> answer_across(nil, im[axis]["fit"]); im[axis] -> "#{length(im[axis]["tracks"] || [])} spots on the move"; true -> "waiting for its turn" end}</strong>
+          <span :if={im[axis]} class="dim">after {im[axis]["positions"]} of {im[axis]["of"]} positions{if im[axis]["fit"], do: " · #{im[axis]["fit"]["n"]} spots · arcs fit to #{im[axis]["fit"]["rms_px"]} px", else: " · a fit needs three"}</span>
+        </div>
+      </.card>
+
+      <%!-- the answer: the two axes drawn on the picture, one sentence each --%>
+      <% sw = @result && @result["sweep"] %>
+      <% pair = sw && sw["pair"] %>
+      <.card :if={sw && !@details && !(@scan.running && first)} title={"Where the Axes Are · #{String.slice(sw["at"], 11, 5)} UTC"}>
+        <div class="axes-pic">
+          <img :if={sw["ra"]["frames"] != []} src={~p"/watch/frames/#{hd(sw["ra"]["frames"])}"} alt="the mount, with the two fitted axes drawn over it" />
+          <svg viewBox={"0 0 #{sw["ra"]["w"]} #{sw["ra"]["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
+            <%= for {axis, colour} <- [{"ra", "var(--accent)"}, {"dec", "var(--on)"}] do %>
+              <polyline :for={t <- sw[axis]["tracks"] || []} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1" opacity="0.45" />
+            <% end %>
+            <%= for {axis, colour, dash, name} <- [{"ra", "var(--accent)", "12 8", "RA"}, {"dec", "var(--on)", "4 4", "Dec"}] do %>
+              <% pf = pair && pair[if(axis == "ra", do: "polar", else: "dec")] %>
+              <% lf = pf || sw[axis]["fit"] %>
+              <%= if lf && lf["line"] do %>
+                <line x1={lf["line"] |> hd() |> hd()} y1={lf["line"] |> hd() |> Enum.at(1)} x2={lf["line"] |> Enum.at(1) |> hd()} y2={lf["line"] |> Enum.at(1) |> Enum.at(1)} stroke={colour} stroke-width="3" stroke-dasharray={dash} />
+                <text x={lf["line"] |> Enum.at(1) |> hd()} y={(lf["line"] |> Enum.at(1) |> Enum.at(1)) - 8} fill={colour} font-size={div(sw["ra"]["w"], 28)} font-weight="700">{name}</text>
+              <% end %>
+            <% end %>
+          </svg>
+        </div>
+        <div class="state-line">
+          <strong>RA (polar) axis · {answer_across(pair && pair["polar"], sw["ra"]["fit"])}</strong>
+          <span class="dim">{answer_depth(pair && pair["polar"], sw["ra"]["fit"])}</span>
+        </div>
+        <div class="state-line">
+          <strong>Dec axis · {answer_across(pair && pair["dec"], sw["dec"]["fit"])}</strong>
+          <span class="dim">{answer_depth(pair && pair["dec"], sw["dec"]["fit"])}</span>
+        </div>
+        <div class="state-line">
+          <strong>{confidence_words(sw)}</strong>
+          <span class="dim">the direction across the picture is the part one camera can measure; how far in or out needs a second camera</span>
+        </div>
+        <.row>
+          <.btn :if={@selected} navigate={~p"/controls/watch"}>See them on the live picture ›</.btn>
+          <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the numbers ›</.btn>
+        </.row>
+      </.card>
+
+      <.card :if={!sw && @result && @result["ra"] && !@details} title={"Quick Look · #{String.slice(@result["at"], 11, 5)} UTC"}>
+        <div class="state-line">
+          <strong>RA (polar) axis · {@result["ra"]["words"]}</strong>
+        </div>
+        <div class="state-line">
+          <strong>Dec axis · {@result["dec"]["words"]}</strong>
+        </div>
+        <.hint>A quick look only says how each axis moves the picture. Find the axes for the lines.</.hint>
+        <.row><.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the numbers ›</.btn></.row>
+      </.card>
+
+      <%= if @details do %>
+      <.row>
+        <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}"}>‹ Back to the answer</.btn>
+        <.btn :if={@result} class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget these results</.btn>
+      </.row>
       <%!-- the sweep: the axis in space, with margins --%>
       <% sw = @result && @result["sweep"] %>
       <.card :if={sw} title={"Sweep · #{String.slice(sw["at"], 11, 5)} UTC"}>
@@ -257,6 +362,8 @@ defmodule Controller.AxesLive do
         <.hint>Arrows show where the picture moved when that axis turned (RA with solid arrowheads, Dec with open ones), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide (long dashes RA, short dashes Dec); a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 
+      <% end %>
+
       <.notice notice={@notice} />
     </.page>
     """
@@ -266,6 +373,32 @@ defmodule Controller.AxesLive do
   defp margin(a, b) do
     [a, b, 0.5] |> Enum.reject(&is_nil/1) |> Enum.max() |> Kernel./(1) |> Float.round(1)
   end
+
+  # one sentence per axis for the answer card; the numbers live in the details
+  defp answer_across(%{"image_angle_deg" => a} = f, _), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"
+  defp answer_across(_, %{"image_angle_deg" => a} = f), do: "runs at #{round1(a)}° across the picture#{sd(f["image_angle_sd_deg"])}"
+  defp answer_across(_, _), do: "not found in this run"
+
+  defp answer_depth(%{"tilt_deg" => t} = f, _) when is_number(t), do: "#{round1(abs(t))}° in or out of the picture#{sd(f["tilt_sd_deg"])}"
+  defp answer_depth(_, %{"tilt_ambiguous" => true, "tilt_deg" => t}), do: "about #{round1(abs(t))}° in or out; which way, this run can't tell"
+  defp answer_depth(_, %{"tilt_deg" => t} = f) when is_number(t), do: "#{round1(abs(t))}° in or out of the picture#{sd(f["tilt_sd_deg"])}"
+  defp answer_depth(_, _), do: "not enough spots followed"
+
+  defp confidence_words(%{"history_spread_deg" => spread, "history_n" => n}) when is_number(spread) and n >= 2 do
+    cond do
+      spread <= 2 -> "#{n} runs agree within #{round1(spread)}°: solid"
+      spread <= 8 -> "#{n} runs agree within #{round1(spread)}°: usable, run it again to be sure"
+      true -> "#{n} runs disagree by #{round1(spread)}°: not reliable yet, run it again"
+    end
+  end
+
+  defp confidence_words(_), do: "one run so far: run it again to see if it repeats"
+
+  defp sd(nil), do: ""
+  defp sd(x) when is_number(x), do: " (±#{round1(x)}°)"
+  defp sd(_), do: ""
+  defp round1(x) when is_number(x), do: Float.round(x / 1, 1)
+  defp round1(x), do: x
 
   defp step_words(%{running: false, step: :done}), do: "done"
   defp step_words(%{running: false, step: :failed}), do: "failed"

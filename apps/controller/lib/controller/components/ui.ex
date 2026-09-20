@@ -172,6 +172,7 @@ defmodule Controller.Components.UI do
   A button, or a link that looks like one. `variant`: default, primary, danger, ghost.
   """
   attr :navigate, :string, default: nil
+  attr :patch, :string, default: nil
   attr :href, :string, default: nil
   attr :variant, :string, default: "default"
   attr :on, :boolean, default: false
@@ -182,10 +183,10 @@ defmodule Controller.Components.UI do
 
   def btn(assigns) do
     ~H"""
-    <.link :if={@navigate || @href} navigate={@navigate} href={@href} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
+    <.link :if={@navigate || @href || @patch} navigate={@navigate} patch={@patch} href={@href} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
       {render_slot(@inner_block)}
     </.link>
-    <button :if={!(@navigate || @href)} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
+    <button :if={!(@navigate || @href || @patch)} class={["btn", "btn-#{@variant}", @on && "on", @class]} {@rest}>
       {render_slot(@inner_block)}
     </button>
     """

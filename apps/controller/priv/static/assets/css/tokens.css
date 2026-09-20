@@ -89,3 +89,9 @@
   --sky1: #0c0000;
   --sky2: #050000;
 }
+
+/* the night class sits on the page, not the body: everything inside must
+   take its ink from here, inherited text included, or headings keep the
+   body's colour (grey, or near-black in a light scheme) on a black ground */
+.night { color: var(--text); background: var(--bg); }
+body:has(.night) { background: #000; }

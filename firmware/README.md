@@ -30,3 +30,22 @@ To start your Nerves app:
   * Forum: https://elixirforum.com/c/nerves-forum
   * Elixir Discord #nerves channel: https://discord.gg/elixir
   * Source: https://github.com/nerves-project/nerves
+
+## The VM loop
+
+A card swap is a two minute round trip and you cannot put a test around it.
+The `x86_64` target builds the same image, made by the same `fwup`, and boots
+it in QEMU on the laptop:
+
+    cd firmware && MIX_TARGET=x86_64 MIX_ENV=prod mix firmware
+    cd apps/provision && mix test --only vm
+
+That boots the image, waits for the release and for ssh, and asks the running
+system questions: which applications started, whether networking came up,
+whether the filesystem is writable. About forty seconds to boot, then the
+whole suite in twelve.
+
+It proves the image boots, the release starts and the supervision tree comes
+up. It cannot prove anything about the Pi: no EQDIR cable, no camera, no GPIO,
+no ARM. That is the point. Run this a hundred times a day so the real box only
+has to be right about hardware.

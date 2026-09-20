@@ -16,7 +16,6 @@ defmodule Provision.Job do
   which step and why in plain words, and leaves the card alone.
   """
   use GenServer
-  require Logger
 
   @topic "provision"
 

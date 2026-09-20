@@ -11,6 +11,8 @@ defmodule Provision.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
+      # the VM smoke test needs qemu and a built image; it is opt in
+      test_coverage: [ignore_modules: [Provision.VM]],
       deps: deps()
     ]
   end

@@ -12,15 +12,32 @@ config :nerves_runtime, startup_guard_enabled: true
 config :nerves, :erlinit, update_clock: true
 
 # ---- ssh ---------------------------------------------------------------------
+# The person stamping the box gets into the box: their own public keys are
+# baked in, so there are no keys to hand around and nothing to type in. If
+# they have never made one, make one for them rather than stopping with an
+# error nobody asked for.
 keys =
-  System.user_home!()
-  |> Path.join(".ssh/id_{rsa,ecdsa,ed25519}.pub")
-  |> Path.wildcard()
+  case Path.wildcard(Path.join(System.user_home!(), ".ssh/id_{rsa,ecdsa,ed25519}.pub")) do
+    [] ->
+      path = Path.join(System.user_home!(), ".ssh/id_ed25519")
+      File.mkdir_p!(Path.dirname(path))
+      {_, 0} = System.cmd("ssh-keygen", ["-t", "ed25519", "-N", "", "-C", "observatory", "-f", path], stderr_to_stdout: true)
+      IO.puts("No SSH key found, so one was made for you: #{path}")
+      [path <> ".pub"]
 
-if keys == [],
-  do: Mix.raise("No SSH public key in ~/.ssh — needed to log into the Pi and push firmware.")
+    found ->
+      found
+  end
 
-config :nerves_ssh, authorized_keys: Enum.map(keys, &File.read!/1)
+# A production box is closed up: no shell, no firmware over the network.
+# A development box leaves the door open so it can be worked on in place.
+case System.get_env("OBS_FLAVOUR", "dev") do
+  "prod" ->
+    config :nerves_ssh, authorized_keys: []
+
+  _ ->
+    config :nerves_ssh, authorized_keys: Enum.map(keys, &File.read!/1)
+end
 
 # ---- networking -----------------------------------------------------------------
 # Initial Wi-Fi is baked in at build time from the environment:

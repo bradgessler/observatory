@@ -3,7 +3,10 @@ defmodule Firmware.MixProject do
 
   @app :firmware
   @version "0.1.0"
-  @all_targets [:rpi0_2, :rpi3, :rpi3a, :rpi4, :rpi5]
+  # x86_64 is not a box you buy: it is the same image booted in a VM, so the
+  # whole stack (fwup, the rootfs, the release, the supervision tree) can be
+  # exercised on a laptop in a minute instead of a card swap and a reboot.
+  @all_targets [:rpi0_2, :rpi3, :rpi3a, :rpi4, :rpi5, :x86_64]
 
   def project do
     [
@@ -49,7 +52,8 @@ defmodule Firmware.MixProject do
       {:nerves_system_rpi3, "~> 2.0", runtime: false, targets: :rpi3},
       {:nerves_system_rpi3a, "~> 2.0", runtime: false, targets: :rpi3a},
       {:nerves_system_rpi4, "~> 2.0", runtime: false, targets: :rpi4},
-      {:nerves_system_rpi5, "~> 2.0", runtime: false, targets: :rpi5}
+      {:nerves_system_rpi5, "~> 2.0", runtime: false, targets: :rpi5},
+      {:nerves_system_x86_64, "~> 1.34", runtime: false, targets: :x86_64}
     ]
   end
 

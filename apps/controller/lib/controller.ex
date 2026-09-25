@@ -48,9 +48,12 @@ defmodule Controller do
 
   def live_view do
     quote do
-      use Phoenix.LiveView
+      # every page sits in the same frame: the sidebar on a wide screen
+      use Phoenix.LiveView, layout: {Controller.Layouts, :shell}
       # every command this page sends to the mount is logged under its name
       on_mount Controller.Source
+      # and knows where it is, for the sidebar
+      on_mount Controller.Nav
 
       unquote(html_helpers())
     end

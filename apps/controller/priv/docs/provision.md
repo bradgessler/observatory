@@ -2,7 +2,7 @@
 
 Put a card in this machine, answer five short screens, and write a bootable
 Observatory onto it. Then put the card in a Raspberry Pi, power it up, and the
-telescope has its own computer instead of borrowing your laptop.
+telescope has its own computer instead of borrowing your computer.
 
 Each screen asks one thing, and tapping the answer is also the way forward.
 Going back changes nothing you have already said.
@@ -10,7 +10,7 @@ Going back changes nothing you have already said.
 ## 1. The card
 
 Only removable disks are listed. The machine's own drive cannot appear here,
-so a mistaken tap cannot take your laptop out. Everything on the card you
+so a mistaken tap cannot take this machine out. Everything on the card you
 choose is erased, and the card is named again in the confirmation.
 
 The card is checked once more in the moment before writing. If you pull it

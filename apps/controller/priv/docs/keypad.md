@@ -1,6 +1,6 @@
 # Keypad
 
-The hand controller, on a phone or a laptop.
+The hand controller, on a phone or a computer.
 
 ## Moving the scope
 

@@ -176,7 +176,7 @@ defmodule Controller.TiltLive do
       <.hint :if={@sensor == :unknown} id="tilt-how">Hold the button once to ask the phone for its tilt sensor. On a keyboard the arrow keys move at the top speed; space or Escape stops.</.hint>
       <.hint :if={@sensor == :denied} id="tilt-how">The phone said no to the tilt sensor. On iPhone the prompt is per site and remembered: close this tab and open the page again to be asked once more; if it still says no, Settings › Safari › Advanced › Website Data, then remove this site.</.hint>
       <.hint :if={@sensor == :insecure} id="tilt-how">Tilt needs HTTPS: the browser only exposes the orientation sensor on a secure page. Open this over the tunnel URL (Devices shows it).</.hint>
-      <.hint :if={@sensor == :none} id="tilt-how">No orientation sensor here. This surface is for a phone in the hand; on a laptop use the arrow keys, the keypad or nudge.</.hint>
+      <.hint :if={@sensor == :none} id="tilt-how">No orientation sensor here. This surface is for a phone in the hand; on a computer use the arrow keys, the keypad or nudge.</.hint>
 
       <.notice notice={@notice} />
     </.page>

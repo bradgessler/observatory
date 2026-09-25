@@ -43,8 +43,10 @@
   --fs-5: 28px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
+/* light: kept, and checked for contrast, but only ever chosen on purpose.
+   It used to follow the device, which meant a phone in light mode lit up
+   white in a dark field. A telescope's page is dark unless asked otherwise. */
+:root.light {
     --bg: #eef0f3;
     --panel: #f9fafb;
     --panel2: #eef1f5;
@@ -66,10 +68,9 @@
     --lo: rgba(20, 30, 50, .14);
     --sky1: #dfe6f3;
     --sky2: #c9d3e6;
-  }
 }
 
-/* night: red on black, an explicit choice that beats the device setting */
+/* night: red on black, an explicit choice */
 .night, .night :root {
   --bg: #000000;
   --panel: #0a0000;

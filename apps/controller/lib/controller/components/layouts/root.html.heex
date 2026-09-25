@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="theme-color" content="#07080c" />
+    <%!-- dark from the first frame: no white flash, and form fields drawn dark, even on a phone set to light --%>
+    <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <.live_title default="Observatory" suffix=" · Observatory">{assigns[:page_title]}</.live_title>

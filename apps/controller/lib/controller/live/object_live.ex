@@ -168,7 +168,7 @@ defmodule Controller.ObjectLive do
   def render(%{obj: nil} = assigns) do
     ~H"""
     <main class={["object", @night && "night"]}>
-      <header><.link navigate={~p"/sky"} class="ghost">‹ sky</.link></header>
+      <header><.link navigate={~p"/sky"} class="back">‹ Sky</.link></header>
       <.skip_target />
       <h1 class="sr-only">Not in the catalog</h1>
       <p class="empty">Nothing called "{@id}" in the catalog.</p>
@@ -180,7 +180,7 @@ defmodule Controller.ObjectLive do
     ~H"""
     <main class={["object", @night && "night"]}>
       <header>
-        <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="ghost">‹ sky</.link>
+        <.link navigate={if @selected, do: ~p"/sky/#{@selected}", else: ~p"/sky"} class="back">‹ Sky</.link>
         <span class="hdr-actions">
           <.stop />
         </span>

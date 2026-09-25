@@ -34,6 +34,16 @@ defmodule Provision.Job do
   @doc "Stop now. A write in progress is killed; the card is then half-written and must be redone."
   def cancel, do: GenServer.call(__MODULE__, :cancel, 15_000)
 
+  @doc """
+  Put a finished or failed job away and go back to idle.
+
+  A job that has ended still fills the screen, and until it is put away there
+  is no route back to the choices that made it. Clearing is how a failure gets
+  answered by changing something rather than by starting the whole flow again.
+  A running job is left alone; cancel it first.
+  """
+  def clear, do: GenServer.call(__MODULE__, :clear)
+
   def status, do: GenServer.call(__MODULE__, :status)
 
   def steps, do: @steps
@@ -80,6 +90,9 @@ defmodule Provision.Job do
         {:reply, :ok, announce(s)}
     end
   end
+
+  def handle_call(:clear, _from, %{running: true} = s), do: {:reply, {:error, :busy}, s}
+  def handle_call(:clear, _from, _s), do: {:reply, :ok, announce(idle())}
 
   def handle_call(:cancel, _from, %{task: nil} = s), do: {:reply, :ok, s}
 
@@ -214,11 +227,12 @@ defmodule Provision.Job do
 
   # -- shelling out ----------------------------------------------------------------------
 
-  # fwup prints a percentage as it goes; pass it through so the page has a bar
+  # -n makes fwup report progress as bare numbers, which is what a bar wants
+  # and what survives being read out of a file later on.
   defp fwup(parent, fw, disk) do
-    args = ["-a", "-i", fw, "-d", disk, "-t", "complete", "--enable-trim"]
+    args = ["-n", "-a", "-i", fw, "-d", disk, "-t", "complete", "--enable-trim"]
 
-    case run_cmd(parent, sudo_prefix() ++ ["fwup" | args], [], :write, &fwup_line(parent, &1)) do
+    case elevated(parent, "fwup", args) do
       :ok ->
         step(parent, :write, :done, "Written and flushed")
         :ok
@@ -228,15 +242,138 @@ defmodule Provision.Job do
     end
   end
 
-  defp fwup_line(parent, line) do
-    case Regex.run(~r/(\d{1,3})%/, line) do
-      [_, p] -> send(parent, {:percent, String.to_integer(p)})
-      _ -> :ok
+  @doc false
+  # Writing to a raw disk is root's work, and there are three honest ways to
+  # get there. We are already root, which is every Nerves box stamping a card.
+  # Or sudo has been told not to ask. Or, on a Mac, the operating system asks,
+  # in its own dialog, and the password never passes through us.
+  #
+  # What we do not do is prompt in the page. A port is a pipe and not a
+  # terminal, so plain sudo cannot ask through it anyway — that is what the -n
+  # is for — and a password typed into a browser is a password we would have
+  # to carry and hold.
+  defp elevated(parent, exe, args) do
+    cond do
+      root?() -> run_cmd(parent, [exe | args], [], :write, &fwup_line(parent, &1))
+      passwordless_sudo?() -> run_cmd(parent, ["sudo", "-n", exe | args], [], :write, &fwup_line(parent, &1))
+      macos?() -> via_dialog(parent, exe, args)
+      true -> run_cmd(parent, ["sudo", "-n", exe | args], [], :write, &fwup_line(parent, &1))
     end
+  end
+
+  # `do shell script` hands its output back only once it has finished, and the
+  # two minutes it is quiet for are exactly the two minutes a person most wants
+  # to see moving. So the elevated command writes to a file, and we read that
+  # file as it fills.
+  defp via_dialog(parent, exe, args) do
+    log = Path.join(System.tmp_dir!(), "observatory-write-#{System.unique_integer([:positive])}.log")
+    File.write!(log, "")
+
+    shell = Enum.map_join([exe | args], " ", &sh/1) <> " > " <> sh(log) <> " 2>&1"
+    script = "do shell script " <> applescript_string(shell) <> " with administrator privileges"
+
+    step(parent, :write, :running, "Your Mac is asking for your password")
+    follower = Task.async(fn -> follow(parent, log, 0) end)
+
+    result = run_cmd(parent, ["osascript", "-e", script], [], :write, fn _ -> :ok end)
+
+    send(follower.pid, :stop)
+    Task.shutdown(follower, 2_000)
+
+    said = File.read(log) |> case do {:ok, t} -> t; _ -> "" end
+    File.rm(log)
+
+    case result do
+      :ok -> :ok
+      {:error, code, osa} -> {:error, code, String.trim(said <> "\n" <> osa)}
+    end
+  end
+
+  # Read whatever is new in the file every so often. fwup -n says nothing but
+  # numbers while it works, so only the lines that are not numbers are worth
+  # putting in the log the page shows.
+  defp follow(parent, log, at) do
+    receive do
+      :stop -> :ok
+    after
+      200 ->
+        case File.stat(log) do
+          {:ok, %{size: size}} when size > at ->
+            chunk = read_at(log, at, size - at)
+
+            chunk
+            |> String.split(~r/[\r\n]+/, trim: true)
+            |> Enum.each(fn line ->
+              if fwup_line(parent, line) == :no, do: send(parent, {:log, line})
+            end)
+
+            follow(parent, log, size)
+
+          _ ->
+            follow(parent, log, at)
+        end
+    end
+  end
+
+  defp read_at(path, at, len) do
+    case :file.open(path, [:read, :binary]) do
+      {:ok, fd} ->
+        out = case :file.pread(fd, at, len) do
+          {:ok, data} -> data
+          _ -> ""
+        end
+
+        :file.close(fd)
+        out
+
+      _ ->
+        ""
+    end
+  end
+
+  # Says whether the line was a percentage, so the caller knows what is left.
+  defp fwup_line(parent, line) do
+    case Regex.run(~r/\A\s*(\d{1,3})\s*%?\s*\z/, line) do
+      [_, p] ->
+        send(parent, {:percent, String.to_integer(p)})
+        :percent
+
+      _ ->
+        :no
+    end
+  end
+
+  defp sh(s), do: "'" <> String.replace(s, "'", "'\\''") <> "'"
+
+  defp applescript_string(s) do
+    escaped = s |> String.replace("\\", "\\\\") |> String.replace("\"", "\\\"")
+    "\"" <> escaped <> "\""
+  end
+
+  defp root?, do: match?({"0", 0}, trimmed_cmd("id", ["-u"]))
+  defp macos?, do: match?({:unix, :darwin}, :os.type())
+  defp passwordless_sudo?, do: match?({_, 0}, trimmed_cmd("sudo", ["-n", "true"]))
+
+  defp trimmed_cmd(exe, args) do
+    {out, code} = System.cmd(exe, args, stderr_to_stdout: true)
+    {String.trim(out), code}
+  rescue
+    _ -> {"", 1}
   end
 
   defp write_words(code, tail, disk) do
     cond do
+      # the Mac's own password dialog, dismissed: a choice, not a fault
+      String.contains?(tail, "User canceled") or String.contains?(tail, "(-128)") ->
+        "The password was not given, so nothing was written. #{disk} is as it was."
+
+      # sudo -n cannot ask for anything: a server has no terminal to ask at.
+      # This is the first thing a fresh machine hits, so it gets the plainest
+      # words and the way out, not a number.
+      String.contains?(tail, "a password is required") or String.contains?(tail, "sudo:") ->
+        "This machine asks for a password before it will write to a card, and there is nowhere here to type one. " <>
+          "Allow fwup without a password (sudo visudo), or write it yourself: sudo fwup -a -i <image> -d #{disk} -t complete"
+
       String.contains?(tail, "Permission denied") or code == 1 and String.contains?(tail, "denied") ->
         "This machine would not let me write to #{disk}. Writing a card needs administrator rights; see the note on the page."
 
@@ -306,14 +443,6 @@ defmodule Provision.Job do
 
   # Writing to a raw disk needs root. The page says so before it starts, and
   # this is the only place it is asked for.
-  defp sudo_prefix do
-    case :os.type() do
-      {:unix, :darwin} -> ["sudo", "-n"]
-      {:unix, _} -> ["sudo", "-n"]
-      _ -> []
-    end
-  end
-
   defp unmount(disk) do
     case :os.type() do
       {:unix, :darwin} -> System.cmd("diskutil", ["unmountDisk", disk], stderr_to_stdout: true)
@@ -323,7 +452,7 @@ defmodule Provision.Job do
     _ -> :ok
   end
 
-  defp firmware_dir, do: Application.get_env(:provision, :firmware_dir) || Path.expand("../../../firmware", __DIR__)
+  defp firmware_dir, do: Provision.firmware_dir()
 
   defp find_fw(dir, target) do
     [Path.join([dir, "_build", target <> "_prod", "nerves", "images", "*.fw"]), Path.join([dir, "_build", "**", "*.fw"])]

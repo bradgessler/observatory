@@ -32,21 +32,23 @@ defmodule Firmware.MixProject do
   end
 
   defp deps do
+    # What this box is for: the mount driver and the cluster plumbing always,
+    # and whatever else the stamp's job asks for (see `jobs/0`).
     [
-      # What this box is for: the mount driver and the cluster plumbing.
       {:mount, path: "../apps/mount"},
-      {:telescope, path: "../apps/telescope"},
-
+      {:telescope, path: "../apps/telescope"}
+    ] ++
+      jobs() ++
+      [
       {:nerves, "~> 1.13", runtime: false},
       {:shoehorn, "~> 0.9.1"},
       {:ring_logger, "~> 0.11.0"},
       {:toolshed, "~> 0.5.0"},
       {:nerves_runtime, "~> 0.13.12"},
 
-      # Networking (wifi/ethernet/usb-gadget), ssh, mdns, time — and a captive
-      # portal to pick a new Wi-Fi network in the field.
+      # Networking (wifi/ethernet/usb-gadget, and the box's own Wi-Fi network),
+      # ssh, mdns, time.
       {:nerves_pack, "~> 0.7.1", targets: @all_targets},
-      {:vintage_net_wizard, "~> 0.4", targets: @all_targets},
 
       {:nerves_system_rpi0_2, "~> 2.0", runtime: false, targets: :rpi0_2},
       {:nerves_system_rpi3, "~> 2.0", runtime: false, targets: :rpi3},
@@ -55,6 +57,23 @@ defmodule Firmware.MixProject do
       {:nerves_system_rpi5, "~> 2.0", runtime: false, targets: :rpi5},
       {:nerves_system_x86_64, "~> 1.34", runtime: false, targets: :x86_64}
     ]
+  end
+
+  # The job picked when the box was stamped (OBS_APPS, from the Stamp a Box
+  # page or a saved script) decides what else goes on it. Built by hand, with no
+  # job given, it is the whole observatory: the page you open on a phone to
+  # drive the scope is the point of the box.
+  @optional ~w(controller watch video input)
+  @default_job ~w(controller watch video input)
+
+  defp jobs do
+    wanted =
+      case System.get_env("OBS_APPS", "") do
+        "" -> @default_job
+        apps -> String.split(apps, ",", trim: true)
+      end
+
+    for app <- @optional, app in wanted, do: {String.to_atom(app), path: "../apps/#{app}"}
   end
 
   def release do

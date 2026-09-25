@@ -51,12 +51,19 @@ defmodule Controller.Components.UI do
   defp wrap(%{nested: true} = assigns), do: ~H"<div {@rest}>{render_slot(@inner_block)}</div>"
   defp wrap(assigns), do: ~H"<main {@rest}>{render_slot(@inner_block)}</main>"
 
-  attr :navigate, :string, required: true
+  attr :navigate, :string, default: nil
+  attr :patch, :string, default: nil, doc: "going back inside one LiveView: patch, so the choices made so far survive"
   attr :label, :string, required: true
+
+  def back(%{patch: to} = assigns) when is_binary(to) do
+    ~H"""
+    <.link patch={@patch} class="back step-back">‹ {@label}</.link>
+    """
+  end
 
   def back(assigns) do
     ~H"""
-    <.link navigate={@navigate} class="back">‹ {@label}</.link>
+    <.link navigate={@navigate} class={["back", @navigate == "/" && "back-home"]}>‹ {@label}</.link>
     """
   end
 
@@ -281,6 +288,62 @@ defmodule Controller.Components.UI do
     </.dynamic_tag>
     """
   end
+
+  @doc """
+  A row that opens another screen: the name over its detail, what it
+  currently says on the right, and a chevron. Inside `<.items>`.
+
+      <.items label="Wi-Fi">
+        <.link_item patch={~p"/network/wifi"} label="Wi-Fi Networks" detail="2 saved" />
+      </.items>
+  """
+  attr :label, :string, required: true
+  attr :detail, :string, default: nil
+  attr :navigate, :string, default: nil
+  attr :patch, :string, default: nil
+  attr :rest, :global
+  slot :aside, doc: "what the row currently says, on the right: a signal meter, a count"
+
+  def link_item(assigns) do
+    ~H"""
+    <li class="item-row">
+      <.link navigate={@navigate} patch={@patch} class="item item-link" {@rest}>
+        <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{sentence(@detail)}</span></div>
+        <span :if={@aside != []} class="item-aside">{render_slot(@aside)}</span>
+        <span class="item-chevron" aria-hidden="true">›</span>
+      </.link>
+    </li>
+    """
+  end
+
+  @doc """
+  Received signal, as four bars and the number: the bars for a glance, the
+  percentage (and dBm, when known) for reading. The bars are drawn for eyes;
+  the words carry it for a screen reader.
+
+      <.signal percent={72} dbm={-58} />
+  """
+  attr :percent, :integer, required: true
+  attr :dbm, :integer, default: nil
+
+  def signal(assigns) do
+    assigns = assign(assigns, lit: bars(assigns.percent))
+
+    ~H"""
+    <span class="signal">
+      <span class="signal-bars" aria-hidden="true">
+        <i :for={n <- 1..4} class={n <= @lit && "lit"}></i>
+      </span>
+      <span class="signal-words">{@percent}%<span :if={@dbm} class="dim"> {@dbm} dBm</span></span>
+    </span>
+    """
+  end
+
+  defp bars(p) when p >= 75, do: 4
+  defp bars(p) when p >= 50, do: 3
+  defp bars(p) when p >= 25, do: 2
+  defp bars(p) when p > 0, do: 1
+  defp bars(_), do: 0
 
   @doc """
   A choice made by tapping the choice itself.

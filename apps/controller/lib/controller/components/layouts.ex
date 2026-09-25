@@ -12,6 +12,61 @@ defmodule Controller.Layouts do
   embed_templates "layouts/*"
 
   @doc """
+  The layout every routed LiveView renders inside (see `Controller.live_view/0`).
+  On a wide screen: the sidebar of every page, the current one marked, beside
+  the page. On a phone the sidebar is not drawn; Home is the list, and each
+  page's header links back to it.
+  """
+  def shell(assigns) do
+    ~H"""
+    <.frame current_path={assigns[:current_path]} night={assigns[:night]}>{@inner_content}</.frame>
+    """
+  end
+
+  attr :current_path, :string, default: nil
+  attr :night, :boolean, default: false
+  slot :inner_block, required: true
+
+  def frame(assigns) do
+    assigns =
+      assign(assigns,
+        groups: Controller.Nav.groups(),
+        current: Controller.Nav.current(assigns.current_path),
+        host: host()
+      )
+
+    ~H"""
+    <div class={["shell", @night && "night"]}>
+      <nav class="sidebar" aria-label="Pages">
+        <.link navigate={~p"/"} class="side-brand" aria-current={@current_path == "/" && "page"}>
+          <strong>Observatory</strong>
+          <span>{@host}</span>
+        </.link>
+        <div :for={{name, _blurb, items} <- @groups} class="side-group">
+          <p class="side-label" id={"side-" <> slug(name)}>{name}</p>
+          <ul role="list" aria-labelledby={"side-" <> slug(name)}>
+            <li :for={{title, path, _sub, _doc} <- items}>
+              <.link navigate={path} class="side-link" aria-current={@current == path && "page"}>{title}</.link>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <div class="shell-main">{render_slot(@inner_block)}</div>
+    </div>
+    """
+  end
+
+  defp slug(name), do: name |> String.downcase() |> String.replace(~r/[^a-z0-9]+/, "-")
+
+  # which machine this page is served from: the Mac, or a box by name
+  defp host do
+    case :inet.gethostname() do
+      {:ok, name} -> name |> to_string() |> String.replace_suffix(".local", "")
+      _ -> ""
+    end
+  end
+
+  @doc """
   Renders your app layout.
 
   This function is typically invoked from every template,

@@ -6,6 +6,9 @@
 //   Geo       the browser only gives location to JS
 //   Tilt      the orientation sensor is only readable in the browser (dead-man + vector)
 //   Hls       video playback; loads hls.js lazily where <video> can't play HLS itself
+//   Terminal  a shell's output is a byte stream of cursor moves, redraws and colour,
+//             and its input is raw keys (Ctrl-C, a password that must not echo). Only
+//             a terminal emulator draws that; xterm.js is vendored and loaded on first use
 // Arrow keys use phx-window-keydown/keyup, not a hook.
 
 // No bundler: phoenix.min.js and phoenix_live_view.min.js are loaded from
@@ -13,8 +16,63 @@
 
 const Hooks = {};
 
+// Terminal: the shell lives on the server, in a real pseudo-terminal; this only
+// draws it and hands over keys. Bytes arrive base64-encoded, because a terminal
+// stream is not always valid UTF-8 and JSON has to be. Keys go up as "keys",
+// the one parameter the server's log is told never to print.
+Hooks.Terminal = {
+  mounted() {
+    const base = "/assets/vendor/xterm/";
+    const load = (tag, attrs) =>
+      new Promise((ok, no) => {
+        const el = Object.assign(document.createElement(tag), attrs);
+        el.onload = ok;
+        el.onerror = no;
+        document.head.appendChild(el);
+      });
 
+    const ready = window.Terminal
+      ? Promise.resolve()
+      : Promise.all([
+          load("link", { rel: "stylesheet", href: base + "xterm.css" }),
+          load("script", { src: base + "xterm.js" }),
+        ]);
 
+    ready.then(() => {
+      // One shell, one size, for every viewer: 120 columns, whatever the
+      // window. Sized to the window, it came out 36 wide on a phone and 66 on
+      // this page, and fwup's 76-column progress line wrapped, so each \r
+      // redrew only the wrapped tail and left a line behind per percent. A
+      // narrow screen scrolls sideways instead; the percentage is at the left.
+      const term = new window.Terminal({
+        cols: 120,
+        rows: 30,
+        cursorBlink: true,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: 13,
+        theme: { background: "#000000" },
+      });
+      term.open(this.el);
+      this.term = term;
+
+      this.handleEvent("term_output", ({ data }) => {
+        term.write(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+      });
+
+      // Keys always go up and the server decides whether to take them: who may
+      // type can change while the page is open, and the browser is not the
+      // place that decision is enforced.
+      term.onData((keys) => this.pushEvent("term_input", { keys }));
+      if (this.el.dataset.canType === "true") term.focus();
+
+      this.pushEvent("term_open", { cols: term.cols, rows: term.rows });
+    });
+  },
+
+  destroyed() {
+    if (this.term) this.term.dispose();
+  },
+};
 
 // Sky photo: trace where the sky stops in each column (bright sky above,
 // dark trees/houses below) right here in the browser, then hand the boundary
@@ -373,9 +431,28 @@ Hooks.Geo = {
 
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
-  hooks: Hooks,
-  params: { _csrf_token: csrfToken },
-});
-liveSocket.connect();
-window.liveSocket = liveSocket;
+// On a weak link (a phone at the edge of the box's Wi-Fi) one of the scripts
+// loaded before this one can fail to arrive, and then nothing on the page
+// works while it looks fine. Seen in the VM: phoenix.min.js dropped, every key
+// dead, no sign why. Reload once; if the second try fails too, say so.
+if (!window.Phoenix || !window.LiveView) {
+  let retried = false;
+  try { retried = sessionStorage.getItem("obs-reloaded") === "1"; sessionStorage.setItem("obs-reloaded", "1"); } catch (_) {}
+
+  if (!retried) {
+    location.reload();
+  } else {
+    const p = Object.assign(document.createElement("p"), { className: "notice", textContent: "The page did not finish loading. Reload to try again." });
+    p.setAttribute("role", "status");
+    document.body.appendChild(p);
+  }
+} else {
+  try { sessionStorage.removeItem("obs-reloaded"); } catch (_) {}
+
+  const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
+    hooks: Hooks,
+    params: { _csrf_token: csrfToken },
+  });
+  liveSocket.connect();
+  window.liveSocket = liveSocket;
+}

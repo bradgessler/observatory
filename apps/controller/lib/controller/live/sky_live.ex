@@ -609,7 +609,7 @@ defmodule Controller.SkyLive do
     <.dynamic_tag tag_name={if @nested, do: "div", else: "main"} class={["sky", @night && "night", @nested && "nested"]} id="sky">
       <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
       <header :if={!@nested}>
-        <.link navigate={~p"/"} class="ghost">‹ Home</.link>
+        <.link navigate={~p"/"} class="back back-home">‹ Home</.link>
         <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
         <span class="hdr-actions">
           <.stop />

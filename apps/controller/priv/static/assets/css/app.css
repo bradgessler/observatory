@@ -425,20 +425,20 @@ a.banner strong { color: var(--warn); }
 .strip-dot.ra { background: var(--accent); }
 .strip-dot.dec { background: var(--on); }
 
-/* ---- light mode: follow the device; night mode (.night) still wins ---- */
-@media (prefers-color-scheme: light) {
-  :root { --bg: #f4f5f7; --panel: #ffffff; --edge: #dfe3e9; --text: #14171d; --dim: #667085; --accent: #2457d6; --on: #15803d; --warn: #d92d20; --btn: #ffffff; --btn-press: #e8ecf2; --sky1: #dfe6f3; --sky2: #c9d3e6; }
-  html, body { background: var(--bg); }
-  .map .obj circle { fill: #1f2937; }
-  .map .obj.faint circle { fill: #4b5563; }
-  .map .lines { stroke: #b8c2d6; }
-  .map .treeline { fill: #0b1220; opacity: .18; }
-  .orb-svg .end-ra { fill: var(--panel); }
-  .knob { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
-  .stop-bar, .stop-mini, .stop { background: var(--panel); }
-  .modes { background: #fff7e6; border-color: #e9c46a; color: #7a5200; }
-  .watch-frame { background: #000; }
+/* ---- light mode: only when chosen (:root.light); dark is the default and night (.night) still wins ---- */
+:root.light {
+  --bg: #f4f5f7; --panel: #ffffff; --edge: #dfe3e9; --text: #14171d; --dim: #667085; --accent: #2457d6; --on: #15803d; --warn: #d92d20; --btn: #ffffff; --btn-press: #e8ecf2; --sky1: #dfe6f3; --sky2: #c9d3e6;
 }
+:root.light body { background: var(--bg); }
+:root.light .map .obj circle { fill: #1f2937; }
+:root.light .map .obj.faint circle { fill: #4b5563; }
+:root.light .map .lines { stroke: #b8c2d6; }
+:root.light .map .treeline { fill: #0b1220; opacity: .18; }
+:root.light .orb-svg .end-ra { fill: var(--panel); }
+:root.light .knob { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+:root.light .stop-bar, :root.light .stop-mini, :root.light .stop { background: var(--panel); }
+:root.light .modes { background: #fff7e6; border-color: #e9c46a; color: #7a5200; }
+:root.light .watch-frame { background: #000; }
 /* night mode is an explicit choice: red on black regardless of the device setting */
 .night, .night :root { --bg: #000; --panel: #080000; --edge: #220000; --text: #ff4a4a; --dim: #8a2222; --accent: #ff4a4a; --on: #ff7a7a; --warn: #ff9a9a; --btn: #0e0000; --btn-press: #1a0000; --sky1: #0c0000; --sky2: #050000; }
 
@@ -628,12 +628,10 @@ a.banner strong { color: var(--warn); }
   --lit: #3a0a0a; --lit-on: #3a0a0a; --lit-warn: #4a0000; --amber: #ff7a7a; --amber-bg: #0a0000;
   --btn: var(--key); --btn-press: var(--key-press); --edge: transparent;
 }
-@media (prefers-color-scheme: light) {
-  :root { --bg: #eef0f3; --panel: #f9fafb; --panel2: #eef1f5; --key: #ffffff; --key-press: #e4e8ee; --sunk: #e6e9ee;
-    --hi: rgba(255, 255, 255, 1); --lo: rgba(20, 30, 50, .16);
-    --lit: #dbe6fb; --lit-on: #d6f2e1; --lit-warn: #fbe0dd; --amber: #7a5200; --amber-bg: #fff4dc;
-    --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
-}
+:root.light { --bg: #eef0f3; --panel: #f9fafb; --panel2: #eef1f5; --key: #ffffff; --key-press: #e4e8ee; --sunk: #e6e9ee;
+  --hi: rgba(255, 255, 255, 1); --lo: rgba(20, 30, 50, .16);
+  --lit: #dbe6fb; --lit-on: #d6f2e1; --lit-warn: #fbe0dd; --amber: #7a5200; --amber-bg: #fff4dc;
+  --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
 .night, .night :root { --panel: #0a0000; --panel2: #100000; --key: #180000; --key-press: #090000; --sunk: #040000; --hi: rgba(255, 80, 80, .12); --lo: rgba(0, 0, 0, .8); --lit: #3a0a0a; --lit-on: #3a0a0a; --lit-warn: #4a0000; --amber: #ff7a7a; --amber-bg: #0a0000; --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
 
 /* surfaces: tone only */
@@ -1001,6 +999,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .job-bar { position: relative; height: 20px; background: var(--sunk); box-shadow: var(--bevel-in); border-radius: 10px; overflow: hidden; }
 .job-bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width .3s ease; }
 .job-bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--fs-1); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* The terminal: black in every theme, because a shell draws its own colours
+   against black and assumes it. A fixed 120 x 30 (see the Terminal hook):
+   where the page is narrower it scrolls sideways rather than wrapping lines a
+   program means to redraw in place. */
+.term { background: #000; border-radius: 14px; padding: var(--s1); overflow-x: auto; overflow-y: hidden; }
+.term .xterm { width: max-content; }
+
 .job-log { background: var(--sunk); border-radius: 14px; padding: var(--s2); }
 .job-log summary { color: var(--dim); font-size: var(--fs-2); cursor: pointer; }
 .job-log pre { margin: var(--s1) 0 0; font-size: var(--fs-1); color: var(--dim); white-space: pre-wrap; word-break: break-word; max-height: 12rem; overflow-y: auto; }
@@ -1008,7 +1014,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .box-details { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
 .box-details label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--dim); letter-spacing: .05em; text-transform: uppercase; }
 .box-details .field { text-align: left; padding: 12px 14px; }
-@media (min-width: 620px) { .box-details { grid-template-columns: 1fr 1fr 1fr; } }
+@media (min-width: 620px) { .box-details { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); } }
 /* a segmented control with more than four choices wraps instead of stranding one */
 .seg-5, .seg-6 { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
 /* a card is as tall as its contents, not as tall as the row it sits in */
@@ -1084,10 +1090,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pick.on .part { color: var(--text); }
 
 /* A five-step strip for the stamping flow. */
-.flow-steps.flow-5 { grid-template-columns: repeat(5, 1fr); }
+/* Five equal columns that never grow to fit a label: `1fr` alone lets a long
+   one ("Board ✓") widen its column and wrap to three lines while the rest stay
+   one, which is what made the strip ragged on a phone. */
+.flow-steps.flow-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.flow-steps.flow-5 li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* On a phone the page title already names the step, so the strip carries the
+   number and the check alone; the label stays for screen readers. */
 @media (max-width: 480px) {
-  .flow-steps.flow-5 li { font-size: var(--fs-1); }
+  .flow-steps.flow-5 .flow-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 
 /* Nothing to choose from yet: say so once, in the middle, and stop. */
@@ -1096,12 +1108,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .empty .hint { font-size: var(--fs-2); max-width: 34ch; margin-inline: auto; }
 
 /* ── A flow page ────────────────────────────────────────────────────────────
-   A screen that asks one thing does not want a two-column grid with an empty
-   half. One column, centred, the same at every width: the choices stay where
-   the eye already is instead of hugging a corner of a wide window. */
+   On a desktop, the same two-column grid as every other page: cards two to a
+   row, a screen's only card and the terminal across the full width. It used
+   to stay one 620 px column at every size, which on a desktop read as a phone
+   app, and left the terminal too narrow for a progress line to redraw in
+   place. `dense` lets a short card fill the gap the full-width terminal
+   leaves beside the one before it. */
 @media (min-width: 960px) {
-  .page.flow { max-width: 620px; grid-template-columns: minmax(0, 1fr); }
-  .page.flow > .card, .page.flow > .card:only-of-type { grid-column: 1 / -1; max-width: none; }
+  .page.flow { grid-auto-flow: row dense; }
+  .page.flow > section.card:only-of-type, .page.flow > .term-card { grid-column: 1 / -1; }
   .page.flow .flow-steps { max-width: none; }
 }
 
@@ -1115,3 +1130,63 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .pick { grid-template-columns: 18px 1fr; }
   .pick-tag { grid-column: 2; margin-top: 2px; }
 }
+
+/* ---- the frame: every page down the left on a wide screen ----
+   Below 1100 px there is no sidebar: Home is the list and each page's header
+   links back to it. From 1100 px every page is listed down the left, the one
+   you are on lit and marked with a bar, and a header link back to Home goes:
+   the sidebar is the way home. A link back to a parent page (Wi-Fi Networks
+   back to Network, a flow's step back) stays, it says where you are.
+
+   Hierarchy is spacing first: 32 px between groups, nothing between the rows
+   of one group, the label sitting on its rows. Then colour and weight: the
+   label is small, dim and spaced out, the rows are the ink, and the page you
+   are on is lit, bold and barred. */
+.sidebar { display: none; }
+@media (min-width: 1100px) {
+  .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100dvh; }
+  .shell-main { min-width: 0; }
+  .sidebar { display: flex; flex-direction: column; gap: 32px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; box-sizing: border-box; padding: var(--s4) var(--s2) var(--s4); background: var(--panel); box-shadow: inset -1px 0 0 var(--key-edge); }
+  .side-brand { display: grid; align-content: center; gap: 2px; min-height: 44px; box-sizing: border-box; padding: var(--s1) var(--s2); border-radius: var(--r); color: var(--text); text-decoration: none; }
+  .side-brand strong { font-size: var(--fs-4); font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+  .side-brand span { font-size: var(--fs-1); color: var(--dim); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .side-group { display: grid; gap: 4px; }
+  .side-label { margin: 0; padding: 0 var(--s2); font-size: var(--fs-1); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .side-group ul { list-style: none; margin: 0; padding: 0; display: grid; }
+  .side-link { position: relative; display: flex; align-items: center; min-height: 44px; box-sizing: border-box; padding: 0 var(--s2); border-radius: var(--r); font-size: var(--fs-3); font-weight: 400; color: var(--text); text-decoration: none; }
+  .side-link:hover, .side-brand:hover { background: var(--panel2); }
+  /* where you are: lit, bold, and a bar, so it does not rest on the tone alone */
+  .side-link[aria-current="page"], .side-brand[aria-current="page"] { background: var(--lit); font-weight: 600; }
+  .side-brand[aria-current="page"] span { color: var(--text); }
+  .side-link[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+  .side-link:focus-visible, .side-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  /* the page beside it: aligned to the sidebar, titled like a page */
+  .shell-main .back-home, .shell-main .home-brand { display: none; }
+  .shell-main .page { margin: 0; }
+  .shell-main .page-header { grid-template-columns: minmax(0, 1fr) auto; }
+  .shell-main .page-header:has(.back:not(.back-home)) { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s2); }
+  .shell-main .page-header .page-title { justify-self: start; font-size: var(--fs-4); font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+}
+
+/* ---- a row that opens another screen (link_item) ---- */
+.item-row { list-style: none; }
+.item-link { grid-template-columns: minmax(0, 1fr) auto auto; min-height: 56px; padding: var(--s1) var(--s2); margin: 0 calc(-1 * var(--s2)); border-radius: var(--r); color: var(--text); text-decoration: none; }
+.item-link:hover { background: var(--panel2); }
+.item-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.item-aside { color: var(--dim); font-size: var(--fs-2); }
+.item-chevron { color: var(--dim); font-size: var(--fs-4); line-height: 1; }
+
+/* ---- signal: four bars and the number ---- */
+.signal { display: inline-flex; align-items: center; gap: var(--s1); font-variant-numeric: tabular-nums; }
+.signal-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+.signal-bars i { display: block; width: 4px; border-radius: 1px; background: var(--key); }
+.signal-bars i:nth-child(1) { height: 25%; }
+.signal-bars i:nth-child(2) { height: 50%; }
+.signal-bars i:nth-child(3) { height: 75%; }
+.signal-bars i:nth-child(4) { height: 100%; }
+.signal-bars i.lit { background: var(--text); }
+.signal-words { font-size: var(--fs-2); color: var(--text); }
+
+/* ---- the network now: the SSID is the headline, the rest reads under it ---- */
+.net-now { display: grid; gap: var(--s1); }
+.net-ssid { margin: 0; font-size: var(--fs-5); font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }

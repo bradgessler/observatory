@@ -1,7 +1,21 @@
 import Config
 
 config :controller,
-  generators: [context_app: false]
+  generators: [context_app: false],
+  # What the stamping Mac plugs into the controller (Controller.Extensions): Stamp a
+  # Box, from the stamp app. A stamped box lists its own extensions in
+  # firmware/config/target.exs and never compiles this one.
+  extensions: [
+    %{
+      routes: [
+        {:live, "/provision", Stamp.Live, :index},
+        {:live, "/provision/:step", Stamp.Live, :step}
+      ],
+      home: [
+        {"Plumbing", {"Stamp a Box", "/provision", "Build an Observatory image and write it to an SD card", "/docs/provision"}}
+      ]
+    }
+  ]
 
 # Configures the endpoint
 config :controller, Controller.Endpoint,
@@ -35,6 +49,10 @@ config :libcluster,
   topologies: [lan: [strategy: Cluster.Strategy.Gossip]]
 
 config :logger, :default_formatter, format: "$time $metadata[$level] $message\n"
+
+# Never print these in a log. "keys" is what the in-page terminal sends: every
+# keystroke, a sudo password among them.
+config :phoenix, :filter_parameters, ["password", "keys"]
 
 import_config "#{config_env()}.exs"
 

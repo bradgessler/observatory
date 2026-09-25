@@ -26,6 +26,19 @@ hack/            day-one Python probes that proved the protocol; kept as a recor
 `apps/` is a Mix umbrella for host-side work; `firmware/` is a separate Nerves
 project that pulls the apps in as path dependencies.
 
+### Running it on a laptop
+
+```sh
+brew bundle        # fwup, hidapi, ffmpeg and the rest — see Brewfile
+mix archive.install hex nerves_bootstrap   # only to build images
+mix deps.get
+mix phx.server     # http://localhost:4000
+```
+
+The mount appears when the EQDIR cable is plugged in; a simulator runs when it
+isn't. Every host tool is optional: a missing one disables its feature and says
+what to install, and nothing else notices.
+
 ### Hardware
 
 * Sky-Watcher EQ6-R (also EQ6-R Pro).

@@ -118,7 +118,7 @@ defmodule Controller.BenchLive do
     ~H"""
     <main class={["bench", @night && "night"]} id="bench">
       <header class="bench-head">
-        <.link navigate={~p"/"} class="bench-brand">‹ Bench</.link>
+        <.link navigate={~p"/"} class="back back-home">‹ Home</.link>
         <h1 class="sr-only">Bench · {if @current, do: elem(@current, 1), else: "no surface"}</h1>
         <span class="hdr-actions">
           <%!-- one STOP, always visible, whatever surface is up --%>

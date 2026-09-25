@@ -65,6 +65,12 @@ about location it cannot have.
 **Copy lives in docs.** Explanations go in `priv/docs/*.md` (rendered at
 `/docs/:slug`); the UI carries one-line hints and a `?` link.
 
+**Call things what they are.** The user configures their own network gear
+(think UniFi): technical, but executed well. Label by the standard term
+(Hostname, SSID, Access point, Password, SD card, Board, SSH) and prefill the
+real default beside it; never a friendly paraphrase like "Its Name" or "The
+Door", and never a blank field that secretly means something.
+
 **WCAG 2.1 AA is the floor, in every theme.** It is good design and it is
 how you read a phone at an eyepiece. Concretely: text 4.5:1 against the
 surface it sits on (`test/controller/design_test.exs` computes this from

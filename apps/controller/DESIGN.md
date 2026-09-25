@@ -119,8 +119,18 @@ through `UI.sentence/1` when they open a line.
 
 ## Copy
 
-- Plain words over jargon. "Set home" not "park"; "tree line" not "horizon
-  mask"; magnitudes always translated for the current equipment.
+- Call things what they are. The person using this sets up their own
+  network gear; write for them. Hostname, SSID, access point, password, SD
+  card, board, SSH: the standard term, never a friendly paraphrase ("Its
+  Name", "The Door", "Eyes"). A paraphrase makes someone translate it back to
+  the real term before they can act on it.
+- Show the value, not a description of it. A field starts filled in with the
+  default the machine will really use; a blank field never secretly means
+  something. Beside a setting goes its concrete result ("observatory.local"),
+  not reassurance.
+- Plain words only where the plain word is the precise one: "set home" not
+  "park" (the mount has no park position); magnitudes translated for the
+  current equipment.
 - Tell people what to do next when something is missing: "set home first",
   "no mount found, plug the cable into this machine".
 - Honest labels for approximations: the pointing model says it is unverified.

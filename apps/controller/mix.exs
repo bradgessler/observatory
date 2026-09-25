@@ -45,7 +45,6 @@ defmodule Controller.MixProject do
       {:input, in_umbrella: true},
       {:watch, in_umbrella: true},
       {:video, in_umbrella: true},
-      {:provision, in_umbrella: true},
       {:phoenix, "~> 1.8.5"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},

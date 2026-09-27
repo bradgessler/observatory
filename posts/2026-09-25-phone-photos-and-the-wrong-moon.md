@@ -1,65 +1,54 @@
 ---
 title: "Finding the Moon with a crooked telescope, a phone, and an AI"
 date: 2026-09-25
-summary: "I set my telescope up badly on purpose: not level, not pointed at the pole, never calibrated. Then I held my phone to the eyepiece, and an AI on my Mac worked out from the photos exactly how crooked it was, pointed it at the Moon, and held it there. Here's how we reasoned through each problem, including the one where we were aiming at the wrong Moon."
+summary: "I set my telescope up badly on purpose: not level, not pointed at the pole, never calibrated. Then I held my phone to the eyepiece, and an AI on my Mac figured out from the photos exactly how crooked it was, pointed it at the Moon, and kept it there. Here's how we worked through it, including the part where it was aiming at the wrong Moon."
 hero: "images/plates-moon-centered.jpg"
-hero_alt: "The full Moon centred in the eyepiece, held there by a mount 5° off the pole"
+hero_alt: "The full Moon centered in the eyepiece, held there by a mount 5° off the pole"
 ---
 
 <aside>
 
-**The short version**
-
-- A telescope normally has to be set up carefully before it can find anything. I skipped all of it.
-- I took photos through the eyepiece with my phone. Software matched the stars in them to a catalogue, which says exactly where the telescope was pointing.
-- From two photos it worked out how crooked the mount was, then sent it to the Moon and held it there.
-- The numbers didn't quite add up, and chasing why showed it had been aiming at the Moon as seen from the centre of the Earth, not from my yard.
+**The short version:** normally a telescope needs careful setup before it can find anything. I skipped all of it, took some photos through the eyepiece with my phone, and let software figure out where the telescope was pointing from the stars in them. Two photos were enough for it to work out how crooked the mount was and put the Moon in the middle of the view. Then the numbers didn't quite add up, and chasing that down turned up a 45′ mistake in where it thought the Moon was.
 
 </aside>
 
-## The setup: a telescope set up badly on purpose
+## I set up my telescope badly on purpose
 
-A telescope mount like mine (an EQ6-R) is built to turn around one axis that points at the celestial pole, the spot near Polaris that the whole sky seems to spin around. Point that axis at the pole and following a star is one motor turning slowly. Get it wrong and every Go To misses and everything drifts out of view.
+My telescope sits on a motorized mount (an EQ6-R). A mount like this is built around one axis that's supposed to point at the celestial pole, the spot near Polaris that the whole sky seems to spin around. When that axis is lined up, following a star is easy: one motor turns slowly and the star stays put. When it's not, every "go to" misses and everything drifts out of view.
 
-So normally you level the tripod, aim the axis at Polaris, and tell the mount where it's starting from. I did none of that. Polaris is behind my house, I didn't level the tripod, and I never told the mount where it started. I had a full Moon washing out the sky, the mount pointed roughly north, and my phone.
+So the usual routine is: level the tripod, aim that axis at Polaris, and tell the mount where it's starting from. I did none of it. Polaris is behind my house, I didn't bother leveling, and I never told the mount where it started. All I had was a full Moon washing out the sky, a mount pointed roughly north, and my phone.
 
-The question: can somebody who knows nothing plop this thing down and have the software work out how crooked it is?
+What I wanted to know: could somebody who knows nothing about telescopes plop this thing down and have the software figure out how crooked it is?
 
-## The plan: let photos tell the software where it's pointing
+## The idea is to let photos of the sky do the aiming
 
-![The whole night in one loop: photograph, clean, solve, fit, go, hold](images/moon-loop.svg "The whole night in one loop: photograph, clean, solve, fit, Go To, hold.")
+![Take a photo, clean it up, match it on a star map, measure how crooked the mount is, go to the Moon, keep it there](images/moon-loop.svg "Here's the whole night in one picture. Each photo tells the software where the telescope is really pointing, and a couple of them are enough to aim anywhere.")
 
-Every photo of the stars is a fingerprint of where the telescope is pointing. If software can read that fingerprint, it doesn't matter how crooked the mount is: the photos say where it really points, and the software works out the rest.
+Here's the trick. Every photo of the stars is like a fingerprint: the pattern of stars says exactly which patch of sky you're looking at. If software can read that fingerprint, it doesn't matter how crooked the mount is. The photos say where it's really pointing, and the software can work out the rest.
 
-## How I worked: me at the eyepiece, Claude at the keyboard
+## I stood at the telescope, and Claude did the math
 
-I stood at the scope with a phone and a game pad and talked. [Claude Code](https://claude.com/claude-code) ran on my Mac with this project open. It read the photos I sent it, wrote the code, ran the tools, and did the math. When I said "down five percent, left twenty", it turned that into motor moves.
+I was out at the telescope with my phone and a game controller, talking. [Claude Code](https://claude.com/claude-code) was running on my Mac with this project open. It looked at the photos I sent, wrote the code, ran the tools, and did the math. When I said "move it down five percent and left twenty," it turned that into motor moves.
 
-What made it work was the way we checked each step. Every idea came with a number that would prove it wrong. That's how we caught the biggest mistake of the night.
+What made this work was how we checked each step. Every idea came with a number that could prove it wrong. That habit is what caught the biggest mistake of the night, which I'll get to.
 
-## Step 1: I photographed the stars through the eyepiece
+## I held my phone up to the eyepiece and took pictures
 
-There's no camera on the scope. I held my iPhone up to the eyepiece, took a picture, swung the scope somewhere else with the game pad, and took another. Fifteen in all.
+There's no camera on the telescope yet. So I held my iPhone up to the eyepiece, took a picture, swung the telescope somewhere else with the controller, and took another. Fifteen in all.
 
-![All fifteen photos, marked by whether they solved](images/plates-contact-sheet.jpg "Fifteen phone photos through the eyepiece. Ten of them solved.")
+![All fifteen photos, marked by whether they solved](images/plates-contact-sheet.jpg "All fifteen photos. Ten of them ended up telling us exactly where the telescope was pointing.")
 
-A photo through an eyepiece is a mess: a bright round window in a black frame, stars smeared into little comets by my hand, and moonlight everywhere.
+These are messy photos. You get a bright round window floating in black, stars smeared into little comets because my hand shook, and moonlight everywhere.
 
-![The best raw photo: the eyepiece's disc, about sixty stars, and moonlit sky](images/plates-raw-four.jpg "The best of the fifteen: a bright disc, about sixty stars, and moonlight.")
+![The best raw photo: the eyepiece's disc, about sixty stars, and moonlit sky](images/plates-raw-four.jpg "This was the best one: about sixty stars in a bright round window.")
 
-## Step 2: we cleaned each photo down to just the stars
+## First, clean each photo until only the stars are left
 
-The software that reads star fingerprints wants points of light on black. So the first job is to throw away everything that isn't a star inside the eyepiece:
+The software that reads star patterns wants clean dots of light on black, so we had to strip away everything else. We turned the photo gray, found the round window, and threw away everything outside it. Then we took out the moonlight. That part is a neat trick: moonlight is a smooth glow and stars are tiny points, so if you blur the photo and subtract the blur, the glow cancels out and the stars are left behind.
 
-1. **Make it grey.** Colour doesn't help.
-2. **Find the eyepiece.** Blur hard and keep the bright part. That's the round window.
-3. **Keep only the biggest bright region.** The Moon's glare can show up as a second blob.
-4. **Take away the moonlight.** Moonlight is a smooth glow and stars are points, so subtracting a blurred copy of the photo leaves just the stars.
-5. **Crop to the window.**
+![Plate fifteen through the pipeline: the glare blob in the first mask, gone in the second](images/plates-cleaning-fifteen.jpg "Cleaning a photo. The Moon's glare in the top right sneaks through the first pass, so now we keep only the biggest bright blob, which is the eyepiece.")
 
-![Plate fifteen through the pipeline: the glare blob in the first mask, gone in the second](images/plates-cleaning-fifteen.jpg "Cleaning a photo: the Moon's glare (top right) survives the first pass. Keeping only the biggest bright region drops it.")
-
-Step 3 came from a failure: on plate fifteen the glare got in, and the photo wouldn't solve. The fix is short:
+One photo taught us something. On plate fifteen, glare from the Moon showed up as a second bright blob next to the eyepiece's window, and it got in the way. The fix: the eyepiece is always the biggest bright thing in the picture, so keep that and drop the rest. If you're curious, here's the code:
 
 ```elixir
 # The eyepiece is the biggest bright region in the photo. Glare from the
@@ -84,28 +73,23 @@ defp eyepiece(mask, dir, opts, deadline) do
 end
 ```
 
-## Step 3: a plate solver told us where each photo points
+## Then match the stars against a star map
 
-A plate solver is software that recognises a patch of sky the way you'd recognise a constellation: by the shape the stars make. It compares the pattern in a photo against millions of patterns from a star catalogue. When it finds a match, it knows exactly where the photo was pointing, to a fraction of a degree.
+This is the magic step, and it's called plate solving. Think about how you'd recognize the Big Dipper: not by any one star, but by the shape the stars make together. A plate solver does the same thing with millions of star patterns from a catalog. When a photo's pattern matches, it knows exactly where the photo was pointing, to a tiny fraction of a degree.
 
-We used [astrometry.net](https://astrometry.net). Its catalogue files for this kind of view are 348 MB, small enough to put on a Raspberry Pi.
+We used a free one called [astrometry.net](https://astrometry.net). The catalog files for a view like mine are 348 MB, small enough to fit on a Raspberry Pi.
 
-![Plate four solved: 166 stars found, 52 matched to the catalogue](images/plates-solved-four.jpg "Plate four, solved: 166 stars found, 52 of them matched to the catalogue.")
+![Plate four solved: 166 stars found, 52 matched to the catalog](images/plates-solved-four.jpg "A match. The software found 166 stars in this photo and lined up 52 of them with the star map.")
 
-Ten of the fifteen solved. The five that didn't:
+Ten of the fifteen photos matched. The other five were too blurry, too tilted, too washed out by the Moon, or just never matched anything real.
 
-- one was blurry;
-- one had the phone tilted, so the window was an oval;
-- two were drowned in moonlight;
-- one only ever matched the wrong patch of sky.
+## Sometimes the match is wrong, so we set a cutoff
 
-## Step 4: we learned not to trust every match
+Every match comes with a score for how confident the solver is that the stars really line up. Out of the box, it was willing to accept two matches that were flat-out wrong, each based on just three stars. One of them claimed my phone was pointed at a patch of sky that's below my horizon. Not possible.
 
-The solver gives every match a score: how sure it is that the stars really line up. At its default setting it accepted two wrong answers, each based on just three stars. One put the photo below my horizon, which is impossible.
+![Solver scores: the false matches far below the real ones](images/moon-solver-odds.svg "The wrong matches had much lower scores than the right ones, so it was easy to draw a line between them.")
 
-![Solver scores: the false matches far below the real ones](images/moon-solver-odds.svg "Wrong answers scored around 10⁹. Right ones scored 10²⁸ and up. We put the bar at 10¹⁸.")
-
-The gap between wrong and right was huge, so the fix was to raise the bar and write down why:
+The good news is that the wrong answers scored way lower than the right ones. So we raised the cutoff to sit in the gap, and wrote down why:
 
 ```elixir
 # How sure a match must be before we believe it. The solver's own default
@@ -114,17 +98,17 @@ The gap between wrong and right was huge, so the fix was to raise the bar and wr
 @min_odds 1.0e18
 ```
 
-It cut the other way once too. We threw out plate three on the night because the solver's log printed a low score. That log line is its first, rough check. The final score was 10⁴⁰, on twelve stars. Lesson: read the right number.
+It went the other way once, too. We tossed out one photo that night because the solver's log printed a low score. Turns out that log line is just its first rough guess, and the final score was sky high. The lesson is to read the right number.
 
-## Step 5: two photos measured how crooked the mount is
+## Two photos were enough to tell how crooked the mount is
 
-The software describes the mount with four numbers: where its axis points (up-down and left-right), and where each motor was when it was switched on. Photos of known stars pin those numbers down.
+The software describes my mount with four numbers: which way its axis points (up-down and left-right), and where each motor was when the power came on. Each matched photo pins those numbers down a little more.
 
-![The mount's axis points 5.3° from the pole](images/moon-crooked-axis.svg "The mount's axis pointed 5.3° from the pole. The software measured that instead of me fixing it.")
+![The mount's axis points 5.3° from the pole](images/moon-crooked-axis.svg "My mount's axis was pointed 5.3° away from where it's supposed to. The software measured that, so I didn't have to fix it.")
 
 Two things made this harder than it sounds.
 
-**The mount never told us where it started.** The motors count from wherever they were when the power came on, so those two numbers could be anything. The fitting method we use gets lost if it starts from a bad guess, so it now tries a grid of starting points first:
+**The mount had no idea where it started.** The motors just count from wherever they happened to be when I turned them on, so those numbers could be anything. The method we use to fit the numbers gets lost if it starts from a bad guess, so now it tries a whole grid of starting points first and goes from the best one:
 
 ```elixir
 # The motors count from wherever they were at power-on, so their offsets
@@ -136,48 +120,42 @@ defp sweep_offsets(samples, signs, start) do
 end
 ```
 
-**One photo isn't enough.** A single photo fits the mount equally well two different ways. The first Go To on a one-photo fit pointed the telescope into my garage. The rule now: only small moves until two photos agree. With two, the first Go To landed right beside the Moon.
+**One photo isn't enough.** With a single photo, the math works out equally well for two completely different ways the mount could be sitting. The first time we tried to go to the Moon on one photo, it pointed the telescope at my garage. So now the rule is small moves only until two photos agree. With two, the telescope swung right up next to the Moon.
 
-![After the two-plate GoTo: the Moon just off the edge of the field, lighting it up](images/plates-moon-glare.jpg "With two photos, the first Go To landed just beside the Moon. That's its glare.")
+![After the two-plate GoTo: the Moon just off the edge of the field, lighting it up](images/plates-moon-glare.jpg "With two photos, the first try landed right next to the Moon. That glow is the Moon, just out of view.")
 
-The answer: **the mount's axis was 5.3° from the pole**, 3.1° too low and 5.3° too far west. That's a badly set-up mount, and it didn't matter.
+The verdict: **my mount's axis was 5.3° off**, a little low and pointed a bit too far west. That's a badly set up mount, and it didn't matter.
 
-## Step 6: small nudges centred the Moon, and a loop held it there
+## Then we nudged the Moon into the middle and kept it there
 
-From there it was me at the eyepiece saying things like "down five percent, left twenty", and Claude sending the nudges. It took two wrong guesses to learn which motor moves the view which way.
+From there it was me at the eyepiece saying things like "down five percent, left twenty," and Claude sending the nudges. It took a couple of wrong guesses to figure out which motor moves the view which way.
 
-![The Moon, centred and held](images/plates-moon-centered.jpg "The Moon centred, and held there for as long as I watched.")
+![The Moon, centered and held](images/plates-moon-centered.jpg "Got it. The Moon, dead center, and it stayed there.")
 
-A well set-up mount follows the Moon with one motor. A crooked one has to correct both, all the time. So a loop ran every 20 seconds: work out where the motors should be for the Moon now, compare with where they were when it was centred, and move the difference.
+Keeping it there is the other half. A well set up mount follows the Moon by turning one motor slowly. A crooked one has to keep adjusting both motors, all the time. So every 20 seconds a little loop figured out where the motors should be for where the Moon is now, and moved them the difference.
 
-Over 17 minutes it made 8 small corrections on one axis and 27 on the other, each well under two arcminutes (an arcminute is a sixtieth of a degree). The Moon stayed put. The mount's own tracking alone would have walked it out of view in about half an hour.
+Over 17 minutes it made 35 tiny corrections, each smaller than a thirtieth of a degree, and the Moon never moved. Without them it would have drifted out of view in about half an hour.
 
-## The surprise: the software was aiming at the wrong Moon
+## The Moon was off because the software was standing at the center of the Earth
 
-The photos and the Moon should all have agreed about the mount to within a few arcminutes. They were 23′ apart, and the Moon was the odd one out. That number is what gave it away.
+Here's the part I like best. The photos and the Moon should have agreed with each other about how the mount was set up. They didn't. They disagreed by about 23 arcminutes (an arcminute is a sixtieth of a degree), and the Moon was the odd one out. So we asked why.
 
-![From Earth's centre and from my yard, the Moon lands in different places against the stars](images/moon-parallax.svg "The software aimed at the Moon as seen from the centre of the Earth. From my yard it sits about 45′ away: more than the eyepiece shows.")
+![From Earth's center and from my yard, the Moon lands in different places against the stars](images/moon-parallax.svg "The Moon is close enough that where you stand changes where it appears against the stars. The software was pretending to stand at the center of the Earth.")
 
-Two things were off, and both were in how the software worked out where the Moon is:
+The answer: the Moon is close. Hold your thumb out at arm's length and close one eye, then the other, and watch it jump against the background. The Moon does the same thing depending on where you stand on Earth. The software was working out the Moon's position as seen from the center of the Earth, not from my yard, and that alone put it about 45 arcminutes off. That's more than the entire view in my eyepiece.
 
-| What | How far off | Why |
-|---|---|---|
-| Parallax | about 45′ | The Moon is close enough that where you stand on Earth moves it against the stars. The software used the centre of the Earth. |
-| The calendar | about 22′ | Star positions drift slowly over the years. The Moon was worked out for today, the stars for the year 2000. |
-| **Together** | **44.6′** | They partly cancel. |
+There was a second, smaller mix-up. Star positions drift slowly over the decades, so star maps are pinned to a particular year, usually 2000. The Moon was being figured for today while everything else was in year-2000 terms, which added about 22 arcminutes more. The two errors partly cancel out, and together they came to about 45.
 
-That's more than half of what the eyepiece shows. With the Moon put where I actually see it, in the same year-2000 frame as the stars, the same measurements agree to **6.6′ instead of 23.4′**.
-
-The fix is to subtract where I'm standing from where the Moon is:
+Once we put the Moon where I actually see it, in the same year-2000 terms as the stars, the photos and the Moon agreed to within 6.6 arcminutes instead of 23. For the curious, this is the fix: take where the Moon is from the Earth's center, and subtract where I'm standing.
 
 ```elixir
-# Where the Moon is from my yard, not from the centre of the Earth.
-# `p` is the Moon's position from the Earth's centre, with its distance.
+# Where the Moon is from my yard, not from the center of the Earth.
+# `p` is the Moon's position from the Earth's center, with its distance.
 def topocentric(%{distance_km: dist} = p, dt, %{lat: lat, lon: lon} = site) do
   phi = lat * @deg
   h = Map.get(site, :elevation_m, 0) / 1000 / @earth_radius_km
 
-  # where I am, relative to the Earth's centre, in Earth radii
+  # where I am, relative to the Earth's center, in Earth radii
   # (the Earth is slightly flattened, so latitude needs a correction)
   u = :math.atan(0.99664719 * :math.tan(phi))
   rho_sin = 0.99664719 * :math.sin(u) + h * :math.sin(phi)
@@ -191,49 +169,47 @@ def topocentric(%{distance_km: dist} = p, dt, %{lat: lat, lon: lon} = site) do
 end
 ```
 
-Checked against NASA's [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) on three dates, the Moon is now within 1.4′ of where it should be. The old code was 45′ out.
+We checked it against NASA's [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) on three different dates, and it's now within about an arcminute and a half of where the Moon really is.
 
-## Everything the software corrects for, in one table
+## Here's everything the software has to correct for
 
-Including the things that don't matter yet, so it's clear what's handled and what isn't:
+Once you start looking, there are a lot of little things between "where the telescope thinks it's pointing" and "where it's actually pointing." Here's the full list from that night, including the ones we haven't handled yet:
 
-| What | Size on the first night | Handled? |
+| What | How big | Handled? |
 |---|---|---|
-| Moon parallax | about 45′ | Yes, since this night |
-| Year-2000 star positions | about 22′ | Yes, since this night |
-| Air bending starlight | about 1′ | Not yet |
-| Mount axis, up-down | 3.1° | Yes, measured from photos |
-| Mount axis, left-right | 5.3° | Yes, measured from photos |
-| Tripod not level | hidden in the two above | Needs a level reading |
-| Where each motor started | anything | Yes, measured from photos |
-| Tube not square, flex, gear slack | inside the 6.6′ left over | Not yet |
-| Photo timestamps | ±45 s, up to 11′ | Guessed: the phone's times were lost |
-| Centring by eye | about 1% of the view | That's me |
-| Tracking, both axes | under 2′ | Yes |
+| Where you stand, for the Moon | about 45′ | Yes, as of this night |
+| Star maps pinned to the year 2000 | about 22′ | Yes, as of this night |
+| The air bending starlight | about 1′ | Not yet |
+| Mount axis tipped up or down | 3.1° | Yes, measured from photos |
+| Mount axis turned left or right | 5.3° | Yes, measured from photos |
+| Where each motor started | anything at all | Yes, measured from photos |
+| The tripod not being level | hidden in the two above | Needs a level |
+| Small wobbles in the tube and gears | a few arcminutes | Not yet |
+| Photo times | up to 11′ | Guessed, since the phone's times got lost |
+| Me centering by eye | about 1% of the view | That's just me |
 
-The tripod row is the interesting one. From the sky alone, a tripod that isn't level and an axis that's aimed wrong look exactly the same, because the stars only see where the axis ends up. A level reading on the mount would split them, and turn "5.3° west" into "this much is the tripod, turn this bolt that much."
+The tripod row is my favorite. Looking at the sky alone, you can't tell a tripod that isn't level from a mount that's aimed wrong. The stars only see where the axis ends up. Put a level on the mount and the software could tell you "this much is the tripod, turn this bolt that much."
 
-## What went wrong
+## What I'd do differently next time
 
-- **The wrong Moon.** Worked out from the centre of the Earth and in the wrong year's frame, 44.6′ out. Fixed and checked against JPL Horizons.
-- **One photo sent the scope into the garage.** One photo can't tell which of two ways the mount is sitting. Now: small moves until two agree.
-- **The solver accepted wrong answers.** Once it put the photo below the horizon. The bar is 10¹⁸ now.
-- **We threw out a right answer.** We read the solver's rough first score instead of its final one.
-- **Moonlight got into the eyepiece mask.** Now only the biggest bright region is kept.
-- **The photo times were lost.** Sending the photos stripped their timestamps, so each was guessed to within 45 seconds. At the speed the sky turns, that's up to 11′.
-- **"Up" meant three things.** Up in the eyepiece, up in a photo, and up on a motor are all different.
+**Don't trust one photo.** One photo can't tell which of two ways the mount is sitting, and that's how the telescope ended up pointed at my garage. Now nothing big moves until two photos agree.
 
-## What working with an AI on this was like
+**Don't take the solver's word for it.** Left at its default setting, it happily reported a spot below my horizon. The cutoff fixed that, and later we added a check that throws out any match that's below the horizon.
 
-- **It's fast at the parts that are slow for me:** geometry, fitting, catalogue math, and writing and running the code, while I stayed at the eyepiece.
-- **The numbers caught its mistakes.** Nobody spotted the wrong Moon by looking. Three measurements that should have agreed didn't, and we asked why.
-- **It needs thresholds, like any software.** Left alone it would have believed a match below the horizon. We set the bar from the data.
-- **The physical world needs precise words.** "Down five percent" only worked once we agreed what "down" meant.
-- **I kept the safety calls.** The garage Go To is why big moves wait for two photos.
+**Keep the photo times.** Sending the photos from my phone stripped off when they were taken, so each time was a guess within 45 seconds. The sky turns fast enough that 45 seconds is up to 11 arcminutes of error, which is a lot when you're trying to measure things this precisely.
 
-## What's next
+**Agree on what "up" means.** Up in the eyepiece, up in a photo, and up on a motor are three different directions. That's why a few of my nudges went the wrong way. It's also why the next thing I built was a way to steer by what I see instead.
 
-- **A record of where the mount was, all the time,** so a photo's timestamp says exactly where the scope was pointing.
-- **A tilt reading from the phone,** to split tripod from axis.
-- **Tracking and plate solving on the box itself,** so none of this needs my Mac. Both are done now: see [the Moon we couldn't go to](2026-09-26-the-moon-we-couldnt-go-to.html).
-- **Steering by what I see,** not by motor names. Done: see [up is up](2026-09-26-up-is-up-steering-by-the-eyepiece.html).
+## How the AI helped, and where it didn't
+
+**It's fast at the parts that are slow for me.** Geometry, fitting numbers, star catalog math, and writing and running the code, all while I stayed out at the eyepiece. I didn't touch a keyboard all night.
+
+**The numbers caught its mistakes.** Nobody spotted the wrong Moon by looking at it. Three measurements that should have agreed didn't, and asking why led straight to it.
+
+**It needs guardrails like any software.** It would have believed a match that was below the horizon. We only caught that because we asked whether the answer made sense.
+
+**I kept the safety calls.** The garage is why big moves wait for two photos. That rule came from me standing next to the telescope watching it swing the wrong way.
+
+## Where this goes next
+
+The next steps are about taking my Mac out of the loop. The software should keep a running record of where the mount is pointing, so a photo's timestamp tells you exactly where the telescope was. A tilt reading from the phone would split "the tripod isn't level" from "the mount is aimed wrong." And all of this should run on the little computer on the telescope itself. That part is done now: see [the Moon we couldn't go to](2026-09-26-the-moon-we-couldnt-go-to.html). So is steering by what you see in the eyepiece: see [up is up](2026-09-26-up-is-up-steering-by-the-eyepiece.html).

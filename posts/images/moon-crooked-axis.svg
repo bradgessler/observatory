@@ -8,15 +8,11 @@
 <circle class="acf" cx="170" cy="198" r="6"/>
 <path class="dash" d="M170,198 L520,60"/>
 <circle cx="530" cy="56" r="7" fill="#f2cc60"/>
-<text class="s" x="382" y="36">the pole (near Polaris)</text>
+<text class="s" x="330" y="36">where it should point</text><text class="d" x="330" y="56">(the pole, near Polaris)</text>
 <path class="ac" d="M170,198 L505,118" marker-end="url(#ah)"/>
-<text class="s" x="290" y="200">where the mount's</text>
-<text class="s" x="290" y="221">axis points</text>
+<text class="s" x="290" y="200">where my mount</text>
+<text class="s" x="290" y="221">actually pointed</text>
 <path class="warns" d="M421,99 A270,270 0 0,1 432.6,135.3"/>
 <text class="t" x="440" y="118">5.3°</text>
-<text class="d" x="40" y="40">A well set-up mount points its axis</text>
-<text class="d" x="40" y="60">at the pole. Mine didn't, and I left</text>
-<text class="d" x="40" y="80">it that way: the software measured</text>
-<text class="d" x="40" y="100">how far off it was instead.</text>
-<text class="d" x="372" y="298">angles exaggerated</text>
+<text class="d" x="372" y="298">angle exaggerated</text>
 </svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" role="img" aria-label="In my eyepiece: up is the RA motor backwards, down is RA forwards, right is the Dec motor backwards, left is Dec forwards"><style>
+.bg{fill:#12151c}.box{fill:#1b2029;stroke:#2e3544;stroke-width:1.5}.hot{fill:#1c2740;stroke:#6ea8ff;stroke-width:1.5}.t{fill:#e6e8ee;font:700 21px -apple-system,system-ui,sans-serif}.h{fill:#e6e8ee;font:700 18px -apple-system,system-ui,sans-serif}.d{fill:#9aa1b3;font:15px -apple-system,system-ui,sans-serif}.s{fill:#e6e8ee;font:600 16px -apple-system,system-ui,sans-serif}.k{fill:#6ea8ff;font:700 13px -apple-system,system-ui,sans-serif;letter-spacing:.06em}.ac{stroke:#6ea8ff;stroke-width:3;fill:none}.acf{fill:#6ea8ff}.ln{stroke:#9aa1b3;stroke-width:2;fill:none}.faint{stroke:#2e3544;stroke-width:1.5;fill:none}.red{fill:#ff5d5d}.redbg{fill:#1a0707;stroke:#5c1b1b;stroke-width:2}
+@media (prefers-color-scheme: light){.bg{fill:#fff}.box{fill:#f3f5f8;stroke:#dde1e8}.hot{fill:#e8effd;stroke:#2457d6}.t,.h,.s{fill:#14171d}.d{fill:#5a6372}.k{fill:#2457d6}.ac{stroke:#2457d6}.acf{fill:#2457d6}.ln{stroke:#5a6372}.faint{stroke:#dde1e8}}
+</style><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="acf"/></marker></defs><rect class="bg" width="600" height="420" rx="16"/>
+<text class="t" x="24" y="46">Which motor moves my view which way</text>
+<text class="d" x="24" y="72">on my telescope, with the eyepiece turned the way it was that night</text>
+<circle cx="300" cy="245" r="120" fill="#000" stroke="#2e3544" stroke-width="2"/>
+<circle cx="262" cy="220" r="3" fill="#fff"/><circle cx="330" cy="205" r="2" fill="#fff"/><circle cx="318" cy="282" r="2.5" fill="#fff"/><circle cx="270" cy="290" r="2" fill="#fff"/><circle cx="345" cy="250" r="3.5" fill="#f2cc60"/>
+<path class="ac" d="M300,190 L300,138" marker-end="url(#ah)"/>
+<path class="ac" d="M300,300 L300,352" marker-end="url(#ah)"/>
+<path class="ac" d="M355,245 L407,245" marker-end="url(#ah)"/>
+<path class="ac" d="M245,245 L193,245" marker-end="url(#ah)"/>
+<text class="s" x="300" y="112" text-anchor="middle">up: RA backwards</text>
+<text class="s" x="300" y="395" text-anchor="middle">down: RA forwards</text>
+<text class="s" x="440" y="240">right:</text><text class="s" x="440" y="260">Dec backwards</text>
+<text class="s" x="160" y="240" text-anchor="end">left:</text><text class="s" x="160" y="260" text-anchor="end">Dec forwards</text>
+</svg>

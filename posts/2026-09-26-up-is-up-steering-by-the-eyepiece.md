@@ -1,124 +1,71 @@
 ---
-title: "Up is up: steering by the eyepiece"
+title: "Up is up: steering a telescope by what you see"
 date: 2026-09-26
-summary: "At the eyepiece I don't want to think about RA and Dec. I want to pull up and have the stars go up. A red touchpad that pulls from wherever the thumb lands, a D-pad that crawls and then hurries, and one small map from the view to the axes, learned at the eyepiece."
+summary: "Telescope controls talk about motors. At the eyepiece, you only care about the view: push up, and it should go up. Here's everything that has to happen between a thumb on a D-pad and two motors on a crooked mount to make that true."
 hero: "images/center-pull-up.png"
-hero_alt: "The Center page on the simulator, mid-pull: the eyepiece drawn as a red touchpad, an arrow pointing up, RA running at 2.8×"
+hero_alt: "The phone showing the eyepiece as a red touchpad, mid-pull, the view moving up"
 ---
 
-The first field night ended with Saturn, and later the Pleiades, sitting in the middle of the eyepiece. Go To got them close. This post is about the last few arcminutes, which is where I spent most of the night.
+<aside>
 
-An EQ6-R has two axes, RA and Dec, and at the eyepiece neither of them means anything. On a mount set down anyhow, never zeroed, with a star diagonal in the focuser, "Dec forward" might move the stars left, or up, or down and a bit left. It depends on which side of the pier the tube is on, the mirror in the diagonal, and how the diagonal is turned in its holder. A hand controller leaves you to work that out with your eye on the glass, one wrong button at a time.
+**The short version:** a telescope's motors turn in directions that mean nothing when your eye is at the eyepiece. So I made the controls talk about the view instead. Push up, the view goes up. A phone becomes a touchpad shaped like the eyepiece, and a game controller's D-pad crawls for fine centering and speeds up when you hold it. Getting there meant working out every layer between my thumb and the motors.
 
-I wanted what a map on a phone does. Pull up, the picture goes up.
+</aside>
 
-## The Center page
+## How I got here
 
-![The Center page on the simulator, mid-pull: a thumb pulling up, the view moving up at 2.8×, RA doing the work](images/center-pull-up.png)
+[Last time](2026-09-25-phone-photos-and-the-wrong-moon.html), I set up my telescope badly on purpose and let an AI figure out how crooked it was from photos I took through the eyepiece with my phone. That got the Moon into view. Getting it into the *middle* of the view was a different story.
 
-The Center page draws the eyepiece as a round touchpad. Put a thumb on it and pull the way you want the view to go. Further is faster. Let go and it stops. The line under it says what the mount is actually doing, from the mount's own report, so there's proof the thumb is working.
+I'd be at the eyepiece saying "down five percent, left twenty," and Claude would send a nudge. Half the time it went the wrong way. Not because anyone was careless, but because "down" in the eyepiece, "down" in a photo, and "down" on a motor are three different things.
 
-Speed runs from 0.5× to 8× sidereal, which is nothing like a slew. The curve is eased so the first half of the pull stays slow and only the end is brisk:
+That's when it clicked for me. This whole rig, the mount, the motors, the alignment math, all of it, exists to serve one thing: the little circle of sky I'm looking at. So the controls should talk about that circle. If I want the view to go up, I push up.
 
-```elixir
-# apps/controller/lib/controller/live/center_live.ex
-# the drag: just past the dead zone crawls, the rim is brisk; nothing like a slew
-@slow 0.5
-@fast 8.0
+## Why "up" is confusing on a telescope
 
-def speed(mag) when mag <= 0, do: 0.0
-def speed(mag), do: @slow * :math.pow(@fast / @slow, :math.pow(min(mag, 1.0), 1.5))
-```
+A mount like mine has two motors. One turns the telescope around an axis pointed at the pole (called RA), and the other tips it toward or away from the pole (called Dec). Those names make sense on a star chart. At the eyepiece they mean nothing.
 
-Half a pull is 1.3×. At the rim it's 8×.
+The light also bounces off a mirror on its way to your eye, which flips the picture. The eyepiece can be twisted in its holder, which rotates the picture. And a mount like mine can reach a star from either side of its central post, which turns everything upside down. So which motor moves the view up depends on all of that at once.
 
-Which axis moves the view which way is a setting, `"view_map"`, not a guess. It says what moves the view down and what moves it right, each as an axis and a sign:
+![In my eyepiece: up is the RA motor backwards, down is RA forwards, right is Dec backwards, left is Dec forwards](images/eyepiece-which-motor.svg "On my telescope that night, moving the view up meant turning the RA motor backwards. Nothing about that is obvious, so the software remembers it for you.")
 
-```elixir
-# the first night, EQ6-R, star diagonal: what moved the view down and right
-@view_map %{"down" => ["ra", 1], "right" => ["dec", -1]}
-```
+The software keeps this as a tiny map: which motor, and which way, moves the view down and which moves it right. Up and left are just the opposites. If you set things up differently, two buttons fix it. One says "up and down are backwards," one says "left and right are backwards," and a third turns the whole map a quarter turn for when the eyepiece gets twisted in its holder. Mine did, somewhere between the Moon and Saturn.
 
-That default is what the night taught me at the eyepiece: down is RA forward, right is Dec back. A different set-up is a tap or two away. **Up/down backwards** and **Left/right backwards** each flip a pair. **Up/down and left/right swapped** turns the whole map 90°, which is what happens when the diagonal gets turned in its holder. Mine did, somewhere between the Moon and Saturn.
+## Here's everything between my thumb and the motors
 
-```elixir
-def turn(map), do: %{"right" => map["down"], "down" => (fn [a, s] -> [a, -s] end).(map["right"])}
-def flip(map, pair), do: Map.update!(map, pair, fn [axis, s] -> [axis, -s] end)
-```
+When I push up on the D-pad, that simple wish goes through a surprising number of layers before a motor turns. And when I ask to go to the Moon, it goes through a different set: where the Moon is right now from my yard, and how crooked my mount is, which is what the [last post](2026-09-25-phone-photos-and-the-wrong-moon.html) was about.
 
-Four turns are back where they started, and with the two flips every way the view can sit is covered. It's a setting, so it goes through `Controller.Settings`, and every phone and page picks up the change.
+![Everything between my thumb and the motors](images/eyepiece-stack.svg "Two ways to move the telescope. Nudging goes through what the eyepiece does to the view. Going to something goes through where it is right now and how crooked the mount is. Both end at the same two motors.")
 
-One more thing a pull does. With tracking on, RA is already running at 1× to hold the sky still. A pull that ignored that would move the view relative to a stopped motor, and the stars would lurch the moment you touched the glass. So RA carries on from the tracking rate, and the pull is added on top:
+The layer that surprised me most is "keep pace with the sky." The sky is always turning, so the RA motor is always running slowly to keep up. If a nudge ignored that, the stars would lurch the moment you touched the controls. So every nudge rides on top of the tracking, and when you let go, it goes back to just tracking.
 
-```elixir
-for axis <- [:ra, :dec], r = Map.get(rel, axis, 0.0), abs(r) > 1.0e-9 do
-  {axis, if(axis == :ra, do: Map.get(@track_units, tracking, 0.0) + r, else: r)}
-end
-```
+## On a phone, the eyepiece becomes a touchpad
 
-Let go and RA goes back to tracking and Dec stops. Every command carries the driver's hold and is re-sent every 250 ms while a thumb is down, so a phone that locks or a hand that slips off stops the mount within a second on its own.
+![The Center page on the simulator, mid-pull: a thumb pulling up, the view moving up at 2.8×](images/center-pull-up.png "The phone shows the eyepiece as a round touchpad. Pull the way you want the view to go. Further means faster.")
 
-## What the eyepiece taught me
+Put your thumb anywhere on the circle and pull the way you want the view to move. A short pull crawls, and pulling to the edge moves about sixteen times faster. Let go and it stops. Underneath, a line says what the motors are actually doing, so you know your thumb is working.
 
-**Red, always.** The first version drew the eyepiece as a white disc. Walking back to the scope with the phone was, in my words at the time, a big white light blasting in my eyeballs. The Center page is red now whatever the theme says, because it only gets used in the dark.
+It's always red, because that's the only color that doesn't ruin your night vision. The first version drew a white circle, which I described at the time as "a big white light blasting in my eyeballs."
 
-**Pull from where the thumb lands.** The first version measured the pull from the pad's centre. With your eye at the eyepiece you can't see where the centre is, so wherever the thumb came down was already a pull in some direction. My complaint that night was "my thumb is just not following the screen." Now zero is wherever the thumb lands:
+## On the game controller, the D-pad crawls, then hurries
 
-```js
-// apps/controller/priv/static/assets/js/app.js
-// data-origin="touch": zero is where the thumb lands, not the pad's centre
-// (an eye at the eyepiece can't see where the centre is); data-reach is
-// the pull in px for full speed, data-dead the still zone as a share of it
-const fromTouch = pad.dataset.origin === "touch";
-...
-origin = fromTouch ? { x: e.clientX, y: e.clientY } : centre;
-```
+The controller's D-pad moves the view the same way, using the same map, so fixing a backwards direction on the phone fixes the controller too.
 
-The still zone went up too, from 12% of the reach to 18%, so a thumb settling onto glass doesn't move anything. That hook is the only JavaScript involved. It exists because LiveView has no pointer bindings and a held move needs a heartbeat; everything else on the page is HEEx.
+![Holding the D-pad: 2 times the sky's speed at first, 8 times after a second and a half, 32 times after four seconds](images/eyepiece-dpad-speed.svg "A tap crawls, which is right for the last bit of centering. Keep holding and it speeds up, so crossing something big like the Pleiades takes seconds instead of minutes.")
 
-**One direction per touch.** A thumb that means "up" drifts sideways without its owner knowing. I'd pull up and Saturn would slide out the side. So the first real pull decides the direction, and it's the only way that touch drives until it lifts:
+At first it only crawled, which is perfect for putting Saturn dead center and painful for anything bigger. Crossing the Pleiades, a star cluster about four Moons wide, took minutes. So now the longer you hold, the faster it goes.
 
-```elixir
-def lock_for(x, y), do: if(abs(y) >= abs(x), do: :vertical, else: :horizontal)
+## Three things I only learned out in the dark
 
-def locked({x, _y}, :horizontal), do: {if(x >= 0, do: 1.0, else: -1.0), 0.0}
-def locked({_x, y}, :vertical), do: {0.0, if(y >= 0, do: 1.0, else: -1.0)}
-```
+**Start the pull where your thumb lands.** The first touchpad measured your pull from the middle of the circle. With your eye at the eyepiece you can't see where the middle is, so wherever your thumb came down already counted as a pull in some direction. My complaint that night was "my thumb is just not following the screen." Now wherever your thumb lands is the starting point, and there's a small dead zone so resting your thumb doesn't move anything.
 
-The status line says so while you pull: "up/down only until you lift."
+**One direction per touch.** A thumb that means "up" drifts sideways without you noticing, and Saturn slides out the side. So the first real pull decides the direction, and that's the only way that touch moves until you lift your thumb. The screen tells you: "up/down only until you lift."
 
-## The D-pad
+**Know which version someone's running before you fix their bug.** From the eyepiece I reported that the D-pad's directions were crossed: left and right moved the view up and down. Claude "fixed" the map. But my report came in while an update to the telescope's computer was still installing, so I was still on the old version, where the D-pad drove the motors directly. The new map had been right all along, so we put it back.
 
-The game pad is a SideWinder Dual Strike, read by the server over USB HID. Its hat, the little D-pad, used to drive the axes as they are: left/right was RA, up/down was Dec. In eyepiece mode it moves the view the same way the touchpad does. `Controller.PadView` pushes the same `"view_map"` to the pad's mapper when it starts, whenever a phone changes it, and every 30 seconds in case the mapper restarted and forgot. One Backwards tap fixes both.
+## How the AI helped
 
-A tap crawls at 2×. That's right for the last arcminute and hopeless for anything bigger. At 2× the view moves about 30″ a second, so crossing the Pleiades, about two degrees, takes four minutes. It felt like it. So holding the hat ramps up:
+I never touched a keyboard. I'd describe what I saw ("Saturn moved up and to the left"), and Claude would work out which motor did what, update the map, and push the change to the little computer on the telescope while I stayed at the eyepiece. What it couldn't do was feel whether the touchpad was comfortable. Every one of those fixes, the thumb starting point, the dead zone, the speed curve, the red screen, came from me standing in the dark saying "that's not right."
 
-```elixir
-# apps/input/lib/input/gamepad.ex
-defp hat_rates(:eyepiece, hx, hy, m) do
-  rate =
-    cond do
-      m.hat_held_ms >= m.fine_top_ms -> m.fine_top
-      m.hat_held_ms >= m.fine_ramp_ms -> m.fine_rate
-      true -> m.fine_slow
-    end
-  ...
-```
+## Where this goes next
 
-2× on a tap, 8× after a second and a half, 32× after four seconds. At 32× the Pleiades go by in about fifteen seconds. The mapper also notes the tracking rate at the moment the hat goes down and adds it to RA, same as the touchpad. Every number is a parameter on the pad's map, so a different pad or a different taste is config, not code.
-
-## What went wrong
-
-**The D-pad's "wires were crossed."** From the eyepiece I reported that left/right on the pad moved the view up and down. That report arrived while a firmware upgrade to the box was still installing. I was still on the old firmware, where the hat drove the axes directly, and driving RA directly *looks* like up/down in the eyepiece. The new map was right. I "fixed" it anyway, and then put it back once the upgrade finished and the pad did the right thing. Lesson: before changing config because of what somebody sees, know which firmware they're looking at.
-
-**A white disc** and **a pull from the centre**, both above. Neither shows up on a laptop at a desk. Both were obvious in about ten seconds in the yard.
-
-## Where it landed
-
-Saturn centred by feel, first on the touchpad and later on the pad, then the Pleiades. No thinking about axes, no wrong buttons. **Centered** records the time and where both axes were, and says so on the page.
-
-## What's next
-
-- **Centered is an alignment point now** ([#94](https://github.com/bradgessler/observatory/issues/94)). As of the firmware on the box for the second night, Centered on the pad or the page adds a point for whatever the hold is keeping, refits, and says so on the object's page with an Undo. Next is seeing the margin shrink at the eyepiece.
-- **The ball as a throttle.** On the Dual Strike you squeeze the trigger and tilt the ball to drive the axes. It might be better as the D-pad's throttle: the hat says which way, the ball says how fast.
-- **The map belongs to one side of the pier.** A meridian flip turns the view 180°, which is both Backwards buttons at once. The software knows when it flips the mount, so it should turn the map itself.
+Saturn and the Pleiades both got centered by feel, with no thinking about motors. Since then, pressing Centered on the controller also teaches the alignment something every time you do it, so the next "go to" lands closer. The next obvious step is the upside-down problem: when the mount swings to the other side of its post to reach something (a "meridian flip," which I wrote about in [the Moon we couldn't go to](2026-09-26-the-moon-we-couldnt-go-to.html)), the whole view turns upside down. The software knows when it does that, so it should flip the map for you.

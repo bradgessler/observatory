@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 330" role="img" aria-label="Seen from Earth's centre and from my yard, the Moon lands in different places against the stars"><style>
+.bg{fill:#12151c}.box{fill:#1b2029;stroke:#2e3544;stroke-width:1.5}.t{fill:#e6e8ee;font:700 22px -apple-system,system-ui,sans-serif}.d{fill:#9aa1b3;font:16px -apple-system,system-ui,sans-serif}.s{fill:#e6e8ee;font:600 17px -apple-system,system-ui,sans-serif}.n{fill:#6ea8ff;font:700 16px -apple-system,system-ui,sans-serif}.ln{stroke:#9aa1b3;stroke-width:2;fill:none}.ac{stroke:#6ea8ff;stroke-width:3;fill:none}.acf{fill:#6ea8ff}.warn{fill:#ff8a7a}.warns{stroke:#ff8a7a;stroke-width:3;fill:none}.faint{stroke:#2e3544;stroke-width:1.5;fill:none}.dash{stroke:#9aa1b3;stroke-width:2;fill:none;stroke-dasharray:7 6}.fill2{fill:#1b2029}
+@media (prefers-color-scheme: light){.bg{fill:#fff}.box{fill:#f3f5f8;stroke:#dde1e8}.t{fill:#14171d}.d{fill:#5a6372}.s{fill:#14171d}.n{fill:#2457d6}.ln{stroke:#5a6372}.ac{stroke:#2457d6}.acf{fill:#2457d6}.warn{fill:#c9412e}.warns{stroke:#c9412e}.faint{stroke:#dde1e8}.dash{stroke:#5a6372}.fill2{fill:#f3f5f8}}
+</style><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="acf"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa1b3"/></marker></defs><rect class="bg" width="600" height="330" rx="16"/>
+<circle class="fill2" cx="110" cy="200" r="70" style="stroke:#2e3544;stroke-width:1.5"/>
+<circle class="acf" cx="110" cy="200" r="5"/>
+<text class="d" x="62" y="232">Earth's</text><text class="d" x="62" y="250">centre</text>
+<circle cx="140" cy="137" r="7" fill="#f2cc60"/>
+<text class="s" x="84" y="116">me</text>
+<circle cx="360" cy="170" r="22" fill="#d9dde5"/>
+<text class="s" x="336" y="220">the Moon</text>
+<line class="dash" x1="110" y1="200" x2="560" y2="146"/>
+<line class="ac" x1="140" y1="137" x2="560" y2="191"/>
+<line class="faint" x1="560" y1="40" x2="560" y2="290"/>
+<text class="d" x="468" y="36">the stars</text>
+<text class="d" x="468" y="54">behind it</text>
+<circle class="acf" cx="560" cy="191" r="6"/>
+<circle cx="560" cy="146" r="6" fill="#9aa1b3"/>
+<text class="s" x="420" y="112">where the software</text>
+<text class="s" x="420" y="131">aimed</text>
+<text class="s" x="440" y="222">where I saw it</text>
+<text class="t" x="30" y="44">The Moon is close enough to shift</text>
+<text class="d" x="30" y="70">about 45′ against the stars: more than the eyepiece shows</text>
+<text class="d" x="30" y="304">not to scale</text>
+</svg>

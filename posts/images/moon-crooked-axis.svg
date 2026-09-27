@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 330" role="img" aria-label="The mount's axis points 5.3 degrees away from the celestial pole"><style>
+.bg{fill:#12151c}.box{fill:#1b2029;stroke:#2e3544;stroke-width:1.5}.t{fill:#e6e8ee;font:700 22px -apple-system,system-ui,sans-serif}.d{fill:#9aa1b3;font:16px -apple-system,system-ui,sans-serif}.s{fill:#e6e8ee;font:600 17px -apple-system,system-ui,sans-serif}.n{fill:#6ea8ff;font:700 16px -apple-system,system-ui,sans-serif}.ln{stroke:#9aa1b3;stroke-width:2;fill:none}.ac{stroke:#6ea8ff;stroke-width:3;fill:none}.acf{fill:#6ea8ff}.warn{fill:#ff8a7a}.warns{stroke:#ff8a7a;stroke-width:3;fill:none}.faint{stroke:#2e3544;stroke-width:1.5;fill:none}.dash{stroke:#9aa1b3;stroke-width:2;fill:none;stroke-dasharray:7 6}.fill2{fill:#1b2029}
+@media (prefers-color-scheme: light){.bg{fill:#fff}.box{fill:#f3f5f8;stroke:#dde1e8}.t{fill:#14171d}.d{fill:#5a6372}.s{fill:#14171d}.n{fill:#2457d6}.ln{stroke:#5a6372}.ac{stroke:#2457d6}.acf{fill:#2457d6}.warn{fill:#c9412e}.warns{stroke:#c9412e}.faint{stroke:#dde1e8}.dash{stroke:#5a6372}.fill2{fill:#f3f5f8}}
+</style><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="acf"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa1b3"/></marker></defs><rect class="bg" width="600" height="330" rx="16"/>
+<line class="faint" x1="30" y1="270" x2="570" y2="270"/>
+<text class="d" x="40" y="298">ground</text>
+<path class="ln" d="M150,270 L170,215 L190,270 M170,215 L170,200"/>
+<circle class="acf" cx="170" cy="198" r="6"/>
+<path class="dash" d="M170,198 L520,60"/>
+<circle cx="530" cy="56" r="7" fill="#f2cc60"/>
+<text class="s" x="382" y="36">the pole (near Polaris)</text>
+<path class="ac" d="M170,198 L505,118" marker-end="url(#ah)"/>
+<text class="s" x="290" y="200">where the mount's</text>
+<text class="s" x="290" y="221">axis points</text>
+<path class="warns" d="M421,99 A270,270 0 0,1 432.6,135.3"/>
+<text class="t" x="440" y="118">5.3°</text>
+<text class="d" x="40" y="40">A well set-up mount points its axis</text>
+<text class="d" x="40" y="60">at the pole. Mine didn't, and I left</text>
+<text class="d" x="40" y="80">it that way: the software measured</text>
+<text class="d" x="40" y="100">how far off it was instead.</text>
+<text class="d" x="372" y="298">angles exaggerated</text>
+</svg>

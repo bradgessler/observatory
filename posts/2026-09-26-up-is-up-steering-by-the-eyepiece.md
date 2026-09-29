@@ -1,71 +1,61 @@
 ---
 title: "Up is up: steering a telescope by what you see"
 date: 2026-09-26
-summary: "Telescope controls talk about motors. At the eyepiece, you only care about the view: push up, and it should go up. Here's everything that has to happen between a thumb on a D-pad and two motors on a crooked mount to make that true."
+summary: "When I push up while looking through my telescope, the stars should move up. That turned out to be a lot harder than it sounds."
 hero: "images/center-pull-up.png"
 hero_alt: "The phone showing the eyepiece as a red touchpad, mid-pull, the view moving up"
 ---
 
-<aside>
+Back when I wrote up [my Celestron NexStar](https://bradgessler.com/articles/celestron-nexstar), I had to warn people that "up" on the hand controller isn't always "up" in the eyepiece. That's still true with the new mount, and it drove me nuts on the first night out with this project.
 
-**The short version:** a telescope's motors turn in directions that mean nothing when your eye is at the eyepiece. So I made the controls talk about the view instead. Push up, the view goes up. A phone becomes a touchpad shaped like the eyepiece, and a game controller's D-pad crawls for fine centering and speeds up when you hold it. Getting there meant working out every layer between my thumb and the motors.
+In [my last post](2026-09-25-phone-photos-and-the-wrong-moon.html) I set up my EQ6-R mount badly on purpose and had Claude figure out where it was pointing from photos I took through the eyepiece with my phone. That part worked. Getting the Moon, and later Saturn, into the middle of the view was harder. I'd be at the eyepiece saying something like "down five percent, left twenty," Claude would nudge the mount, and about half the time it went the wrong way.
 
-</aside>
+So I asked for something simple: when I push up, the stars should move up.
 
-## How I got here
+## Why the arrows go the wrong way
 
-[Last time](2026-09-25-phone-photos-and-the-wrong-moon.html), I set up my telescope badly on purpose and let an AI figure out how crooked it was from photos I took through the eyepiece with my phone. That got the Moon into view. Getting it into the *middle* of the view was a different story.
+The mount has two motors. One spins the telescope around an axis that points at the North Star, and the other tips it toward or away from it. Astronomers call them RA and Dec, which is great on a star chart and means nothing when your eye is at the eyepiece.
 
-I'd be at the eyepiece saying "down five percent, left twenty," and Claude would send a nudge. Half the time it went the wrong way. Not because anyone was careless, but because "down" in the eyepiece, "down" in a photo, and "down" on a motor are three different things.
+It gets worse. The light bounces off a mirror before it reaches your eye, so the view is flipped. Twist the eyepiece in its holder and the view rotates. Swing the telescope around to the other side of the mount and everything turns upside down. Which motor moves the view up depends on all of that.
 
-That's when it clicked for me. This whole rig, the mount, the motors, the alignment math, all of it, exists to serve one thing: the little circle of sky I'm looking at. So the controls should talk about that circle. If I want the view to go up, I push up.
+![In my eyepiece: up is the RA motor backwards, down is RA forwards, right is Dec backwards, left is Dec forwards](images/eyepiece-which-motor.svg "On my telescope that night, moving the view up meant running the RA motor backwards. You'd never guess that.")
 
-## Why "up" is confusing on a telescope
+The fix is pretty boring. The software keeps a little map of which motor moves the view down and which one moves it right, and up and left are just the opposite. If your setup is different, there are buttons to flip up/down, flip left/right, or rotate the whole map if you've turned the eyepiece.
 
-A mount like mine has two motors. One turns the telescope around an axis pointed at the pole (called RA), and the other tips it toward or away from the pole (called Dec). Those names make sense on a star chart. At the eyepiece they mean nothing.
+## There's a lot going on between the D-pad and the motors
 
-The light also bounces off a mirror on its way to your eye, which flips the picture. The eyepiece can be twisted in its holder, which rotates the picture. And a mount like mine can reach a star from either side of its central post, which turns everything upside down. So which motor moves the view up depends on all of that at once.
+![Everything between my thumb and the motors](images/eyepiece-stack.svg "What happens when I push up on the D-pad (left) versus when I tap Go To on the Moon (right). Both end at the same two motors.")
 
-![In my eyepiece: up is the RA motor backwards, down is RA forwards, right is Dec backwards, left is Dec forwards](images/eyepiece-which-motor.svg "On my telescope that night, moving the view up meant turning the RA motor backwards. Nothing about that is obvious, so the software remembers it for you.")
+When I push up, the software looks up which motor moves the view that way and runs it. It also has to add in the speed the sky is already turning, because the mount is always tracking the sky. Without that, the stars jump every time you touch the controls. When I let go, it goes back to just tracking.
 
-The software keeps this as a tiny map: which motor, and which way, moves the view down and which moves it right. Up and left are just the opposites. If you set things up differently, two buttons fix it. One says "up and down are backwards," one says "left and right are backwards," and a third turns the whole map a quarter turn for when the eyepiece gets twisted in its holder. Mine did, somewhere between the Moon and Saturn.
+Go To takes a different path. It has to work out where the Moon is from my backyard right now, then account for how crooked my mount is, which was the whole point of the last post. Both paths end up as the same two motors turning at some number of steps per second.
 
-## Here's everything between my thumb and the motors
+## The phone is a touchpad shaped like the eyepiece
 
-When I push up on the D-pad, that simple wish goes through a surprising number of layers before a motor turns. And when I ask to go to the Moon, it goes through a different set: where the Moon is right now from my yard, and how crooked my mount is, which is what the [last post](2026-09-25-phone-photos-and-the-wrong-moon.html) was about.
+![The Center page on the simulator, mid-pull: a thumb pulling up, the view moving up at 2.8×](images/center-pull-up.png "Put your thumb on the circle and drag the way you want the view to go.")
 
-![Everything between my thumb and the motors](images/eyepiece-stack.svg "Two ways to move the telescope. Nudging goes through what the eyepiece does to the view. Going to something goes through where it is right now and how crooked the mount is. Both end at the same two motors.")
+You put your thumb on the circle and drag the way you want the view to go. A little drag creeps along, dragging to the edge goes about 16 times faster, and letting go stops it.
 
-The layer that surprised me most is "keep pace with the sky." The sky is always turning, so the RA motor is always running slowly to keep up. If a nudge ignored that, the stars would lurch the moment you touched the controls. So every nudge rides on top of the tracking, and when you let go, it goes back to just tracking.
+The first version was a white circle. I walked out to the scope, looked down at my phone, and got what I described at the time as "a big white light blasting in my eyeballs." It's red now, always, since red light doesn't wreck your night vision.
 
-## On a phone, the eyepiece becomes a touchpad
+It also measured your drag from the center of the circle, which doesn't work when your eye is at the eyepiece and you can't see where the center is. As soon as my thumb touched the glass it was already dragging in some random direction. ("My thumb is just not following the screen," I told Claude.) Now wherever your thumb lands is the starting point. I also had it lock onto one direction per drag, because my thumb would drift sideways without me noticing and Saturn would slide out the side of the view.
 
-![The Center page on the simulator, mid-pull: a thumb pulling up, the view moving up at 2.8×](images/center-pull-up.png "The phone shows the eyepiece as a round touchpad. Pull the way you want the view to go. Further means faster.")
+## The D-pad on the game controller works the same way
 
-Put your thumb anywhere on the circle and pull the way you want the view to move. A short pull crawls, and pulling to the edge moves about sixteen times faster. Let go and it stops. Underneath, a line says what the motors are actually doing, so you know your thumb is working.
+I drive the mount with an old Microsoft SideWinder Dual Strike. Its D-pad uses the same map as the phone now, so fixing a direction in one place fixes it in both.
 
-It's always red, because that's the only color that doesn't ruin your night vision. The first version drew a white circle, which I described at the time as "a big white light blasting in my eyeballs."
+It was slow at first. A tap moves the view at twice the speed of the sky, which is perfect for nudging Saturn into the middle and painful for crossing the Pleiades, which is about four Moons wide. So now the longer you hold it, the faster it goes.
 
-## On the game controller, the D-pad crawls, then hurries
+![Holding the D-pad: 2 times the sky's speed at first, 8 times after a second and a half, 32 times after four seconds](images/eyepiece-dpad-speed.svg "Tap to creep. Hold it for a second and a half and it speeds up, then again after four seconds.")
 
-The controller's D-pad moves the view the same way, using the same map, so fixing a backwards direction on the phone fixes the controller too.
+## Check which version someone is running before you fix their bug
 
-![Holding the D-pad: 2 times the sky's speed at first, 8 times after a second and a half, 32 times after four seconds](images/eyepiece-dpad-speed.svg "A tap crawls, which is right for the last bit of centering. Keep holding and it speeds up, so crossing something big like the Pleiades takes seconds instead of minutes.")
+At one point I told Claude the D-pad was crossed: pushing left moved the view up and down. It changed the map. Turns out my report came in while the new firmware was still installing on the Raspberry Pi that runs the telescope, so I was still on the old version, which didn't use the map at all. The map had been right the whole time, so we changed it back after the update finished.
 
-At first it only crawled, which is perfect for putting Saturn dead center and painful for anything bigger. Crossing the Pleiades, a star cluster about four Moons wide, took minutes. So now the longer you hold, the faster it goes.
+This is a pretty common mistake in software, and it's easy to make when you're standing in the dark in your backyard talking to an AI running on a Mac Studio inside your house.
 
-## Three things I only learned out in the dark
+## Where it's at
 
-**Start the pull where your thumb lands.** The first touchpad measured your pull from the middle of the circle. With your eye at the eyepiece you can't see where the middle is, so wherever your thumb came down already counted as a pull in some direction. My complaint that night was "my thumb is just not following the screen." Now wherever your thumb lands is the starting point, and there's a small dead zone so resting your thumb doesn't move anything.
+Saturn and the Pleiades both ended up dead center without me having to think about which motor does what, which was the whole point.
 
-**One direction per touch.** A thumb that means "up" drifts sideways without you noticing, and Saturn slides out the side. So the first real pull decides the direction, and that's the only way that touch moves until you lift your thumb. The screen tells you: "up/down only until you lift."
-
-**Know which version someone's running before you fix their bug.** From the eyepiece I reported that the D-pad's directions were crossed: left and right moved the view up and down. Claude "fixed" the map. But my report came in while an update to the telescope's computer was still installing, so I was still on the old version, where the D-pad drove the motors directly. The new map had been right all along, so we put it back.
-
-## How the AI helped
-
-I never touched a keyboard. I'd describe what I saw ("Saturn moved up and to the left"), and Claude would work out which motor did what, update the map, and push the change to the little computer on the telescope while I stayed at the eyepiece. What it couldn't do was feel whether the touchpad was comfortable. Every one of those fixes, the thumb starting point, the dead zone, the speed curve, the red screen, came from me standing in the dark saying "that's not right."
-
-## Where this goes next
-
-Saturn and the Pleiades both got centered by feel, with no thinking about motors. Since then, pressing Centered on the controller also teaches the alignment something every time you do it, so the next "go to" lands closer. The next obvious step is the upside-down problem: when the mount swings to the other side of its post to reach something (a "meridian flip," which I wrote about in [the Moon we couldn't go to](2026-09-26-the-moon-we-couldnt-go-to.html)), the whole view turns upside down. The software knows when it does that, so it should flip the map for you.
+The next thing to fix is the upside-down problem. When the mount swings around to the other side to reach something (I wrote about that in [The Moon we couldn't go to](2026-09-26-the-moon-we-couldnt-go-to.html)), the view flips, so the map has to flip with it. The software already knows when it does that, so it should just handle it.

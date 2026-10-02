@@ -17,23 +17,28 @@ client** on a network you gave it, or its own **access point**. Never both.
   this page), the box joins it and takes an address by DHCP. It is then at
   `http://<hostname>.local` on that network.
 
-## Every power-on: two minutes of access point
+## At power-on
 
-Power the box on and, for the first **2 minutes**, it is the access point,
-whatever else it knows. Join it in that time and it stays the access point
-until the next boot. Nobody joins, and it moves to the client network.
+With a client network stamped in, the box boots straight onto it: its access
+point never shows at startup, so a phone that knows the access point cannot
+grab it and hold the box there.
 
-This is the way in that does not depend on Wi-Fi working. A client network can
-be joined and still useless: the box announced by name, the access point it is
-on happy, and nothing reaching it (power save on the radio, client isolation,
-an access point that passes traffic differently). From the box's side that
-looks the same as working, so it cannot fall back on its own. Unplug it, plug
-it back in, and join its access point in the first two minutes.
+- **Joined once, a client for the rest of the boot.** A drop (power sagging as
+  the motors start, an access point rebooting, a walk out of range and back) is
+  rejoined, never a reason to change networks.
+- **Not joined within 45 seconds of power-on** (the network is not there: a
+  field), the box becomes its access point. With no phone on it, it tries the
+  client network again every 3 minutes, so a box that booted before the router
+  did finds its way home.
+- **No client network stamped in:** the access point, the whole time.
 
-**Fallback.** A client network not joined within 45 seconds, or dropped for 45
-seconds later, and the radio is the access point again until the next boot:
-switching back would take the radio off the air and drop any phone joined to
-it, which in a field is the only way in.
+A phone that auto-joins the access point keeps the box on it, which is right
+in a field and wrong at home. On an iPhone: Settings, Wi-Fi, the ⓘ beside the
+box's network, and turn off Auto-Join.
+
+A box built with `OBS_AP_WINDOW_S` set keeps its access point up for that many
+seconds after every power-on first, and a phone that joins in that time keeps
+it: a way in that does not depend on the client network working.
 
 **Ethernet** works whatever the radio is doing: a cable into any switch or
 router and the box takes an address by DHCP.

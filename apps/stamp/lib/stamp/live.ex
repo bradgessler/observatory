@@ -319,13 +319,7 @@ defmodule Stamp.Live do
   # deserves a page where it is the only thing you are looking at.
   defp step_card(%{step: :card} = assigns) do
     ~H"""
-    <.card :if={@scripts != []} title="Saved Scripts">
-      <.picks label="saved stamps">
-        <:pick :for={sc <- @scripts} click="run_script" value={%{id: sc.path}} name={sc.name} note={sc.about} />
-      </.picks>
-    </.card>
-
-    <.card>
+    <.card title="SD Card">
       <.picks :if={@disks != []} label="which card">
         <:pick
           :for={d <- @disks}
@@ -337,13 +331,18 @@ defmodule Stamp.Live do
           tag={if d.mounted != [], do: "Mounted"}
         />
       </.picks>
-
-      <div :if={@disks == []} class="empty">
-        <p>No removable disk.</p>
-        <.hint>Checked every 3 s. Internal disks are never listed. A card in the reader that does not appear: unplug the reader and plug it back in. Some readers stop reporting cards after an eject.</.hint>
-      </div>
-
       <.hint :if={@disks != []}>Everything on the card you pick is erased.</.hint>
+
+      <.item :if={@disks == []} label="No removable disk" detail="Checked every 3 s; internal disks are never listed. A card that does not appear: unplug the reader and plug it back in." />
+    </.card>
+
+    <%!-- a saved stamp is an action, not a choice: it runs as it was saved --%>
+    <.card :if={@scripts != []} title="Stamp Again">
+      <.items label="saved stamps">
+        <.item :for={sc <- @scripts} as="li" label={sc.name} detail={sc.about}>
+          <.btn phx-click="run_script" phx-value-id={sc.path} aria-label={"Stamp #{sc.name}"}>Stamp</.btn>
+        </.item>
+      </.items>
     </.card>
     """
   end
@@ -455,6 +454,14 @@ defmodule Stamp.Live do
     assigns = assign(assigns, plan: Templates.describe(plan_opts(assigns)))
 
     ~H"""
+    <.card title="Summary">
+      <.kv label="Role" value={@plan.template} />
+      <.kv label="Board" value={@plan.target} />
+      <.kv label="Hostname" value={"#{@hostname}.local"} />
+      <.kv label="Network" value={@plan.network} />
+      <.kv label="SSH" value={@plan.flavour} />
+    </.card>
+
     <%!-- SSH is what is on the box, not how it is reached: it sits with the
           build, not the network. It is also the door for network updates. --%>
     <.card title="SSH">
@@ -465,21 +472,11 @@ defmodule Stamp.Live do
       <.hint :if={Templates.flavour(@flavour).warn} class="err">{Templates.flavour(@flavour).warn}</.hint>
     </.card>
 
-    <.card>
-      <.kv label="Role" value={@plan.template} />
-      <.kv label="Board" value={@plan.target} />
-      <.kv label="Hostname" value={"#{@hostname}.local"} />
-      <.kv label="Network" value={@plan.network} />
-      <.kv label="SSH" value={@plan.flavour} />
-
-      <.row>
-        <.btn variant="primary" phx-click="save_script">Stamp</.btn>
-      </.row>
-
-      <.hint>Builds, then writes the SD card. sudo asks for your password, and fwup asks before it writes.</.hint>
-    </.card>
-
-    <.hint>First build for a board: about ten minutes. After that: about one.</.hint>
+    <%!-- the one action, last, where the eye ends --%>
+    <div class="flow-actions">
+      <.hint>Builds, then writes the SD card: about ten minutes the first time for a board, about one after. sudo asks for your password; fwup asks before it writes.</.hint>
+      <.btn variant="primary" phx-click="save_script">Stamp</.btn>
+    </div>
     """
   end
 

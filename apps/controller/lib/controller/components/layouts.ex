@@ -4,6 +4,7 @@ defmodule Controller.Layouts do
   used by your application.
   """
   use Controller, :html
+  alias Controller.Components.Icons
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -39,14 +40,20 @@ defmodule Controller.Layouts do
     <div class={["shell", @night && "night"]}>
       <nav class="sidebar" aria-label="Pages">
         <.link navigate={~p"/"} class="side-brand" aria-current={@current_path == "/" && "page"}>
-          <strong>Observatory</strong>
-          <span>{@host}</span>
+          <span class="side-mark"><Icons.icon name="orbit" /></span>
+          <span class="side-brand-text">
+            <strong>Observatory</strong>
+            <span>{@host}</span>
+          </span>
         </.link>
         <div :for={{name, _blurb, items} <- @groups} class="side-group">
           <p class="side-label" id={"side-" <> slug(name)}>{name}</p>
           <ul role="list" aria-labelledby={"side-" <> slug(name)}>
             <li :for={{title, path, _sub, _doc} <- items}>
-              <.link navigate={path} class="side-link" aria-current={@current == path && "page"}>{title}</.link>
+              <.link navigate={path} class="side-link" aria-current={@current == path && "page"}>
+                <Icons.icon name={Icons.for_page(title)} />
+                <span>{title}</span>
+              </.link>
             </li>
           </ul>
         </div>

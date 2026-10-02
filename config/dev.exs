@@ -60,3 +60,10 @@ config :controller, dev_routes: true
 
 # No cable plugged in? Run a simulated EQ6-R so the rest of the stack still works.
 config :mount, simulate_when_empty: true
+
+# This Mac joins the observatory cluster, so a box's mount on the network can
+# be connected from the Devices page and driven from any page here. The cookie
+# is the cluster's shared secret; a box uses the same (firmware OBSERVATORY_COOKIE).
+config :telescope,
+  distribution: [name: "observatory", cookie: String.to_atom(System.get_env("OBSERVATORY_COOKIE", "observatory"))],
+  boxes_file: Path.join(System.user_home!(), ".observatory/boxes.txt")

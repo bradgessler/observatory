@@ -127,10 +127,12 @@ defmodule Provision.VMSmokeTest do
     assert out =~ "[:kept, :kept, :own, :client]"
   end
 
-  # Nothing VintageNet saves may replace the access point at boot.
-  test "wlan0 boots as the access point and nothing is persisted over it", %{box: vm} do
-    {:ok, out} = Provision.VM.eval(vm, "IO.inspect({Application.get_env(:vintage_net, :persistence), Application.get_env(:vintage_net, :config) |> Enum.find_value(fn {\"wlan0\", c} -> hd(c.vintage_net_wifi.networks).mode; _ -> nil end)})")
-    assert out =~ "{VintageNet.Persistence.Null, :ap}"
+  # With a client network stamped in, wlan0 boots as its client: the access
+  # point never beacons at power-on for a phone to grab. Nothing VintageNet
+  # saves may replace that.
+  test "wlan0 boots as a client of the stamped network, and nothing is persisted over it", %{box: vm} do
+    {:ok, out} = Provision.VM.eval(vm, "IO.inspect({Application.get_env(:vintage_net, :persistence), Application.get_env(:vintage_net, :config) |> Enum.find_value(fn {\"wlan0\", c} -> hd(c.vintage_net_wifi.networks) |> Map.get(:mode, :client); _ -> nil end)})")
+    assert out =~ "{VintageNet.Persistence.Null, :client}"
   end
 
   defp eventually(vm, code, expected, within),

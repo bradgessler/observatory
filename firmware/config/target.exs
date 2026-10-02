@@ -123,6 +123,25 @@ client_networks =
     {ssid, psk} -> [%{key_mgmt: :wpa_psk, ssid: ssid, psk: psk}]
   end
 
+ap_window_ms = String.to_integer(System.get_env("OBS_AP_WINDOW_S", "0")) * 1000
+
+# What wlan0 is at power-on. With a client network stamped in: a client of it,
+# so the access point never beacons at boot (a phone that knows it would grab
+# it and hold the box there), and a box whose firmware app fails to start is
+# still on the network. Firmware.Wireless takes over from there, and makes it
+# the access point only if the client does not join. With no client network,
+# or an access point window asked for: the access point.
+boot_wlan0 =
+  if client_networks != [] and ap_window_ms == 0 do
+    %{
+      type: VintageNetWiFi,
+      vintage_net_wifi: %{networks: Enum.map(client_networks, &Map.put(&1, :scan_ssid, 1)), bgscan: {:simple, "30:-70:3600"}},
+      ipv4: %{method: :dhcp}
+    }
+  else
+    own_network
+  end
+
 config :vintage_net,
   regulatory_domain: System.get_env("WIFI_COUNTRY", "US"),
   # Nothing VintageNet saves may replace the boot settings below: the access
@@ -135,9 +154,7 @@ config :vintage_net,
     {"usb0", %{type: VintageNetDirect}},
     # a cable into any switch: an address by DHCP, whatever the radio is doing
     {"eth0", %{type: VintageNetEthernet, ipv4: %{method: :dhcp}}},
-    # Always the access point at power-on: the one Wi-Fi setting proven on the
-    # boards. Firmware.Wireless moves to a client network after the window.
-    {"wlan0", own_network}
+    {"wlan0", boot_wlan0}
   ]
 
 # events and the flight recorder go to the SD card, so a reset leaves a record
@@ -151,7 +168,7 @@ config :firmware,
   # 0 (the default): join the client network at power-on, the access point
   # only if it does not join. Above 0: the access point first for that long
   # after every power-on, and a phone that joins in that time keeps it.
-  ap_window_ms: String.to_integer(System.get_env("OBS_AP_WINDOW_S", "0")) * 1000,
+  ap_window_ms: ap_window_ms,
   # a client network not joined in this long after power-on gives way to the
   # access point; once joined, a drop is only ever rejoined
   home_wifi_ms: 45_000,
@@ -191,15 +208,22 @@ config :controller,
     }
   ]
 
+node_name = System.get_env("OBSERVATORY_NODE", "telescope")
+
 config :mdns_lite,
   hosts: [:hostname, name],
+  # the name a Bonjour browser shows, and the Mac's Devices page lists
+  instance_name: name,
   ttl: 120,
   services: [
     # the page, so it shows up in Safari's Bonjour list and anything else that looks
     %{protocol: "http", transport: "tcp", port: 80},
     %{protocol: "ssh", transport: "tcp", port: 22},
     %{protocol: "sftp-ssh", transport: "tcp", port: 22},
-    %{protocol: "epmd", transport: "tcp", port: 4369}
+    # the node, by its exact name: a Mac on the network finds the box and joins
+    # it from its Devices page (Telescope.Boxes); a name that differs by a
+    # letter is refused, so it is said here rather than guessed
+    %{protocol: "epmd", transport: "tcp", port: 4369, txt_payload: ["node=#{node_name}@#{name}.local"]}
   ]
 
 # ---- observatory ------------------------------------------------------------------
@@ -236,4 +260,7 @@ config :provision, scripts_dir: "/data/observatory/stamps"
 # `Node.connect(:"telescope@telescope.local")` (see Firmware.Distribution).
 config :libcluster, topologies: []
 
-config :firmware, node_name: System.get_env("OBSERVATORY_NODE", "telescope")
+config :firmware,
+  node_name: node_name,
+  # the cluster's shared secret, the same as a Mac's (config/dev.exs)
+  cookie: String.to_atom(System.get_env("OBSERVATORY_COOKIE", "observatory"))

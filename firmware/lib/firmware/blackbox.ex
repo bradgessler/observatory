@@ -162,7 +162,21 @@ defmodule Firmware.Blackbox do
 
     wlan = safe(fn -> VintageNet.get(["interface", "wlan0", "connection"]) end)
 
-    "#{uptime()} thr=#{throttled()} wlan0=#{wlan} mem=#{div(:erlang.memory(:total), 1_048_576)}M rq=#{:erlang.statistics(:run_queue)} #{mounts}"
+    "#{uptime()} thr=#{throttled()} wlan0=#{wlan} #{radio()} mem=#{div(:erlang.memory(:total), 1_048_576)}M rq=#{:erlang.statistics(:run_queue)} #{mounts}"
+  end
+
+  # Which access point it is on and how strong, and how many it can hear: a
+  # slow join says whether the network was even there.
+  defp radio do
+    cur =
+      case safe(fn -> VintageNet.get(["interface", "wlan0", "wifi", "current_ap"]) end) do
+        %{ssid: ssid, signal_dbm: dbm} -> "on=#{ssid}/#{dbm}"
+        _ -> "on=-"
+      end
+
+    heard = safe(fn -> VintageNet.get(["interface", "wlan0", "wifi", "access_points"]) end) || []
+    strongest = heard |> Enum.sort_by(& &1.signal_dbm, :desc) |> Enum.take(3) |> Enum.map_join(",", &"#{&1.ssid}/#{&1.signal_dbm}")
+    "#{cur} heard=#{length(heard)}[#{strongest}]"
   end
 
   defp axes(axes) do

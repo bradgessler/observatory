@@ -6,12 +6,22 @@ defmodule Telescope.Application do
   def start(_type, _args) do
     topologies = Application.get_env(:libcluster, :topologies, [])
 
-    children = [
-      {Phoenix.PubSub, name: Telescope.PubSub},
-      Telescope.Events,
-      {Cluster.Supervisor, [topologies, [name: Telescope.ClusterSupervisor]]}
-    ]
+    children =
+      [
+        {Phoenix.PubSub, name: Telescope.PubSub},
+        Telescope.Events,
+        {Cluster.Supervisor, [topologies, [name: Telescope.ClusterSupervisor]]}
+      ] ++ cluster_children()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Telescope.Supervisor)
+  end
+
+  # This machine joins the cluster and finds boxes only when configured to (the
+  # Mac in development); a box starts its own distribution.
+  defp cluster_children do
+    case Application.get_env(:telescope, :distribution) do
+      nil -> []
+      opts -> [{Telescope.Distribution, opts}, {Telescope.Boxes, file: Application.get_env(:telescope, :boxes_file)}]
+    end
   end
 end

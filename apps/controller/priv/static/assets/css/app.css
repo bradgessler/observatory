@@ -1115,8 +1115,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    place. `dense` lets a short card fill the gap the full-width terminal
    leaves beside the one before it. */
 @media (min-width: 960px) {
-  .page.flow { grid-auto-flow: row dense; }
-  .page.flow > section.card:only-of-type, .page.flow > .term-card { grid-column: 1 / -1; }
+  /* a flow reads top to bottom: one column, what the step is about first,
+     its action last; the terminal gets the width it needs */
+  .page.flow { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
+  .page.flow > * { grid-column: 1 / -1; }
+  .page.flow:has(.term-card) { max-width: 1120px; }
   .page.flow .flow-steps { max-width: none; }
 }
 
@@ -1133,39 +1136,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* ---- the frame: every page down the left on a wide screen ----
    Below 1100 px there is no sidebar: Home is the list and each page's header
-   links back to it. From 1100 px every page is listed down the left, the one
-   you are on lit and marked with a bar, and a header link back to Home goes:
-   the sidebar is the way home. A link back to a parent page (Wi-Fi Networks
-   back to Network, a flow's step back) stays, it says where you are.
-
-   Hierarchy is spacing first: 32 px between groups, nothing between the rows
-   of one group, the label sitting on its rows. Then colour and weight: the
-   label is small, dim and spaced out, the rows are the ink, and the page you
-   are on is lit, bold and barred. */
+   links back to it. From 1100 px: the sidebar sits on the black ground and the
+   page sits in a panel lifted off it, one step lighter, with a hairline edge
+   and the one radius. The sidebar is quiet: rows the ink of the text, icons
+   dim, labels small and dim, sections apart by space rather than rules. The
+   page you are on is filled, bold, its icon lit, and marked with a dot, so
+   it does not rest on the tone alone. Rows are 32 px under a mouse and 44 px
+   under a finger. */
 .sidebar { display: none; }
+.icon { width: 16px; height: 16px; flex: none; }
 @media (min-width: 1100px) {
-  .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100dvh; }
-  .shell-main { min-width: 0; }
-  .sidebar { display: flex; flex-direction: column; gap: 32px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; box-sizing: border-box; padding: var(--s4) var(--s2) var(--s4); background: var(--panel); box-shadow: inset -1px 0 0 var(--key-edge); }
-  .side-brand { display: grid; align-content: center; gap: 2px; min-height: 44px; box-sizing: border-box; padding: var(--s1) var(--s2); border-radius: var(--r); color: var(--text); text-decoration: none; }
-  .side-brand strong { font-size: var(--fs-4); font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
-  .side-brand span { font-size: var(--fs-1); color: var(--dim); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .side-group { display: grid; gap: 4px; }
-  .side-label { margin: 0; padding: 0 var(--s2); font-size: var(--fs-1); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
-  .side-group ul { list-style: none; margin: 0; padding: 0; display: grid; }
-  .side-link { position: relative; display: flex; align-items: center; min-height: 44px; box-sizing: border-box; padding: 0 var(--s2); border-radius: var(--r); font-size: var(--fs-3); font-weight: 400; color: var(--text); text-decoration: none; }
-  .side-link:hover, .side-brand:hover { background: var(--panel2); }
-  /* where you are: lit, bold, and a bar, so it does not rest on the tone alone */
-  .side-link[aria-current="page"], .side-brand[aria-current="page"] { background: var(--lit); font-weight: 600; }
-  .side-brand[aria-current="page"] span { color: var(--text); }
-  .side-link[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+  .shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100dvh; background: var(--bg); }
+  .sidebar { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 0; height: 100dvh; overflow-y: auto; box-sizing: border-box; padding: 12px 8px 20px 12px; scrollbar-width: none; }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .shell-main { min-width: 0; margin: 8px 8px 8px 0; min-height: calc(100dvh - 16px); box-sizing: border-box; background: var(--sunk); border: 1px solid var(--key-edge); border-radius: 12px; overflow: clip; }
+  .shell-main .page.night { background: transparent; }
+
+  .side-brand { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border-radius: 8px; color: var(--text); text-decoration: none; }
+  .side-mark { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: var(--bg); flex: none; }
+  .side-brand-text { display: grid; min-width: 0; line-height: 1.25; }
+  .side-brand-text strong { font-size: var(--fs-2); font-weight: 600; }
+  .side-brand-text span { font-size: var(--fs-1); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .side-group { display: grid; gap: 2px; }
+  .side-label { margin: 0 0 2px; padding: 0 8px; font-size: var(--fs-1); font-weight: 500; color: var(--dim); }
+  .side-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .side-link { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; border-radius: 6px; font-size: var(--fs-2); font-weight: 400; color: color-mix(in srgb, var(--text) 82%, var(--dim)); text-decoration: none; }
+  .side-link:hover { color: var(--text); }
+  .side-link .icon { color: var(--dim); }
+  .side-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-link:hover, .side-brand:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+  .side-link[aria-current="page"], .side-brand[aria-current="page"] { background: color-mix(in srgb, var(--text) 9%, transparent); }
+  .side-link[aria-current="page"] { font-weight: 500; color: var(--text); }
+  .side-link[aria-current="page"] .icon { color: var(--text); }
+  .side-link[aria-current="page"]::after { content: ""; margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
   .side-link:focus-visible, .side-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  /* the page beside it: aligned to the sidebar, titled like a page */
+  @media (pointer: fine) { .side-link { min-height: 32px; } .side-brand { min-height: 40px; } }
+
+  /* the page in its panel: a header bar ruled across the whole panel, the
+     title small and plain, the back link to Home gone (the sidebar is home) */
   .shell-main .back-home, .shell-main .home-brand { display: none; }
-  .shell-main .page { margin: 0; }
-  .shell-main .page-header { grid-template-columns: minmax(0, 1fr) auto; }
+  .shell-main .page-header { grid-template-columns: minmax(0, 1fr) auto; min-height: 52px; margin-bottom: var(--s2); border-bottom: 1px solid transparent; border-image: linear-gradient(var(--key-edge), var(--key-edge)) 0 0 1 0 / 0 0 1px 0 / 0 100vmax 0 100vmax; }
   .shell-main .page-header:has(.back:not(.back-home)) { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s2); }
-  .shell-main .page-header .page-title { justify-self: start; font-size: var(--fs-4); font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .shell-main .page-header .page-title { justify-self: start; font-size: var(--fs-2); font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .shell-main .page { padding-top: 0; }
 }
 
 /* ---- a row that opens another screen (link_item) ---- */
@@ -1190,3 +1204,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ---- the network now: the SSID is the headline, the rest reads under it ---- */
 .net-now { display: grid; gap: var(--s1); }
 .net-ssid { margin: 0; font-size: var(--fs-5); font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+
+/* ---- Devices: connect a box by node name ---- */
+.box-connect { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s1); align-items: end; }
+.box-connect label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--dim); }
+.box-connect .field { text-align: left; }
+
+/* ---- a flow's steps: numbered tabs, quiet; the current one underlined in the
+   accent, a finished one marked with its check ---- */
+.flow-steps.flow-5 li { background: transparent; border-radius: 0; border-bottom: 2px solid var(--key-edge); padding: 8px 4px 10px; color: var(--dim); font-weight: 500; }
+.flow-steps.flow-5 li.now { background: transparent; border-bottom-color: var(--accent); color: var(--text); font-weight: 600; }
+.flow-steps.flow-5 li.done { background: transparent; color: var(--dim); }
+
+/* ---- a flow's action bar: why on the left, the one button on the right ---- */
+.flow-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.flow-actions .hint { margin: 0; max-width: 60ch; }
+.flow-actions .btn { flex: none; min-width: 180px; }
+@media (max-width: 600px) { .flow-actions { flex-direction: column; align-items: stretch; } }
+
+/* ---- the primary action: filled with the accent, lettered in the ground
+   colour (checked in design_test). One per screen; secondaries stay keys. ---- */
+.btn.btn-primary, button.btn-primary { background: var(--accent); color: var(--bg); border-color: transparent; font-weight: 600; box-shadow: none; }
+@media (hover: hover) { .btn.btn-primary:hover, button.btn-primary:hover { filter: brightness(1.08); } }

@@ -146,14 +146,14 @@ defmodule Controller.DpadLive do
       <%!-- hold to move, release to stop: the dead-man is the point (2.5.2); arrow keys are the same controls --%>
       <section class="dpad" role="group" aria-label="hold to move" aria-describedby="dpad-how">
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▲</span><small>N · toward pole</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up" aria-label="move north, toward the pole" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▲</span><small>N · toward pole</small></button>
         <span></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">◀</span><small>E</small></button>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left" aria-label="move east" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">◀</span><small>E</small></button>
         <%!-- release stops; the always-visible STOP lives in the header --%>
         <span class="dpad-centre" aria-live="off"><b>{@rate}×</b></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">▶</span><small>W</small></button>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right" aria-label="move west" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">▶</span><small>W</small></button>
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▼</span><small>S · away</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down" aria-label="move south, away from the pole" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▼</span><small>S · away</small></button>
         <span></span>
       </section>
 

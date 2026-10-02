@@ -14,12 +14,22 @@ defmodule Controller.DevicesLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: :timer.send_interval(@tick_ms, :tick)
-    {:ok, socket |> assign(page_title: "Devices", night: Settings.get("night", false), notice: nil, subscribed: MapSet.new()) |> refresh()}
+    # boxes on the network, when this machine is a node of the cluster
+    cluster = Process.whereis(Telescope.Boxes) != nil
+    if connected?(socket) and cluster, do: Telescope.Boxes.subscribe()
+
+    {:ok,
+     socket
+     |> assign(page_title: "Devices", night: Settings.get("night", false), notice: nil, subscribed: MapSet.new())
+     |> assign(cluster: cluster, boxes: if(cluster, do: Telescope.Boxes.list(), else: []))
+     |> refresh()}
   end
 
   @impl true
   def handle_info(:tick, socket), do: {:noreply, refresh(socket)}
   def handle_info({:mount, _snap}, socket), do: {:noreply, refresh(socket)}
+  # a box joined or left: its mounts come and go with it
+  def handle_info({:boxes, boxes}, socket), do: {:noreply, socket |> assign(boxes: boxes) |> refresh()}
 
   @impl true
   def handle_event("scan", _, socket) do
@@ -38,6 +48,24 @@ defmodule Controller.DevicesLive do
   end
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
+
+  def handle_event("box_connect", %{"node" => node}, socket) do
+    node = String.trim(node)
+
+    notice =
+      cond do
+        not String.contains?(node, "@") -> "A node name is name@host, e.g. telescope@observatory.local"
+        Telescope.Boxes.connect(node) == :ok -> "Connected #{node}"
+        true -> "No answer from #{node}: the name must match the box's exactly, and the cookie too"
+      end
+
+    {:noreply, socket |> assign(notice: notice, boxes: Telescope.Boxes.list()) |> refresh()}
+  end
+
+  def handle_event("box_forget", %{"node" => node}, socket) do
+    Telescope.Boxes.forget(node)
+    {:noreply, socket |> assign(notice: "Disconnected #{node}", boxes: Telescope.Boxes.list()) |> refresh()}
+  end
 
   defp refresh(socket) do
     mounts =
@@ -113,8 +141,9 @@ defmodule Controller.DevicesLive do
         <:aside>
           <.badge on={m.connected}>{if m.connected, do: "answering", else: "not answering"}</.badge>
           <.badge :if={Mount.simulated?(m.id)}>Simulator</.badge>
-          <.badge :if={m.node != :nonode@nohost} dim>{m.node}</.badge>
+
         </:aside>
+        <.kv :if={m.node != :nonode@nohost} label="node"><span class="mono">{m.node}</span></.kv>
         <.kv :if={m.connected} label="state" value={"#{if m.homed, do: "zeroed", else: "axes not zeroed"} · tracking #{m.tracking} · firmware #{m.firmware}"} />
         <.kv :if={!m.connected && m[:error]} label="problem"><span class="err">{describe_error(m.error)}</span></.kv>
         <.row>
@@ -124,6 +153,24 @@ defmodule Controller.DevicesLive do
         </.row>
       </.card>
       <.hint :if={@mounts == []}>No drivers running.</.hint>
+
+      <.card :if={@cluster} title="Boxes">
+        <.items :if={@boxes != []} label="boxes on this network">
+          <.item :for={b <- @boxes} as="li" label={b.name} detail={box_detail(b)}>
+            <.btn :if={b.node && !b.connected} phx-click="box_connect" phx-value-node={b.node} aria-label={"Connect #{b.name}"}>Connect</.btn>
+            <.btn :if={b.connected} phx-click="box_forget" phx-value-node={b.node} aria-label={"Disconnect #{b.name}"}>Disconnect</.btn>
+          </.item>
+        </.items>
+        <.hint :if={@boxes == []}>None heard yet. A box on this network answers within about 10 s.</.hint>
+        <form phx-submit="box_connect" class="box-connect" aria-label="connect a box by node name">
+          <label>
+            Node
+            <input name="node" type="text" class="field" placeholder="telescope@observatory.local" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <.btn type="submit">Connect</.btn>
+        </form>
+        <.hint>For a box that does not say its node name. Connected boxes are reconnected after a reboot.</.hint>
+      </.card>
 
       <% likely = Enum.filter(@ports, &(&1.looks_like_mount or &1.mount_id)) %>
       <.card title="Telescope Cable">
@@ -165,6 +212,11 @@ defmodule Controller.DevicesLive do
   defp describe_error(:enoent), do: "The port vanished (cable unplugged?)"
   defp describe_error(:eagain), do: "The port is busy: another program has it open"
   defp describe_error(e), do: inspect(e)
+
+  defp box_detail(%{connected: true} = b), do: "#{b.ip || "remembered"} · connected as #{b.node}"
+  defp box_detail(%{node: nil} = b), do: "#{b.ip} · does not say its node name; type it below"
+  defp box_detail(%{ip: nil} = b), do: "remembered · not reachable, retrying #{b.node}"
+  defp box_detail(b), do: "#{b.ip} · #{b.node}"
 
   defp port_of(id, manual), do: Enum.find(manual, &(Path.basename(&1) == id)) || id
 

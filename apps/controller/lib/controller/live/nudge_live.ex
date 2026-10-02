@@ -120,13 +120,13 @@ defmodule Controller.NudgeLive do
 
       <section class="dpad" role="group" aria-label="nudge one step">
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="up"><span aria-hidden="true">▲</span><small>toward pole</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="up" aria-label="nudge north, toward the pole"><span aria-hidden="true">▲</span><small>toward pole</small></button>
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="left"><span aria-hidden="true">◀</span><small>E</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="left" aria-label="nudge east"><span aria-hidden="true">◀</span><small>E</small></button>
         <span class="dpad-centre"><b>{step_label(@step, @steps)}</b><small>per tap</small></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="right"><span aria-hidden="true">▶</span><small>W</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="right" aria-label="nudge west"><span aria-hidden="true">▶</span><small>W</small></button>
         <span></span>
-        <button class="arrow" phx-click="nudge" phx-value-dir="down"><span aria-hidden="true">▼</span><small>away</small></button>
+        <button class="arrow" phx-click="nudge" phx-value-dir="down" aria-label="nudge south, away from the pole"><span aria-hidden="true">▼</span><small>away</small></button>
         <span></span>
       </section>
 

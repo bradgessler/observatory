@@ -11,7 +11,8 @@ defmodule Controller.DesignTest do
   @tokens Path.expand("../../priv/static/assets/css/tokens.css", __DIR__)
 
   @text ~w(text dim accent on warn amber)
-  @surfaces ~w(bg panel panel2 key lit lit-on lit-warn)
+  # sunk: the panel a page sits in on a wide screen, lifted off the black ground
+  @surfaces ~w(bg sunk panel panel2 key lit lit-on lit-warn)
 
   test "text is 4.5:1 or better on every surface, in every theme" do
     for {theme, t} <- themes() do
@@ -21,6 +22,15 @@ defmodule Controller.DesignTest do
       end
 
       assert contrast(t["amber"], t["amber-bg"]) >= 4.5, "#{theme}: amber on its strip"
+    end
+  end
+
+  # The primary button is filled with the accent and lettered in the ground
+  # colour: the one action on a screen, and it must read in every theme.
+  test "the primary button's ink reads on its fill" do
+    for {theme, t} <- themes() do
+      ratio = contrast(t["bg"], t["accent"])
+      assert ratio >= 4.5, "#{theme}: --bg #{t["bg"]} on --accent #{t["accent"]} is #{Float.round(ratio, 2)}:1"
     end
   end
 

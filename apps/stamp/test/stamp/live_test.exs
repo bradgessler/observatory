@@ -180,8 +180,15 @@ defmodule Stamp.LiveTest do
     Provision.Scripts.save(template: :observatory, target: :rpi4, flavour: :prod, hostname: "roof", wifi: %{ssid: "", psk: ""})
 
     {:ok, _view, html} = live(conn, "/provision/card")
-    assert html =~ "Saved Scripts"
+    assert html =~ "Stamp Again"
     assert html =~ "roof-rpi4.sh"
+    # an action on each, not a choice to make
+    assert html =~ ~s(aria-label="Stamp roof-rpi4.sh")
+
+    # the card is what this screen is for: it comes first
+    {card_at, _} = :binary.match(html, "SD Card</h2>")
+    {again_at, _} = :binary.match(html, "Stamp Again")
+    assert card_at < again_at
   end
 
   # A phone on the same Wi-Fi: another address, not this machine's.

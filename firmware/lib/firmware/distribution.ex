@@ -34,6 +34,9 @@ defmodule Firmware.Distribution do
 
       case :net_kernel.start([node, :longnames]) do
         {:ok, _} ->
+          # started at runtime, so the release's cookie never applied: without
+          # this the node gets a random one and no Mac can join it
+          Node.set_cookie(Application.get_env(:firmware, :cookie, :observatory))
           Logger.info("distribution up as #{node}")
 
         {:error, reason} ->

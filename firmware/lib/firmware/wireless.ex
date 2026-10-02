@@ -4,9 +4,10 @@ defmodule Firmware.Wireless do
   network. The promise: whatever Wi-Fi is doing, power it on and there is a
   way in.
 
-    * `wlan0` boots as the access point (its setting in config/target.exs,
-      the one proven on the boards) and, with a client network known, becomes
-      a client at once.
+    * With a client network stamped in, `wlan0` boots as a client of it (its
+      setting in config/target.exs), so the access point never beacons at
+      power-on for a phone to grab; this then applies the full client
+      settings (`client_config/1`). With none, it boots as the access point.
     * **Joined once, a client for the rest of the boot.** A drop (a sag as the
       motors start, an access point rebooting, a walk out of range and back)
       is not a reason to change networks: wpa_supplicant keeps rejoining, and
@@ -217,7 +218,7 @@ defmodule Firmware.Wireless do
     known = load_known()
     left = window()
 
-    # wlan0 is already the access point: that is its boot setting
+    # wlan0 is already a client (a network was stamped in) or the access point
     state = %{known: known, phase: nil, timer: nil, window_ends: nil, power_save: :unknown, history: [], joined: false}
 
     state =

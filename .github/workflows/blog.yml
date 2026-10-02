@@ -1,0 +1,54 @@
+name: Blog
+
+# The code is private and this plan can't serve Pages from a private repo,
+# so the site is built here and pushed to the public observatory-blog repo
+# by bin/publish-blog, the same script a laptop runs. The push uses a deploy
+# key with write access to that one repo, in the secret BLOG_DEPLOY_KEY.
+on:
+  push:
+    branches: [main]
+    paths: ["posts/**", "apps/controller/lib/mix/tasks/site.build.ex", "bin/publish-blog", ".github/workflows/blog.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one publish at a time, and never cancel one halfway through a push
+concurrency:
+  group: blog
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # the versions the project is built with; 1.18 can't compile it
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20"
+          otp-version: "29"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-1.20-29-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20-29-
+
+      - run: mix deps.get
+
+      - name: Publish
+        env:
+          BLOG_DEPLOY_KEY: ${{ secrets.BLOG_DEPLOY_KEY }}
+        run: |
+          test -n "$BLOG_DEPLOY_KEY" || { echo "::error::No BLOG_DEPLOY_KEY secret: add a deploy key with write access to bradgessler/observatory-blog"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$BLOG_DEPLOY_KEY" > ~/.ssh/blog_deploy && chmod 600 ~/.ssh/blog_deploy
+          # GitHub's host keys from its API over TLS, not whatever answers on port 22
+          curl -fsSL https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com " + .' > ~/.ssh/known_hosts
+          git config --global user.name "Observatory blog"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/blog_deploy -o IdentitiesOnly=yes" bin/publish-blog

@@ -3,6 +3,10 @@ defmodule Mount.Transport.Sim do
   A fake EQ6-R motor board that speaks the real wire protocol, so the driver
   runs unchanged with no mount plugged in. Numbers (steps/rev, timer, ratio,
   firmware) are the ones an EQ6-R reports.
+
+  One command no real board has: `Z` with data `1` jams an axis (the motor
+  "runs" but the count stays put, as a faulted board would), `0`
+  frees it. It is how the driver's stall watch is tested.
   """
   @behaviour Mount.Transport
 
@@ -22,7 +26,8 @@ defmodule Mount.Transport.Sim do
       running: false,
       period: @tf,
       target: nil,
-      init: false
+      init: false,
+      jammed: false
     }
 
     {:ok, %{axes: %{"1" => axis, "2" => axis}, t: now()}}
@@ -61,43 +66,87 @@ defmodule Mount.Transport.Sim do
     ax = state.axes[a]
 
     case {cmd, data} do
-      {"e", _} -> {"=020B05", state}
-      {"a", _} -> {"=" <> P.from_int(@cpr), state}
-      {"b", _} -> {"=" <> P.from_int(@tf), state}
-      {"g", _} -> {"=20", state}
-      {"s", _} -> {"=" <> P.from_int(div(@cpr, 180)), state}
-      {"j", _} -> {"=" <> P.from_int(round(ax.pos) |> rem(0x1000000)), state}
-      {"f", _} -> {"=" <> status(ax), state}
-      {"F", _} -> {"=", put(state, a, %{ax | init: true})}
-      {"K", _} -> {"=", put(state, a, %{ax | running: false, target: nil})}
-      {"L", _} -> {"=", put(state, a, %{ax | running: false, target: nil})}
+      {"e", _} ->
+        {"=020B05", state}
+
+      {"a", _} ->
+        {"=" <> P.from_int(@cpr), state}
+
+      {"b", _} ->
+        {"=" <> P.from_int(@tf), state}
+
+      {"g", _} ->
+        {"=20", state}
+
+      {"s", _} ->
+        {"=" <> P.from_int(div(@cpr, 180)), state}
+
+      {"j", _} ->
+        {"=" <> P.from_int(round(ax.pos) |> rem(0x1000000)), state}
+
+      {"f", _} ->
+        {"=" <> status(ax), state}
+
+      {"F", _} ->
+        {"=", put(state, a, %{ax | init: true})}
+
+      {"K", _} ->
+        {"=", put(state, a, %{ax | running: false, target: nil})}
+
+      {"L", _} ->
+        {"=", put(state, a, %{ax | running: false, target: nil})}
+
+      {"Z", v} ->
+        {"=", put(state, a, %{ax | jammed: v == "1"})}
+
       {"G", <<m, d>>} ->
         if ax.running do
           {"!2", state}
         else
-          mode = case m, do: (?0 -> :goto; ?2 -> :goto; ?1 -> :slow; ?3 -> :fast)
+          mode =
+            case m,
+              do: (
+                ?0 -> :goto
+                ?2 -> :goto
+                ?1 -> :slow
+                ?3 -> :fast
+              )
+
           dir = if d == ?1, do: :reverse, else: :forward
           {"=", put(state, a, %{ax | mode: mode, dir: dir})}
         end
-      {"H", <<_::binary-6>> = v} -> {"=", put(state, a, %{ax | target: P.to_int(v)})}
-      {"M", <<_::binary-6>>} -> {"=", state}
-      {"I", <<_::binary-6>> = v} -> {"=", put(state, a, %{ax | period: max(P.to_int(v), 1)})}
-      {"E", <<_::binary-6>> = v} -> {"=", put(state, a, %{ax | pos: P.to_int(v) * 1.0})}
+
+      {"H", <<_::binary-6>> = v} ->
+        {"=", put(state, a, %{ax | target: P.to_int(v)})}
+
+      {"M", <<_::binary-6>>} ->
+        {"=", state}
+
+      {"I", <<_::binary-6>> = v} ->
+        {"=", put(state, a, %{ax | period: max(P.to_int(v), 1)})}
+
+      {"E", <<_::binary-6>> = v} ->
+        {"=", put(state, a, %{ax | pos: P.to_int(v) * 1.0})}
+
       {"J", _} ->
         cond do
           not ax.init -> {"!4", state}
           ax.mode == :goto and ax.target == nil -> {"!0", state}
           true -> {"=", put(state, a, %{ax | running: true})}
         end
-      _ -> {"!0", state}
+
+      _ ->
+        {"!0", state}
     end
   end
 
   defp put(state, a, ax), do: %{state | axes: Map.put(state.axes, a, ax)}
 
   defp status(ax) do
-    m = if(ax.mode == :goto, do: 0, else: 1) + if(ax.dir == :reverse, do: 2, else: 0) +
-          if(ax.mode == :fast, do: 4, else: 0)
+    m =
+      if(ax.mode == :goto, do: 0, else: 1) + if(ax.dir == :reverse, do: 2, else: 0) +
+        if(ax.mode == :fast, do: 4, else: 0)
+
     r = if(ax.running, do: 1, else: 0)
     i = if(ax.init, do: 1, else: 0)
     Integer.to_string(m, 16) <> Integer.to_string(r, 16) <> Integer.to_string(i, 16)
@@ -114,6 +163,7 @@ defmodule Mount.Transport.Sim do
   end
 
   defp step(%{running: false} = ax, _dt), do: ax
+  defp step(%{jammed: true} = ax, _dt), do: ax
 
   defp step(%{mode: :goto, target: target} = ax, dt) do
     move = min(@max_goto_steps_per_s * dt, target)

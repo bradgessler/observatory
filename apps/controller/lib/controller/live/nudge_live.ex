@@ -26,7 +26,7 @@ defmodule Controller.NudgeLive do
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        refs: %{},
-       selected: params["id"] || session["id"],
+       selected: params["id"] || session["id"] || session["telescope"],
        snap: nil,
        step: 5 / 60,
        notice: nil
@@ -50,7 +50,7 @@ defmodule Controller.NudgeLive do
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
 
     snap =
       if ref = refs[selected] do
@@ -61,7 +61,9 @@ defmodule Controller.NudgeLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Nudge")
+    socket = assign(socket, refs: refs, selected: selected, snap: snap)
+    # drawn inside another page (the telescope camera's), the tab's title is that page's
+    if socket.assigns.nested, do: socket, else: assign(socket, page_title: Controller.Words.title(selected, "Nudge"))
   end
 
   @impl true
@@ -98,7 +100,7 @@ defmodule Controller.NudgeLive do
           case fun.(ref) do
             :ok -> socket
             {:error, :limit} -> assign(socket, notice: "Soft limit")
-            {:error, e} -> assign(socket, notice: inspect(e))
+            {:error, e} -> assign(socket, notice: Controller.Words.error(e))
           end
         catch
           :exit, _ -> assign(socket, notice: "Mount unreachable")
@@ -113,9 +115,9 @@ defmodule Controller.NudgeLive do
     ~H"""
     <.page id="nudge" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{@selected} · Nudge</.title>
-        <.actions><.stop /><.help href={~p"/docs/nudge"} label="nudging" /></.actions>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
+        <.title>Nudge</.title>
+        <.actions><.help href={~p"/docs/nudge"} label="nudging" /><.stop /></.actions>
       </:header>
 
       <section class="dpad" role="group" aria-label="nudge one step">

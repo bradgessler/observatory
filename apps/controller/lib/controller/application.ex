@@ -13,8 +13,31 @@ defmodule Controller.Application do
       # {Controller.Worker, arg},
       # Start to serve requests, typically the last entry
       Controller.Sky.Catalog,
+      # the database: its own branch, never waited on; settings fall back to settings.json without it
+      Controller.Repo.Supervisor,
       Controller.Settings,
+      # one viewer's own conveniences (the time they set the sky to): Controller.Viewer
+      Controller.Viewer,
       Controller.Sky.Tracker,
+      Controller.Sky.Moves,
+      # the pad's (or the Center page's) Centered becomes an alignment point on the held target
+      Controller.CenterPoints,
+      # the pad's hat in eyepiece terms, with the Center page's map
+      Controller.PadView,
+      # when each mount was last switched on: a never-zeroed alignment holds until then
+      Controller.MountPower,
+      # the box's own supply: dips drop the USB hub, camera and mount cable with it
+      Controller.Power,
+      # the last word from each control layer, for a Control Stack page opening mid-session
+      Controller.Stack.Memory,
+      # Solve.solve/2's own tasks: a crash or a hang comes back as an error
+      {Task.Supervisor, name: Controller.Sky.Solve.Tasks},
+      # photos queued and plate-solved in the background; gives up alone
+      Controller.Plates.Supervisor,
+      # frames kept: the box's card, then the Mac; before the camera that feeds it
+      Controller.Frames.Supervisor,
+      # the camera in the telescope's focuser, and the loop that finds where it points
+      Controller.ScopeCamera.Supervisor,
       Controller.Optical.AxisScan,
       Controller.Endpoint
     ]

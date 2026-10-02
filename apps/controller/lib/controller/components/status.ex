@@ -1,7 +1,7 @@
 defmodule Controller.Components.Status do
   @moduledoc """
   The telescope's state, always visible: which mount, answering or not, RA/Dec
-  axis degrees with motion dots, tracking, homed. Same strip on every surface
+  axis degrees with motion dots, tracking, home set. Same strip on every surface
   so flipping between controls never loses the picture.
   """
   use Phoenix.Component
@@ -28,7 +28,7 @@ defmodule Controller.Components.Status do
             true -> "Not tracking"
           end}
         </span>
-        <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "zeroed", else: "not zeroed"}</span>
+        <span class={["ss-badge", @snap.homed && "on"]}>{if @snap.homed, do: "home set", else: "home not set"}</span>
         <span :if={Mount.simulated?(@snap.id)} class="ss-badge">Simulator</span>
       <% else %>
         <span class="ss-id">{@id || "no mount"}</span>
@@ -44,5 +44,5 @@ defmodule Controller.Components.Status do
     "#{sign}#{trunc(a)}°#{:erlang.float_to_binary((a - trunc(a)) * 60, decimals: 0) |> String.pad_leading(2, "0")}′"
   end
 
-  defp deg(_), do: "—"
+  defp deg(_), do: Controller.Words.none()
 end

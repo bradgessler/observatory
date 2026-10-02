@@ -1,27 +1,25 @@
-defmodule Controller.BenchTest do
+defmodule Controller.ControlsTest do
   use Controller.ConnCase, async: false
   import Phoenix.LiveViewTest
 
   setup do
-    id = "sim-bench-#{System.unique_integer([:positive])}"
+    id = "sim-controls-#{System.unique_integer([:positive])}"
     start_supervised!({Mount.Server, id: id, transport: {Mount.Transport.Sim, []}})
     Mount.subscribe(id)
     assert_receive {:mount, %{connected: true}}, 2_000
     %{id: id}
   end
 
-  test "bench shows the scope state and every surface", %{conn: conn, id: id} do
-    {:ok, _view, html} = live(conn, "/bench?mount=#{id}")
-    assert html =~ "scope-status"
-    assert html =~ id
-    for name <- ["Axis Strips", "Plain Keypad", "Orb", "Game Controller", "Sky"], do: assert(html =~ name)
-    # default surface is the strips, rendered nested without its own header
-    assert html =~ "around the polar axis"
+  test "every page lives at one address; the bench's old ones land there, with the mount", %{conn: conn, id: id} do
+    assert redirected_to(get(conn, "/bench/sky?mount=#{id}"), 301) == "/sky/#{id}"
+    assert redirected_to(get(conn, "/bench/dpad?mount=#{id}"), 301) == "/controls/dpad/#{id}"
+    assert redirected_to(get(conn, "/bench/gamepad?mount=#{id}"), 301) == "/input?mount=#{id}"
+    assert redirected_to(get(conn, "/bench/watch"), 301) == "/cameras/observatory"
+    assert redirected_to(get(conn, "/bench"), 301) == "/"
   end
 
-  test "switching surfaces renders the plain keypad nested", %{conn: conn, id: id} do
-    {:ok, view, _} = live(conn, "/bench/dpad?mount=#{id}")
-    html = render(view)
+  test "the plain keypad at its own address", %{conn: conn, id: id} do
+    {:ok, _view, html} = live(conn, "/controls/dpad/#{id}")
     assert html =~ "toward pole"
     assert html =~ "800×"
   end

@@ -8,7 +8,12 @@ defmodule Mount.Server do
   `{:mount, snapshot}` so anything in the cluster can follow along.
 
   Safety: slews started with `hold: true` stop by themselves unless refreshed
-  within #{900} ms — a held arrow button on a flaky link can't run away.
+  within #{900} ms — a held arrow button on a flaky link can't run away. An
+  axis the board says is running whose count doesn't advance is a stall: both
+  axes stop and the snapshot says which (`stalled`). The count is the board's
+  own step counter, not a sensor on the axis: a tube pushed against a leg
+  skips steps and the count carries on, so this catches a board that has
+  stopped stepping, not a collision.
   """
   use GenServer
   require Logger
@@ -108,9 +113,30 @@ defmodule Mount.Server do
   end
 
   def handle_info(:poll, state) do
-    state = state |> refresh() |> start_pending() |> enforce_limits() |> maybe_resume_tracking() |> settle_gotos()
+    state =
+      state
+      |> refresh()
+      |> start_pending()
+      |> enforce_limits()
+      |> watch_stalls()
+      |> maybe_resume_tracking()
+      |> settle_gotos()
+
     Process.send_after(self(), :poll, @poll_ms)
     {:noreply, broadcast(state)}
+  end
+
+  # We trap exits (so terminate/2 can stop the motors), which turns the
+  # serial port's own process closing into a message. A mount switched off
+  # with its cable in did exactly that on every reconnect attempt, and with
+  # no clause for it the driver crashed and restarted every few seconds: the
+  # "disconnected" flicker on every page. A closed port shows up on the next
+  # exchange anyway, and that is where a lost link is handled.
+  def handle_info({:EXIT, _pid, :normal}, state), do: {:noreply, state}
+
+  def handle_info({:EXIT, _pid, reason}, state) do
+    Logger.warning("mount #{state.id}: serial process exited: #{inspect(reason)}")
+    {:noreply, state}
   end
 
   def handle_info({:hold_expired, axis}, state) do
@@ -135,14 +161,19 @@ defmodule Mount.Server do
 
       true ->
         state = state |> start_slew(axis, rate) |> arm_hold(axis, Keyword.get(opts, :hold, false))
-        {:reply, :ok, broadcast(state)}
+        {:reply, :ok, broadcast(clear_stall(state))}
     end
   end
 
   # A page-level STOP of both axes is a "stop, whoever you are": it stamps
   # `estop_at` like the emergency stop so the model tracker ends too.
   def handle_call({:stop, :both}, _from, state) do
-    state = state |> stop_axis(:ra) |> stop_axis(:dec) |> Map.merge(%{tracking: :off, estop_at: System.monotonic_time(:millisecond)})
+    state =
+      state
+      |> stop_axis(:ra)
+      |> stop_axis(:dec)
+      |> Map.merge(%{tracking: :off, estop_at: System.monotonic_time(:millisecond)})
+
     {:reply, :ok, broadcast(state)}
   end
 
@@ -169,7 +200,11 @@ defmodule Mount.Server do
       state
       |> send!("L", :ra)
       |> send!("L", :dec)
-      |> Map.merge(%{tracking: :off, holds: cancel_holds(state.holds), estop_at: System.monotonic_time(:millisecond)})
+      |> Map.merge(%{
+        tracking: :off,
+        holds: cancel_holds(state.holds),
+        estop_at: System.monotonic_time(:millisecond)
+      })
 
     {:reply, :ok, broadcast(refresh(state))}
   end
@@ -180,7 +215,7 @@ defmodule Mount.Server do
     dir = if degrees >= 0, do: :forward, else: :reverse
 
     if within_limits?(state, axis, ax.degrees + degrees) do
-      {:reply, :ok, broadcast(goto(state, axis, steps, dir))}
+      {:reply, :ok, broadcast(state |> clear_stall() |> goto(axis, steps, dir))}
     else
       {:reply, {:error, :limit}, state}
     end
@@ -194,7 +229,12 @@ defmodule Mount.Server do
     else
       # tracking is not a held slew: a hold left over from a pull that was
       # just released would stop the axis 900 ms later and leave the badge lying
-      state = %{start_slew(state, :ra, rate) | tracking: mode, holds: cancel_hold(state.holds, :ra)}
+      state = %{
+        start_slew(state, :ra, rate)
+        | tracking: mode,
+          holds: cancel_hold(state.holds, :ra)
+      }
+
       {:reply, :ok, broadcast(state)}
     end
   end
@@ -214,7 +254,12 @@ defmodule Mount.Server do
       |> stop_axis(:dec)
       |> send!("E", :ra, P.from_int(P.center()))
       |> send!("E", :dec, P.from_int(P.center()))
-      |> Map.merge(%{tracking: :off, homed: true, homed_at: System.os_time(:millisecond), estop_at: System.monotonic_time(:millisecond)})
+      |> Map.merge(%{
+        tracking: :off,
+        homed: true,
+        homed_at: System.os_time(:millisecond),
+        estop_at: System.monotonic_time(:millisecond)
+      })
 
     # Survives a driver restart (USB hiccup) within this VM; see connect/1.
     :persistent_term.put({__MODULE__, state.id, :homed}, state.homed_at)
@@ -239,7 +284,12 @@ defmodule Mount.Server do
     # tracking is running the old way? re-issue it
     state =
       if state.tracking != :off and Keyword.has_key?(opts, :tracking_direction),
-        do: start_slew(state, :ra, signed(@tracking_rates[state.tracking], state.tracking_direction)),
+        do:
+          start_slew(
+            state,
+            :ra,
+            signed(@tracking_rates[state.tracking], state.tracking_direction)
+          ),
         else: state
 
     {:reply, :ok, broadcast(state)}
@@ -258,6 +308,11 @@ defmodule Mount.Server do
     |> send!("J", axis)
     |> put_axis(axis, :goto_pending, true)
     |> put_axis(axis, :goto_at, System.monotonic_time(:millisecond))
+    |> put_axis(
+      axis,
+      :goto_to,
+      state.axes[axis].steps + if(dir == :forward, do: steps, else: -steps)
+    )
     |> refresh_axis(axis)
   end
 
@@ -277,9 +332,16 @@ defmodule Mount.Server do
 
     mode =
       cond do
-        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :fast and abs(rate) >= 4 -> :fast
-        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :slow and abs(rate) <= 128 -> :slow
-        true -> natural_mode
+        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :fast and
+            abs(rate) >= 4 ->
+          :fast
+
+        ax.running and ax.mode == :slew and ax.direction == dir and ax.speed == :slow and
+            abs(rate) <= 128 ->
+          :slow
+
+        true ->
+          natural_mode
       end
 
     period = period_for(abs(rate), mode, ax)
@@ -292,7 +354,10 @@ defmodule Mount.Server do
         put_axis(state, axis, :pending, nil)
 
       same_run? ->
-        state |> send!("I", axis, P.from_int(period)) |> put_axis(axis, :period, period) |> put_axis(axis, :pending, nil)
+        state
+        |> send!("I", axis, P.from_int(period))
+        |> put_axis(axis, :period, period)
+        |> put_axis(axis, :pending, nil)
 
       ax.running ->
         # stop now, start the new slew when the poll sees the axis stopped
@@ -322,7 +387,7 @@ defmodule Mount.Server do
   # under a thousandth of sidereal) is clamped to the slowest the board can do.
   defp period_for(rate, mode, %{steps_per_rev: cpr, timer_freq: tf, high_speed_ratio: hs}) do
     steps_per_s = P.sidereal_rate(cpr) * rate
-    tf * if(mode == :fast, do: hs, else: 1) / steps_per_s |> round() |> max(1) |> min(0xFFFFFF)
+    (tf * if(mode == :fast, do: hs, else: 1) / steps_per_s) |> round() |> max(1) |> min(0xFFFFFF)
   end
 
   # Called every poll: an axis that was told to stop for a direction/mode
@@ -428,8 +493,27 @@ defmodule Mount.Server do
       # somewhere other than its power-on value, it wasn't power-cycled: keep home.
       fresh_boot? = state.axes.ra.steps == P.center() and state.axes.dec.steps == P.center()
       was_homed = :persistent_term.get({__MODULE__, state.id, :homed}, false)
-      state = if was_homed && not fresh_boot?, do: %{state | homed: true, homed_at: if(is_integer(was_homed), do: was_homed)}, else: state
+
+      state =
+        if was_homed && not fresh_boot?,
+          do: %{state | homed: true, homed_at: if(is_integer(was_homed), do: was_homed)},
+          else: state
+
       if fresh_boot?, do: :persistent_term.erase({__MODULE__, state.id, :homed})
+
+      # Both counts at their power-on value: the mount itself was just switched
+      # on, so anything measured against its old counts no longer holds (a Pi
+      # reboot alone leaves the counts where they were). Say when, for anyone
+      # holding an alignment on a mount that was never zeroed.
+      state =
+        if fresh_boot? do
+          at = System.os_time(:millisecond)
+          Telescope.Events.emit(:mount, :power_on, %{id: state.id})
+          Telescope.broadcast("mount_power", {:mount_power_on, state.id, at})
+          Map.put(state, :power_on_at, at)
+        else
+          state
+        end
 
       {:ok, state}
     else
@@ -580,7 +664,12 @@ defmodule Mount.Server do
           "mount #{state.id}: #{axis} hit soft limit at #{Float.round(ax.degrees, 2)}°, stopping"
         )
 
-        Telescope.Events.emit(:mount, :limit_stop, %{id: state.id, axis: axis, degrees: Float.round(ax.degrees, 2)})
+        Telescope.Events.emit(:mount, :limit_stop, %{
+          id: state.id,
+          axis: axis,
+          degrees: Float.round(ax.degrees, 2)
+        })
+
         state = stop_axis(state, axis)
         if axis == :ra, do: %{state | tracking: :off}, else: state
       else
@@ -588,6 +677,106 @@ defmodule Mount.Server do
       end
     end)
   end
+
+  # -- stalls ------------------------------------------------------------------------------------------
+  # Told to move, count not moving: the board has stopped stepping (a fault,
+  # a supply sagging under load) while still reporting "running". Every poll
+  # compares the count's progress over the last window with the speed the
+  # axis was commanded at. Only speeds that would cover a real distance in
+  # the window are judged (a tracker's 1× moves 30″ in it, too little to
+  # tell from a slow poll), and a goto only away from its braking zone at the
+  # end. A stall stops both axes at once, tracking off, and stamps `estop_at`
+  # so anything holding a target stands down; `stalled` stays in the
+  # snapshot until the next command.
+  #
+  # What this cannot see: the EQ6-R's motors are steppers and the count is
+  # the steps the board sent, so a tube against a tripod leg skips steps and
+  # the count carries on. Seeing that takes something watching the tube
+  # itself (the camera, a tilt sensor on the tube).
+
+  @stall_window_ms 1_500
+  @stall_min_steps 400
+  # a goto runs far faster than this once under way
+  @goto_floor_x 20
+  @brake_steps 6_000
+
+  defp watch_stalls(%{connected: true} = state) do
+    now = System.monotonic_time(:millisecond)
+
+    Enum.reduce([:ra, :dec], state, fn axis, st ->
+      ax = st.axes[axis]
+
+      case {ax.running, ax[:watch]} do
+        {false, _} ->
+          put_axis(st, axis, :watch, nil)
+
+        {true, nil} ->
+          put_axis(st, axis, :watch, {ax.steps, now})
+
+        {true, {from, t0}} when now - t0 >= @stall_window_ms ->
+          expected = expected_steps_per_s(ax) * (now - t0) / 1000
+          moved = abs(ax.steps - from)
+
+          if expected >= @stall_min_steps and moved < 0.2 * expected,
+            do: stall(st, axis, moved, expected),
+            else: put_axis(st, axis, :watch, {ax.steps, now})
+
+        _ ->
+          st
+      end
+    end)
+  end
+
+  defp watch_stalls(state), do: state
+
+  defp expected_steps_per_s(%{mode: :goto} = ax) do
+    if is_integer(ax[:goto_to]) and abs(ax.goto_to - ax.steps) > @brake_steps,
+      do: P.sidereal_rate(ax.steps_per_rev) * @goto_floor_x,
+      else: 0.0
+  end
+
+  defp expected_steps_per_s(%{period: period} = ax) when is_integer(period) and period > 0,
+    do: ax.timer_freq * if(ax.speed == :fast, do: ax.high_speed_ratio, else: 1) / period
+
+  defp expected_steps_per_s(_), do: 0.0
+
+  defp stall(state, axis, moved, expected) do
+    ax = state.axes[axis]
+    deg = fn steps -> Float.round(steps * 360 / ax.steps_per_rev, 2) end
+
+    Logger.error(
+      "mount #{state.id}: #{axis} stalled: moved #{moved} steps of #{round(expected)} expected; stopping both axes"
+    )
+
+    Telescope.Events.emit(:mount, :stall, %{
+      id: state.id,
+      axis: axis,
+      moved_deg: deg.(moved),
+      expected_deg: deg.(expected)
+    })
+
+    state
+    |> send!("L", :ra)
+    |> send!("L", :dec)
+    |> put_axis(:ra, :watch, nil)
+    |> put_axis(:dec, :watch, nil)
+    |> put_axis(:ra, :pending, nil)
+    |> put_axis(:dec, :pending, nil)
+    |> Map.merge(%{
+      tracking: :off,
+      holds: cancel_holds(state.holds),
+      estop_at: System.monotonic_time(:millisecond),
+      stalled: %{
+        axis: axis,
+        at: System.os_time(:millisecond),
+        moved_deg: deg.(moved),
+        expected_deg: deg.(expected)
+      }
+    })
+    |> refresh()
+  end
+
+  defp clear_stall(state), do: Map.put(state, :stalled, nil)
 
   # -- snapshot ----------------------------------------------------------------------------------------
 
@@ -601,11 +790,24 @@ defmodule Mount.Server do
       tracking: state.tracking,
       homed: state.homed,
       homed_at: Map.get(state, :homed_at),
+      power_on_at: Map.get(state, :power_on_at),
       estop_at: Map.get(state, :estop_at),
+      stalled: Map.get(state, :stalled),
       limits: if(state.homed, do: state.limits),
       axes:
         Map.new(state.axes, fn {k, ax} ->
-          {k, Map.take(ax, [:degrees, :steps, :running, :mode, :direction, :speed, :blocked, :deg_per_s, :goto_pending])}
+          {k,
+           Map.take(ax, [
+             :degrees,
+             :steps,
+             :running,
+             :mode,
+             :direction,
+             :speed,
+             :blocked,
+             :deg_per_s,
+             :goto_pending
+           ])}
         end)
     }
   end

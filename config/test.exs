@@ -17,4 +17,15 @@ config :logger, level: :warning
 config :watch, dir: Path.join(System.tmp_dir!(), "observatory-test-frames-#{System.os_time(:millisecond)}")
 
 config :controller, settings_path: Path.join(System.tmp_dir!(), "observatory-test-settings-#{System.os_time(:millisecond)}.json")
+# plates (photos through the eyepiece) go to a scratch dir too
+config :controller, Controller.Repo, database: Path.join(System.tmp_dir!(), "observatory-test-#{System.os_time(:millisecond)}.db")
+
+config :controller, :frames,
+  pull: true,
+  dir: Path.join(System.tmp_dir!(), "observatory-test-frames-#{System.os_time(:millisecond)}"),
+  spool_dir: Path.join(System.tmp_dir!(), "observatory-test-spool-#{System.os_time(:millisecond)}"),
+  budget_bytes: 64 * 1024 * 1024,
+  min_free_bytes: 0
+
+config :controller, plates_dir: Path.join(System.tmp_dir!(), "observatory-test-plates-#{System.os_time(:millisecond)}")
 config :video, dir: Path.join(System.tmp_dir!(), "observatory-test-video-#{System.os_time(:millisecond)}")

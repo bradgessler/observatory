@@ -77,8 +77,6 @@ header select { background: var(--panel); border: 1px solid var(--edge); border-
 :root { --sky1: #0b1020; --sky2: #05070d; }
 .night { --sky1: #0c0000; --sky2: #050000; }
 .sky { max-width: 560px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100dvh; }
-.sky header { display: flex; align-items: center; gap: 12px; }
-.sky header h1 { font-size: 13px; font-weight: 500; color: var(--dim); margin: 0; letter-spacing: .03em; }
 a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6px 4px; }
 .map { width: 100%; height: auto; display: block; touch-action: manipulation; }
 .map .card { font-size: 5px; fill: var(--dim); text-anchor: middle; letter-spacing: .1em; }
@@ -89,13 +87,24 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .map .obj.picked text { fill: var(--on); }
 .map .obj { cursor: pointer; }
 .map .scope { stroke: var(--warn); stroke-width: .8; }
+/* the margin of error, true to size on the sky: a hairline at any zoom */
+.map .aim { fill: var(--warn); fill-opacity: .18; stroke: var(--warn); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.sky-aim { text-align: center; margin: 0; }
 .night .map .obj circle { fill: #ff6a6a; }
-.pick { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; min-height: 64px; }
-.pick > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.pick .dim { color: var(--dim); font-size: 13px; }
-.pick button { padding: 12px 18px; }
-.pick .go { border-color: var(--on); color: var(--on); font-weight: 700; }
-.pick.hint { justify-content: center; text-align: center; }
+.sky-pick { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; min-height: 64px; }
+.sky-pick > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sky-pick .dim { color: var(--dim); font-size: 13px; }
+.sky-pick button { padding: 12px 18px; }
+.sky-pick .go { border-color: var(--on); color: var(--on); font-weight: 700; }
+/* time over place: what a star app shows first */
+/* its own row under Home and STOP, so time and place never squeeze between them */
+.sky-shift { color: var(--amber); font-weight: 600; }
+/* step the map through the night */
+/* no location: the whole sky is wrong, so say it where the sky is */
+.sky-warn { display: block; color: var(--warn); font-size: 14px; padding: 12px 0; min-height: 44px; }
+.sky .sky-warn { grid-column: 1 / -1; }
+/* nothing picked yet: one line of how, not a panel */
+.sky-hint { text-align: center; margin: 0; }
 .fine { color: var(--dim); font-size: 11px; line-height: 1.4; margin: 0; opacity: .8; }
 .map .obj circle.hit { fill: transparent; }
 .map .obj.picked circle.hit { fill: transparent; stroke: var(--on); stroke-width: .6; }
@@ -119,7 +128,7 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .target .t strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .target .t span { font-size: 12px; color: var(--dim); }
 .target .when { font-size: 12px; color: var(--dim); white-space: nowrap; }
-.target .when.soon { color: var(--warn); }
+.target .when.soon { color: var(--amber); }
 .target .when.rising { color: var(--on); }
 .horizon { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .horizon label, .horizon .hcell { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); text-align: center; }
@@ -132,9 +141,6 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .map .obj.moon rect { fill: #f4f1e6; stroke: #f4f1e6; width: 5px; height: 5px; }
 .map .obj.planet text, .map .obj.moon text { fill: var(--text); font-size: 4px; }
 .night .map .obj.planet rect, .night .map .obj.moon rect { fill: #ff7a7a; stroke: #ff7a7a; }
-.sky header { justify-content: space-between; }
-.sky header h1 { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
-.sky header a.ghost { white-space: nowrap; }
 .photo { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; margin-top: 12px; }
 .photo form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .photo input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); }
@@ -146,18 +152,12 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
   .axis .deg { font-size: 34px; }
 }
 @media (min-width: 960px) {
-  .sky { max-width: 1400px; display: grid; grid-template-columns: minmax(420px, 1fr) minmax(360px, 520px); grid-template-rows: auto auto 1fr auto; column-gap: 28px; align-content: start; }
-  .sky header { grid-column: 1 / -1; }
-  .sky .tabs { grid-column: 2; grid-row: 2; }
-  .sky .map { grid-column: 1; grid-row: 2 / 5; width: min(100%, calc(100dvh - 140px)); height: auto; align-self: start; justify-self: center; }
-  .sky section:not(.pick) { grid-column: 2; grid-row: 3; overflow: auto; max-height: calc(100dvh - 260px); }
-  .sky .pick { grid-column: 2; grid-row: 4; }
-  .sky .fine { grid-column: 1 / -1; }
-  /* on wide screens the map tab is always visible; tabs switch the right column */
+  /* the sky page lets out to the panel's width; the map is as big as the window is tall (UI.split does the columns) */
+  .sky { max-width: none; }
+  .sky .map-dome { width: min(100%, calc(100dvh - 300px)); align-self: center; }
 }
 @media (min-width: 1800px) {
   html { font-size: 18px; }
-  .sky { max-width: 1900px; }
 }
 /* touch: no accidental zoom/scroll on controls, no text selection while holding */
 .dpad, .rates, .row, .tabs, .targets { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
@@ -195,9 +195,14 @@ a.ghost.help { font-size: 16px; }
 a.target { text-decoration: none; color: var(--text); }
 
 /* ---- docs pages ---- */
-.doc { max-width: 680px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px 40px; }
-.doc header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.doc-nav { display: flex; gap: 4px; }
+.doc { --page-x: 16px; padding: max(12px, env(safe-area-inset-top)) var(--page-x) 40px; }
+.doc:has(> .page-header) { padding-top: 0; }
+/* the toolbar spans the page like every page's; the words keep a readable line */
+.doc > .doc-head, .doc > article { max-width: 680px; margin-left: auto; margin-right: auto; }
+@media (min-width: 960px) { .doc { --page-x: var(--s4); } }
+.doc .stop-form { margin: 0; }
+.doc-nav { display: flex; flex-wrap: wrap; gap: 0 4px; }
+.doc-nav a { white-space: nowrap; }
 .doc article { line-height: 1.55; font-size: 16px; }
 .doc article h1 { font-size: 24px; margin: 8px 0 12px; }
 .doc article h2 { font-size: 17px; margin: 22px 0 6px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
@@ -209,7 +214,6 @@ a.target { text-decoration: none; color: var(--text); }
 
 /* ---- object page ---- */
 .object { max-width: 560px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; min-height: 100dvh; }
-.object header { display: flex; align-items: center; justify-content: space-between; }
 .object .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 14px 16px; }
 .object h1 { font-size: 24px; margin: 0 0 4px; }
 .object .kind { margin: 0 0 10px; color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
@@ -264,10 +268,6 @@ a.banner strong { color: var(--warn); }
 /* ---- UI components (Controller.Components.UI): one grid, 8px steps ---- */
 :root { --s1: 8px; --s2: 12px; --s3: 16px; --s4: 24px; --r: 14px; --r-lg: 16px; }
 .page { max-width: 560px; margin: 0 auto; padding: max(var(--s2), env(safe-area-inset-top)) var(--s3) max(var(--s4), env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: var(--s2); min-height: 100dvh; }
-.page-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 40px; }
-.page-header .back { justify-self: start; }
-.page-header .page-title { justify-self: center; }
-.page-header .actions { justify-self: end; display: flex; align-items: center; gap: var(--s1); }
 .back { color: var(--dim); text-decoration: none; font-size: 15px; padding: var(--s1) 0; white-space: nowrap; }
 .page-title { font-size: 13px; font-weight: 600; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page .card { background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-lg); padding: var(--s3); display: grid; gap: var(--s2); }
@@ -332,12 +332,6 @@ a.banner strong { color: var(--warn); }
 
 /* ---- the mount as it stands + one strip per axis ---- */
 .eq { display: grid; gap: 10px; }
-.eq-glyph { width: 100%; max-width: 320px; height: auto; margin: 0 auto; display: block; }
-.eq-glyph .ground { stroke: var(--edge); stroke-width: 1.5; }
-.eq-glyph .pier { stroke: var(--dim); stroke-width: 3; stroke-linecap: round; }
-.eq-glyph .axis { stroke: var(--dim); stroke-width: 3; stroke-linecap: round; opacity: .7; }
-.eq-glyph .axis.live { stroke: var(--accent); opacity: 1; }
-.eq-glyph .lbl { fill: var(--dim); font-size: 8px; letter-spacing: .04em; }
 .strip { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 0 14px; min-height: 72px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; overflow: hidden; }
 .strip:active { cursor: grabbing; }
 .strip-end { color: var(--dim); font-size: 12px; letter-spacing: .04em; white-space: nowrap; z-index: 1; }
@@ -388,22 +382,21 @@ a.banner strong { color: var(--warn); }
 @keyframes orb-spin { to { stroke-dashoffset: -16; } }
 @media (prefers-reduced-motion: reduce) { .orb-svg .spin { animation: none; } }
 .orb-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
-.orb-key { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; color: var(--dim); padding-left: 10px; border-left: 2px solid var(--edge); }
-.orb-key.ra { border-color: var(--accent); }
-.orb-key.dec { border-color: var(--on); }
-.orb-key.scope { border-color: var(--warn); }
+.orb-key { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; color: var(--dim); }
+.orb-key .orb-k > [aria-hidden] { font-size: 13px; }
+.orb-key.ra .orb-k > [aria-hidden] { color: var(--accent); }
+.orb-key.dec .orb-k > [aria-hidden] { color: var(--on); }
+.orb-key.scope .orb-k > [aria-hidden] { color: var(--warn); }
 .orb-key .orb-k { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; white-space: nowrap; }
 .orb-key b { color: var(--text); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .orb-key .orb-motion { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .orb-key.running .orb-motion { color: var(--text); }
-.orb-key.live { border-left-width: 3px; }
+.orb-key.live .orb-k { color: var(--text); }
 .orb-later { color: var(--dim); font-size: 13px; text-align: center; opacity: .7; text-decoration: none; }
 .orb-page.nested { min-height: 0; padding-top: 0; padding-bottom: 0; }
 @media (min-width: 960px) {
-  .page.orb-page { max-width: 960px; display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: var(--s2) var(--s4); }
-  .orb-page .page-header, .orb-page .orb-later, .orb-page .modes, .orb-page .empty { grid-column: 1 / -1; }
-  .orb-page .orb-card { grid-row: span 2; }
-  .orb-page .orb-svg { max-width: 440px; }
+  /* UI.split does the columns; the orb grows with the window, never taller than it */
+  .orb-page .orb-svg { max-width: min(100%, calc(100dvh - 260px)); margin: 0 auto; }
 }
 
 /* ---- orb: motion as one arrowhead lapping the axis; strips wear their axis colour ---- */
@@ -454,14 +447,6 @@ a.banner strong { color: var(--warn); }
 .pos-now { font-variant-numeric: tabular-nums; font-size: 18px; text-align: center; }
 .pos-grid .field { padding: 12px 8px; }
 
-/* ---- tilt ---- */
-.tilt-wrap { display: grid; justify-items: center; }
-.tilt-pad { position: relative; width: min(300px, 78vw); aspect-ratio: 1; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.tilt-pad b { font-size: 22px; letter-spacing: .06em; text-transform: uppercase; }
-.tilt-pad small { font-size: 12px; color: var(--dim); }
-.tilt-pad.pressed { border-color: var(--accent); }
-.tilt-pad.live { border-color: var(--on); color: var(--on); }
-.tilt-dot { position: absolute; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transition: transform .12s linear; }
 
 /* ---- watch history strip ---- */
 .watch-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
@@ -557,9 +542,11 @@ a.banner strong { color: var(--warn); }
 .home-group > .dim { margin: 0 0 4px; font-size: 13px; }
 .home-list { display: grid; gap: 8px; }
 .home-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; }
-.home-btn { display: grid; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; color: var(--text); text-decoration: none; }
+.home-btn { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; color: var(--text); text-decoration: none; }
+.home-btn .icon { width: 20px; height: 20px; color: var(--dim); }
+.home-btn-text { display: grid; gap: 2px; min-width: 0; }
 .home-btn strong { font-size: 16px; }
-.home-btn span { color: var(--dim); font-size: 13px; line-height: 1.3; }
+.home-btn-text > span { color: var(--dim); font-size: 13px; line-height: 1.3; }
 .home-more { display: grid; place-items: center; width: 40px; border: 1px solid var(--edge); border-radius: 14px; color: var(--dim); text-decoration: none; font-weight: 700; }
 @media (min-width: 700px) { .home-list { grid-template-columns: 1fr 1fr; } }
 
@@ -635,7 +622,7 @@ a.banner strong { color: var(--warn); }
 .night, .night :root { --panel: #0a0000; --panel2: #100000; --key: #180000; --key-press: #090000; --sunk: #040000; --hi: rgba(255, 80, 80, .12); --lo: rgba(0, 0, 0, .8); --lit: #3a0a0a; --lit-on: #3a0a0a; --lit-warn: #4a0000; --amber: #ff7a7a; --amber-bg: #0a0000; --btn: var(--key); --btn-press: var(--key-press); --edge: transparent; }
 
 /* surfaces: tone only */
-.page .card, .readout, .pick, .photo, .object .card, .setup .card, .devices .card, .scope-status, .strip, .dev-chip, .home-btn, .watch-bar, .banner, .modes {
+.page .card, .readout, .sky-pick, .photo, .object .card, .setup .card, .devices .card, .scope-status, .strip, .home-btn, .watch-bar, .banner, .modes {
   border-color: transparent; background: var(--panel);
 }
 .target { border-color: transparent; background: var(--panel); }
@@ -655,17 +642,17 @@ a.banner strong { color: var(--warn); }
 .doc article td, .doc article th { border-bottom: 1px solid var(--panel2); }
 
 /* keys: raised, sink when pressed, lit when latched */
-button, .btn, .btn-link, .home-btn, .bench-tab, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .home-more, .more-toggle {
+button, .btn, .btn-link, .home-btn, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .home-more, .more-toggle {
   background: var(--key); border: 1px solid transparent; box-shadow: var(--bevel);
 }
-button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live {
+button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .knob.live {
   background: var(--key-press); box-shadow: var(--bevel-in);
 }
-button.on, .btn.on, .rate.on, .tabs button.on, .arrow.live, .bench-tab.on, .btn-dot.on {
+button.on, .btn.on, .rate.on, .tabs button.on, .arrow.live.on, .btn-dot.on {
   background: var(--lit); color: var(--text); border-color: transparent; box-shadow: var(--bevel-in);
 }
 .arrow.live, .btn-dot.on { background: var(--lit-on); color: var(--on); }
-.btn-primary, .pick .go, .object .go { border-color: transparent; color: var(--on); }
+.btn-primary, .sky-pick .go, .object .go { border-color: transparent; color: var(--on); }
 .btn-danger { border-color: transparent; color: var(--warn); }
 .btn-danger:active { background: var(--warn); color: var(--bg); }
 .btn-ghost, button.ghost, .dpad-mode .ghost, .stick-foot .ghost, .orb-later { background: transparent; border-color: transparent; box-shadow: none; }
@@ -693,9 +680,6 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 .tabs button.on { background: var(--lit); color: var(--text); }
 .stick-face .rim { fill: var(--sunk); stroke: none; }
 .stick-face .dead { fill: var(--panel2); }
-.tilt-pad { background: var(--key); box-shadow: var(--bevel); border-color: transparent; }
-.tilt-pad.pressed { background: var(--key-press); box-shadow: var(--bevel-in); border-color: transparent; }
-.tilt-pad.live { background: var(--lit-on); color: var(--on); box-shadow: var(--bevel-in); border-color: transparent; }
 .strip { box-shadow: var(--bevel); }
 .strip.strip-ra, .strip.strip-dec { border-color: transparent; }
 .strip.strip-ra.live { background: var(--lit); box-shadow: var(--bevel-in); border-color: transparent; }
@@ -709,10 +693,7 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 .dot.on, .ss-axis .dot.on { background: var(--on); box-shadow: 0 0 8px var(--on); }
 .watch-strip a, .frame-grid a { border: 0; opacity: .7; }
 .watch-strip a.on, .frame-grid a.on { opacity: 1; box-shadow: 0 0 0 2px var(--lit); }
-.orb-key { border-left-color: var(--panel2); }
-.orb-key.ra { border-left-color: var(--accent); }
-.orb-key.dec { border-left-color: var(--on); }
-.orb-key.scope { border-left-color: var(--warn); }
+
 
 /* the flow strip: four keys, the current one lit, the done ones green */
 .flow-steps li { border-top: 0; background: var(--panel); border-radius: 14px; padding: 8px 4px; }
@@ -723,7 +704,7 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 .home-item { grid-template-columns: 1fr; }
 .home-more { display: none; }
 .page .card.state.ok, .page .card.lineup-status.ok, .devices .state.ok, .page .card.state, .page .card.lineup-status { border-color: transparent; }
-.badge.on, .badge.warn, .ss-badge.on, .ss-badge.warn, .mode-chip, .dev-chip.warn, .watch-bar.live, .watch-bar.err, .target.picked { border-color: transparent; }
+.badge.on, .badge.warn, .ss-badge.on, .ss-badge.warn, .mode-chip.warn, .watch-bar.live, .watch-bar.err, .target.picked { border-color: transparent; }
 /* "not aligned" is where every night starts, not a problem: plain panel until there is something to say */
 .page .card.lineup-status { background: var(--panel); }
 .page .card.lineup-status.ok { background: var(--lit-on); }
@@ -772,10 +753,10 @@ button:disabled, .btn:disabled { box-shadow: none; background: var(--panel2); op
 
 /* ---- one type scale: 12 labels · 14 secondary · 16 body and keys · 20 emphasis · 28 readouts ---- */
 html, body { font-size: var(--fs-3); }
-.hint, .dim, .page .dim, .setup .dim, .devices .dim, .kv-v, .setting-text span, .state-line span, .watch-cap, .watch-links a, .home-btn span, .home-lede, .home-group > .dim, .events, .flow-more, .sim-line, .checklist, .devices .checklist ol, .auth-row, .auth-note, .pick .dim, .target .t span, .target .when, .horizon-hint, .fine, .strip-end, .strip .strip-only, .strip .strip-only b, .orb-key, .orb-key b, .orb-later, .ss-axis, .scope-status, .dev-chip, .bench-tab strong, .bench-brand, .stick-foot .ghost, .dpad-mode .ghost, .video-log, .mode .dim, .devices .err, .devices .mono, .page .mono, .more-toggle, .stop-mini, .back, .doc-nav a {
+.hint, .dim, .page .dim, .setup .dim, .devices .dim, .kv-v, .setting-text span, .state-line span, .watch-cap, .watch-links a, .home-btn-text > span, .home-lede, .home-group > .dim, .events, .flow-more, .sim-line, .checklist, .devices .checklist ol, .auth-row, .auth-note, .sky-pick .dim, .target .t span, .target .when, .horizon-hint, .fine, .strip-end, .strip .strip-only, .strip .strip-only b, .orb-key, .orb-key b, .orb-later, .ss-axis, .scope-status, .stick-foot .ghost, .dpad-mode .ghost, .video-log, .mode .dim, .devices .err, .devices .mono, .page .mono, .more-toggle, .stop-mini, .back, .doc-nav a {
   font-size: var(--fs-2);
 }
-.card-title, .kv-k, .badge, .ss-badge, .ss-id, .ss-axis b, .dev-chip b, .page-title, .axis .label, .strip-mid, .pos-k, .auth-k, .object .kind, .object .facts .k, .law-key, .flow-steps li, .watch-live, .arrow small, .dpad-centre small, .frame-grid time, .watch-strip time, .seg-opt small, .orb-key .orb-k, .setup h2, .devices h2, .doc article h2, .chip, .bench-tab span, .horizon label, .horizon .hcell {
+.card-title, .kv-k, .badge, .ss-badge, .ss-id, .ss-axis b b, .page-title, .axis .label, .strip-mid, .pos-k, .auth-k, .object .kind, .object .facts .k, .law-key, .flow-steps li, .watch-live, .arrow small, .dpad-centre small, .frame-grid time, .watch-strip time, .seg-opt small, .orb-key .orb-k, .setup h2, .devices h2, .doc article h2, .chip span, .horizon label, .horizon .hcell {
   font-size: var(--fs-1);
 }
 .btn, button, .seg-opt, .field, .goto input, .horizon input, .rate, .tabs .seg-opt, .home-btn strong, .setting-text strong, .mode > div strong, .kv-v, .pos-now, .strip-mid b, .doc article, .object .blurb, .devices .state strong, .target .t strong, .play-btn, .stop-bar, .estop, .stop, .seg.seg-4 .seg-opt {
@@ -789,13 +770,13 @@ html, body { font-size: var(--fs-3); }
 .stop-mini { font-size: var(--fs-2); }
 
 /* ---- keys, calmer: a soft edge and a little lift; pressed goes flat; lit gets a faint accent edge ---- */
-button, .btn, .btn-link, .home-btn, .bench-tab, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .more-toggle, .tilt-pad, .law-key, .strip {
+button, .btn, .btn-link, .home-btn, .arrow, .rate, .seg-opt, .stop, .stop-mini, .stop-bar, .knob, .more-toggle, .tilt-pad, .law-key, .strip {
   border: 1px solid var(--key-edge); box-shadow: var(--bevel);
 }
-button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed {
+button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed {
   box-shadow: none; transform: translateY(1px); border-color: transparent;
 }
-button.on, .btn.on, .rate.on, .tabs .seg-opt.on, .seg-opt.on, .arrow.live, .bench-tab.on, .btn-dot.on, .law-key.on, .strip.live, .tilt-pad.live, .dpad .arrow.live {
+button.on, .btn.on, .rate.on, .tabs .seg-opt.on, .seg-opt.on, .arrow.live.on, .btn-dot.on, .law-key.on, .strip.live, .tilt-pad.live, .dpad .arrow.live {
   box-shadow: none; border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .arrow.live, .dpad .arrow.live, .btn-dot.on, .tilt-pad.live, .strip.strip-dec.live { border-color: color-mix(in srgb, var(--on) 45%, transparent); }
@@ -827,19 +808,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 .seg-opt:focus-visible, .rate:focus-visible, .law-key:focus-visible { outline-offset: 0; position: relative; z-index: 1; }
-.bench-nav { padding: 4px; margin: -4px; }
 
 /* targets: 44 px on everything you can push (2.5.5) */
 .btn, button, .btn-link { min-height: 44px; min-width: 44px; }
 .ghost, button.ghost, a.ghost, .help-icon, .back, .stop-mini, .home-more, .stick-foot .ghost { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .help-icon { padding: 0; font-size: var(--fs-3); }
 .back { padding: 0 var(--s1) 0 0; justify-content: flex-start; }
-.seg-opt, .rate, .bench-tab, .dev-chip, .scope-status, .modes, .ro, .sim-line, .field, .goto input, .horizon input, header select { min-height: 44px; }
+.seg-opt, .rate, .scope-status, .modes, .ro, .sim-line, .field, .goto input, .horizon input, header select { min-height: 44px; }
 .ro, .sim-line { display: flex; align-items: center; justify-content: center; }
 .watch-links a, .doc-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s1); }
 .photo input[type=file]::file-selector-button { min-height: 44px; }
-.bench-tab { justify-content: center; }
-.page-header { min-height: 44px; }
 
 /* reflow at 320 px and text at 200 %: nothing that holds words is clipped or forced onto one line (1.4.10, 1.4.4, 1.4.12) */
 .seg-opt, .page .row .btn, .law-key, .target .t strong, .ev-by, .orb-key b, .orb-key .orb-k, .orb-key .orb-motion, .kv-v { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
@@ -852,7 +830,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pos-grid .field { width: 100%; min-width: 0; }
 .pos-grid label.pos-k { cursor: pointer; }
 @media (max-width: 400px) {
-  .page-title, .sky header h1 { white-space: normal; overflow: visible; text-overflow: clip; }
+  .page-title { white-space: normal; overflow: visible; text-overflow: clip; }
   .corr-body, .corr.compact .corr-body { grid-template-columns: 1fr; justify-items: center; }
   .corr-text { justify-self: stretch; }
   .strip { grid-template-columns: auto minmax(0, 1fr) auto; }
@@ -888,7 +866,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* motion: nothing slides or spins for people who asked it not to (2.3.3) */
 @media (prefers-reduced-motion: reduce) {
   .tilt-dot, .knob, .orb-svg .ax { transition: none; }
-  button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .bench-tab:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed { transform: none; }
+  button:active, button.pressed, .btn:active, .arrow.pressed, .home-btn:active, .knob.live, .tilt-pad.pressed, .dpad .arrow.pressed { transform: none; }
 }
 /* the running view's position strip: five dots per axis, filled as pictures land */
 .run-axis { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: start; }
@@ -899,7 +877,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: no-preference) { .run-dot.now { animation: run-pulse 1.2s ease-in-out infinite; } }
 @keyframes run-pulse { 50% { opacity: .4; } }
 /* the header title keeps its words; a long mount name is shortened at the source */
-.page-header .page-title { white-space: normal; overflow: visible; text-overflow: clip; text-align: center; }
 
 /* ---- desktop: the same pages, laid out for the width ----
    A phone column in the middle of a 1200 px window is not a desktop layout.
@@ -907,7 +884,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    header, strips, hints and rows span both columns; the home list goes to
    three columns. Nothing is designed twice: the same components, more room. */
 @media (min-width: 960px) {
-  .page { max-width: 1120px; padding-left: var(--s4); padding-right: var(--s4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); align-content: start; }
+  .page { max-width: 1440px; padding-left: var(--s4); padding-right: var(--s4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); align-content: start; }
   .page > * { grid-column: 1 / -1; min-width: 0; }
   .page > .card { grid-column: auto; }
   .page > .card.wide, .page > .card.lineup-status, .page > .card.state { grid-column: 1 / -1; }
@@ -915,8 +892,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .page.nested > * { grid-column: 1 / -1; }
   .page.nested > .card { grid-column: auto; }
   .page.nested > .card.lineup-status { grid-column: 1 / -1; }
-  .page-header { min-height: 56px; }
-  .page-title { font-size: var(--fs-2); }
   .home-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-group { display: grid; gap: var(--s1); }
   .home-lede { font-size: var(--fs-3); }
@@ -928,7 +903,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .scope-status { max-width: 100%; }
 }
 @media (min-width: 1400px) {
-  .page { max-width: 1280px; }
   .home-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 /* cards keep their content at the top when a grid row is taller than they are */
@@ -967,6 +941,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sb-state.warn { color: var(--warn); }
 .sb-nums { font-size: var(--fs-2); color: var(--dim); font-variant-numeric: tabular-nums; }
 .sb-sim { font-size: var(--fs-1); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
+.sb-where { font-size: var(--fs-1); color: var(--dim); }
+.home-offers { display: grid; gap: var(--s2); }
 @media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
 /* the drawing standing in for a camera picture */
 .watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: 14px; }
@@ -1175,10 +1151,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
   /* the page in its panel: a header bar ruled across the whole panel, the
      title small and plain, the back link to Home gone (the sidebar is home) */
-  .shell-main .back-home, .shell-main .home-brand { display: none; }
-  .shell-main .page-header { grid-template-columns: minmax(0, 1fr) auto; min-height: 52px; margin-bottom: var(--s2); border-bottom: 1px solid transparent; border-image: linear-gradient(var(--key-edge), var(--key-edge)) 0 0 1 0 / 0 0 1px 0 / 0 100vmax 0 100vmax; }
-  .shell-main .page-header:has(.back:not(.back-home)) { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s2); }
-  .shell-main .page-header .page-title { justify-self: start; font-size: var(--fs-2); font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
   .shell-main .page { padding-top: 0; }
 }
 
@@ -1226,3 +1198,554 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    colour (checked in design_test). One per screen; secondaries stay keys. ---- */
 .btn.btn-primary, button.btn-primary { background: var(--accent); color: var(--bg); border-color: transparent; font-weight: 600; box-shadow: none; }
 @media (hover: hover) { .btn.btn-primary:hover, button.btn-primary:hover { filter: brightness(1.08); } }
+
+/* ---- the telescope switcher: the sidebar's first thing, a button showing the
+   current scope and where it is; its menu a native popover pinned under it ---- */
+.switcher { position: relative; }
+.switcher-button { width: 100%; background: transparent; border: 0; cursor: pointer; text-align: left; font: inherit; }
+.switcher-chevrons { margin-left: auto; color: var(--dim); }
+.switcher-menu { position: fixed; inset: auto; top: 64px; left: 12px; width: 240px; margin: 0; padding: 8px; box-sizing: border-box; display: none; flex-direction: column; gap: 2px; background: var(--panel2); color: var(--text); border: 1px solid var(--key-edge); border-radius: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .55); }
+.switcher-menu:popover-open { display: flex; }
+.switcher-menu::backdrop { background: transparent; }
+.switcher-menu ul { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 1px; }
+.switcher-menu .side-label { margin: 4px 8px 6px; }
+.switcher-item { min-height: 44px; }
+.switcher-name { display: grid; min-width: 0; line-height: 1.25; }
+.switcher-name strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switcher-name small { font-size: var(--fs-1); color: var(--dim); }
+.switcher-check { margin-left: auto; color: var(--accent); }
+.switcher-menu .side-link[aria-current="true"] { background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--text); }
+.switcher-empty { margin: 4px 8px 8px; font-size: var(--fs-2); color: var(--dim); }
+.side-top { list-style: none; margin: 0; padding: 0; }
+/* the switcher's rows share the sidebar's link look outside the media query */
+.switcher-menu .side-link { display: flex; align-items: center; gap: 10px; padding: 0 8px; border-radius: 6px; font-size: var(--fs-2); color: var(--text); text-decoration: none; }
+.switcher-menu .side-link:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+
+/* ---- a live page without its server: say so, and grey every control ----
+   LiveView marks its container phx-connected while it is live. Without that
+   mark the keys do nothing, so they must not look ready. Shown after a
+   second, so the first connect on a page load does not flash it. */
+.conn-lost { display: none; }
+body:has([data-phx-main]:not(.phx-connected)) .conn-lost { display: block; position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 100; margin: 0; padding: 10px 16px; max-width: calc(100% - 32px); box-sizing: border-box; border-radius: var(--r); background: var(--panel2); color: var(--text); border: 1px solid var(--warn); font-size: var(--fs-2); opacity: 0; animation: conn-lost-show 0s linear 4s forwards; }
+[data-phx-main]:not(.phx-connected) :is(button, .btn, input, select, textarea, .strip, .arrow) { pointer-events: none; }
+[data-phx-main]:not(.phx-connected) :is(button, .btn, input, select, textarea, .strip, .arrow) { animation: conn-lost-dim 0s linear 4s forwards; }
+@keyframes conn-lost-show { to { opacity: 1; } }
+@keyframes conn-lost-dim { to { opacity: .4; } }
+
+/* ---- Site: the coordinates big enough to read off at arm's length ---- */
+.site-coords { display: grid; gap: var(--s1); }
+.site-big { margin: 0; font-size: var(--fs-4); font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.site-typed { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--s1); align-items: end; }
+.site-typed label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--dim); }
+.site-typed .field { text-align: left; }
+@media (max-width: 520px) { .site-typed { grid-template-columns: 1fr; } }
+
+/* Tonight: one panel of rows, not a stack of cards, so a phone shows ten at a
+   glance. Two lines a row (name over where and how), 52 px, the top five
+   numbered. */
+.targets { gap: 0; background: var(--panel); border-radius: 14px; overflow: hidden; }
+.targets > li + li .target { box-shadow: inset 0 1px 0 var(--edge); }
+.targets .target { background: transparent; border: 0; border-radius: 0; padding: 8px 12px; min-height: 52px; gap: 12px; }
+.targets .target .k { width: 24px; height: 24px; border-radius: 7px; font-size: 11px; }
+.targets .target.top .k { font-size: 12px; }
+.targets .target .t strong, .targets .target.top .t strong { font-size: 15px; }
+/* the detail wraps to a second line rather than cutting off beside the height gauge */
+.targets .target .t span { white-space: normal; }
+/* not up yet: the same rows, quieter, under their own heading */
+.targets-head { margin: 12px 0 0; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+.targets.later .target .t strong { color: var(--dim); font-weight: 500; }
+.targets .target .when { font-variant-numeric: tabular-nums; }
+
+/* Installed on a home screen and turned sideways, the notch is on one side:
+   keep everything clear of it. Top and bottom are each page's own padding. */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* ---- Align by Photo: one big key that is the camera, and the axis drawn ----
+   The key is the file input's label, so a tap anywhere on it opens the
+   camera; the input itself is clipped to nothing (not transparent: the
+   disconnected-page dimming animates opacity and would show it), still
+   reachable by keyboard, and the ring shows on the key when it has focus. */
+.take-photo { position: relative; width: 100%; min-height: 64px; font-size: var(--fs-4); cursor: pointer; }
+.take-photo input[type=file] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.take-photo:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.take-photo.off { opacity: .4; cursor: default; }
+.polar-plot { display: block; width: 100%; max-width: 240px; margin: var(--s1) auto; }
+.polar-plot .ring { fill: none; stroke: var(--dim); stroke-width: 1; }
+.polar-plot .pole { stroke: var(--text); stroke-width: 1.5; }
+.polar-plot .margin { fill: none; stroke: var(--on); stroke-width: 1; stroke-dasharray: 3 3; }
+.polar-plot .axis-dot { fill: var(--on); }
+.polar-plot text { fill: var(--dim); font-size: var(--fs-1); }
+
+/* ---- Center: the eyepiece is a touchpad. Dim on purpose: it is used at the eyepiece ---- */
+.center-pad { position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 16px auto 8px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.center-view { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.center-view .center-disc { fill: #000; stroke: var(--key-edge); stroke-width: 2; }
+.center-view .center-half { fill: none; stroke: var(--key-edge); stroke-width: 1; stroke-dasharray: 2 4; }
+.center-view .center-cross { stroke: var(--key-edge); stroke-width: 1.5; }
+.center-view .center-aim { fill: none; stroke: var(--dim); stroke-width: 1.5; }
+.center-view .center-moved line, .center-view .center-moved path { stroke: var(--text); stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.center-view .center-edge { font-size: 9px; fill: var(--dim); text-anchor: middle; }
+.center-knob { position: absolute; left: calc(50% - 26px); top: calc(50% - 26px); width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--dim); background: rgba(255, 80, 80, .08); pointer-events: none; }
+.center-knob.live { border-color: var(--text); background: rgba(255, 80, 80, .18); }
+.center-now { text-align: center; margin: 0 0 8px; font-size: 14px; color: var(--dim); min-height: 40px; }
+.center-done { width: 100%; min-height: 56px; margin-top: 8px; }
+.center-flip { display: flex; gap: 8px; flex-wrap: wrap; }
+.center-flip .btn { flex: 1; }
+
+/* ---- Control Stack: plain rows a pro can scan, each tappable into its own live page ---- */
+.stack-now { margin: 0 0 16px; font-size: 16px; color: var(--text); min-height: 24px; }
+.stack-layer { background: var(--panel); border: 1px solid var(--key-edge); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+.stack-layer.working { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.stack-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.stack-head h2 { font-size: 16px; margin: 0; color: var(--text); }
+.stack-chip { margin-left: auto; font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); }
+.stack-what { margin: 4px 0 8px; font-size: 14px; color: var(--dim); }
+.stack-rows { list-style: none; margin: 0; padding: 0; }
+.stack-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; gap: 8px; align-items: center; min-height: 44px; padding: 8px 0; border-top: 1px solid var(--key-edge); color: var(--text); text-decoration: none; }
+.stack-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stack-label { font-size: 14px; }
+.stack-value { font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+.stack-go { color: var(--dim); text-align: right; }
+.stack-input { margin: 8px 0 0; font-size: 14px; color: var(--text); }
+.tone-good { color: var(--on); }
+.tone-caution { color: var(--amber); }
+.tone-unknown, .tone-off { color: var(--dim); }
+.tone-bad { color: var(--warn); }
+.stack-big { font-size: 28px; margin: 8px 0 16px; font-variant-numeric: tabular-nums; }
+.stack-explain h2 { font-size: 16px; margin: 16px 0 4px; color: var(--text); }
+.stack-explain p { margin: 0; font-size: 16px; color: var(--text); max-width: 64ch; }
+
+/* the object page's "will I see it?" line */
+.lock-line { margin: 0 0 8px; font-size: 14px; }
+
+/* Tonight: how high each object is, drawn beside its name */
+.target .height { width: 40px; height: 40px; flex: none; }
+.height .height-arc { fill: none; stroke: var(--key-edge); stroke-width: 1.5; }
+.height .height-trees { fill: var(--dim); fill-opacity: .28; stroke: none; }
+.height .height-line { stroke: var(--dim); stroke-width: 1.5; }
+.height .height-deg { fill: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+
+/* Look, Go To, Track: an object's three answers, each the name over its
+   detail, with a mark that says the same as the colour */
+.reach { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.reach li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; }
+.reach-mark { font-size: 16px; line-height: 20px; text-align: center; }
+.reach-t { display: grid; }
+.reach-t strong { font-size: 14px; line-height: 20px; color: var(--text); }
+.reach-t span { font-size: 14px; }
+.stall-line, .move-line { margin: 0 0 8px; font-size: 14px; }
+.move-line { color: var(--amber); }
+
+/* Tonight: when it's up over what Go To and the hold will do */
+.when-col { display: grid; justify-items: end; text-align: right; flex: none; }
+.reach-short { font-size: 12px; white-space: nowrap; }
+
+/* home: a mount on the cable that doesn't answer, said once, calmly */
+.home-quiet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 16px; }
+.home-quiet p { margin: 0; font-size: 14px; flex: 1 1 280px; }
+.home-quiet p > strong { display: block; }
+
+/* Tonight: the last few Go To targets, one tap back */
+.recent { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
+.recent .btn { min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; }
+
+/* the telescope camera: the frame edge to edge, the brightest star up close */
+.scope-frame { margin: 0 0 16px; }
+/* a black frame (cap on, a dark sky) on the black page still shows where the picture is */
+.scope-frame img, .scope-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: var(--r); box-shadow: 0 0 0 1px var(--key-edge); }
+.focus-read { display: flex; gap: 16px; align-items: center; }
+.frame-record { margin: 4px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+/* Focus: the picture with what was made of it, one sentence, a gauge, a line; every box a fixed size */
+.focus-pic { position: relative; margin: 0 0 4px; }
+.focus-pic img, .focus-pic-empty { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; background: #000; border-radius: var(--r); box-shadow: 0 0 0 1px var(--key-edge); }
+.focus-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.focus-overlay .ov-border { fill: none; stroke: var(--dim); stroke-width: 1.5; stroke-dasharray: 6 6; vector-effect: non-scaling-stroke; opacity: .6; }
+.focus-overlay .ov-speck line { stroke: var(--dim); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.focus-overlay .ov-star { fill: none; stroke: var(--on); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.focus-legend { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--fs-1); line-height: 16px; color: var(--dim); min-height: 36px; align-content: start; }
+.focus-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.focus-legend svg { width: 16px; height: 16px; flex: none; overflow: visible; }
+.focus-legend .ov-border { fill: none; stroke: var(--dim); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.focus-legend .ov-speck line { stroke: var(--dim); stroke-width: 1.5; }
+.focus-legend .ov-star { fill: none; stroke: var(--on); stroke-width: 2; }
+/* one pulse per picture: a new element each time, so the animation plays again */
+.focus-pulse { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); box-shadow: 0 0 0 2px rgba(0, 0, 0, .6); }
+@media (prefers-reduced-motion: no-preference) {
+  .focus-pulse { animation: focus-pulse 900ms ease-out 1 both; }
+  @keyframes focus-pulse { 0% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(1); opacity: .45; } }
+}
+.focus-line-empty { margin: 0; padding-top: 24px; font-size: var(--fs-2); line-height: 20px; }
+.spark .spark-band { fill: currentColor; opacity: .1; }
+.focus-say { height: calc(4 * 28px); margin: 0 0 8px; overflow: hidden; }
+.focus-advice { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
+.gauge { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; height: 28px; margin: 0 0 12px; }
+.gauge svg { width: 100%; height: 20px; }
+.gauge-end { font-size: 14px; color: var(--dim); }
+.gauge .gauge-track { fill: var(--sunk); }
+.gauge .gauge-fill { fill: var(--accent); opacity: .35; }
+.gauge .gauge-mark { fill: var(--accent); }
+.focus-line { position: relative; height: 96px; margin: 0 0 8px; padding-left: 56px; color: var(--accent); }
+.focus-spark { width: 100%; height: 56px; display: block; }
+.focus-axis-top, .focus-axis-bottom { position: absolute; left: 0; font-size: 12px; }
+.focus-axis-top { top: 0; }
+.focus-axis-bottom { top: 40px; }
+.focus-axis-time { display: flex; justify-content: space-between; margin: 4px 0 0; font-size: 12px; line-height: 16px; }
+.focus-stars, .focus-rhythm { margin: 0 0 8px; font-size: 14px; line-height: 20px; height: 40px; overflow: hidden; }
+.focus-line-empty { margin-left: -56px; }
+/* charts: the line in the current colour, a faint area under it, the newest value marked */
+.spark .spark-line { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark .spark-area { fill: currentColor; opacity: .12; stroke: none; }
+.spark .spark-end { fill: currentColor; }
+.spark .spark-peak { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.fraction .fraction-track { fill: var(--sunk); }
+.fraction .fraction-fill { fill: var(--accent); }
+.focus-sample { margin: 0 0 8px; font-size: 16px; line-height: 24px; height: 48px; overflow: hidden; }
+.focus-advice { margin: 0 0 8px; font-size: 20px; line-height: 28px; font-weight: 600; }
+.focus-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 16px; }
+.focus-keys .btn { min-height: 72px; font-size: 20px; }
+.focus-star { width: 96px; height: 96px; flex: none; image-rendering: pixelated; background: #000; border-radius: var(--r); }
+.focus-hfr { margin: 0; font-size: 28px; font-variant-numeric: tabular-nums; }
+.focus-read p { margin: 0 0 4px; }
+.focus-chart { display: block; width: 100%; height: 60px; margin: 8px 0; }
+.focus-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.find-line { margin: 0 0 8px; font-size: 14px; }
+/* Queues: how busy a step is, a bar and its number */
+.busy { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--key-edge); overflow: hidden; vertical-align: middle; }
+.busy > span { display: block; height: 100%; background: var(--accent); }
+.busy-n { display: inline-block; min-width: 40px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.frame-verdict { margin: 8px 0 0; font-size: 14px; }
+
+/* ---- Search (Controller.Spotlight): one box over every page ----
+   A native popover: centred near the top on a wide screen, the whole screen
+   on a phone. Rows are two lines, the name over where it lives; the picked
+   row is filled, as the sidebar marks the page you are on. Opened from the
+   sidebar's Search (wide), a phone header's search key, or ⌘K. */
+.search-key { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--dim); }
+.search-key .icon { width: 20px; height: 20px; }
+.nested .search-key { display: none; }
+@media (min-width: 1100px) { .search-key { display: none; } }
+/* on a narrow phone the header holds back, title, Search and STOP; the page's help is Search's first row */
+@media (max-width: 599px) { .page-header .actions .help-icon, .hdr-actions .help { display: none; } }
+.hdr-actions .ghost { white-space: nowrap; }
+
+.side-search { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; box-sizing: border-box; padding: 0 8px; background: var(--panel); border: 1px solid var(--key-edge); border-radius: 8px; box-shadow: none; color: var(--dim); font: inherit; font-size: var(--fs-2); text-align: left; text-decoration: none; cursor: pointer; }
+.side-search span { flex: 1; }
+.side-search kbd { font: inherit; font-size: var(--fs-1); color: var(--dim); border: 1px solid var(--key-edge); border-radius: 4px; padding: 0 4px; }
+.side-search:hover { color: var(--text); filter: none; }
+.side-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.spotlight { position: fixed; inset: auto; top: 12vh; left: 50%; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); max-height: 70vh; margin: 0; padding: 0; box-sizing: border-box; display: none; flex-direction: column; overflow: hidden; background: var(--panel2); color: var(--text); border: 1px solid var(--key-edge); border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .6); }
+.spotlight:popover-open { display: flex; }
+.spotlight::backdrop { background: rgba(0, 0, 0, .6); }
+.spotlight-form { display: flex; align-items: center; gap: var(--s1); padding: 0 4px 0 var(--s2); border-bottom: 1px solid var(--key-edge); }
+.spotlight-form input { flex: 1; min-width: 0; min-height: 52px; padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--text); font: inherit; font-size: var(--fs-3); outline: none; -webkit-appearance: none; appearance: none; }
+.spotlight-form input::-webkit-search-cancel-button { display: none; }
+.spotlight-glass { width: 18px; height: 18px; color: var(--dim); }
+.spotlight-close { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0; background: transparent; border: 0; box-shadow: none; color: var(--dim); }
+.spotlight-results { list-style: none; margin: 0; padding: var(--s1); overflow-y: auto; display: grid; gap: 2px; }
+.spotlight-item { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px var(--s1); border-radius: 8px; color: var(--text); text-decoration: none; }
+.spotlight-item .icon { width: 18px; height: 18px; color: var(--dim); }
+.spotlight-item[aria-selected="true"] { background: color-mix(in srgb, var(--text) 10%, transparent); }
+.spotlight-item[aria-selected="true"] .icon { color: var(--text); }
+.spotlight-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.spotlight-text { display: grid; min-width: 0; line-height: 1.3; }
+.spotlight-text strong { font-size: var(--fs-3); font-weight: 500; }
+.spotlight-text small { font-size: var(--fs-1); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spotlight-none { margin: 0; padding: var(--s2); color: var(--dim); font-size: var(--fs-2); }
+.spotlight-keys { margin: 0; padding: var(--s1) var(--s2); border-top: 1px solid var(--key-edge); color: var(--dim); font-size: var(--fs-1); }
+@media (hover: hover) { .spotlight-item:hover { background: color-mix(in srgb, var(--text) 6%, transparent); } }
+@media (max-width: 699px) {
+  .spotlight { top: 0; left: 0; transform: none; width: 100vw; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  .spotlight-keys { display: none; }
+}
+
+/* ---- All Cameras: each camera's picture over its name and one line ---- */
+.camera-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 700px) { .camera-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.camera-tile { display: grid; gap: var(--s1); color: var(--text); text-decoration: none; border-radius: var(--r); }
+.camera-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.camera-pic { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: var(--r); box-shadow: 0 0 0 1px var(--key-edge); overflow: hidden; }
+.camera-pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.camera-none { color: var(--dim); font-size: var(--fs-2); }
+.camera-text { display: grid; line-height: 1.35; padding: 0 2px; }
+.camera-text strong { font-size: var(--fs-3); font-weight: 600; }
+.camera-text small { font-size: var(--fs-2); color: var(--dim); }
+@media (hover: hover) { .camera-tile:hover .camera-pic { box-shadow: 0 0 0 1px var(--dim); } }
+.night .camera-pic img, .night .scope-frame img, .night .focus-pic img { filter: sepia(1) saturate(4) hue-rotate(-30deg) brightness(.7); }
+
+.search-page-form { margin: 0 0 var(--s2); }
+.search-page-form input { width: 100%; box-sizing: border-box; }
+
+
+/* Home's list of pages is for where there's no sidebar; with one, it would be the same list twice */
+.home-menu { display: grid; gap: var(--s3); }
+@media (min-width: 1100px) { .home-menu { display: none; } }
+
+/* the sky's header on a wide screen: the time and place first, STOP and the rest at the right (the Home link it was spaced against is the sidebar's now) */
+
+/* ---- split (UI.split/1): the thing to look at takes the room, what to do with it beside ----
+   On a phone one column, the picture first. From 960 px two: the main column
+   grows with the window, the side column stays a hand's width and stays in
+   view. A page holding one is let out to the panel's full width. A picture in
+   the main column is never taller than the window. */
+.split { display: grid; gap: var(--s3); min-width: 0; }
+.split-main, .split-side { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+@media (min-width: 960px) {
+  .page:has(> .split) { max-width: none; }
+  .page > .split { grid-column: 1 / -1; }
+  .split { grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--s4); align-items: start; }
+  .split-side { position: sticky; top: var(--s2); }
+  /* a 16:9 picture as wide as the column, but never taller than the window: its
+     frame narrows instead of the picture letterboxing, so marks drawn over it stay on it */
+  .split-main .scope-frame, .split-main .focus-pic, .split-main .watch-frame { width: 100%; max-width: calc((100dvh - 180px) * 16 / 9); }
+}
+@media (min-width: 1600px) { .split { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); } }
+
+/* on a phone the sky page's tabs show the map or the horizon; on a wide screen the map stays up beside either */
+@media (max-width: 959px) { .sky .map-aside { display: none; } }
+/* the keypad on a wide screen: the readout and the mount as it stands on the left, big; the strips beside */
+@media (min-width: 960px) {
+  .pad:has(.split) { max-width: none; }
+  .pad .split-main .pad-scope, .split-main .scope-hero { width: 100%; height: auto; max-height: calc(100dvh - 300px); }
+  .pad .split-main .readout { width: 100%; }
+}
+
+/* the picture's space, kept before the first one arrives */
+.scope-frame-empty { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: var(--r); box-shadow: 0 0 0 1px var(--key-edge); }
+.scope-frame-empty p { margin: 0; }
+/* the observatory camera's frame keeps a picture's shape whatever is in it (a still, video, the drawing, nothing yet) */
+@media (min-width: 960px) {
+  .split-main .watch-frame { aspect-ratio: 16 / 9; }
+  .split-main .watch-frame img, .split-main .watch-frame video { width: 100%; height: 100%; object-fit: contain; }
+}
+/* the Center touchpad on a wide screen: as big as the window allows, so a drag has room */
+@media (min-width: 960px) { .split-main .center-pad { width: min(100%, calc(100dvh - 240px), 640px); } }
+
+/* ---- the 3-D mount (Controller.Render3D): a face's material is its ink, its level how lit it is ----
+   Each face mixes its material with the shade by its level, so the model is
+   lit from over the camera's shoulder in every theme (night mode: all red).
+   A hairline of the same colour closes the seams between neighbouring faces. */
+.scope-3d polygon { stroke-width: .35; stroke-linejoin: round; }
+.scope-3d .l0 { --lit: 24%; } .scope-3d .l1 { --lit: 34%; } .scope-3d .l2 { --lit: 45%; } .scope-3d .l3 { --lit: 56%; }
+.scope-3d .l4 { --lit: 67%; } .scope-3d .l5 { --lit: 78%; } .scope-3d .l6 { --lit: 89%; } .scope-3d .l7 { --lit: 100%; }
+.scope-3d .m-tube { fill: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); }
+.scope-3d .m-metal { fill: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); }
+.scope-3d .m-steel { fill: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); }
+.scope-3d .m-dark { fill: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); }
+.scope-3d .m-leg { fill: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); }
+.scope-3d .m-lens { fill: var(--mesh-lens); stroke: var(--mesh-lens); }
+.scope-3d .sc-ground { fill: var(--panel2); opacity: .8; }
+
+/* the 3-D mount on a phone's keypad: big enough to read the pose, not so big it pushes the strips away */
+.pad-scope { max-height: 200px; width: auto; }
+@media (min-width: 960px) { .split-main .scope-hero { max-height: calc(100dvh - 160px); } }
+
+/* the viewfinder: what the telescope camera sees, on a page for driving */
+.viewfinder { margin: 0; display: grid; gap: 4px; }
+.viewfinder-pic { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: var(--r); box-shadow: 0 0 0 1px var(--key-edge); overflow: hidden; color: var(--dim); text-decoration: none; }
+.viewfinder-pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.viewfinder figcaption { font-size: var(--fs-1); }
+.night .viewfinder-pic img { filter: sepia(1) saturate(4) hue-rotate(-30deg) brightness(.7); }
+/* on a phone the viewfinder takes the mount drawing's place, so the strips stay near the thumb */
+@media (max-width: 959px) { .split-main:has(.viewfinder) .pad-scope { display: none; } }
+@media (min-width: 960px) { .split-main:has(.viewfinder) .pad-scope { max-height: 38vh; } }
+.camera-nudge .page.nested { display: block; }
+
+/* ---- the toolbar (UI.back/title/actions in a page's header): one shape on every page ----
+   A leading key (‹ back to the page this one is under; on a phone, ⌂ Home),
+   the title block (the section or parent page small above, the page's name
+   below, left-aligned so it never shifts with what's beside it), then the
+   page's keys, STOP last. A fixed height, stuck to the top while the page
+   scrolls, so STOP is always in reach. */
+.page { --page-x: var(--s3); }
+@media (min-width: 960px) { .page { --page-x: var(--s4); } }
+.page:has(> .page-header) { padding-top: 0; }
+.page-header {
+  position: sticky; top: 0; z-index: 20;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "lead over keys" "lead title keys";
+  grid-template-rows: 16px 26px; align-items: center; column-gap: 12px;
+  margin: 0 calc(-1 * var(--page-x)) var(--s1); padding: max(10px, env(safe-area-inset-top, 0px)) var(--page-x) 10px;
+  background: var(--bg); border-bottom: 1px solid var(--key-edge);
+}
+.page-header > .tb-lead { grid-area: lead; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--key); box-shadow: var(--bevel); color: var(--text); text-decoration: none; }
+.page-header > .tb-lead .icon { width: 20px; height: 20px; }
+.page-header > .tb-lead:active { background: var(--key-press); box-shadow: var(--bevel-in); }
+.page-header > .tb-over { grid-area: over; align-self: end; min-width: 0; font-size: var(--fs-1); line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page-header > a.tb-over:hover { color: var(--text); }
+.page-header > .tb-over .tb-id { text-transform: none; letter-spacing: 0; }
+.page-header > .page-title { grid-area: title; align-self: start; min-width: 0; margin: 0; font-size: var(--fs-4); line-height: 26px; font-weight: 650; letter-spacing: 0; text-transform: none; text-align: left; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page-header > .actions { grid-area: keys; justify-self: end; display: flex; align-items: center; gap: var(--s1); }
+/* a header without a leading key (Home itself; any sidebar page on a wide screen) starts with its title */
+.page-header:not(:has(> .tb-lead)) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys"; }
+@media (min-width: 1100px) {
+  .page-header > .tb-home { display: none; }
+  .page-header:has(> .tb-home) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys"; }
+  .page-header { min-height: 64px; }
+}
+.page.nested > .page-header { display: none; }
+
+/* ---- the Sky pages: the toolbar, then when and where, the same on the Sky Map and Tonight ---- */
+.sky { --page-x: 16px; }
+@media (min-width: 960px) { .sky { --page-x: var(--s4); padding-left: var(--s4); padding-right: var(--s4); } }
+.sky:has(> .page-header) { padding-top: 0; }
+.when-where { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "time keys" "site site"; align-items: center; gap: var(--s1) var(--s2); }
+.when-where .ww-time { grid-area: time; display: grid; gap: 2px; min-width: 0; }
+.when-where .ww-time strong { font-size: var(--fs-4); font-weight: 650; font-variant-numeric: tabular-nums; }
+.when-where .ww-time span { font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; }
+.when-where .ww-keys { grid-area: keys; display: flex; gap: var(--s1); }
+.when-where .ww-keys .btn { min-height: 44px; padding: 0 14px; white-space: nowrap; }
+.when-where .ww-site { grid-area: site; display: flex; align-items: baseline; justify-content: space-between; gap: var(--s1); min-height: 44px; padding: 0 var(--s2); border-radius: var(--r); background: var(--panel); color: var(--text); text-decoration: none; }
+.when-where .ww-site strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; align-self: center; }
+.when-where .ww-site span { font-size: var(--fs-1); color: var(--dim); align-self: center; }
+.when-where .ww-site.tone-caution strong, .when-where .ww-site.tone-caution span { color: var(--amber); }
+@media (min-width: 960px) {
+  .when-where { grid-template-columns: minmax(0, 1fr) auto minmax(220px, auto); grid-template-areas: "time keys site"; }
+}
+
+/* the chart picker under the sky, and the line saying what this chart is */
+.sky-views { margin-top: var(--s1); }
+.sky-view-words { margin: 0; text-align: center; }
+
+/* ---- the sky chart (Components.SkyChart): one look for every projection ---- */
+.map .sky-edge { stroke: var(--edge); stroke-width: .6; }
+.map .grid { fill: none; stroke: var(--key-edge); stroke-width: .3; vector-effect: non-scaling-stroke; }
+.map .grid.alt, .map .grid.alt30 { stroke-dasharray: 2 3; }
+.map .grid.alt30 { stroke: color-mix(in srgb, var(--accent) 45%, transparent); }
+.map .grid.meridian { stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: .6; }
+.map .grid.hour.major, .map .grid.dec.major { stroke: color-mix(in srgb, var(--text) 22%, transparent); }
+.map .grid.horizon-line { stroke: var(--dim); stroke-width: .8; }
+.map .grid.equator { stroke: color-mix(in srgb, var(--accent) 35%, transparent); stroke-dasharray: 1 2; }
+.map .grid.ecliptic { stroke: color-mix(in srgb, var(--amber) 45%, transparent); stroke-dasharray: 3 2; }
+.map .grid-fill.below { fill: #000; opacity: .45; }
+.map .tick { font-size: 4.4px; fill: var(--dim); letter-spacing: .02em; }
+.map .tick.pole { fill: var(--accent); }
+/* one object's night (SkyChart.path): the line says how dark the sky is, by its pattern as well as its
+   weight, so night mode's all-red still reads: solid in the dark, dashed in twilight, dotted in daylight */
+:is(.map, .np-key) .path { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+:is(.map, .np-key) .path.dark { stroke: var(--on); stroke-width: 2.5; }
+:is(.map, .np-key) .path.twilight { stroke: var(--on); stroke-width: 1.6; stroke-dasharray: 6 4; }
+:is(.map, .np-key) .path.day { stroke: var(--text); stroke-width: 2.2; stroke-dasharray: 0 5; opacity: .5; }
+.map .hour { fill: var(--on); }
+.map .hour.day { fill: var(--dim); }
+.map .mark { fill: none; stroke: var(--on); stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+/* ---- an object's night (NightPath): the chart, its words over it in HTML, a key ---- */
+.night-path { margin: 0; display: grid; gap: var(--s1); }
+.np-chart { position: relative; width: 100%; }
+.np-chart .map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.np-word { position: absolute; font-size: var(--fs-1); line-height: 16px; color: var(--dim); white-space: nowrap; pointer-events: none; transform: translate(-50%, -75%); }
+.np-word.start { transform: translate(0, -75%); }
+.np-word.end { transform: translate(-100%, -75%); }
+.np-word.np-pole { color: var(--accent); }
+/* the hours and Now sit beside their dot, with a halo of the sky's ground so a line under them doesn't cut them */
+.np-hour, .np-now { color: var(--text); font-variant-numeric: tabular-nums; text-shadow: 0 0 2px var(--bg), 0 0 4px var(--bg), 0 0 6px var(--bg); }
+.np-hour.right, .np-now.right { transform: translate(8px, -50%); }
+.np-hour.left, .np-now.left { transform: translate(calc(-100% - 8px), -50%); }
+.np-hour.day { color: var(--dim); }
+.np-now { color: var(--on); font-weight: 650; }
+.np-keys { display: flex; flex-wrap: wrap; gap: 4px var(--s2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-1); color: var(--text); }
+.np-keys li { display: inline-flex; align-items: center; gap: 6px; }
+.night-path figcaption { font-size: var(--fs-1); }
+.map .aim { fill: color-mix(in srgb, var(--warn) 18%, transparent); }
+.map-horizon, .map-mount { width: 100%; height: auto; }
+.night .map .grid.ecliptic { stroke: #7a2020; }
+
+/* ---- the visibility plot (Components.Visibility): altitude through the night ----
+   the lines stretch to the box; the words are HTML on top, 12 px at any width */
+.visibility { margin: 0; display: grid; gap: var(--s1); }
+.vis-plot { position: relative; height: 180px; margin: 28px 0 20px 32px; }
+.vis-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.visibility .vis-band.day { fill: color-mix(in srgb, var(--text) 10%, transparent); }
+.visibility .vis-band.twilight { fill: color-mix(in srgb, var(--text) 6%, transparent); }
+.visibility .vis-band.dusk { fill: color-mix(in srgb, var(--text) 3%, transparent); }
+.visibility .vis-grid { stroke: var(--key-edge); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.visibility .vis-axis { stroke: var(--dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.visibility .vis-clear { fill: none; stroke: var(--text); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.visibility .vis-behind { fill: none; stroke: var(--dim); stroke-width: 1.2; opacity: .45; vector-effect: non-scaling-stroke; }
+.visibility .vis-now { stroke: var(--on); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.vis-y, .vis-x, .vis-peak { position: absolute; font-size: var(--fs-1); line-height: 16px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
+.vis-y { right: 100%; padding-right: 6px; transform: translateY(-50%); }
+.vis-x { top: 100%; padding-top: 2px; transform: translateX(-50%); }
+.vis-peak { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--bg); border: 1px solid var(--text); color: var(--text); font-weight: 650; transform: translate(-50%, -125%); }
+.vis-peak.vis-peak-words { width: auto; height: auto; padding: 0 6px; border-radius: 8px; }
+.vis-peak.at-start { transform: translate(0, -125%); }
+.vis-peak.at-end { transform: translate(-100%, -125%); }
+.vis-keys { display: flex; flex-wrap: wrap; gap: 4px var(--s2); margin: 0; padding: 0; list-style: none; font-size: var(--fs-1); color: var(--text); }
+.vis-keys li { display: inline-flex; align-items: center; gap: 6px; }
+.vis-keys svg line { stroke: var(--text); stroke-width: 1.6; }
+.vis-keys b { font-weight: 650; }
+/* Tonight: the plot beside the list on a wide screen, above it on a phone */
+@media (max-width: 959px) { .tonight .split-side { order: -1; } }
+
+/* the flat charts are wider in their own units than the dome: their words a size up to read the same */
+.map-mount .tick, .map-horizon .tick { font-size: 7px; }
+.map-mount .card, .map-horizon .card { font-size: 7px; }
+.map-mount .obj text, .map-horizon .obj text { font-size: 5.5px; }
+.map-mount .obj.planet text, .map-mount .obj.moon text, .map-horizon .obj.planet text, .map-horizon .obj.moon text { font-size: 6px; }
+/* the Scope page's live sky under the mount */
+.scope-sky { margin: var(--s2) 0 0; display: grid; gap: 4px; }
+.scope-sky .map { width: 100%; height: auto; }
+.scope-sky figcaption { font-size: var(--fs-1); }
+
+/* ---- the toolbar on the pages with their own frame (the keypad, an object, the sky) ---- */
+.pad, .object { --page-x: 16px; }
+.pad:has(> .page-header), .object:has(> .page-header) { padding-top: 0; }
+@media (min-width: 960px) { .pad, .object { --page-x: var(--s4); } .object { max-width: 960px; padding-left: var(--s4); padding-right: var(--s4); } }
+.mount-pick form { display: flex; align-items: center; gap: var(--s2); }
+.mount-pick label { font-size: var(--fs-1); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.mount-pick select { min-height: 44px; min-width: 160px; background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r); padding: 0 var(--s2); color: var(--text); }
+/* a phone: the title a size down so it fits beside search and STOP; the keys a touch closer */
+@media (max-width: 599px) {
+  .page-header { column-gap: 10px; grid-template-rows: 16px 22px; }
+  .page-header > .page-title { font-size: var(--fs-3); line-height: 22px; }
+  .page-header > .actions { gap: 6px; }
+}
+/* the smallest phones: the leading key and the gaps tighten, the title keeps every pixel it can */
+@media (max-width: 360px) {
+  .page-header { column-gap: 6px; }
+  .page-header > .actions { gap: 4px; }
+  .page-header > .actions .search-key { min-width: 40px; }
+  .page-header > .actions .stop-mini { padding-left: 10px; padding-right: 10px; }
+  /* the overline in plain case is a quarter narrower; a long title takes a second line rather than losing its end */
+  .page-header > .tb-over { text-transform: none; letter-spacing: 0; }
+  .page-header { grid-template-rows: 16px auto; }
+  .page-header > .page-title { white-space: normal; line-height: 20px; overflow-wrap: anywhere; }
+}
+/* night mode: in the sidebar, and first in the search sheet */
+.side-night { width: 100%; margin-top: auto; background: transparent; border: 0; box-shadow: none; font: inherit; text-align: left; cursor: pointer; }
+.side-night small { margin-left: auto; color: var(--dim); font-size: var(--fs-1); }
+.night-glyph { width: 18px; text-align: center; color: var(--dim); }
+.spotlight-night { width: calc(100% - 2 * var(--s1)); margin: var(--s1) var(--s1) 0; background: transparent; border: 0; box-shadow: none; font: inherit; text-align: left; cursor: pointer; }
+.page-header .night-key { min-width: 44px; }
+
+/* ---- Tonight's rows: a link to the object's page on a phone, a pick for the side column on a wide screen ---- */
+button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none; cursor: pointer; }
+.pick-wide { display: none !important; }
+@media (min-width: 960px) {
+  .pick-narrow { display: none !important; }
+  .pick-wide { display: flex !important; }
+}
+/* the picked object, in the side column */
+.pick-panel { display: grid; gap: var(--s2); padding: var(--s2) var(--s3) var(--s3); background: var(--panel); border-radius: var(--r-lg); }
+.pick-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); }
+.pick-head h2 { margin: 0; font-size: var(--fs-4); font-weight: 650; }
+.pick-close { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 0; }
+.pick-close .icon { width: 18px; height: 18px; }
+.pick-panel > .dim { margin: 0; font-size: var(--fs-2); }
+.pick-panel .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s1); }
+.pick-panel .row > * { min-height: 44px; display: grid; place-items: center; text-decoration: none; }
+/* the row shown beside the list: lit, with a bar at its edge so it doesn't rest on tone alone */
+.targets .target.picked { background: var(--lit); box-shadow: none; border-radius: var(--r); }
+/* its number key fills in, and a chevron points at the panel it opened */
+.targets .target.picked .k { background: var(--on); color: var(--bg); }
+.pick-arrow { display: none; flex: none; width: 16px; color: var(--on); font-size: var(--fs-4); line-height: 1; text-align: right; }
+.targets .target.picked .pick-arrow { display: block; }
+@media (hover: hover) { .targets button.target:not(.picked):hover { background: var(--panel2); } }
+/* an object's page: its card, facts and keys first on a phone; on a wide screen its night
+   (the path across the sky, the altitude curve) takes the room and the keys sit beside */
+.object:has(.object-split) { min-height: 0; }
+.object-split .actions { margin-top: 0; }
+@media (max-width: 959px) { .object-split .split-side { order: -1; } }
+@media (min-width: 960px) { .object:has(.object-split) { max-width: 1440px; } }

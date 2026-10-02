@@ -51,19 +51,44 @@ defmodule Controller.Components.UI do
   defp wrap(%{nested: true} = assigns), do: ~H"<div {@rest}>{render_slot(@inner_block)}</div>"
   defp wrap(assigns), do: ~H"<main {@rest}>{render_slot(@inner_block)}</main>"
 
+  @doc """
+  The start of a page's toolbar: the leading key and the overline above the
+  title. On a page under another (a camera's Settings), the key is ‹ back to
+  it and the overline is its name (`label`). On a page in the sidebar
+  (`navigate={~p"/"}`), the key is ⌂ Home on a phone (on a wide screen the
+  sidebar is home, and the key isn't drawn) and the overline is the page's
+  section in the sidebar (`section`, "Cameras"). See the toolbar rules in
+  `app.css`: one shape on every page, the title left-aligned under the
+  overline, so nothing moves as you go from page to page.
+
+      <:header>
+        <.back navigate={~p"/"} label="Home" section="Cameras" />
+        <.title>Telescope Camera</.title>
+        <.actions><.stop /></.actions>
+      </:header>
+  """
   attr :navigate, :string, default: nil
   attr :patch, :string, default: nil, doc: "going back inside one LiveView: patch, so the choices made so far survive"
   attr :label, :string, required: true
-
-  def back(%{patch: to} = assigns) when is_binary(to) do
-    ~H"""
-    <.link patch={@patch} class="back step-back">‹ {@label}</.link>
-    """
-  end
+  attr :section, :string, default: nil, doc: "the overline on a sidebar page: its section"
 
   def back(assigns) do
+    home? = assigns.navigate == "/" and is_nil(assigns.patch)
+    # "Controls · ttyUSB0": the section in small capitals, the device's own name as it is spelled
+    {sec, id} =
+      case String.split(assigns.section || "", " · ", parts: 2) do
+        [sec, id] -> {sec, id}
+        [sec] -> {sec, nil}
+      end
+
+    assigns = assign(assigns, home?: home?, sec: sec, id: id)
+
     ~H"""
-    <.link navigate={@navigate} class={["back", @navigate == "/" && "back-home"]}>‹ {@label}</.link>
+    <.link navigate={@navigate} patch={@patch} class={["tb-lead", @home? && "tb-home"]} aria-label={if @home?, do: "Home", else: "Back to #{@label}"}>
+      <Controller.Components.Icons.icon name={if @home?, do: "house", else: "back"} />
+    </.link>
+    <span :if={@home?} class="tb-over"><span class="tb-sec">{@sec}</span><span :if={@id} class="tb-id"><span class="tb-dot"> · </span>{@id}</span></span>
+    <.link :if={!@home?} navigate={@navigate} patch={@patch} class="tb-over" tabindex="-1" aria-hidden="true">{@label}</.link>
     """
   end
 
@@ -75,11 +100,29 @@ defmodule Controller.Components.UI do
     """
   end
 
+  attr :search, :boolean, default: true, doc: "false on the Search page itself"
   slot :inner_block, required: true
 
+  @doc """
+  The header's keys, on the right. On a phone the first is Search (the
+  sidebar has it on a wide screen); a header's `?` makes way for it there,
+  and Search lists this page's help first.
+  """
   def actions(assigns) do
     ~H"""
-    <span class="actions">{render_slot(@inner_block)}</span>
+    <span class="actions">
+      <.search_key :if={@search} />
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  @doc "The key that opens Search (`Controller.Spotlight`), for a header; shown on a phone, where there's no sidebar."
+  def search_key(assigns) do
+    ~H"""
+    <button type="button" class="search-key" popovertarget="spotlight" phx-click={Phoenix.LiveView.JS.push("reset", target: "#spotlight")} aria-label="Search">
+      <Controller.Components.Icons.icon name="search" />
+    </button>
     """
   end
 
@@ -95,6 +138,32 @@ defmodule Controller.Components.UI do
   end
 
   # -- containers -------------------------------------------------------------------
+
+  @doc """
+  A page with something to look at and things to do with it: on a wide
+  screen the thing to look at (`main`: a picture, the sky, the mount) takes
+  the room and grows with the window, and what you do with it (`side`) sits
+  in a column beside it, in view while you look; on a phone, one column,
+  `main` first. So a wide screen never shows a phone's column with empty
+  space either side.
+
+      <.split>
+        <:main><img src={...} /></:main>
+        <:side><.btn>Live View</.btn></:side>
+      </.split>
+  """
+  attr :class, :any, default: nil
+  slot :main, required: true
+  slot :side, required: true
+
+  def split(assigns) do
+    ~H"""
+    <div class={["split", @class]}>
+      <div class="split-main">{render_slot(@main)}</div>
+      <div class="split-side">{render_slot(@side)}</div>
+    </div>
+    """
+  end
 
   attr :title, :string, default: nil
   attr :class, :string, default: nil

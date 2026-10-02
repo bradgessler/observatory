@@ -11,8 +11,10 @@ defmodule Input.Mapper do
       coalesced to the newest report before acting. A backlog can never replay.
     * **Own watchdog.** While holding, if no fresh report arrives within
       #{600} ms the hold is released — independent of the driver's deadman.
-    * **Starts disarmed**, disarms itself if the mount stops answering or the
-      device disappears, and a restart of this process is a disarm.
+    * **Starts disarmed** (a box starts armed: `config :input,
+      armed_at_start: true`, its pad being how it is driven in the field),
+      disarms itself if the mount stops answering or the device disappears.
+      Armed or not, only the trigger held moves the scope.
     * Mount calls are bounded: a call that doesn't return in #{1_500} ms is a
       failure, not a stall.
   """
@@ -46,7 +48,10 @@ defmodule Input.Mapper do
     Telescope.Events.tag("game pad")
     # monotonic time can be negative; "long ago" must be relative to now, not 0
     long_ago = System.monotonic_time(:millisecond) - 60_000
-    s = %{armed: false, target: nil, map: %{}, device_map: %{}, held: [], action: :idle, last_cmd: long_ago, last_fresh: long_ago, failures: 0, off_reason: nil}
+    # a box starts armed (`config :input, armed_at_start: true`): its pad is
+    # the way to drive it in the field, and the trigger held is the dead-man
+    armed = Application.get_env(:input, :armed_at_start, false)
+    s = %{armed: armed, target: nil, map: %{}, device_map: %{}, held: [], action: :idle, last_cmd: long_ago, last_fresh: long_ago, failures: 0, off_reason: nil}
     Process.send_after(self(), :watchdog, @watchdog_ms)
     {:ok, announce(s)}
   end
@@ -81,7 +86,10 @@ defmodule Input.Mapper do
       true ->
         s = note_buttons(s, info)
         s = note_trigger(s, info)
-        action = Gamepad.interpret(info.state, Map.merge(device_defaults(info), s.map))
+        s = note_hat(s, info, now)
+        s = note_centered(s, info)
+        feel = %{hat_held_ms: hat_held(s, now), track_units: Map.get(s, :hat_track, 0.0)}
+        action = Gamepad.interpret(info.state, device_defaults(info) |> Map.merge(s.map) |> Map.merge(feel))
         s = %{s | action: action, device_map: device_defaults(info), last_fresh: now}
 
         s =
@@ -178,6 +186,77 @@ defmodule Input.Mapper do
 
   defp note_trigger(s, _), do: s
 
+  # How long the hat has been held one way (a tap crawls, a hold speeds up),
+  # and what RA was tracking at when it went down, so an eyepiece nudge moves
+  # the view against the sky rather than against a stopped motor.
+  defp note_hat(s, %{state: st}, now) do
+    case {st[:hat], Map.get(s, :hat_at)} do
+      {nil, _} -> Map.put(s, :hat_at, nil)
+      {h, {h, _since}} -> s
+      {h, nil} -> Map.merge(s, %{hat_at: {h, now}, hat_track: tracking_units(s)})
+      {h, _other_way} -> Map.put(s, :hat_at, {h, now})
+    end
+  end
+
+  defp note_hat(s, _, _), do: s
+
+  defp hat_held(s, now) do
+    case Map.get(s, :hat_at) do
+      {_, since} -> now - since
+      _ -> 0
+    end
+  end
+
+  @track_units %{sidereal: 1.0, lunar: 0.966, solar: 0.997}
+
+  defp tracking_units(s) do
+    with ref when not is_nil(ref) <- ref(s),
+         %{tracking: mode} <- safe(fn -> Mount.snapshot(ref) end) do
+      Map.get(@track_units, mode, 0.0)
+    else
+      _ -> 0.0
+    end
+  end
+
+  # "It's centred": the press, not the hold, from a pad that is on. Says where
+  # both axes were, on the same topic as the Center page's Centered.
+  defp note_centered(s, %{state: st} = info) do
+    m = Map.merge(Gamepad.defaults(), Map.merge(device_defaults(info), s.map))
+    down? = is_integer(m.centered) and Enum.at(st[:buttons] || [], m.centered) == true
+
+    if down? and not Map.get(s, :centered_down, false) and s.armed do
+      with ref when not is_nil(ref) <- ref(s),
+           %{axes: %{ra: ra, dec: dec}} = snap <- safe(fn -> Mount.snapshot(ref) end) do
+        data = %{mount: snap.id, ra: ra.degrees, dec: dec.degrees, at: DateTime.to_iso8601(DateTime.utc_now()), by: "pad"}
+        Telescope.Events.emit(:input, :centered, data)
+        Telescope.broadcast("center", {:centered, data})
+      end
+    end
+
+    Map.put(s, :centered_down, down?)
+  end
+
+  defp note_centered(s, _), do: s
+
+  # Tell the Control Stack page (#62) who is driving and at which law: the ball
+  # with the trigger is law 0, straight to the motors; the hat in eyepiece mode
+  # is law 1, through the view map. On a change, or once a second while held.
+  defp action_law(s, _rates), do: if(match?({:move, _}, s.action), do: 0, else: 1)
+
+  defp report(s, ref, law, rates, now) do
+    last = Map.get(s, :reported)
+
+    if last != {law, rates} or now - Map.get(s, :reported_at, now - 10_000) >= 1_000 do
+      source = if law == 0, do: "the pad's ball", else: "the pad's D-pad"
+      msg = {:control, ref.id, %{law: law, source: source, rates: rates, at: DateTime.utc_now()}}
+      Telescope.broadcast("control:#{ref.id}", msg)
+      Telescope.broadcast("control", msg)
+      Map.merge(s, %{reported: {law, rates}, reported_at: now, reported_law: law})
+    else
+      s
+    end
+  end
+
   # stale reports are dropped by design; say so once a second, not per report
   defp note_stale(s, age) do
     now = System.monotonic_time(:millisecond)
@@ -227,7 +306,8 @@ defmodule Input.Mapper do
                 Map.put(s, :failures, failures)
               end
             else
-              Map.merge(s, %{held: Enum.map(rates, &elem(&1, 0)), last_cmd: now, failures: 0})
+              report(s, ref, action_law(s, rates), rates, now)
+              |> Map.merge(%{held: Enum.map(rates, &elem(&1, 0)), last_cmd: now, failures: 0})
             end
         end
     end
@@ -243,6 +323,7 @@ defmodule Input.Mapper do
         :ok
 
       ref ->
+        report(s, ref, Map.get(s, :reported_law, 1), [], System.monotonic_time(:millisecond))
         snap = safe(fn -> Mount.snapshot(ref) end)
 
         # the trigger is a dead-man switch: release = halt now, no ramp
@@ -266,7 +347,8 @@ defmodule Input.Mapper do
 
   # The mount API can be momentarily missing (a code reload swapping the mount
   # app, or the app restarting). That is "no mount right now", not a crash.
-  defp ref(%{target: nil}), do: mounts() |> List.first()
+  # no target chosen: the one a page would drive, a real telescope first
+  defp ref(%{target: nil}), do: mounts() |> Mount.default()
   defp ref(%{target: id}), do: Enum.find(mounts(), &(&1.id == id))
 
   defp mounts do
@@ -299,7 +381,7 @@ defmodule Input.Mapper do
   defp announce(s) do
     status = public(s)
     :persistent_term.put({__MODULE__, :status}, status)
-    Telescope.broadcast("input", {:mapper, status})
+    Telescope.local_broadcast("input", {:mapper, status})
     s
   end
 

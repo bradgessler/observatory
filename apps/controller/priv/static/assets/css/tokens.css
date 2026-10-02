@@ -41,6 +41,14 @@
   --fs-3: 16px;
   --fs-4: 20px;
   --fs-5: 28px;
+  /* the 3-D mount's materials (Render3D, Components.Scope): each face mixes its ink with the shade */
+  --mesh-tube: #eef1f6;
+  --mesh-metal: #a7b0c2;
+  --mesh-steel: #d4d9e2;
+  --mesh-dark: #4a5263;
+  --mesh-leg: #8f98aa;
+  --mesh-lens: #101a33;
+  --mesh-shade: #000000;
 }
 
 /* light: kept, and checked for contrast, but only ever chosen on purpose.
@@ -68,6 +76,13 @@
     --lo: rgba(20, 30, 50, .14);
     --sky1: #dfe6f3;
     --sky2: #c9d3e6;
+    --mesh-tube: #ffffff;
+    --mesh-metal: #8d97ab;
+    --mesh-steel: #b9c0cc;
+    --mesh-dark: #3a4150;
+    --mesh-leg: #7a8396;
+    --mesh-lens: #1b2747;
+    --mesh-shade: #3a4150;
 }
 
 /* night: red on black, an explicit choice */
@@ -93,6 +108,13 @@
   --lo: rgba(0, 0, 0, .6);
   --sky1: #0c0000;
   --sky2: #050000;
+  --mesh-tube: #ff5050;
+  --mesh-metal: #b83a3a;
+  --mesh-steel: #d84848;
+  --mesh-dark: #5a1414;
+  --mesh-leg: #9a2e2e;
+  --mesh-lens: #200404;
+  --mesh-shade: #000000;
 }
 
 /* the night class sits on the page, not the body: everything inside must

@@ -18,8 +18,8 @@ defmodule Controller.Extensions do
         routes: [{:live, "/network", Firmware.Web.NetworkLive, :index}],
         # no pipeline at all (a phone's captive-portal check has no session)
         bare: [{:get, "/generate_204", Firmware.Web.Captive, :redirect}],
-        # lines on the home page, by group
-        home: [{"Plumbing", {"Network", "/network", "The Wi-Fi radio", "/docs/network"}}]
+        # pages in the sidebar, Home and Search, by group (Controller.Nav), with their icon
+        home: [{"System", {"Network", "/network", "The Wi-Fi radio", "/docs/network", "wifi"}}]
       }
   """
 

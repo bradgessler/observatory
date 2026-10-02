@@ -1,7 +1,7 @@
 # Network
 
 How a stamped box is reached, and how to change it. This page exists only on
-a box; the Mac that stamps cards leaves its network to macOS.
+a box; the Mac that stamps SD cards leaves its network to macOS.
 
 ## One radio, two modes
 

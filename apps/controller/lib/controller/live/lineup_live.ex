@@ -28,7 +28,7 @@ defmodule Controller.LineupLive do
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        refs: %{},
-       selected: params["id"] || session["id"],
+       selected: params["id"] || session["id"] || session["telescope"],
        snap: nil,
        picking: false,
        notice: nil
@@ -58,7 +58,7 @@ defmodule Controller.LineupLive do
     seen = socket.assigns[:subscribed] || MapSet.new()
     for {id, ref} <- refs, not MapSet.member?(seen, id), do: Mount.subscribe(ref)
     socket = assign(socket, subscribed: Enum.reduce(Map.keys(refs), seen, &MapSet.put(&2, &1)))
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
 
     snap =
       if ref = refs[selected] do
@@ -69,7 +69,7 @@ defmodule Controller.LineupLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Star Align")
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: Controller.Words.title(selected, "Star Align"))
   end
 
   # Everything the page says, recomputed on a slow tick: the status, the
@@ -99,7 +99,7 @@ defmodule Controller.LineupLive do
   @impl true
   def handle_event("home", _, socket) do
     Tracker.stop(socket.assigns.selected)
-    {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("zeroed")}
+    {:noreply, socket |> run(&Mount.set_home/1) |> put_notice("Home set")}
   end
 
   # Rough slew toward the suggested star through whatever model we have so far
@@ -110,24 +110,22 @@ defmodule Controller.LineupLive do
 
     notice =
       case star && Pointing.slew(ref, socket.assigns.snap, star, ctx, track: true) do
-        {:ok, _, _} -> "Slewing to #{star.name}"
-        {:error, :not_homed} -> "Zero the axes first"
-        {:error, :limit} -> "#{star.name} is outside the soft limits from here"
-        {:error, e} -> inspect(e)
+        {:ok, _, _} -> "Going to #{star.name}"
+        {:error, e} -> Pointing.refusal_words(e, star.name)
         nil -> "No such star"
       end
 
     {:noreply, socket |> assign(picking: false) |> put_notice(notice)}
   end
 
-  # "That's it": the tube is on this star right now
+  # "Centered": the tube is on this star right now
   def handle_event("centred", %{"id" => sid}, socket) do
     star = Controller.Sky.Stars.get(sid)
     snap = socket.assigns.snap
 
     cond do
       is_nil(star) or is_nil(snap) -> {:noreply, put_notice(socket, "No mount")}
-      not snap.homed -> {:noreply, put_notice(socket, "Zero the axes first")}
+      not snap.homed -> {:noreply, put_notice(socket, Controller.Words.error(:not_homed))}
       slewing?(snap) -> {:noreply, put_notice(socket, "Still slewing")}
       true ->
         st = Lineup.add(snap, star)
@@ -143,11 +141,11 @@ defmodule Controller.LineupLive do
   def handle_event("clear", _, socket) do
     Tracker.stop(socket.assigns.selected)
     Lineup.clear(socket.assigns.selected)
-    {:noreply, socket |> compute() |> put_notice("alignment cleared")}
+    {:noreply, socket |> compute() |> put_notice("Alignment cleared")}
   end
 
-  # Hold whatever the tube is on right now — centred by hand, no goto needed.
-  # Through the line-up when there is one, the ideal geometry otherwise.
+  # Track whatever the tube is on right now — centered by hand, no Go To needed.
+  # Through the alignment when there is one, the ideal geometry otherwise.
   def handle_event("hold", _, socket) do
     snap = socket.assigns.snap
     ctx = Pointing.context(DateTime.utc_now(), socket.assigns.selected)
@@ -160,21 +158,21 @@ defmodule Controller.LineupLive do
         end
 
         Tracker.track(socket.assigns.selected, %{name: name, ra_deg: ra, dec_deg: dec})
-        {:noreply, socket |> compute() |> put_notice("holding #{name}")}
+        {:noreply, socket |> compute() |> put_notice("Tracking #{name}")}
 
       _ ->
-        {:noreply, put_notice(socket, "Zero the axes first")}
+        {:noreply, put_notice(socket, Controller.Words.error(:not_homed))}
     end
   end
 
   def handle_event("release", _, socket) do
     Tracker.stop(socket.assigns.selected)
-    {:noreply, socket |> compute() |> put_notice("released")}
+    {:noreply, socket |> compute() |> put_notice("Stopped tracking")}
   end
 
   def handle_event("estop", _, socket) do
     Tracker.stop(socket.assigns.selected)
-    {:noreply, socket |> run(&Mount.emergency_stop/1) |> compute() |> put_notice("stopped")}
+    {:noreply, socket |> run(&Mount.emergency_stop/1) |> compute() |> put_notice("Stopped")}
   end
 
   def handle_event("pick", _, socket), do: {:noreply, assign(socket, picking: !socket.assigns.picking)}
@@ -195,7 +193,7 @@ defmodule Controller.LineupLive do
         try do
           case fun.(ref) do
             :ok -> socket
-            {:error, e} -> put_notice(socket, inspect(e))
+            {:error, e} -> put_notice(socket, Controller.Words.error(e))
           end
         catch
           :exit, _ -> put_notice(socket, "Mount unreachable")
@@ -210,9 +208,9 @@ defmodule Controller.LineupLive do
     ~H"""
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{@selected} · Star Align</.title>
-        <.actions><.stop click="estop" /><.help href={~p"/docs/align"} label="star alignment" /></.actions>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
+        <.title>Star Align</.title>
+        <.actions><.help href={~p"/docs/align"} label="star alignment" /><.stop click="estop" /></.actions>
       </:header>
 
       <%!-- where we stand, in one line --%>
@@ -224,8 +222,8 @@ defmodule Controller.LineupLive do
           <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
           <span :if={@status.solved? and @status.good_for != []} class="dim">Good for {Enum.join(@status.good_for, " · ")}</span>
           <span :if={@status.solved? and @status.n < 3} class="dim">{3 - @status.n} more to check it</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="dim">one star is off: forget the worst below</span>
-          <span :if={@status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="dim">disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
+          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="dim">One star is off: forget the worst below</span>
+          <span :if={@status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="dim">Stars disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
           <span :if={@status.signs_corrected?} class="dim">Axis sign corrected (Modes)</span>
         </div>
       </.card>
@@ -233,14 +231,14 @@ defmodule Controller.LineupLive do
       <%!-- the two facts the maths needs, and where to change them; calm, never a nag --%>
       <.hint :if={@status} class="site-line">
         Site {@site.name} · {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
-        <.link navigate={~p"/sky/#{@selected}?tab=horizon"}>Change Site ›</.link>
+        <.link navigate={~p"/site"}>Change Site ›</.link>
         <span :if={@site.name == "nowhere"}> · <b>no site set</b></span>
       </.hint>
 
       <%!-- step 0: home, for the limits --%>
-      <.card :if={@snap && !@snap.homed} title="First: Zero the Axes">
-        <.hint>Counterweight down, tube along the polar axis. By eye is fine.</.hint>
-        <.btn variant="primary" phx-click="home" data-confirm="Zero both axes at the current position?">Zero the Axes Here</.btn>
+      <.card :if={@snap && !@snap.homed} title="First: Set Home">
+        <.hint>Counterweight straight down, tube along the polar axis; by eye is fine. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
+        <.btn variant="primary" phx-click="home" data-confirm="Set home here? Both axes read 0° from now on.">Set Home Here</.btn>
       </.card>
 
       <%!-- the next star --%>
@@ -250,35 +248,35 @@ defmodule Controller.LineupLive do
           <span>{sentence(@next.where)} · magnitude {fmt(@next.mag)}</span>
         </div>
         <.row>
-          <.btn phx-click="slew" phx-value-id={@next.id} disabled={slewing?(@snap)}>{if slewing?(@snap), do: "Slewing…", else: "Slew Near It"}</.btn>
-          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)}>On It</.btn>
+          <.btn phx-click="slew" phx-value-id={@next.id} disabled={slewing?(@snap)} aria-label={"Go To #{@next.name}"}>{if slewing?(@snap), do: "Slewing…", else: "Go To"}</.btn>
+          <.btn variant="primary" phx-click="centred" phx-value-id={@next.id} disabled={slewing?(@snap)} aria-label={"Centered: #{@next.name} is in the middle of the eyepiece"}>Centered</.btn>
         </.row>
         <.row>
-          <.btn class="btn-ghost" phx-click="pick">A Different Star ›</.btn>
-          <.btn class="btn-ghost" navigate={~p"/controls/eyepiece/#{@selected}"}>Centre It ›</.btn>
+          <.btn variant="ghost" phx-click="pick">A Different Star ›</.btn>
+          <.btn variant="ghost" navigate={~p"/controls/eyepiece/#{@selected}"}>Center It ›</.btn>
         </.row>
-        <.hint :if={@samples == []}>First slew is a guess. Watch the cable.</.hint>
+        <.hint :if={@samples == []}>The first Go To is a guess. Watch the cable.</.hint>
       </.card>
 
       <.card :if={@snap && @snap.homed && @next && @picking} title="Which Star?">
         <.items label="stars up now">
           <.item :for={c <- @candidates} as="li" label={c.name} detail={c.where}>
-            <.btn phx-click="slew" phx-value-id={c.id} aria-label={"Slew near #{c.name}"}>Slew</.btn>
-            <.btn variant="primary" phx-click="centred" phx-value-id={c.id} aria-label={"On it: #{c.name} is centred"}>On It</.btn>
+            <.btn phx-click="slew" phx-value-id={c.id} aria-label={"Go To #{c.name}"}>Go To</.btn>
+            <.btn variant="primary" phx-click="centred" phx-value-id={c.id} aria-label={"Centered: #{c.name} is in the middle of the eyepiece"}>Centered</.btn>
           </.item>
         </.items>
-        <.row><.btn class="btn-ghost" phx-click="pick">Back</.btn></.row>
+        <.row><.btn variant="ghost" phx-click="pick">Back</.btn></.row>
       </.card>
 
       <.card :if={@snap && @snap.homed && !@next} title="Nothing Bright Enough Is Up">
-        <.hint>No named star above 20°. Try later, or Sync on the Sky page.</.hint>
+        <.hint>No named star above 20°. Try later, or center any object and tap Centered on its page.</.hint>
       </.card>
 
       <%!-- what am I on? --%>
       <.card :if={@guesses != [] and @snap && @snap.homed} title="Probably Pointing At">
         <.items label="likely stars">
           <.item :for={g <- @guesses} as="li" label={g.name} detail={"#{fmt(g.away_deg)}° away · #{g.where}"}>
-            <.btn phx-click="centred" phx-value-id={g.id} aria-label={"On it: #{g.name} is centred"}>On It</.btn>
+            <.btn phx-click="centred" phx-value-id={g.id} aria-label={"Centered: #{g.name} is in the middle of the eyepiece"}>Centered</.btn>
           </.item>
         </.items>
       </.card>
@@ -287,23 +285,23 @@ defmodule Controller.LineupLive do
       <.card :if={@samples != []} title="Stars So Far">
         <.items label="alignment stars">
           <.item :for={{s, i} <- Enum.with_index(@samples)} as="li" label={s["name"]} detail={"#{String.slice(s["at"], 11, 5)} UTC#{residual(@status, i)}"}>
-            <.btn class="btn-ghost" phx-click="drop" phx-value-i={i} aria-label={"forget #{s["name"]}"} data-confirm={"Forget #{s["name"]}? The alignment is refitted without it."}>✕</.btn>
+            <.btn variant="ghost" phx-click="drop" phx-value-i={i} aria-label={"forget #{s["name"]}"} data-confirm={"Forget #{s["name"]}? The alignment is refitted without it."}>✕</.btn>
           </.item>
         </.items>
         <.row>
-          <.btn class="btn-ghost" phx-click="clear" data-confirm="Forget the whole line-up?">Start Over</.btn>
+          <.btn variant="ghost" phx-click="clear" data-confirm="Forget the whole alignment?">Start Over</.btn>
         </.row>
       </.card>
 
-      <%!-- tracking: hold whatever is in the eyepiece, or see how the hold is going --%>
+      <%!-- tracking: follow whatever is in the eyepiece, or see how tracking is going --%>
       <.card :if={@snap && @snap.homed} title="Tracking">
         <div :if={@tracker} class="state-line">
-          <strong>Holding {@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
+          <strong>Tracking {@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
           <span class="dim">RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
         </div>
         <.row>
-          <.btn :if={!@tracker} variant="primary" phx-click="hold">Hold What I'm On</.btn>
-          <.btn :if={@tracker} phx-click="release">Stop Holding</.btn>
+          <.btn :if={!@tracker} variant="primary" phx-click="hold">Track What I'm On</.btn>
+          <.btn :if={@tracker} phx-click="release">Stop Tracking</.btn>
         </.row>
       </.card>
 
@@ -312,11 +310,21 @@ defmodule Controller.LineupLive do
     """
   end
 
+  # A bad Centered (tracking off, read a minute late, the wrong star) shows as
+  # one point far from the rest (#101): flag it, and the ✕ beside it drops it.
   defp residual(%{residuals_arcmin: res}, i) when is_list(res) do
     case Enum.at(res, i) do
-      nil -> ""
-      r when length(res) >= 3 -> " · off by #{fmt(r)}′"
-      _ -> ""
+      nil ->
+        ""
+
+      r when length(res) >= 3 ->
+        others = res |> List.delete_at(i) |> Enum.sort()
+        typical = Enum.at(others, div(length(others), 2))
+        flag = if r > max(3 * typical, 10.0), do: ": disagrees with the rest, likely a bad one", else: ""
+        " · off by #{fmt(r)}′#{flag}"
+
+      _ ->
+        ""
     end
   end
 
@@ -326,7 +334,7 @@ defmodule Controller.LineupLive do
   defp slewing?(_), do: false
 
   defp fmt2(x), do: :erlang.float_to_binary(x / 1, decimals: 2)
-  defp fmt(nil), do: "—"
+  defp fmt(nil), do: Controller.Words.none()
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
 
   defp safe_list do

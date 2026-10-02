@@ -19,7 +19,7 @@ defmodule Provision.VMSmokeTest do
   setup_all do
     # a new image boots twice (the first boot formats /data); on a busy Mac that
     # can pass three minutes
-    case Provision.VM.boot(timeout: 360_000) do
+    case Provision.VM.boot(timeout: 480_000) do
       {:ok, vm} ->
         on_exit(fn -> Provision.VM.stop(vm) end)
         # Watch the radio's first minutes before any test touches the box: a
@@ -84,6 +84,30 @@ defmodule Provision.VMSmokeTest do
   test "once joined, a drop is rejoined; never joined, it counts down to the access point", %{box: vm} do
     {:ok, out} = Provision.VM.eval(vm, "IO.inspect({Firmware.Wireless.on_drop(true), Firmware.Wireless.on_drop(false)})")
     assert out =~ "{:rejoin, :countdown}"
+  end
+
+  # A Mac on the network finds the box by mDNS and joins its node: the box
+  # must use the cluster's cookie (not the random one a runtime start gets)
+  # and say its exact node name in the record, since a name that differs by a
+  # letter is refused.
+  test "the box's node uses the cluster cookie and says its name over mDNS", %{box: vm} do
+    {:ok, out} =
+      Provision.VM.eval(vm, ~S"""
+      epmd = Application.get_env(:mdns_lite, :services) |> Enum.find(&(&1.protocol == "epmd"))
+      IO.inspect({Node.self(), Node.get_cookie(), epmd.txt_payload, Process.whereis(MdnsLite.Responder) || Process.whereis(MdnsLite.ResponderSupervisor) || :running})
+      """)
+
+    assert out =~ ~s(:"telescope@observatory.local")
+    assert out =~ ":observatory"
+    assert out =~ ~s(["node=telescope@observatory.local"])
+  end
+
+  # A box is driven by its pad in the field: armed from boot (the trigger held
+  # is still what moves the scope), and it reads pads through hidraw, having
+  # no libhidapi.
+  test "a box's game pad starts armed and reads through the kernel's hidraw", %{box: vm} do
+    {:ok, out} = Provision.VM.eval(vm, "IO.inspect({Input.Mapper.status().armed, Process.whereis(Input.Discovery) |> is_pid(), Input.HIDRaw.list()})")
+    assert out =~ "{true, true,", "armed at start, discovery running: #{out}"
   end
 
   test "the black box keeps a boot record, a flight log and the events on /data", %{box: vm} do
@@ -261,6 +285,46 @@ defmodule Provision.VMSmokeTest do
     assert alive =~ ~r/^true/
   end
 
+  # -- the sky and the docs read their files on the box, not on the Mac that built it ------
+
+  # A path taken at compile time names the build machine's directory, which on
+  # a box is nowhere: the sky drew no stars and every docs link was a 404.
+  test "the star catalog loads and the docs are served from the image itself", %{box: vm} do
+    {:ok, out} =
+      Provision.VM.eval(vm, "IO.inspect({length(Controller.Sky.Catalog.stars(6.0)), length(Controller.Sky.Catalog.dsos()), length(Controller.Sky.Catalog.lines())})")
+
+    [stars, dsos, lines] = Regex.run(~r/\{(\d+), (\d+), (\d+)\}/, out, capture: :all_but_first) |> Enum.map(&String.to_integer/1)
+    assert stars > 1000, "stars: #{out}"
+    assert dsos > 100, "deep-sky objects: #{out}"
+    assert lines > 50, "constellation lines: #{out}"
+
+    assert {200, sky_doc} = get(vm, "/docs/sky")
+    assert sky_doc =~ "<h1"
+  end
+
+  # -- Bluetooth: a convenience, never a dependency -----------------------------------------
+
+  # The x86_64 system has no BlueZ, which is exactly the case to prove: the
+  # stack says it is off, its page says so, and nothing else notices.
+  test "a system without BlueZ reports Bluetooth off, and the box carries on", %{box: vm} do
+    {:ok, out} =
+      Provision.VM.eval(vm, "IO.inspect({Firmware.Bluetooth.status().state, Firmware.Bluetooth.adapters(), Firmware.Bluetooth.Nearby.list(), Firmware.Bluetooth.active_scan()})")
+
+    assert out =~ "{:unavailable, [], [], {:error, :not_running}}"
+
+    page = body(vm, "/bluetooth")
+    assert page =~ "Not in this system image"
+    assert page =~ "Nearby"
+    assert body(vm, "/") =~ "Bluetooth"
+
+    {:ok, alive} = Provision.VM.eval(vm, "[Firmware.Bluetooth, Firmware.Wireless, Mount.Supervisor] |> Enum.map(&is_pid(Process.whereis(&1))) |> inspect() |> IO.puts()")
+    assert alive =~ "[true, true, true]"
+
+    # and the flight log says so, for reading back after a bad night
+    {:ok, flight} = Provision.VM.eval(vm, "Firmware.Blackbox.current(3) |> Enum.join(\"\\n\") |> IO.puts()")
+    assert flight =~ "bt=unavailable"
+  end
+
   # -- a box carries the observatory, not the laptop's kit ---------------------------------
 
   test "the box has its own Network page, and none of the laptop's pages or apps", %{box: vm} do
@@ -328,10 +392,12 @@ defmodule Provision.VMSmokeTest do
     assert out =~ "80"
   end
 
-  test "the mount driver comes up and finds no cable, so it simulates", %{box: vm} do
-    {:ok, out} = Provision.VM.eval(vm, "Mount.list() |> Enum.map(& &1.id) |> inspect() |> IO.puts()")
-    # there is no serial cable in a VM, so whatever is listed is a simulator or nothing
-    assert out =~ "[" and out =~ "]"
+  # A box drives the telescope on its cable and nothing else: no simulator of
+  # its own (a keypad pressed in the field must never drive a pretend scope),
+  # and none from a Mac it is joined to (Mount.list/0 keeps simulators local).
+  test "the mount driver comes up, finds no cable, and never simulates", %{box: vm} do
+    {:ok, out} = Provision.VM.eval(vm, "IO.inspect({Application.get_env(:mount, :simulate_when_empty), Mount.list() |> Enum.map(& &1.id)})")
+    assert out =~ "{false, []}", "a box must list no simulator: #{out}"
   end
 
   test "networking is up", %{box: vm} do

@@ -1,0 +1,112 @@
+BR2_arm=y
+BR2_cortex_a53=y
+BR2_ARM_FPU_NEON_FP_ARMV8=y
+BR2_TOOLCHAIN_EXTERNAL=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
+BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
+BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/nerves-project/toolchains/releases/download/v15.3.0/nerves_toolchain_armv7_nerves_linux_gnueabihf-linux_${shell uname -m}-15.3.0-9917D70.tar.xz"
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_PREFIX="armv7-nerves-linux-gnueabihf"
+BR2_TOOLCHAIN_EXTERNAL_HEADERS_6_0=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_GLIBC=y
+# BR2_TOOLCHAIN_EXTERNAL_INET_RPC is not set
+BR2_TOOLCHAIN_EXTERNAL_CXX=y
+BR2_TOOLCHAIN_EXTERNAL_FORTRAN=y
+BR2_TOOLCHAIN_EXTERNAL_OPENMP=y
+BR2_TAR_OPTIONS="--no-same-owner"
+BR2_BACKUP_SITE="https://dl.nerves-project.org"
+BR2_ENABLE_DEBUG=y
+BR2_GLOBAL_PATCH_DIR="${BR2_EXTERNAL_NERVES_PATH}/patches"
+BR2_REPRODUCIBLE=y
+BR2_ROOTFS_SKELETON_CUSTOM=y
+BR2_ROOTFS_SKELETON_CUSTOM_PATH="${BR2_EXTERNAL_NERVES_PATH}/board/nerves-common/skeleton"
+BR2_INIT_NONE=y
+BR2_ROOTFS_DEVICE_TABLE="${BR2_EXTERNAL_NERVES_PATH}/board/nerves-common/device_table.txt"
+BR2_ENABLE_LOCALE_WHITELIST="locale-archive"
+BR2_GENERATE_LOCALE="en_US.UTF-8"
+BR2_ROOTFS_OVERLAY="${BR2_EXTERNAL_NERVES_PATH}/board/nerves-common/rootfs_overlay ${NERVES_DEFCONFIG_DIR}/rootfs_overlay"
+BR2_ROOTFS_POST_BUILD_SCRIPT="${NERVES_DEFCONFIG_DIR}/post-build.sh ${BR2_EXTERNAL_NERVES_PATH}/board/nerves-common/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="${NERVES_DEFCONFIG_DIR}/post-createfs.sh"
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="https://github.com/raspberrypi/linux/archive/refs/tags/stable_20260527.tar.gz"
+BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="${NERVES_DEFCONFIG_DIR}/linux-6.18.defconfig"
+BR2_LINUX_KERNEL_XZ=y
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="broadcom/bcm2710-rpi-3-b broadcom/bcm2710-rpi-cm3 broadcom/bcm2710-rpi-3-b-plus broadcom/bcm2710-rpi-zero-2-w"
+BR2_LINUX_KERNEL_CUSTOM_DTS_PATH="${NERVES_DEFCONFIG_DIR}/ramoops-overlay.dts"
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+BR2_PACKAGE_BUSYBOX_CONFIG="${BR2_EXTERNAL_NERVES_PATH}/board/nerves-common/busybox.config"
+BR2_PACKAGE_ALSA_UTILS=y
+# BR2_PACKAGE_ALSA_UTILS_ALSAMIXER is not set
+BR2_PACKAGE_ALSA_UTILS_AMIXER=y
+BR2_PACKAGE_ALSA_UTILS_APLAY=y
+BR2_PACKAGE_E2FSPROGS=y
+# BR2_PACKAGE_E2FSPROGS_FSCK is not set
+BR2_PACKAGE_LINUX_FIRMWARE=y
+BR2_PACKAGE_LINUX_FIRMWARE_RALINK_RT2XX=y
+BR2_PACKAGE_RPI_FIRMWARE=y
+BR2_PACKAGE_RPI_FIRMWARE_CUSTOM_VERSION="1.20260521"
+BR2_PACKAGE_RPI_FIRMWARE_BOOTCODE_BIN=y
+BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI_X=y
+# BR2_PACKAGE_ALSA_LIB_RAWMIDI is not set
+# BR2_PACKAGE_ALSA_LIB_HWDEP is not set
+# BR2_PACKAGE_ALSA_LIB_SEQ is not set
+# BR2_PACKAGE_ALSA_LIB_OLD_SYMBOLS is not set
+BR2_PACKAGE_CA_CERTIFICATES=y
+BR2_PACKAGE_LIBP11=y
+BR2_PACKAGE_UNIXODBC=y
+BR2_PACKAGE_CAIRO=y
+BR2_PACKAGE_DTC=y
+BR2_PACKAGE_DTC_PROGRAMS=y
+BR2_PACKAGE_LIBMNL=y
+BR2_PACKAGE_WIRELESS_REGDB=y
+BR2_PACKAGE_WPA_SUPPLICANT=y
+BR2_PACKAGE_WPA_SUPPLICANT_WIRED=y
+BR2_PACKAGE_WPA_SUPPLICANT_AP_SUPPORT=y
+BR2_PACKAGE_WPA_SUPPLICANT_MESH_NETWORKING=y
+BR2_PACKAGE_WPA_SUPPLICANT_AUTOSCAN=y
+BR2_PACKAGE_WPA_SUPPLICANT_HOTSPOT=y
+BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG=y
+BR2_PACKAGE_WPA_SUPPLICANT_WPS=y
+BR2_PACKAGE_WPA_SUPPLICANT_WPA3=y
+BR2_PACKAGE_WPA_SUPPLICANT_CTRL_IFACE=y
+BR2_NERVES_SYSTEM_NAME="observatory_system_rpi3"
+BR2_NERVES_ADDITIONAL_IMAGE_FILES="${NERVES_DEFCONFIG_DIR}/cmdline-a.txt ${NERVES_DEFCONFIG_DIR}/cmdline-b.txt ${NERVES_DEFCONFIG_DIR}/config.txt"
+BR2_PACKAGE_NBTTY=y
+BR2_PACKAGE_NERVES_CONFIG=y
+BR2_PACKAGE_NERVES_CONFIG_ACCEPT_RNG_NOTICE=y
+BR2_PACKAGE_RPICAM_APPS=y
+BR2_PACKAGE_RPI_DISTRO_FIRMWARE_NONFREE=y
+BR2_PACKAGE_RPI_LIBCAMERA_V4L2=y
+
+# ---- Bluetooth (Observatory) -------------------------------------------------------
+# BlueZ over D-Bus, driven from Elixir by the `bluez` package, which starts
+# and supervises dbus-daemon and bluetoothd itself (no init scripts). The
+# HID plugin is the input profile: Classic HID and HID over GATT, so a
+# paired game pad appears as /dev/hidraw* like a wired one. The distro
+# firmware package carries each Pi radio's patchram (.hcd) file.
+BR2_PACKAGE_DBUS=y
+BR2_PACKAGE_BLUEZ5_UTILS=y
+BR2_PACKAGE_BLUEZ5_UTILS_CLIENT=y
+BR2_PACKAGE_BLUEZ5_UTILS_PLUGINS_HID=y
+BR2_PACKAGE_RPI_DISTRO_BLUEZ_FIRMWARE=y
+# Plate solving (Align by Photo): astrometry.net's C programs, and djpeg to
+# turn a phone's JPEG into something they read
+BR2_PACKAGE_ASTROMETRY_NET=y
+BR2_PACKAGE_CFITSIO=y
+BR2_PACKAGE_JPEG_TURBO_TOOLS=y
+BR2_PACKAGE_GSL=y
+BR2_PACKAGE_BZIP2=y
+# The telescope camera: a USB "UVC" camera (the SVBONY SV105 and most
+# planetary cameras). v4l2-ctl sets its exposure and gain and grabs frames;
+# ffmpeg streams it to a phone for focusing (Video's v4l2 input, encoded on
+# the Pi's own H.264 block).
+BR2_PACKAGE_LIBV4L=y
+BR2_PACKAGE_LIBV4L_UTILS=y
+BR2_PACKAGE_FFMPEG=y
+# scaling and pixel-format conversion (the camera's YUYV or MJPEG to gray,
+# halved): off by default in Buildroot, and every frame needs it. Buildroot
+# doesn't rebuild a package when only its options change: after changing an
+# ffmpeg option, clear build/ffmpeg-* in the build volume.
+BR2_PACKAGE_FFMPEG_SWSCALE=y

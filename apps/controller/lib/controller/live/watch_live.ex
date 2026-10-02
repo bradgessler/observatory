@@ -27,7 +27,7 @@ defmodule Controller.WatchLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Watch",
+       page_title: "Observatory Camera",
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        mount_id: params["id"] || session["id"],
@@ -113,7 +113,7 @@ defmodule Controller.WatchLive do
     Process.send_after(self(), :mount_rescan, 5_000)
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
-    id = if socket.assigns.mount_id in Map.keys(refs), do: socket.assigns.mount_id, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    id = if socket.assigns.mount_id in Map.keys(refs), do: socket.assigns.mount_id, else: refs |> Map.keys() |> Mount.default()
     # take a snapshot now rather than waiting for the next broadcast: the
     # drawing should be there on the first paint
     snap = socket.assigns.snap || if(ref = refs[id], do: safe_snap(ref))
@@ -132,6 +132,11 @@ defmodule Controller.WatchLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("capture", _, socket) do
     case Watch.capture() do
       %{} -> {:noreply, load(socket)}
@@ -160,7 +165,7 @@ defmodule Controller.WatchLive do
   def handle_event("mode", %{"m" => "live"}, socket) do
     case Video.start(quality: Settings.get("video_quality", "auto"), fps: Settings.get("video_fps", 30)) do
       :ok -> {:noreply, assign(socket, player: nil, tele: nil, video: safe_video())}
-      {:error, why} -> {:noreply, socket |> assign(notice: "Stream: #{why}") |> assign(video: safe_video())}
+      {:error, why} -> {:noreply, socket |> assign(notice: "Video didn't start: " <> Controller.Words.error(why)) |> assign(video: safe_video())}
     end
   end
 
@@ -217,7 +222,7 @@ defmodule Controller.WatchLive do
       video.state == :error -> "Video didn't start"
       player && elem(player, 0) in ["unsupported", "noscript", "error"] -> "This browser couldn't play the video"
       frame -> "Still"
-      status.tool -> "No picture yet"
+      status.tool -> "No still yet"
       true -> "No camera tool on this machine"
     end
   end
@@ -229,72 +234,77 @@ defmodule Controller.WatchLive do
     ~H"""
     <.page id="watch" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>Watch</.title>
-        <.actions><.help href={~p"/docs/watch"} label="watching" /></.actions>
+        <.back navigate={~p"/"} label="Home" section="Cameras" />
+        <.title>Observatory Camera</.title>
+        <.actions><.help href={~p"/docs/watch"} label="the observatory camera" /><.stop /></.actions>
       </:header>
 
       <%!-- one picture: the video, the latest still, or the mount drawn from its encoders --%>
       <% drawn = drawing?(@show, @frame, @now, @video) %>
       <% pose = drawn && @snap && Controller.Components.Scope.pose_from(@snap, Controller.Sky.Pointing.context(@now, @mount_id)) %>
-      <div class="watch-frame">
-        <div :if={pose} class="watch-drawn">
-          <Controller.Components.Scope.scope pose={pose} size={520} label={"#{@mount_id} as drawn from its encoders"} />
-        </div>
-        <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls aria-label="live video of the telescope"></video>
-        <img :if={!drawn and !@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt={"latest still of the telescope, #{age_words(@frame, @now)}"} />
-        <div :if={!drawn and !@video.playlist and !@frame} class="watch-empty" aria-hidden="true"></div>
-        <button :if={!@busy and !drawn} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play live video">Play</button>
+      <.split>
+        <:main>
+          <div class="watch-frame">
+            <div :if={pose} class="watch-drawn">
+              <Controller.Components.Scope.scope pose={pose} size={520} label={"#{@mount_id} as drawn from its encoders"} />
+            </div>
+            <video :if={@video.playlist} id="video-feed" phx-hook="Hls" data-src={"/video/#{@video.playlist}"} playsinline muted autoplay controls aria-label="video of the mount"></video>
+            <img :if={!drawn and !@video.playlist and @frame} src={~p"/watch/latest.jpg?#{[v: @stamp]}"} alt={"latest still of the mount, #{age_words(@frame, @now)}"} />
+            <div :if={!drawn and !@video.playlist and !@frame} class="watch-empty" aria-hidden="true"></div>
+            <button :if={!@busy and !drawn} class="play-btn" phx-click="mode" phx-value-m="live" aria-label="play video">Play</button>
 
-        <%!-- the mount's axes as the camera sees them, turning with the encoders: solid polar, dashed Dec, long-dashed tube, in the tested inks --%>
-        <% p = if @rig && @axes_on && @snap, do: pose(@rig, @snap) %>
-        <svg :if={p} viewBox={"0 0 #{@rig.w} #{@rig.h}"} preserveAspectRatio="none" class="axes-overlay live-axes" aria-hidden="true">
-          <line x1={elem(elem(p.polar, 0), 0)} y1={elem(elem(p.polar, 0), 1)} x2={elem(elem(p.polar, 1), 0)} y2={elem(elem(p.polar, 1), 1)} stroke="var(--accent)" stroke-width="2.4" />
-          <line x1={elem(elem(p.dec, 0), 0)} y1={elem(elem(p.dec, 0), 1)} x2={elem(elem(p.dec, 1), 0)} y2={elem(elem(p.dec, 1), 1)} stroke="var(--on)" stroke-width="2.4" stroke-dasharray="4 4" />
-          <line x1={elem(elem(p.tube, 0), 0)} y1={elem(elem(p.tube, 0), 1)} x2={elem(elem(p.tube, 1), 0)} y2={elem(elem(p.tube, 1), 1)} stroke="var(--warn)" stroke-width="2.4" stroke-dasharray="12 6" />
-        </svg>
-      </div>
-      <p :if={@rig} class="watch-cap">
-        Axes from the camera's sweep · <span class="ax-ra">polar (solid)</span> · <span class="ax-dec">Dec (dashed)</span> · <span class="ax-tube">tube (long dashes; needs the axes zeroed upright)</span> ·
-        <button type="button" class="linklike" phx-click="axes" phx-value-on={to_string(!@axes_on)} aria-pressed={to_string(@axes_on)}>{if @axes_on, do: "hide axes", else: "show axes"}</button>
-      </p>
+            <%!-- the mount's axes as the camera sees them, turning with the encoders: solid polar, dashed Dec, long-dashed tube, in the tested inks --%>
+            <% p = if @rig && @axes_on && @snap, do: pose(@rig, @snap) %>
+            <svg :if={p} viewBox={"0 0 #{@rig.w} #{@rig.h}"} preserveAspectRatio="none" class="axes-overlay live-axes" aria-hidden="true">
+              <line x1={elem(elem(p.polar, 0), 0)} y1={elem(elem(p.polar, 0), 1)} x2={elem(elem(p.polar, 1), 0)} y2={elem(elem(p.polar, 1), 1)} stroke="var(--accent)" stroke-width="2.4" />
+              <line x1={elem(elem(p.dec, 0), 0)} y1={elem(elem(p.dec, 0), 1)} x2={elem(elem(p.dec, 1), 0)} y2={elem(elem(p.dec, 1), 1)} stroke="var(--on)" stroke-width="2.4" stroke-dasharray="4 4" />
+              <line x1={elem(elem(p.tube, 0), 0)} y1={elem(elem(p.tube, 0), 1)} x2={elem(elem(p.tube, 1), 0)} y2={elem(elem(p.tube, 1), 1)} stroke="var(--warn)" stroke-width="2.4" stroke-dasharray="12 6" />
+            </svg>
+          </div>
+          <p :if={@rig} class="watch-cap">
+            Axes from the camera's sweep (<.link navigate={~p"/controls/watch/axes"}>Optical Axes</.link>) · <span class="ax-ra">RA axis (solid)</span> · <span class="ax-dec">Dec axis (dashed)</span> · <span class="ax-tube">tube (long dashes; needs home set upright)</span> ·
+            <button type="button" class="linklike" phx-click="axes" phx-value-on={to_string(!@axes_on)} aria-pressed={to_string(@axes_on)}>{if @axes_on, do: "hide axes", else: "show axes"}</button>
+          </p>
 
-      <p :if={drawn} class="watch-cap">
-        Drawn from the encoders{if @frame, do: " · the camera's last picture is #{age_words(@frame, @now)}", else: " · no camera"}
-      </p>
+          <p :if={drawn} class="watch-cap">
+            Drawn from the encoders{if @frame, do: " · the camera's last still is #{age_words(@frame, @now)}", else: " · no camera"}
+          </p>
+        </:main>
+        <:side>
+          <.seg :if={@status.tool && @frame} label="what to show" class="watch-show">
+            <:opt on={@show == :auto} click="show" value={%{s: "auto"}}>Auto</:opt>
+            <:opt on={@show == :picture} click="show" value={%{s: "picture"}}>Camera</:opt>
+            <:opt on={@show == :drawing} click="show" value={%{s: "drawing"}}>Drawing</:opt>
+          </.seg>
 
-      <.seg :if={@status.tool && @frame} label="what to show" class="watch-show">
-        <:opt on={@show == :auto} click="show" value={%{s: "auto"}}>Auto</:opt>
-        <:opt on={@show == :picture} click="show" value={%{s: "picture"}}>Picture</:opt>
-        <:opt on={@show == :drawing} click="show" value={%{s: "drawing"}}>Drawing</:opt>
-      </.seg>
+          <%!-- one quiet line: what this picture is; only the state word is announced --%>
+          <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]}>
+            <span role="status" aria-live="polite">{state_word(@video, @player, @frame, @status)}</span>
+            <%= cond do %>
+              <% @video.state == :streaming -> %>
+                · {size_words(@video.quality)}{if @video.fell_back_from, do: " (#{@video.fell_back_from} gave no frames)", else: ""} · {behind_words(@tele)}{fps_words(@tele)}
+              <% @video.state in [:starting, :restarting] -> %>
+                · last still meanwhile
+              <% @video.state == :error -> %>
+                · showing stills · <.link navigate={~p"/cameras/observatory/settings"}>Why the video didn't start</.link>
+              <% @player && elem(@player, 0) in ["unsupported", "noscript", "error"] -> %>
+              <% @frame -> %>
+                · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}
+              <% true -> %>
+            <% end %>
+          </p>
 
-      <%!-- one quiet line: what this picture is; only the state word is announced --%>
-      <p class={["watch-cap", @video.state == :streaming && "live", @video.state == :error && "err"]}>
-        <span role="status" aria-live="polite">{state_word(@video, @player, @frame, @status)}</span>
-        <%= cond do %>
-          <% @video.state == :streaming -> %>
-            · {size_words(@video.quality)}{if @video.fell_back_from, do: " (#{@video.fell_back_from} gave no picture)", else: ""} · {behind_words(@tele)}{fps_words(@tele)}
-          <% @video.state in [:starting, :restarting] -> %>
-            · last still meanwhile
-          <% @video.state == :error -> %>
-            · showing stills · <.link navigate={~p"/controls/watch/camera"}>why the video didn't start</.link>
-          <% @player && elem(@player, 0) in ["unsupported", "noscript", "error"] -> %>
-          <% @frame -> %>
-            · {age_words(@frame, @now)}{if @status.enabled, do: " · every #{div(@status.interval, 1000)} s", else: ""}
-          <% true -> %>
-        <% end %>
-      </p>
+          <%!-- no mode to pick: the still is what you see; Play starts video, Stop returns --%>
+          <.row :if={@busy}>
+            <.btn phx-click="mode" phx-value-m="off">Stop Video · Back to Stills</.btn>
+          </.row>
 
-      <%!-- no mode to pick: the still is what you see; Play starts video, Stop returns --%>
-      <.row :if={@busy}>
-        <.btn phx-click="mode" phx-value-m="off">Stop Video · Back to Stills</.btn>
-      </.row>
-
-      <p class="watch-links">
-        <.link navigate={~p"/controls/watch/frames"}>Recent Frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>
-        <.link navigate={~p"/controls/watch/camera"}>Camera</.link>
-      </p>
+          <p class="watch-links">
+            <.link navigate={~p"/cameras/observatory/frames"}>Frames{if @summary.count > 0, do: " · #{@summary.count}"}</.link>
+            <.link navigate={~p"/cameras/observatory/settings"}>Settings</.link>
+          </p>
+        </:side>
+      </.split>
 
       <.notice notice={@notice} />
     </.page>

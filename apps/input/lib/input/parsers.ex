@@ -32,7 +32,8 @@ defmodule Input.Parsers do
     # button 7 (0-based); the left-hand trigger is 6. Left trigger = STOP.
     # The ball rests ~0.17 off centre on this unit; the 0.30 null zone in
     # Input.Curve covers that with room to spare.
-    def default_map, do: %{trigger: 7, stop: 6}
+    # Button 0 (the face button marked 1) says "it's centred".
+    def default_map, do: %{trigger: 7, stop: 6, centered: 0}
 
     @impl true
     def parse(<<_::binary-size(5)>> = report) do

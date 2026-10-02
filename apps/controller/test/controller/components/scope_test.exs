@@ -1,5 +1,10 @@
 defmodule Controller.Components.ScopeTest do
-  @moduledoc "The drawing is posed by the encoders: the tube's direction follows Dec, the head follows RA."
+  @moduledoc """
+  The mount is drawn in 3-D, posed by the encoders: the tube's direction
+  follows Dec, the head follows RA. The pose is checked on the model's own
+  axes as they land on the screen (`Scope.skeleton/1`), the drawing on its
+  shaded faces.
+  """
   use ExUnit.Case, async: true
   import Phoenix.LiveViewTest
 
@@ -19,60 +24,47 @@ defmodule Controller.Components.ScopeTest do
 
   defp draw(pose), do: render_component(&Scope.scope/1, pose: pose, label: "test")
 
-  # the tube is the widest stroke; pull its direction out of the markup
-  defp tube_dir(html) do
-    [_, x1, y1, x2, y2] =
-      Regex.run(~r/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" class="sc-tube"/, html)
-
-    norm({String.to_float(x2) - String.to_float(x1), String.to_float(y2) - String.to_float(y1)})
-  end
-
-  defp polar_dir(html) do
-    [_, x1, y1, x2, y2] =
-      Regex.run(~r/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" class="sc-ra"/, html)
-
-    norm({String.to_float(x2) - String.to_float(x1), String.to_float(y2) - String.to_float(y1)})
-  end
-
-  defp norm({x, y}) do
+  defp dir({{x1, y1}, {x2, y2}}) do
+    {x, y} = {x2 - x1, y2 - y1}
     n = :math.sqrt(x * x + y * y)
     {x / n, y / n}
   end
 
+  defp tube_dir(pose), do: dir(Scope.skeleton(pose).tube)
+  defp polar_dir(pose), do: dir(Scope.skeleton(pose).polar)
+
   defp parallel?({ax, ay}, {bx, by}), do: abs(abs(ax * bx + ay * by) - 1.0) < 0.02
 
   test "at Dec 0 the tube lies along the polar axis" do
-    html = draw(eq(0.0, 0.0))
-    assert parallel?(tube_dir(html), polar_dir(html))
+    pose = eq(0.0, 0.0)
+    assert parallel?(tube_dir(pose), polar_dir(pose))
   end
 
   # perpendicularity in space does not survive a projection, but turning the
   # tube through half a circle must put it back along the polar axis the
   # other way round, and that does survive: it is the same 3-D property.
   test "at Dec 180 the tube lies along the polar axis, pointing the other way" do
-    html = draw(eq(0.0, 180.0))
-    {tx, ty} = tube_dir(html)
-    {px, py} = polar_dir(html)
+    pose = eq(0.0, 180.0)
+    {tx, ty} = tube_dir(pose)
+    {px, py} = polar_dir(pose)
     assert parallel?({tx, ty}, {px, py})
     assert tx * px + ty * py < 0, "the tube should point back down the axis"
   end
 
   test "at Dec 90 the tube is neither along the axis nor back down it" do
-    html = draw(eq(0.0, 90.0))
-    refute parallel?(tube_dir(html), polar_dir(html))
+    pose = eq(0.0, 90.0)
+    refute parallel?(tube_dir(pose), polar_dir(pose))
   end
 
   test "turning RA swings the tube to a different place on the screen" do
-    a = tube_dir(draw(eq(0.0, 60.0)))
-    b = tube_dir(draw(eq(90.0, 60.0)))
-    refute parallel?(a, b)
+    refute parallel?(tube_dir(eq(0.0, 60.0)), tube_dir(eq(90.0, 60.0)))
   end
 
   test "an alt-az pose draws a tube that rises with altitude" do
-    low = render_component(&Scope.scope/1, pose: %{kind: :altaz, az_deg: 180.0, alt_deg: 0.0, running: %{}, tracking: :off})
-    high = render_component(&Scope.scope/1, pose: %{kind: :altaz, az_deg: 180.0, alt_deg: 90.0, running: %{}, tracking: :off})
+    low = %{kind: :altaz, az_deg: 180.0, alt_deg: 0.0, running: %{}, tracking: :off}
+    high = %{low | alt_deg: 90.0}
     refute parallel?(tube_dir(low), tube_dir(high))
-    assert high =~ "alt-az mount"
+    assert render_component(&Scope.scope/1, pose: high) =~ "alt-az mount"
   end
 
   test "it is a labelled image with the numbers in the label" do
@@ -83,14 +75,22 @@ defmodule Controller.Components.ScopeTest do
     assert html =~ "tracking"
   end
 
+  test "it is solid: shaded faces of the tube, the mount and the legs, lit unevenly, the lens dark" do
+    html = draw(eq(30.0, 50.0))
+    for m <- ~w(m-tube m-metal m-dark m-leg), do: assert(html =~ m, m)
+    levels = Regex.scan(~r/class="m-tube l(\d)"/, html) |> Enum.map(&List.last/1) |> Enum.uniq()
+    assert length(levels) >= 3, "the tube should be lit on one side and in shadow on the other"
+  end
+
   test "a running axis draws its motion arc; a still one does not" do
     assert draw(eq(0.0, 30.0, running: %{ra: true, dec: false})) =~ "sc-spin-ra"
     refute draw(eq(0.0, 30.0, running: %{ra: false, dec: false})) =~ "sc-spin-ra"
   end
 
-  test "without detail there are no tripod legs" do
+  test "without detail (a badge) it draws fewer faces: no rings, no diagonal" do
+    faces = fn html -> length(String.split(html, "<polygon")) - 1 end
     plain = render_component(&Scope.scope/1, pose: eq(0.0, 0.0), detail: false)
-    refute plain =~ "sc-leg"
-    assert plain =~ "sc-tube"
+    assert faces.(plain) < faces.(draw(eq(0.0, 0.0)))
+    assert plain =~ "m-tube"
   end
 end

@@ -54,6 +54,12 @@ defmodule Firmware.Web.NetworkLive do
   def handle_info(:tick, socket), do: {:noreply, refresh(socket)}
 
   @impl true
+  # STOP is on every page: every mount in reach
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("scan", _, socket) do
     notice = if Wireless.scan() == :ok, do: "Scanning", else: "Scanning is not available right now"
     {:noreply, assign(socket, notice: notice)}
@@ -103,9 +109,9 @@ defmodule Firmware.Web.NetworkLive do
     ~H"""
     <.page id="network" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" />
+        <.back navigate={~p"/"} label="Home" section="System" />
         <.title>Network</.title>
-        <.actions><.help href={~p"/docs/network"} label="network" /></.actions>
+        <.actions><.help href={~p"/docs/network"} label="network" /><.stop /></.actions>
       </:header>
 
       <.card title="Wi-Fi">
@@ -165,7 +171,7 @@ defmodule Firmware.Web.NetworkLive do
       <:header>
         <.back patch={~p"/network"} label="Network" />
         <.title>Wi-Fi Networks</.title>
-        <.actions><button class="btn" phx-click="scan" disabled={@status.mode == :own}>Scan</button></.actions>
+        <.actions><.stop /></.actions>
       </:header>
 
       <.card title="Saved">
@@ -191,6 +197,7 @@ defmodule Firmware.Web.NetworkLive do
             <.link_item patch={~p"/network/join"} label="Other Network" detail="Type the SSID" />
           </.items>
         <% end %>
+        <.row><.btn variant="ghost" phx-click="scan" disabled={@status.mode == :own}>Scan Now</.btn></.row>
       </.card>
 
       <.notice notice={@notice} />
@@ -206,6 +213,7 @@ defmodule Firmware.Web.NetworkLive do
       <:header>
         <.back patch={~p"/network/wifi"} label="Wi-Fi Networks" />
         <.title>Join</.title>
+        <.actions><.stop /></.actions>
       </:header>
 
       <.card title={if @ssid == "", do: "Other Network", else: @ssid}>

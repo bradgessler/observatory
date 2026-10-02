@@ -16,9 +16,8 @@ people who may have never used a telescope.
   outline. Fields and troughs are sunk (`--bevel-in`). Calm and modern, and
   still plainly something to push.
 - **One grid.** Spacing steps of 8 (`--s1` 8, `--s2` 12, `--s3` 16, `--s4` 24);
-  one corner radius (`--r` 14, cards 16); page width 560 centred; headers are a
-  three-column grid (back · title · actions) so every page's title sits in the
-  same place.
+  one corner radius (`--r` 14, cards 16); page width 560 centred; every page
+  opens with the same toolbar (below), so its title sits in the same place.
 - **Components, not markup.** Pages are built from `Controller.Components.UI`
   (`page`, `back`, `title`, `actions`, `help`, `card`, `row`, `kv`, `setting`,
   `badge`, `hint`, `btn`) and `Controller.Components.Modes`. A new screen
@@ -28,6 +27,11 @@ people who may have never used a telescope.
 - **Modes are loud.** Anything persistent that changes where the scope goes
   (sync offset, flipped axis, reversed tracking, auto-track off, site override)
   shows as an amber strip on every page while it's on, linking to Setup.
+- **No bar down the left edge.** A picked, current or live thing is never
+  marked with a coloured stripe on its left side, least of all on a rounded
+  shape. It gets a lit fill, its own key or badge filled solid, and a mark
+  that means something there (a chevron at the panel it opened, a ✓); legends
+  colour their glyph.
 - **One affordance per thing.** A tile is the tile; no second button beside it.
   Docs are reached from the destination page's `?`, never from a list.
 
@@ -80,12 +84,34 @@ people who may have never used a telescope.
 | `--hi`, `--lo` | the two bevel edges |
 | `--text`, `--dim` | primary text, secondary/labels |
 | `--accent` | the current selection (rate, tab) |
-| `--on` | active state: tracking, homed, picked, "go" |
+| `--on` | active state: tracking, home set, picked, "go" |
 | `--warn` | STOP and the scope marker only |
 | `--sky1`, `--sky2` | sky dome gradient |
 
 Type: system UI font, 16px base, tabular numerals for anything that changes.
 Radii: 14px controls, 16px cards, 999px pills. Spacing: 8/10/12/14/16.
+
+## The toolbar
+
+Every page's header is `back` · `title` · `actions`, drawn by `UI.back/1`,
+`UI.title/1` and `UI.actions/1`; the docs pages draw the same markup by hand.
+
+- **Left-aligned, fixed height, sticky.** The leading key, an overline over
+  the title, the keys on the right. The title never centres, so it never moves
+  when the keys change; the bar stays at the top while the page scrolls, so
+  STOP is always in reach.
+- **The leading key says where it goes.** On a sidebar page it is Home (a
+  house), and the overline is the page's sidebar section ("Controls"), with the
+  mount it acts on after a dot in its own spelling ("Controls · ttyUSB0"). On a
+  page under another it is a back chevron, and the overline is that page's name.
+  On a wide screen the sidebar is home, so the house goes.
+- **Getting around, help, STOP. Nothing else.** The keys are Search (the
+  sidebar has it on a wide screen), the page's `?`, night mode where it's
+  needed at the eyepiece, and STOP, always last. An action on the page's
+  content (Scan, Connect) goes on the page, beside what it acts on.
+- **Small screens keep every key at 44 px.** Under 600 px the title is a size
+  down; under 360 px the overline drops its capitals and a long title takes a
+  second line rather than losing its end.
 
 ## Every screen size
 
@@ -104,14 +130,14 @@ Phone first, but the same pages run on an iPad, a laptop, and a 5K desktop.
 - Every control ≥ 44px; the D-pad and STOP are much bigger. STOP is always
   the most visible control on the keypad; EMERGENCY STOP is full-width red.
 - Press-and-hold is real (pointer events + a server deadman), never a toggle.
-- State is shown, not implied: running dots on the axes, `tracking`/`homed`
+- State is shown, not implied: running dots on the axes, `tracking`/`home set`
   badges, the picked object ringed on the map, the scope marker.
 - One primary action per panel (`.go`), secondaries plain.
 
 ## Casing
 
 One rule, everywhere: **Title Case** for page titles, card titles, nav and
-tab labels and every key label ("Zero the Axes Here", "Hold What I'm On");
+tab labels and every key label ("Set Home Here", "Track What I'm On");
 **sentence case** for every sentence, subtitle, hint, state line and notice
 (a capital first letter, the rest as written); badges stay small uppercase.
 Nothing on a page starts with a lowercase letter. Dynamic fragments go
@@ -119,6 +145,9 @@ through `UI.sentence/1` when they open a line.
 
 ## Copy
 
+- One word per thing, the one in `priv/docs/glossary.md` ("Words", at
+  `/docs/glossary`): home position, Go To, tracking, alignment, plate solve,
+  frame. A new term goes there first, with a link to where it is explained.
 - Call things what they are. The person using this sets up their own
   network gear; write for them. Hostname, SSID, access point, password, SD
   card, board, SSH: the standard term, never a friendly paraphrase ("Its

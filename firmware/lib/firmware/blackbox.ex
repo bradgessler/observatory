@@ -14,9 +14,9 @@ defmodule Firmware.Blackbox do
       idle, and one for every event (a slew, a stop, a link lost) the moment
       it happens. Each line: seconds since the kernel booted, the Pi's
       under-voltage and throttling flags, the Wi-Fi connection, VM memory and
-      run queue, and each mount's axes. Written and synced, so a reset loses
-      at most the line being written. The five boots before are
-      `flight.1.log` (the last) to `flight.5.log`.
+      run queue, each mount's axes, and each battery's charge and draw.
+      Written and synced, so a reset loses at most the line being written.
+      The five boots before are `flight.1.log` (the last) to `flight.5.log`.
     * `boots.log`: one line per boot, saying whether the one before it shut
       down cleanly or just stopped, and its last flight line.
     * `log`, `log.0`...: the Elixir log, info and up, rotated at 4 × 512 KB.
@@ -30,7 +30,7 @@ defmodule Firmware.Blackbox do
   use GenServer
   require Logger
 
-  @compile {:no_warn_undefined, [VintageNet, Mount]}
+  @compile {:no_warn_undefined, [VintageNet, Mount, Input.Discovery, Input.Device, Input.Mapper]}
 
   @moving_ms 250
   @idle_ms 5_000
@@ -162,11 +162,59 @@ defmodule Firmware.Blackbox do
 
     wlan = safe(fn -> VintageNet.get(["interface", "wlan0", "connection"]) end)
 
-    "#{uptime()} thr=#{throttled()} wlan0=#{wlan} #{radio()} mem=#{div(:erlang.memory(:total), 1_048_576)}M rq=#{:erlang.statistics(:run_queue)} #{mounts}"
+    "#{uptime()} thr=#{throttled()} wlan0=#{wlan} #{radio()} mem=#{div(:erlang.memory(:total), 1_048_576)}M rq=#{:erlang.statistics(:run_queue)} #{mounts} #{pads()} #{bluetooth()} #{batteries()}"
+  end
+
+  # Each battery the box reads, by number: charge, watts out, temperature.
+  # A reset with the charge falling and the watts high is the battery.
+  # batt=[1:100%/0W/25C 2:16%/13W/26C], batt=[1:connecting], or batt=-
+  defp batteries do
+    case safe(fn -> Firmware.Batteries.list() end) do
+      [_ | _] = list -> "batt=[#{Firmware.Batteries.brief(list)}]"
+      _ -> "batt=-"
+    end
+  end
+
+  # Each game pad being read, how many reports it has sent since it was opened,
+  # and what the mapper is doing: "the pad did nothing" becomes either no
+  # reports (the pad or its cable) or reports and no action (the mapping).
+  defp pads do
+    devices =
+      (safe(fn -> Input.Discovery.seen().devices end) || [])
+      |> Enum.filter(& &1[:reading])
+      |> Enum.map_join(",", fn d ->
+        reports = safe(fn -> Input.Device.state(Input.Device.id_of(d)).reports end)
+        "#{d.product |> String.split(" ") |> Enum.take(2) |> Enum.join("-")}:#{reports}"
+      end)
+
+    mapper =
+      case safe(fn -> Input.Mapper.status() end) do
+        %{armed: armed, action_text: text} -> "#{if armed, do: "armed", else: "watch"} #{text}"
+        _ -> "-"
+      end
+
+    "pad=[#{devices}] #{mapper}"
   end
 
   # Which access point it is on and how strong, and how many it can hear: a
   # slow join says whether the network was even there.
+  # bt=running/hci0 heard=12 resets=1, or bt=no_radio, bt=radio_failed, ...
+  defp bluetooth do
+    case safe(fn -> Firmware.Bluetooth.status() end) do
+      %{state: :running, adapter: a, scan: scan, resets: resets} ->
+        "bt=#{scan}/#{a && Path.basename(a.path)} heard=#{length(Firmware.Bluetooth.Nearby.list())} resets=#{resets}"
+
+      %{state: {:restarting, ms}, failures: n} ->
+        "bt=restarting(#{div(ms, 1000)}s,#{n})"
+
+      %{state: state, resets: resets} ->
+        "bt=#{state} resets=#{resets}"
+
+      _ ->
+        "bt=-"
+    end
+  end
+
   defp radio do
     cur =
       case safe(fn -> VintageNet.get(["interface", "wlan0", "wifi", "current_ap"]) end) do

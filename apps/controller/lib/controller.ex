@@ -17,7 +17,7 @@ defmodule Controller do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets vendor fonts images favicon.ico robots.txt)
+  def static_paths, do: ~w(assets vendor fonts images favicon.ico robots.txt manifest.webmanifest)
 
   def router do
     quote do

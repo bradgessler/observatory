@@ -27,7 +27,9 @@ defmodule Input.Device do
   def init(dev) do
     Process.flag(:trap_exit, true)
     parser = Input.Parsers.for(dev)
-    port = HIDPort.open(dev.path)
+    # hidraw on Linux (a Pi has no libhidapi), the C helper elsewhere; both
+    # speak the same messages, so nothing below cares which
+    port = if String.starts_with?(dev.path, "/dev/hidraw"), do: Input.HIDRaw.open(dev.path), else: HIDPort.open(dev.path)
     # The pad only reports on change. A steady hold must still read as fresh
     # intent, so re-publish the current state on a heartbeat.
     :timer.send_interval(200, :heartbeat)
@@ -68,7 +70,7 @@ defmodule Input.Device do
 
   def handle_info({port, {:exit_status, code}}, %{port: port} = s) do
     Logger.info("input #{s.id}: device gone (hidport exit #{code})")
-    Telescope.broadcast("input", {:input_gone, s.id})
+    Telescope.local_broadcast("input", {:input_gone, s.id})
     {:stop, :normal, %{s | port: nil}}
   end
 
@@ -83,6 +85,12 @@ defmodule Input.Device do
     Port.close(port)
   catch
     _, _ -> :ok
+  end
+
+  def terminate(_reason, %{port: reader}) when is_pid(reader) do
+    Process.unlink(reader)
+    Process.exit(reader, :kill)
+    :ok
   end
 
   def terminate(_reason, _s), do: :ok
@@ -103,8 +111,8 @@ defmodule Input.Device do
 
   defp broadcast(s) do
     msg = {:input, s.id, info(s)}
-    Telescope.broadcast("input", msg)
-    Telescope.broadcast("input:#{s.id}", msg)
+    Telescope.local_broadcast("input", msg)
+    Telescope.local_broadcast("input:#{s.id}", msg)
     s
   end
 end

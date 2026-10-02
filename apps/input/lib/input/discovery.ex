@@ -1,8 +1,10 @@
 defmodule Input.Discovery do
   @moduledoc """
   Every few seconds, list HID devices and keep an `Input.Device` open for each
-  joystick/gamepad (usage page 1, usage 4 or 5). Plug one in and it appears;
-  pull it and its process ends.
+  joystick/gamepad (usage page 1, usage 4 or 5). Plug one in and it appears
+  within 3 s; pull it and its process ends. On Linux (a box) the kernel's
+  hidraw devices are read directly (`Input.HIDRaw`); elsewhere through the C
+  helper (`Input.HIDPort`).
   """
   use GenServer
   require Logger
@@ -35,7 +37,7 @@ defmodule Input.Discovery do
   def handle_call(:seen, _from, state), do: {:reply, %{devices: state.seen, last_scan: state.last_scan}, state}
 
   defp do_scan(state) do
-    devices = Input.HIDPort.list()
+    devices = if Input.HIDRaw.available?(), do: Input.HIDRaw.list(), else: Input.HIDPort.list()
 
     for dev <- devices, gamepad?(dev), not running?(dev) do
       case DynamicSupervisor.start_child(Input.DeviceSupervisor, {Input.Device, dev}) do

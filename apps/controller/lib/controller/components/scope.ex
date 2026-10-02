@@ -1,37 +1,40 @@
 defmodule Controller.Components.Scope do
   @moduledoc """
-  The telescope as a picture, posed from the encoders: tripod, pier, the head
-  turning on the polar axis, the tube swinging on the Dec axis, the
-  counterweight opposite. An alt-az form (a fork on a base) for mounts that
-  are not German equatorials.
+  The telescope as a picture, posed from the encoders, in 3-D: a tripod, the
+  mount head turning on the polar axis, the Dec housing, the saddle and the
+  tube on it (dew shield, rings, focuser and diagonal), the counterweight on
+  its shaft opposite. An alt-az form (a fork on a base) for mounts that are
+  not German equatorials.
 
-  Server-rendered SVG from the 250 ms snapshot, like the orb; the difference
-  is that the orb draws the geometry and this draws the thing. Nothing here
-  reads the mount or the settings: everything arrives in a pose map, so the
-  same component serves a page, a badge and (later) a rendered still.
+  Rendered on the server by `Controller.Render3D` into shaded SVG polygons,
+  from the 250 ms snapshot, like everything else on the page: no WebGL, no
+  script. Nothing here reads the mount or the settings: everything arrives
+  in a pose map, so the same component serves a page, a badge and (later) a
+  rendered still.
 
       <.scope pose={Scope.pose_from(snap, ctx)} label="sim-eq · equatorial" />
 
   Conventions shared with the orb: an east-north-up frame (x east, y north,
-  z up), Rodrigues rotations, an orthographic camera from the south-east.
+  z up), Rodrigues rotations, the camera from the south-south-east, a little
+  above, so the counterweight reads. Sizes are metres, roughly an EQ6-R
+  with a 102 mm refractor.
   """
   use Phoenix.Component
+
+  alias Controller.Render3D, as: R
 
   @deg :math.pi() / 180
 
   # the view: from the south-south-east, a little above, so the counterweight reads
   @cam_az 150.0
-  @cam_el 20.0
+  @cam_el 18.0
 
-  # Proportions, in units of the model's half-height. Chosen so the widest
-  # pose (the tube across the view) still fits the frame with a margin.
-  @pier_top 0.62
-  @ground_r 0.42
-  @head 0.22
-  @saddle 0.26
-  @cw 0.42
-  @tube 0.40
-  @scale 86.0
+  # metres: the tripod's top, the polar axis's pivot above it, the tube
+  @hub_z 0.92
+  @feet_r 0.5
+  @tube_r 0.058
+  @tube_front 0.36
+  @tube_back 0.36
 
   attr :pose, :map, required: true
   attr :size, :integer, default: 240
@@ -40,28 +43,27 @@ defmodule Controller.Components.Scope do
   attr :class, :string, default: nil
 
   def scope(assigns) do
-    assigns = assign(assigns, parts: parts(assigns.pose, assigns.detail), words: words(assigns.pose, assigns.label))
+    {polys, overlays, shadow} = model(assigns.pose, assigns.detail)
+    assigns = assign(assigns, polys: polys, overlays: overlays, shadow: shadow, words: words(assigns.pose, assigns.label))
 
     ~H"""
     <svg
-      class={["scope-svg", @class]}
+      class={["scope-svg", "scope-3d", @class]}
       viewBox="-74 -62 148 126"
       width={@size}
       height={round(@size * 126 / 148)}
       role="img"
       aria-label={@words}
     >
-      <%!-- painter's order: whatever is further from the camera is drawn first --%>
-      <%= for part <- @parts do %>
+      <ellipse :if={@shadow} cx={elem(@shadow, 0)} cy={elem(@shadow, 1)} rx={elem(@shadow, 2)} ry={elem(@shadow, 3)} class="sc-ground" />
+      <%!-- far to near, each face shaded by how squarely it faces the light --%>
+      <polygon :for={p <- @polys} class={"m-#{p.mat} l#{p.level}"} points={p.points} />
+      <%= for part <- @overlays do %>
         <%= case part do %>
-          <% {:line, x1, y1, x2, y2, cls, w} -> %>
-            <line x1={x1} y1={y1} x2={x2} y2={y2} class={cls} stroke-width={w} />
           <% {:disc, cx, cy, r, cls} -> %>
             <circle cx={cx} cy={cy} r={r} class={cls} />
           <% {:arc, d, cls} -> %>
             <path d={d} class={cls} fill="none" />
-          <% {:ground, cx, cy, rx, ry} -> %>
-            <ellipse cx={cx} cy={cy} rx={rx} ry={ry} class="sc-ground" />
         <% end %>
       <% end %>
     </svg>
@@ -107,149 +109,167 @@ defmodule Controller.Components.Scope do
 
   # -- the model ------------------------------------------------------------------------
 
-  # Every part as {depth, shape}; sorted far to near, then stripped of depth.
-  defp parts(pose, detail?) do
-    pose
-    |> segments(detail?)
-    |> Enum.sort_by(&elem(&1, 0), :desc)
-    |> Enum.map(&elem(&1, 1))
+  # {polygons far to near, overlays (motion arcs, the tracking lamp), the ground shadow}
+  defp model(pose, detail?) do
+    cam = camera()
+    n = if detail?, do: 16, else: 10
+    {faces, pivots} = if pose[:kind] == :altaz, do: altaz(pose, n, detail?), else: equatorial(pose, n, detail?)
+    polys = R.render(faces, cam)
+    {polys, overlays(pose, pivots, cam), shadow(cam)}
   end
 
-  defp segments(%{kind: :altaz} = pose, detail?) do
-    cam = camera()
-    az = pose[:az_deg] || 0.0
-    alt = pose[:alt_deg] || 0.0
-
-    base = {0.0, 0.0, @pier_top}
-    # the fork rises from the base; the altitude axis is horizontal, across the azimuth
-    top = add(base, {0.0, 0.0, 0.3})
-    across = {cos(az), -sin(az), 0.0}
-    tube = from_alt_az(alt, az)
-
-    running = pose[:running] || %{}
-
-    List.flatten([
-      ground(cam, detail?),
-      if(detail?, do: legs(cam), else: []),
-      [seg(base, {0.0, 0.0, 0.0}, "sc-pier", 6.0, cam)],
-      [seg(base, top, "sc-pier", 5.0, cam)],
-      [seg(sub(top, scale(across, 0.16)), add(top, scale(across, 0.16)), "sc-dec", 3.2, cam)],
-      [seg(sub(top, scale(tube, @tube)), add(top, scale(tube, @tube)), "sc-tube", 10.0, cam)],
-      arc_of(top, {0.0, 0.0, 1.0}, 0.34, "sc-spin-ra", running[:az], cam),
-      arc_of(top, across, 0.3, "sc-spin-dec", running[:alt], cam),
-      lamp(pose, cam)
-    ])
-  end
-
-  defp segments(pose, detail?) do
-    cam = camera()
+  defp equatorial(pose, n, detail?) do
     pole = from_alt_az(pose[:polar_alt] || 38.0, pose[:polar_az] || 0.0)
-    east = normalize(cross({0.0, 0.0, 1.0}, pole)) |> fallback({1.0, 0.0, 0.0})
-
+    east = R.normalize(R.cross({0.0, 0.0, 1.0}, pole)) |> fallback({1.0, 0.0, 0.0})
     h = pose[:ha_deg] || 0.0
     d = pose[:dec_deg] || 0.0
 
-    pier = {0.0, 0.0, @pier_top}
-    head = add(pier, scale(pole, @head))
-    dec_axis = rotate(east, pole, -h)
-    saddle = add(head, scale(dec_axis, @saddle))
-    weight = sub(head, scale(dec_axis, @cw))
-    tube = rotate(pole, dec_axis, d)
+    hub = {0.0, 0.0, @hub_z}
+    base = R.add(hub, {0.0, 0.0, 0.07})
+    # the pivot where the polar and Dec axes cross
+    pivot = R.add(base, R.add(R.scale(pole, 0.1), {0.0, 0.0, 0.05}))
+    dec = R.rotate(east, pole, -h)
+    tube = R.rotate(pole, dec, d)
+    saddle = R.add(pivot, R.scale(dec, 0.19))
+    centre = R.add(saddle, R.scale(dec, 0.016 + @tube_r))
+    # "up" on the tube: square to it and to the Dec axis, where the focuser's diagonal points
+    up = R.normalize(R.cross(tube, dec))
 
+    faces =
+      tripod(hub, n, detail?) ++
+        [
+          # the azimuth base and the latitude block it carries
+          R.cylinder(hub, base, 0.085, :metal, sides: n),
+          R.box(R.add(base, R.scale(pole, 0.02)), pole, east, {0.12, 0.1, 0.07}, :metal),
+          # the polar housing, along the polar axis, with the RA motor box on it
+          R.cylinder(R.sub(pivot, R.scale(pole, 0.17)), R.add(pivot, R.scale(pole, 0.05)), 0.066, :metal, sides: n),
+          R.box(R.add(R.sub(pivot, R.scale(pole, 0.08)), R.scale(R.normalize(R.cross(pole, east)), -0.07)), pole, east, {0.1, 0.07, 0.06}, :dark),
+          # the Dec housing out to the saddle, and the counterweight shaft the other way
+          R.cylinder(R.sub(pivot, R.scale(dec, 0.04)), R.add(pivot, R.scale(dec, 0.17)), 0.056, :metal, sides: n),
+          R.cylinder(R.sub(pivot, R.scale(dec, 0.04)), R.sub(pivot, R.scale(dec, 0.44)), 0.012, :steel, sides: 8),
+          R.cylinder(R.sub(pivot, R.scale(dec, 0.31)), R.sub(pivot, R.scale(dec, 0.39)), 0.072, :dark, sides: n),
+          # the saddle plate, along the tube
+          R.box(R.add(saddle, R.scale(dec, 0.008)), tube, up, {0.2, 0.06, 0.016}, :dark)
+        ] ++ ota(centre, tube, up, n, detail?)
+
+    {List.flatten(faces), %{ra: {pivot, pole}, dec: {saddle, dec}, lamp: base, tube: {centre, tube}}}
+  end
+
+  # the optical tube: white, a dew shield at the front, the lens dark inside, rings, and at the back the focuser and a diagonal
+  defp ota(c, tube, up, n, detail?) do
+    front = R.add(c, R.scale(tube, @tube_front))
+    back = R.sub(c, R.scale(tube, @tube_back))
+    shield = R.sub(front, R.scale(tube, 0.17))
+
+    [
+      R.cylinder(back, shield, @tube_r, :tube, sides: n),
+      R.cylinder(shield, front, @tube_r + 0.008, :tube, sides: n, cap_b: :lens),
+      if(detail?, do: [R.cylinder(R.sub(c, R.scale(tube, 0.13)), R.sub(c, R.scale(tube, 0.1)), @tube_r + 0.007, :dark, sides: n), R.cylinder(R.add(c, R.scale(tube, 0.1)), R.add(c, R.scale(tube, 0.13)), @tube_r + 0.007, :dark, sides: n)], else: []),
+      R.cylinder(back, R.sub(back, R.scale(tube, 0.08)), 0.03, :metal, sides: 10),
+      if(detail?,
+        do: [
+          R.box(R.sub(back, R.scale(tube, 0.11)), tube, up, {0.05, 0.05, 0.05}, :dark),
+          R.cylinder(R.add(R.sub(back, R.scale(tube, 0.11)), R.scale(up, 0.025)), R.add(R.sub(back, R.scale(tube, 0.11)), R.scale(up, 0.09)), 0.016, :steel, sides: 8)
+        ],
+        else: []
+      )
+    ]
+  end
+
+  # three legs from the hub out to the feet, and a tray between them
+  defp tripod(hub, n, detail?) do
+    legs =
+      for a <- [20.0, 140.0, 260.0] do
+        top = R.add(hub, {0.06 * sin(a), 0.06 * cos(a), -0.02})
+        foot = {@feet_r * sin(a), @feet_r * cos(a), 0.0}
+        R.cylinder(top, foot, 0.016, :leg, sides: 6)
+      end
+
+    head = R.cylinder(R.sub(hub, {0.0, 0.0, 0.05}), hub, 0.1, :dark, sides: n)
+    tray = if detail?, do: [R.cylinder({0.0, 0.0, 0.38}, {0.0, 0.0, 0.4}, 0.2, :dark, sides: 3)], else: []
+    [legs, head, tray]
+  end
+
+  defp altaz(pose, n, detail?) do
+    az = pose[:az_deg] || 0.0
+    alt = pose[:alt_deg] || 0.0
+    hub = {0.0, 0.0, @hub_z}
+    base = R.add(hub, {0.0, 0.0, 0.08})
+    across = {cos(az), -sin(az), 0.0}
+    pivot = R.add(base, {0.0, 0.0, 0.26})
+    tube = from_alt_az(alt, az)
+    arm = R.add(pivot, R.scale(across, 0.1))
+    up = R.normalize(R.cross(tube, across))
+
+    faces =
+      tripod(hub, n, detail?) ++
+        [
+          R.cylinder(hub, base, 0.12, :metal, sides: n),
+          R.box(R.add(R.add(base, R.scale(across, 0.1)), {0.0, 0.0, 0.13}), {0.0, 0.0, 1.0}, R.cross(across, {0.0, 0.0, 1.0}) |> R.scale(-1.0), {0.26, 0.08, 0.04}, :metal),
+          R.cylinder(arm, R.add(arm, R.scale(across, -0.04)), 0.05, :dark, sides: n)
+        ] ++ ota(R.add(pivot, R.scale(across, -0.02)), tube, up, n, detail?)
+
+    {List.flatten(faces), %{ra: {base, {0.0, 0.0, 1.0}}, dec: {pivot, across}, lamp: base, tube: {R.add(pivot, R.scale(across, -0.02)), tube}}}
+  end
+
+  @doc false
+  # The model's axes on the screen, `%{tube: {from, to}, polar: {from, to}}` in
+  # screen units: what the pose put where, for a test to check without reading
+  # polygons.
+  def skeleton(pose) do
+    cam = camera()
+    {_faces, pivots} = if pose[:kind] == :altaz, do: altaz(pose, 6, false), else: equatorial(pose, 6, false)
+    ends = fn {c, dir}, len -> {xy(R.project(R.sub(c, R.scale(dir, len)), cam)), xy(R.project(R.add(c, R.scale(dir, len)), cam))} end
+    %{tube: ends.(pivots.tube, @tube_back), polar: ends.(pivots.ra, 0.15)}
+  end
+
+  defp xy({x, y, _}), do: {x, y}
+
+  defp camera, do: R.camera({0.0, 0.0, @hub_z + 0.12}, az: @cam_az, el: @cam_el, distance: 4.2, focal: 380.0)
+
+  # the shadow on the ground under the tripod, an ellipse in perspective
+  defp shadow(cam) do
+    {x, y, _} = R.project({0.0, 0.0, 0.0}, cam)
+    {xe, _, _} = R.project({@feet_r * 1.1 * :math.cos(@cam_az * @deg), -@feet_r * 1.1 * :math.sin(@cam_az * @deg), 0.0}, cam)
+    rx = abs(xe - x)
+    {r1(x), r1(y), r1(rx), r1(rx * :math.sin(@cam_el * @deg))}
+  end
+
+  # motion arcs round an axis while it turns, and the tracking lamp
+  defp overlays(pose, pivots, cam) do
     running = pose[:running] || %{}
+    {ra_c, ra_axis} = pivots.ra
+    {dec_c, dec_axis} = pivots.dec
+    ra_key = if pose[:kind] == :altaz, do: :az, else: :ra
+    dec_key = if pose[:kind] == :altaz, do: :alt, else: :dec
 
     List.flatten([
-      ground(cam, detail?),
-      if(detail?, do: legs(cam), else: []),
-      # the pier, then the polar housing along the axis
-      [seg(pier, {0.0, 0.0, 0.0}, "sc-pier", 6.0, cam)],
-      [seg(sub(pier, scale(pole, 0.14)), head, "sc-ra", 6.5, cam)],
-      # the Dec axis through the head, saddle one side and the weight shaft the other
-      [seg(weight, saddle, "sc-dec", 3.6, cam)],
-      [disc(weight, 7.5, "sc-weight", cam)],
-      # the tube, centred on the saddle
-      [seg(sub(saddle, scale(tube, @tube)), add(saddle, scale(tube, @tube)), "sc-tube", 10.0, cam)],
-      [disc(add(saddle, scale(tube, @tube)), 3.2, "sc-aperture", cam)],
-      arc_of(head, pole, 0.3, "sc-spin-ra", running[:ra], cam),
-      arc_of(saddle, dec_axis, 0.26, "sc-spin-dec", running[:dec], cam),
-      lamp(pose, cam)
+      arc_of(ra_c, ra_axis, 0.16, "sc-spin-ra", running[ra_key], cam),
+      arc_of(dec_c, dec_axis, 0.12, "sc-spin-dec", running[dec_key], cam),
+      lamp(pose, pivots.lamp, cam)
     ])
   end
 
-  defp ground(cam, true) do
-    {x, y, z} = project({0.0, 0.0, 0.0}, cam)
-    [{z + 10.0, {:ground, r1(x), r1(y), r1(@ground_r * @scale), r1(@ground_r * @scale * :math.sin(@cam_el * @deg))}}]
-  end
-
-  defp ground(_cam, false), do: []
-
-  defp legs(cam) do
-    for a <- [20.0, 140.0, 260.0] do
-      foot = {@ground_r * sin(a), @ground_r * cos(a), 0.0}
-      seg({0.0, 0.0, @pier_top}, foot, "sc-leg", 4.0, cam)
-    end
-  end
-
-  # a motion arc around `axis` at `centre`, drawn only while that axis runs
   defp arc_of(_centre, _axis, _r, _cls, running, _cam) when running != true, do: []
 
   defp arc_of(centre, axis, r, cls, _running, cam) do
-    {u1, u2} = perps(axis)
-
-    pts =
-      for i <- 0..12 do
-        t = (i * 12 - 72) * @deg
-        p = add(centre, scale(add(scale(u1, :math.cos(t)), scale(u2, :math.sin(t))), r))
-        project(p, cam)
-      end
+    {u1, u2} = R.perps(axis)
 
     d =
-      pts
+      for(i <- 0..12, do: (i * 12 - 72) * @deg)
+      |> Enum.map(fn t -> R.project(R.add(centre, R.scale(R.add(R.scale(u1, :math.cos(t)), R.scale(u2, :math.sin(t))), r)), cam) end)
       |> Enum.with_index()
       |> Enum.map_join(" ", fn {{x, y, _}, i} -> "#{if i == 0, do: "M", else: "L"}#{r1(x)},#{r1(y)}" end)
 
-    {_, _, z} = project(centre, cam)
-    [{z - 20.0, {:arc, d, cls}}]
+    [{:arc, d, cls}]
   end
 
-  defp lamp(%{tracking: t}, cam) when t in [:sidereal, :model] do
-    {x, y, z} = project({0.0, 0.0, @pier_top - 0.12}, cam)
-    [{z - 30.0, {:disc, r1(x), r1(y), 5.0, "sc-lamp"}}]
+  defp lamp(%{tracking: t}, at, cam) when t in [:sidereal, :model] do
+    {x, y, _} = R.project(at, cam)
+    [{:disc, r1(x), r1(y), 4.0, "sc-lamp"}]
   end
 
-  defp lamp(_, _), do: []
-
-  # -- projection -----------------------------------------------------------------------
-
-  defp seg(a, b, cls, w, cam) do
-    {x1, y1, z1} = project(a, cam)
-    {x2, y2, z2} = project(b, cam)
-    {(z1 + z2) / 2, {:line, r1(x1), r1(y1), r1(x2), r1(y2), cls, w}}
-  end
-
-  defp disc(p, r, cls, cam) do
-    {x, y, z} = project(p, cam)
-    {z, {:disc, r1(x), r1(y), r, cls}}
-  end
-
-  defp camera do
-    e = @cam_el * @deg
-    a = @cam_az * @deg
-    pos = {:math.cos(e) * :math.sin(a), :math.cos(e) * :math.cos(a), :math.sin(e)}
-    f = neg(pos)
-    r = normalize(cross(f, {0.0, 0.0, 1.0}))
-    u = cross(r, f)
-    {f, r, u}
-  end
-
-  # Orthographic: screen x right, y down; depth grows away from the camera.
-  # The origin is the pier top, so the mount head sits near the middle of the
-  # frame whatever the axes are doing and the drawing never wanders.
-  defp project(v, {f, r, u}) do
-    c = {0.0, 0.0, @pier_top}
-    d = sub(v, c)
-    {@scale * dot(d, r), -@scale * dot(d, u), dot(d, f)}
-  end
+  defp lamp(_, _, _), do: []
 
   # -- words ----------------------------------------------------------------------------
 
@@ -279,36 +299,8 @@ defmodule Controller.Components.Scope do
 
   defp from_alt_az(alt, az), do: {cos(alt) * sin(az), cos(alt) * cos(az), sin(alt)}
 
-  defp rotate({x, y, z} = v, {kx, ky, kz} = k, deg) do
-    t = deg * @deg
-    c = :math.cos(t)
-    s = :math.sin(t)
-    {cx, cy, cz} = cross(k, v)
-    kd = (kx * x + ky * y + kz * z) * (1 - c)
-    {x * c + cx * s + kx * kd, y * c + cy * s + ky * kd, z * c + cz * s + kz * kd}
-  end
-
-  defp perps(a) do
-    {_, _, z} = a
-    seed = if abs(z) < 0.9, do: {0.0, 0.0, 1.0}, else: {1.0, 0.0, 0.0}
-    u1 = normalize(cross(a, seed))
-    {u1, cross(a, u1)}
-  end
-
   defp fallback({x, y, z} = v, alt) do
     if :math.sqrt(x * x + y * y + z * z) < 1.0e-6, do: alt, else: v
-  end
-
-  defp cross({ax, ay, az}, {bx, by, bz}), do: {ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx}
-  defp dot({ax, ay, az}, {bx, by, bz}), do: ax * bx + ay * by + az * bz
-  defp add({ax, ay, az}, {bx, by, bz}), do: {ax + bx, ay + by, az + bz}
-  defp sub({ax, ay, az}, {bx, by, bz}), do: {ax - bx, ay - by, az - bz}
-  defp scale({x, y, z}, s), do: {x * s, y * s, z * s}
-  defp neg(v), do: scale(v, -1.0)
-
-  defp normalize(v) do
-    n = :math.sqrt(dot(v, v))
-    if n < 1.0e-9, do: v, else: scale(v, 1 / n)
   end
 
   defp cos(deg), do: :math.cos(deg * @deg)

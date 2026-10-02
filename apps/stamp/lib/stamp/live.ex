@@ -105,6 +105,12 @@ defmodule Stamp.Live do
   # with a second key is an option asked twice.
 
   @impl true
+  # STOP is on every page: every mount in reach
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("pick", %{"id" => id}, socket) do
     {:noreply, socket |> assign(disk: id) |> to_step(:role)}
   end
@@ -285,9 +291,9 @@ defmodule Stamp.Live do
     ~H"""
     <.page id="provision" class="flow" night={@night}>
       <:header>
-        <.back {back_link(@step)} label={back_label(@step)} />
+        <.back {back_link(@step)} label={back_label(@step)} section="System" />
         <.title>{step_title(@step)}</.title>
-        <.actions><.help href={~p"/docs/provision"} label="stamping a box" /></.actions>
+        <.actions><.help href={~p"/docs/provision"} label="stamping a box" /><.stop /></.actions>
       </:header>
 
       <%= if working?(@job) do %>

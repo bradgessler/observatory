@@ -17,7 +17,10 @@ defmodule Controller.Sky.Tracker do
   and is refreshed each tick, so if this process dies or stalls the motors
   stop within a second on their own. It never chases a large error: past a
   few degrees (a pier flip the model wants, a target the limits won't allow)
-  it stops and says so rather than crawl across the sky at 16×.
+  it stops and says so rather than crawl across the sky at 16×. On a mount
+  that was never zeroed (no soft limits) it also stops when the counterweight
+  reaches the hard limit above level (`Pointing.meridian_hard/0`): the next Go
+  To flips to the other side of the pier.
 
   State is per mount; the current readout is in `:persistent_term` so status
   strips can show it for free.
@@ -36,11 +39,20 @@ defmodule Controller.Sky.Tracker do
   # further off than this and something else is wrong: stop, don't chase
   @give_up_deg 5.0
   @sidereal_deg_s 360.0 / 86_164.0905
+  # what is being held, per mount, for after a restart
+  @hold_key "hold"
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Follow `obj` (`%{ra_deg, dec_deg, name}`) with mount `id`."
   def track(id, obj), do: GenServer.cast(__MODULE__, {:track, id, obj})
+
+  @doc """
+  Hold where the tube is (`here`, its RA/Dec now) while naming what it's on
+  (`target`, the catalogue object): after a search or a nudge found it, so a
+  Centered records the object, not the spot.
+  """
+  def track(id, here, target), do: GenServer.cast(__MODULE__, {:track, id, Map.put(here, :target, target)})
 
   @doc """
   Stop following (synchronous, so a goto issued right after cannot be undone
@@ -64,10 +76,52 @@ defmodule Controller.Sky.Tracker do
 
   def active?(id), do: status(id) != nil
 
+  @doc "Why the last hold on a mount ended, if it ended on its own: `%{name, why, at}` or nil."
+  def ended(id), do: :persistent_term.get({__MODULE__, :ended, id}, nil)
+
+  @doc """
+  A hold the box went down in the middle of (a firmware upgrade, a crash, a
+  reboot), for a page to offer back: `%{target, since}` or nil (#99). Kept
+  in Settings, so it survives the restart; cleared when a person or a limit
+  ends the hold, and ignored when the mount itself has been switched on
+  since, because then its counts no longer point where they did. Nothing
+  moves on its own: resuming is a Go To someone taps.
+  """
+  def interrupted(id) do
+    with false <- active?(id),
+         %{"target" => t, "since" => since} <- Map.get(Controller.Settings.get(@hold_key, %{}), id),
+         {:ok, at, _} <- DateTime.from_iso8601(since),
+         false <- switched_on_since?(id, at) do
+      %{target: %{id: t["id"], name: t["name"], ra_deg: t["ra_deg"], dec_deg: t["dec_deg"]}, since: at}
+    else
+      _ -> nil
+    end
+  end
+
+  @doc "Forget an interrupted hold (resumed, or declined)."
+  def forget_interrupted(id), do: Controller.Settings.put(@hold_key, Map.delete(Controller.Settings.get(@hold_key, %{}), id))
+
+  defp switched_on_since?(id, at) do
+    on = Controller.MountPower.last_on(id)
+    is_integer(on) and on > DateTime.to_unix(at, :millisecond)
+  rescue
+    _ -> false
+  catch
+    :exit, _ -> false
+  end
+
+  defp remember(id, target) do
+    t = for {k, v} <- target, into: %{}, do: {to_string(k), v}
+    held = Map.put(Controller.Settings.get(@hold_key, %{}), id, %{"target" => t, "since" => DateTime.to_iso8601(DateTime.utc_now())})
+    Controller.Settings.put(@hold_key, held)
+  rescue
+    _ -> :ok
+  end
+
   @impl true
   def init(_) do
     Process.flag(:trap_exit, true)
-    Telescope.Events.tag("tracker")
+    Telescope.Events.tag("tracking")
     :timer.send_interval(@tick_ms, :tick)
     {:ok, %{}}
   end
@@ -90,7 +144,7 @@ defmodule Controller.Sky.Tracker do
           ref: ref,
           obj: obj,
           # the catalogue object, untouched by re-basing: for "that's centred" and "about"
-          target: Map.take(obj, [:id, :name, :ra_deg, :dec_deg]),
+          target: Map.take(obj[:target] || obj, [:id, :name, :ra_deg, :dec_deg]),
           cmd: %{ra: 0.0, dec: 0.0},
           paused: false,
           settled: false,
@@ -99,6 +153,8 @@ defmodule Controller.Sky.Tracker do
         }
 
         Telescope.Events.emit(:tracker, :start, %{id: id, target: obj.name})
+        :persistent_term.erase({__MODULE__, :ended, id})
+        remember(id, entry.target)
         publish(id, entry, nil)
         send(self(), {:tick_one, id})
         {:noreply, Map.put(s, id, entry)}
@@ -106,17 +162,24 @@ defmodule Controller.Sky.Tracker do
   end
 
   @impl true
-  def handle_call({:stop, id, halt?}, _from, s), do: {:reply, :ok, drop(s, id, if(halt?, do: :stop, else: :handoff))}
-  def handle_call(:stop_all, _from, s), do: {:reply, :ok, Enum.reduce(Map.keys(s), s, &drop(&2, &1, :stop))}
+  def handle_call({:stop, id, halt?}, _from, s),
+    do: {:reply, :ok, drop(s, id, if(halt?, do: :stop, else: :handoff))}
+
+  def handle_call(:stop_all, _from, s),
+    do: {:reply, :ok, Enum.reduce(Map.keys(s), s, &drop(&2, &1, :stop))}
 
   @impl true
   def handle_info(:tick, s), do: {:noreply, Enum.reduce(Map.keys(s), s, &step/2)}
-  def handle_info({:tick_one, id}, s), do: {:noreply, if(Map.has_key?(s, id), do: step(id, s), else: s)}
+
+  def handle_info({:tick_one, id}, s),
+    do: {:noreply, if(Map.has_key?(s, id), do: step(id, s), else: s)}
+
   def handle_info(_, s), do: {:noreply, s}
 
   # Going away for any reason: leave nothing running in our name.
   @impl true
-  def terminate(_reason, s), do: Enum.reduce(Map.keys(s), s, &drop(&2, &1, :stop))
+  # (the hold stays remembered: this is the box going down, not a person)
+  def terminate(_reason, s), do: Enum.reduce(Map.keys(s), s, &drop(&2, &1, :shutdown))
 
   defp step(id, s) do
     entry = s[id]
@@ -177,38 +240,61 @@ defmodule Controller.Sky.Tracker do
 
     err_ra = Astro.norm180(r1 - elem(cur, 0))
     err_dec = d1 - elem(cur, 1)
+    cw = Pointing.counterweight(ctx, r1)
 
-    if abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg do
-      {:give_up, :lost}
-    else
-      rate_ra = (Astro.norm180(r2 - r1) / @lookahead_s + err_ra / @correct_s) / @sidereal_deg_s
-      rate_dec = ((d2 - d1) / @lookahead_s + err_dec / @correct_s) / @sidereal_deg_s
-      cmd = %{ra: clamp(rate_ra), dec: clamp(rate_dec)}
+    cond do
+      # never zeroed: no soft limits, so the counterweight is the limit
+      not snap.homed and cw > Pointing.meridian_hard() ->
+        {:give_up, :meridian}
 
-      # every running axis is re-issued each tick (that feeds the dead-man;
-      # the driver says nothing to the board when nothing changed); an axis
-      # that should be still is stopped once
-      for {axis, rate} <- cmd do
-        cond do
-          abs(rate) >= 0.02 -> safe(fn -> Mount.slew(entry.ref, axis, rate, hold: true, quiet: true) end)
-          abs(Map.get(entry.cmd, axis)) >= 0.02 -> safe(fn -> Mount.stop(entry.ref, axis) end)
-          true -> :ok
+      abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->
+        {:give_up, :lost}
+
+      true ->
+        rate_ra = (Astro.norm180(r2 - r1) / @lookahead_s + err_ra / @correct_s) / @sidereal_deg_s
+        rate_dec = ((d2 - d1) / @lookahead_s + err_dec / @correct_s) / @sidereal_deg_s
+        cmd = %{ra: clamp(rate_ra), dec: clamp(rate_dec)}
+
+        # every running axis is re-issued each tick (that feeds the dead-man;
+        # the driver says nothing to the board when nothing changed); an axis
+        # that should be still is stopped once
+        for {axis, rate} <- cmd do
+          cond do
+            abs(rate) >= 0.02 ->
+              safe(fn -> Mount.slew(entry.ref, axis, rate, hold: true, quiet: true) end)
+
+            abs(Map.get(entry.cmd, axis)) >= 0.02 ->
+              safe(fn -> Mount.stop(entry.ref, axis) end)
+
+            true ->
+              :ok
+          end
         end
-      end
 
-      # the log gets a line when a rate really changes, not every tick
-      if abs(cmd.ra - entry.cmd.ra) > 0.5 or abs(cmd.dec - entry.cmd.dec) > 0.5,
-        do: Telescope.Events.emit(:tracker, :rates, %{id: id, target: entry.obj.name, ra: Float.round(cmd.ra, 2), dec: Float.round(cmd.dec, 2)})
+        # the log gets a line when a rate really changes, not every tick
+        if abs(cmd.ra - entry.cmd.ra) > 0.5 or abs(cmd.dec - entry.cmd.dec) > 0.5,
+          do:
+            Telescope.Events.emit(:tracker, :rates, %{
+              id: id,
+              target: entry.obj.name,
+              ra: Float.round(cmd.ra, 2),
+              dec: Float.round(cmd.dec, 2)
+            })
 
-      error_arcmin = :math.sqrt(err_ra * err_ra + err_dec * err_dec) * 60
-      {:ok, %{entry | cmd: cmd, paused: false, settled: true}, %{error_arcmin: error_arcmin}}
+        error_arcmin = :math.sqrt(err_ra * err_ra + err_dec * err_dec) * 60
+
+        {:ok, %{entry | cmd: cmd, paused: false, settled: true},
+         %{error_arcmin: error_arcmin, cw: cw}}
     end
   end
 
   defp rebase(entry, snap, ctx) do
     case Pointing.scope_radec(snap, ctx) do
-      {ra, dec} -> %{entry | obj: %{entry.obj | ra_deg: ra, dec_deg: dec}, cmd: %{ra: 0.0, dec: 0.0}}
-      _ -> entry
+      {ra, dec} ->
+        %{entry | obj: %{entry.obj | ra_deg: ra, dec_deg: dec}, cmd: %{ra: 0.0, dec: 0.0}}
+
+      _ ->
+        entry
     end
   end
 
@@ -243,9 +329,23 @@ defmodule Controller.Sky.Tracker do
   defp drop(s, id, why) do
     if entry = s[id] do
       Telescope.Events.emit(:tracker, :end, %{id: id, target: entry.obj.name, why: why})
+
       # :handoff — the caller is about to command the axes itself; every other end stops what we ran
-      if why != :handoff, do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
+      if why != :handoff,
+        do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
+
       :persistent_term.erase({__MODULE__, id})
+      # a person or a limit ended it: nothing to offer back after a restart
+      if why in [:stop, :estop, :meridian, :lost], do: forget_interrupted(id)
+      # ended on its own (not a person's stop or a Go To taking over): the pages say why
+      if why in [:meridian, :lost, :gone, :error, :estop],
+        do:
+          :persistent_term.put({__MODULE__, :ended, id}, %{
+            name: entry.obj.name,
+            why: why,
+            at: DateTime.utc_now()
+          })
+
       Telescope.broadcast("tracker", {:tracker, id, nil})
     end
 
@@ -258,6 +358,7 @@ defmodule Controller.Sky.Tracker do
       ra_rate: entry.cmd.ra,
       dec_rate: entry.cmd.dec,
       error_arcmin: readout && readout.error_arcmin,
+      cw: readout && readout[:cw],
       paused: entry.paused,
       since: entry.since,
       target: entry.target

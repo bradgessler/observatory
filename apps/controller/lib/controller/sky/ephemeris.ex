@@ -1,16 +1,27 @@
 defmodule Controller.Sky.Ephemeris do
   @moduledoc """
-  Low-precision positions for the Sun, Moon and naked-eye planets — good to a
-  fraction of a degree, which is all a slew-and-look needs. Sun and Moon follow
+  Low-precision positions for the Sun, Moon and naked-eye planets, good to a
+  few arcminutes, which is what a slew-and-look needs. Sun and Moon follow
   Meeus' simplified series; planets use Keplerian elements (Standish, JPL
-  approximate positions 1800–2050). Everything returns J2000-ish RA/Dec in
-  degrees, geocentric (topocentric correction for the Moon is ~1°, ignored).
+  approximate positions 1800–2050). Everything returns RA/Dec in degrees in
+  the J2000 frame the star catalogs, the plate solver and the pointing model
+  use.
+
+  The Moon is close enough that where you stand moves it by up to a degree
+  (its horizontal parallax, about 57′). Pass a site and it comes back as seen
+  from there; without one it is geocentric. The first field night found both
+  of these the hard way: a geocentric Moon of date was 45′ from where the
+  eyepiece saw it, and a mount model fitted to it was off by 23′ rms instead
+  of 7′.
   """
 
   alias Controller.Sky.Astro
 
   @deg :math.pi() / 180
   @obliquity 23.4393
+  # general precession in longitude, degrees per Julian century (IAU 1976)
+  @precession 1.3969713
+  @earth_radius_km 6378.14
 
   @type body :: :sun | :moon | :mercury | :venus | :mars | :jupiter | :saturn
 
@@ -18,23 +29,39 @@ defmodule Controller.Sky.Ephemeris do
 
   def bodies, do: [:moon | @planets]
 
-  @doc "RA/Dec (degrees) and apparent magnitude of `body` at `dt`."
-  def position(:sun, dt) do
-    {lon, _r} = sun_ecliptic(days(dt))
-    to_radec(lon, 0.0) |> Map.put(:mag, -26.7)
+  @doc """
+  RA/Dec (degrees, J2000) and apparent magnitude of `body` at `dt`. With a
+  `site` (`%{lat:, lon:}`, east positive, optional `elevation_m`) the Moon is
+  topocentric; planets and the Sun are far enough that it changes nothing.
+  """
+  def position(body, dt, site \\ nil)
+
+  def position(:sun, dt, _site) do
+    d = days(dt)
+    {lon, _r} = sun_ecliptic(d)
+    to_radec(to_j2000(lon, d), 0.0) |> Map.put(:mag, -26.7)
   end
 
-  def position(:moon, dt) do
+  def position(:moon, dt, site) do
     d = days(dt)
-    {lon, lat} = moon_ecliptic(d)
+    {lon, lat, dist} = moon_ecliptic(d)
     {slon, _} = sun_ecliptic(d)
     elong = Astro.norm180(lon - slon)
-    # phase angle ≈ 180 - elongation; illuminated fraction from that
-    illum = (1 - :math.cos((180 - abs(elong)) * @deg)) / 2
-    to_radec(lon, lat) |> Map.merge(%{mag: Float.round(-12.7 + 5 * (1 - illum), 1), illumination: illum, waxing: elong > 0})
+    # phase angle i ≈ 180 - elongation; the lit fraction is (1 + cos i) / 2:
+    # 0 at new (elongation 0), 1 at full (elongation 180)
+    illum = (1 + :math.cos((180 - abs(elong)) * @deg)) / 2
+
+    to_radec(to_j2000(lon, d), lat)
+    |> Map.merge(%{
+      distance_km: dist,
+      mag: Float.round(-12.7 + 5 * (1 - illum), 1),
+      illumination: illum,
+      waxing: elong > 0
+    })
+    |> topocentric(dt, site)
   end
 
-  def position(planet, dt) when planet in @planets do
+  def position(planet, dt, _site) when planet in @planets do
     d = days(dt)
     t = d / 36525
     {xe, ye, ze} = helio(:earth, t)
@@ -47,11 +74,51 @@ defmodule Controller.Sky.Ephemeris do
     to_radec(lon, lat) |> Map.put(:mag, magnitude(planet, r, dist, phase_angle(r, dist)))
   end
 
-  @doc "Every body as a catalog-shaped object (id, name, ra_deg, dec_deg, mag, kind)."
-  def objects(%DateTime{} = dt) do
+  @doc "The Sun's altitude in degrees seen from `site` at `dt`. Below −6° (civil twilight over) is dark enough to look."
+  def sun_alt(dt, %{lat: lat, lon: lon}) do
+    %{ra_deg: ra, dec_deg: dec} = position(:sun, dt)
+    {alt, _} = Controller.Sky.Astro.alt_az(ra, dec, lat, Controller.Sky.Astro.lst_deg(dt, lon))
+    alt
+  end
+
+  @doc """
+  `p` (RA/Dec J2000 and `distance_km`) as seen from `site` at `dt` rather
+  than from the centre of the Earth: the observer's own position, on the
+  ellipsoid and turned by sidereal time, taken off the body's.
+  """
+  def topocentric(p, _dt, nil), do: p
+
+  def topocentric(%{distance_km: dist} = p, dt, %{lat: lat, lon: lon} = site) do
+    phi = lat * @deg
+    h = Map.get(site, :elevation_m, 0) / 1000 / @earth_radius_km
+    # Meeus 11: the observer's distance from the axis and the equator, in Earth radii
+    u = :math.atan(0.99664719 * :math.tan(phi))
+    rho_sin = 0.99664719 * :math.sin(u) + h * :math.sin(phi)
+    rho_cos = :math.cos(u) + h * :math.cos(phi)
+    # sidereal time is of date and the body is J2000; the 22′ between the
+    # frames moves a 1° parallax by well under an arcsecond
+    lst = Astro.lst_deg(dt, lon) * @deg
+
+    {x, y, z} = vec(p.ra_deg, p.dec_deg, dist / @earth_radius_km)
+    {x, y, z} = {x - rho_cos * :math.cos(lst), y - rho_cos * :math.sin(lst), z - rho_sin}
+    ra = Astro.norm360(:math.atan2(y, x) / @deg)
+    dec = :math.asin(z / :math.sqrt(x * x + y * y + z * z)) / @deg
+    %{p | ra_deg: ra, dec_deg: dec}
+  end
+
+  @doc "Every body as a catalog-shaped object (id, name, ra_deg, dec_deg, mag, kind); the Moon from `site` when given."
+  def objects(%DateTime{} = dt, site \\ nil) do
     for b <- bodies() do
-      p = position(b, dt)
-      %{id: "sol-#{b}", name: name(b, p), ra_deg: p.ra_deg, dec_deg: p.dec_deg, mag: p.mag, kind: if(b == :moon, do: :moon, else: :planet)}
+      p = position(b, dt, site)
+
+      %{
+        id: "sol-#{b}",
+        name: name(b, p),
+        ra_deg: p.ra_deg,
+        dec_deg: p.dec_deg,
+        mag: p.mag,
+        kind: if(b == :moon, do: :moon, else: :planet)
+      }
     end
   end
 
@@ -73,6 +140,7 @@ defmodule Controller.Sky.Ephemeris do
     {lon, r}
   end
 
+  # longitude, latitude (ecliptic of date, degrees) and distance (km)
   defp moon_ecliptic(d) do
     t = d / 36525
     lp = Astro.norm360(218.3164477 + 481_267.88123421 * t)
@@ -91,20 +159,56 @@ defmodule Controller.Sky.Ephemeris do
     lat =
       5.128 * :math.sin(f) + 0.281 * :math.sin(mp + f) + 0.278 * :math.sin(mp - f) +
         0.173 * :math.sin(2 * dd - f) + 0.055 * :math.sin(2 * dd - mp + f) +
-        0.046 * :math.sin(2 * dd - mp - f) + 0.033 * :math.sin(2 * dd + f) + 0.017 * :math.sin(2 * mp + f)
+        0.046 * :math.sin(2 * dd - mp - f) + 0.033 * :math.sin(2 * dd + f) +
+        0.017 * :math.sin(2 * mp + f)
 
-    {Astro.norm360(lon), lat}
+    # Meeus 47.A, the terms over 100 km of 385,000
+    dist =
+      385_000.56 - 20_905.355 * :math.cos(mp) - 3_699.111 * :math.cos(2 * dd - mp) -
+        2_955.968 * :math.cos(2 * dd) - 569.925 * :math.cos(2 * mp) + 48.888 * :math.cos(m) +
+        246.158 * :math.cos(2 * dd - 2 * mp) - 152.138 * :math.cos(2 * dd - m - mp) -
+        170.733 * :math.cos(2 * dd + mp) - 204.586 * :math.cos(2 * dd - m) -
+        129.620 * :math.cos(m - mp) + 108.743 * :math.cos(dd) + 104.755 * :math.cos(m + mp)
+
+    {Astro.norm360(lon), lat, dist}
   end
+
+  # The Sun and Moon series are referred to the equinox of date; the catalogs
+  # are J2000. Precession is a slide along the ecliptic, 22′ by 2026.
+  defp to_j2000(lon, d), do: Astro.norm360(lon - @precession * d / 36_525)
 
   # -- Planets (Standish approximate elements, J2000 ecliptic) ---------------------------
 
   # {a, e, I, L, long.peri, long.node} and per-century rates
-  defp elements(:mercury), do: {{0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593}, {0.00000037, 0.00001906, -0.00594749, 149_472.67411175, 0.16047689, -0.12534081}}
-  defp elements(:venus), do: {{0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255}, {0.00000390, -0.00004107, -0.00078890, 58_517.81538729, 0.00268329, -0.27769418}}
-  defp elements(:earth), do: {{1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0}, {0.00000562, -0.00004392, -0.01294668, 35_999.37244981, 0.32327364, 0.0}}
-  defp elements(:mars), do: {{1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891}, {0.00001847, 0.00007882, -0.00813131, 19_140.30268499, 0.44441088, -0.29257343}}
-  defp elements(:jupiter), do: {{5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909}, {-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106}}
-  defp elements(:saturn), do: {{9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448}, {-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794}}
+  defp elements(:mercury),
+    do:
+      {{0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593},
+       {0.00000037, 0.00001906, -0.00594749, 149_472.67411175, 0.16047689, -0.12534081}}
+
+  defp elements(:venus),
+    do:
+      {{0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255},
+       {0.00000390, -0.00004107, -0.00078890, 58_517.81538729, 0.00268329, -0.27769418}}
+
+  defp elements(:earth),
+    do:
+      {{1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0},
+       {0.00000562, -0.00004392, -0.01294668, 35_999.37244981, 0.32327364, 0.0}}
+
+  defp elements(:mars),
+    do:
+      {{1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891},
+       {0.00001847, 0.00007882, -0.00813131, 19_140.30268499, 0.44441088, -0.29257343}}
+
+  defp elements(:jupiter),
+    do:
+      {{5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909},
+       {-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106}}
+
+  defp elements(:saturn),
+    do:
+      {{9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448},
+       {-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794}}
 
   defp helio(body, t) do
     {{a0, e0, i0, l0, w0, o0}, {da, de, di, dl, dw, do_}} = elements(body)
@@ -120,8 +224,14 @@ defmodule Controller.Sky.Ephemeris do
     xp = a * (:math.cos(ea) - e)
     yp = a * :math.sqrt(1 - e * e) * :math.sin(ea)
 
-    x = (:math.cos(w) * :math.cos(omega) - :math.sin(w) * :math.sin(omega) * :math.cos(i)) * xp + (-:math.sin(w) * :math.cos(omega) - :math.cos(w) * :math.sin(omega) * :math.cos(i)) * yp
-    y = (:math.cos(w) * :math.sin(omega) + :math.sin(w) * :math.cos(omega) * :math.cos(i)) * xp + (-:math.sin(w) * :math.sin(omega) + :math.cos(w) * :math.cos(omega) * :math.cos(i)) * yp
+    x =
+      (:math.cos(w) * :math.cos(omega) - :math.sin(w) * :math.sin(omega) * :math.cos(i)) * xp +
+        (-:math.sin(w) * :math.cos(omega) - :math.cos(w) * :math.sin(omega) * :math.cos(i)) * yp
+
+    y =
+      (:math.cos(w) * :math.sin(omega) + :math.sin(w) * :math.cos(omega) * :math.cos(i)) * xp +
+        (-:math.sin(w) * :math.sin(omega) + :math.cos(w) * :math.cos(omega) * :math.cos(i)) * yp
+
     z = :math.sin(w) * :math.sin(i) * xp + :math.cos(w) * :math.sin(i) * yp
     {x, y, z}
   end
@@ -155,12 +265,22 @@ defmodule Controller.Sky.Ephemeris do
 
   # -- helpers ------------------------------------------------------------------------------------
 
+  defp vec(ra, dec, r) do
+    {a, d} = {ra * @deg, dec * @deg}
+    {r * :math.cos(d) * :math.cos(a), r * :math.cos(d) * :math.sin(a), r * :math.sin(d)}
+  end
+
   defp to_radec(lon, lat) do
     l = lon * @deg
     b = lat * @deg
     e = @obliquity * @deg
-    ra = :math.atan2(:math.sin(l) * :math.cos(e) - :math.tan(b) * :math.sin(e), :math.cos(l)) / @deg
-    dec = :math.asin(:math.sin(b) * :math.cos(e) + :math.cos(b) * :math.sin(e) * :math.sin(l)) / @deg
+
+    ra =
+      :math.atan2(:math.sin(l) * :math.cos(e) - :math.tan(b) * :math.sin(e), :math.cos(l)) / @deg
+
+    dec =
+      :math.asin(:math.sin(b) * :math.cos(e) + :math.cos(b) * :math.sin(e) * :math.sin(l)) / @deg
+
     %{ra_deg: Astro.norm360(ra), dec_deg: dec}
   end
 

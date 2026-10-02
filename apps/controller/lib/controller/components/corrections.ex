@@ -55,8 +55,8 @@ defmodule Controller.Components.Corrections do
             <span :if={!@model and (abs(@offset["ra"]) > 0.01 or abs(@offset["dec"]) > 0.01)} class="dim">No stars yet; one sync offset in force</span>
             <span :if={!@model and abs(@offset["ra"]) <= 0.01 and abs(@offset["dec"]) <= 0.01} class="dim">No stars yet; no correction in force</span>
           </div>
-          <div class="kv"><span class="kv-k">offsets</span><span class="kv-v">RA {sgn(off(@model, @offset, :ra))}° · Dec {sgn(off(@model, @offset, :dec))}°</span></div>
-          <div :if={@status && @status.n > 0} class="kv"><span class="kv-k">stars</span><span class="kv-v">{@status.n}{if @status.rms_arcmin && @status.n >= 3, do: " · agree to #{fmt(@status.rms_arcmin)}′", else: ""}</span></div>
+          <div class="kv"><span class="kv-k">Offsets</span><span class="kv-v">RA {sgn(off(@model, @offset, :ra))}° · Dec {sgn(off(@model, @offset, :dec))}°</span></div>
+          <div :if={@status && @status.n > 0} class="kv"><span class="kv-k">Stars</span><span class="kv-v">{@status.n}{if @status.rms_arcmin && @status.n >= 3, do: " · agree to #{fmt(@status.rms_arcmin)}′", else: ""}</span></div>
         </div>
       </div>
 
@@ -65,10 +65,10 @@ defmodule Controller.Components.Corrections do
         <.bar label="Dec" rate={@tracker && @tracker.dec_rate} tick={0.0} />
         <span class="dim auth-note">
           {cond do
-            @tracker && @tracker.paused == :goto -> "Holding #{@tracker.name} · slewing"
-            @tracker && @tracker.paused -> "Holding #{@tracker.name} · paused while a hand is on a control"
-            @tracker -> "holding #{@tracker.name}#{if @tracker.error_arcmin, do: " · #{fmt(@tracker.error_arcmin)}′ off", else: ""}"
-            true -> "Not holding anything · sidereal would be RA 1×, Dec 0"
+            @tracker && @tracker.paused == :goto -> "Tracking #{@tracker.name} · slewing"
+            @tracker && @tracker.paused -> "Tracking #{@tracker.name} · paused while a hand is on a control"
+            @tracker -> "Tracking #{@tracker.name}#{if @tracker.error_arcmin, do: " · #{fmt(@tracker.error_arcmin)}′ off", else: ""}"
+            true -> "Not tracking anything · sidereal would be RA 1×, Dec 0"
           end}
         </span>
       </div>
@@ -92,7 +92,7 @@ defmodule Controller.Components.Corrections do
         <i class="auth-tick" style={"left: #{@tick_pct}%"}></i>
         <i :if={@rate} class="auth-fill" style={fill_style(@pct)}></i>
       </span>
-      <span class="auth-v">{if @rate, do: "#{sgn(@rate)}×#{if @over, do: " ▸", else: ""}", else: "—"}</span>
+      <span class="auth-v">{if @rate, do: "#{sgn(@rate)}×#{if @over, do: " ▸", else: ""}", else: Controller.Words.none()}</span>
     </div>
     """
   end
@@ -122,7 +122,7 @@ defmodule Controller.Components.Corrections do
   defp off(m, _, :ra), do: m.off_ra
   defp off(m, _, :dec), do: m.off_dec
 
-  defp fmt(nil), do: "—"
+  defp fmt(nil), do: Controller.Words.none()
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
   defp sgn(x) when x >= 0, do: "+" <> fmt(x)
   defp sgn(x), do: "−" <> fmt(abs(x))

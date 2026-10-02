@@ -12,7 +12,7 @@ config :controller,
         {:live, "/provision/:step", Stamp.Live, :step}
       ],
       home: [
-        {"Plumbing", {"Stamp a Box", "/provision", "Build an Observatory image and write it to an SD card", "/docs/provision"}}
+        {"System", {"Stamp a Box", "/provision", "Build an Observatory image and write it to an SD card", "/docs/provision", "sdcard"}}
       ]
     }
   ]
@@ -45,6 +45,10 @@ config :mount,
   limits: %{ra: {-100.0, 100.0}, dec: {-175.0, 175.0}}
 
 # Nodes on the same LAN find each other by multicast; nothing to configure.
+# The database (Controller.Repo): SQLite, ~/.observatory/observatory.db unless set
+config :controller, ecto_repos: [Controller.Repo]
+config :controller, Controller.Repo, journal_mode: :wal, pool_size: 5, busy_timeout: 5_000
+
 config :libcluster,
   topologies: [lan: [strategy: Cluster.Strategy.Gossip]]
 

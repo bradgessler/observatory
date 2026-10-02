@@ -50,8 +50,14 @@ defmodule Firmware.MixProject do
       # ssh, mdns, time.
       {:nerves_pack, "~> 0.7.1", targets: @all_targets},
 
+      # Bluetooth: BlueZ over D-Bus (Firmware.Bluetooth). Every target, so
+      # the tree is the same everywhere; a system image without BlueZ just
+      # reports it off.
+      {:bluez, "~> 0.2.0", targets: @all_targets},
+
       {:nerves_system_rpi0_2, "~> 2.0", runtime: false, targets: :rpi0_2},
-      {:nerves_system_rpi3, "~> 2.0", runtime: false, targets: :rpi3},
+      # the official Pi 3 system plus Bluetooth (BlueZ), built here: systems/
+      {:observatory_system_rpi3, path: "../systems/observatory_rpi3", runtime: false, targets: :rpi3, nerves: [compile: true]},
       {:nerves_system_rpi3a, "~> 2.0", runtime: false, targets: :rpi3a},
       {:nerves_system_rpi4, "~> 2.0", runtime: false, targets: :rpi4},
       {:nerves_system_rpi5, "~> 2.0", runtime: false, targets: :rpi5},

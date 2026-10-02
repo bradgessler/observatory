@@ -181,6 +181,12 @@ config :firmware,
 # joins the access point. Both live in this app, next to the radio they drive.
 # Nothing from the stamping Mac's Stamp a Box is in the image at all: the provision
 # app is not a dependency here.
+# ---- Bluetooth ----------------------------------------------------------------------
+# The Pi 3's Bluetooth and Wi-Fi share one chip and one antenna, and joining
+# Wi-Fi is what a box must get right at power-on, so Bluetooth waits 20 s
+# with its radio idle (Firmware.Bluetooth).
+config :firmware, bluetooth: [start_after_ms: 20_000]
+
 config :controller,
   extensions: [
     %{
@@ -200,10 +206,12 @@ config :controller,
       routes: [
         {:live, "/network", Firmware.Web.NetworkLive, :index},
         {:live, "/network/wifi", Firmware.Web.NetworkLive, :wifi},
-        {:live, "/network/join", Firmware.Web.NetworkLive, :join}
+        {:live, "/network/join", Firmware.Web.NetworkLive, :join},
+        {:live, "/bluetooth", Firmware.Web.BluetoothLive, :index}
       ],
       home: [
-        {"Plumbing", {"Network", "/network", "The Wi-Fi radio: access point or client, the networks it knows, power", "/docs/network"}}
+        {"System", {"Network", "/network", "The Wi-Fi radio: access point or client, the networks it knows, power", "/docs/network", "wifi"}},
+        {"System", {"Bluetooth", "/bluetooth", "The Bluetooth radio and every device it hears", "/docs/bluetooth", "bluetooth"}}
       ]
     }
   ]
@@ -225,6 +233,16 @@ config :mdns_lite,
     # letter is refused, so it is said here rather than guessed
     %{protocol: "epmd", transport: "tcp", port: 4369, txt_payload: ["node=#{node_name}@#{name}.local"]}
   ]
+
+# ---- the clock ----------------------------------------------------------------------
+# No internet time in a field, and no real-time clock: the first phone to open
+# the Site page sets the clock when the network has not (Controller.Clock).
+config :controller, clock_from_browser: true
+
+# ---- the game pad ----------------------------------------------------------------
+# A box's pad is how it is driven in the field: armed from boot. Holding the
+# trigger is what moves the scope, and letting go stops it (Input.Mapper).
+config :input, armed_at_start: true
 
 # ---- observatory ------------------------------------------------------------------
 # Watch USB for EQDIR cables; one driver per mount, none when unplugged.
@@ -254,6 +272,14 @@ config :controller, Controller.Endpoint,
 # The root filesystem is read-only. Anything the page saves lives on /data,
 # which survives reboots and firmware updates.
 config :controller, settings_path: "/data/observatory/settings.json"
+# the database beside it: settings and the frames on the card (#107)
+config :controller, Controller.Repo, database: "/data/observatory/observatory.db"
+
+# The plate solver's Tycho-2 indexes (hundreds of MB) live on /data too, not
+# in the image. Without this the solver looked in ~/.observatory, found
+# nothing, and every photo went to the Mac over the network: fine at home,
+# nothing at all in a field.
+config :controller, :solver, index_config: "/data/astrometry/astrometry.cfg"
 config :provision, scripts_dir: "/data/observatory/stamps"
 
 # Nodes find each other over Erlang distribution; the Mac connects with

@@ -67,3 +67,10 @@ config :mount, simulate_when_empty: true
 config :telescope,
   distribution: [name: "observatory", cookie: String.to_atom(System.get_env("OBSERVATORY_COOKIE", "observatory"))],
   boxes_file: Path.join(System.user_home!(), ".observatory/boxes.txt")
+
+# No telescope camera plugged into the Mac: use the simulated one on the
+# simulated mount (Controller.ScopeCamera.Sim)
+config :controller, :scope_camera, sim: true
+
+# The Mac is the mothership: it copies kept frames off every box (Controller.Frames)
+config :controller, :frames, pull: true

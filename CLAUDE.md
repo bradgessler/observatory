@@ -40,6 +40,14 @@ it. No bundler: LiveView's JS is served from deps.
 spacing, one radius, black ground for OLED, red night mode, no tap flash, no
 expansion panels (secondary things get a page and a back link).
 
+**Every page is listed once, in `Controller.Nav`.** Title, address, one
+line, help and icon, in one place; the sidebar, a phone's Home and Search
+(⌘K, or the search key on a phone) all draw from it through
+`Controller.Components.Menu` and `Controller.Search`. A page has one
+address, never a hand-made list of other pages or a second shell around it
+(the old Bench was both), and every page has STOP (`Controller.Stop.all/0`
+when it isn't about one mount).
+
 **Modes are loud.** Anything persistent that changes where the scope goes
 (sync offset, flipped axis sign, reversed tracking, auto-track off, site
 override) is reported by `Controller.Modes.active/0` and shown on every page.

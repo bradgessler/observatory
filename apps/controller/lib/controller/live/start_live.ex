@@ -1,14 +1,14 @@
 defmodule Controller.StartLive do
   @moduledoc """
-  The front door is a flow, not a menu: plug in → zero the axes → star 1, 2, 3
-  until the alignment locks → look at things. The page shows the step you are
+  The front door is a flow, not a menu: plug in → set home → star 1, 2, 3
+  until the alignment is good → look at things. The page shows the step you are
   on and nothing from later steps; when the stars agree it turns into the
-  control surface — tonight's targets with Go, what the tube is holding, the
-  ways to centre, STOP. Everything else (the bench, the camera, the plumbing)
-  is one link at the bottom.
+  control surface — tonight's targets with Go To, what the mount is tracking,
+  the ways to center, STOP. Everything else (the controls, the cameras, the
+  system pages) is in the sidebar, Home and Search, not repeated here.
 
   The steps are read from the same state every other page uses: the mount's
-  snapshot (connected, zeroed), the star alignment (`Controller.Sky.Lineup`),
+  snapshot (connected, home set), the star alignment (`Controller.Sky.Lineup`),
   the tracker. Nothing here is remembered per browser, so two phones show
   the same step.
   """
@@ -79,7 +79,7 @@ defmodule Controller.StartLive do
         if MapSet.member?(acc, id), do: acc, else: (Mount.subscribe(ref); MapSet.put(acc, id))
       end)
 
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
     snap = if ref = refs[selected], do: safe(fn -> Mount.snapshot(ref) end)
     assign(socket, refs: refs, subscribed: subscribed, selected: selected, snap: if(is_map(snap), do: snap))
   end
@@ -109,7 +109,7 @@ defmodule Controller.StartLive do
 
     assign(socket,
       step: step,
-      page_title: "Start · " <> title(step, id),
+      page_title: start_title(id) <> " · " <> (steps(status) |> List.keyfind(step, 0) |> elem(1)),
       status: status,
       targets: targets,
       tracker: id && Tracker.status(id),
@@ -126,7 +126,7 @@ defmodule Controller.StartLive do
   def handle_event("stop", _, socket) do
     if id = socket.assigns.selected, do: Tracker.stop(id)
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.stop(ref) end)
-    {:noreply, socket |> compute() |> notice("stopped")}
+    {:noreply, socket |> compute() |> notice("Stopped")}
   end
 
   def handle_event("go", %{"id" => oid}, socket) do
@@ -137,10 +137,10 @@ defmodule Controller.StartLive do
     text =
       case obj && (if moving?(socket.assigns.snap, socket.assigns.tracker), do: {:error, :moving}, else: Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true)) do
         {:error, :moving} -> "Still moving: let go, or wait for it to land"
-        {:ok, _, _} -> "Heading to #{obj.name}"
+        {:ok, _, _} -> "Going to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
         {:error, :not_connected} -> "No mount"
-        {:error, e} -> inspect(e)
+        {:error, e} -> Controller.Words.error(e)
         nil -> "Not on the list any more"
       end
 
@@ -156,20 +156,20 @@ defmodule Controller.StartLive do
         {:noreply, socket |> compute() |> notice("#{name} added · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′")}
 
       _ ->
-        {:noreply, notice(socket, "Nothing being held")}
+        {:noreply, notice(socket, "Nothing being tracked")}
     end
   end
 
   def handle_event("release", _, socket) do
     Tracker.stop(socket.assigns.selected)
-    {:noreply, socket |> compute() |> notice("released")}
+    {:noreply, socket |> compute() |> notice("Stopped tracking")}
   end
 
   def handle_event("pad", %{"on" => on}, socket) do
     on? = on == "true"
     if on? and socket.assigns.selected, do: safe(fn -> Input.target(socket.assigns.selected) end)
     safe(fn -> Input.arm(on?) end)
-    {:noreply, socket |> compute() |> notice(if on?, do: "the pad moves #{socket.assigns.selected}", else: "pad: watch only")}
+    {:noreply, socket |> compute() |> notice(if on?, do: "The game controller moves #{socket.assigns.selected}", else: "Game controller: watch only")}
   end
 
   def handle_event("night", _, socket) do
@@ -187,11 +187,11 @@ defmodule Controller.StartLive do
     ~H"""
     <.page id="start" night={@night} class="start">
       <:header>
-        <span class="home-brand">Observatory</span>
-        <.title>{title(@step, @selected)}</.title>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected && short(@selected))} />
+        <.title>Start</.title>
         <.actions>
+          <.help href={~p"/docs/start"} label="the start flow" />
           <.stop />
-          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </.actions>
       </:header>
 
@@ -205,8 +205,8 @@ defmodule Controller.StartLive do
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
         <.hint>Mount powered, EQDIR cable in this machine. This page moves on by itself.</.hint>
-        <.kv :if={@snap} label="mount" value={"#{@selected} · not answering"} />
-        <.row><.btn navigate={~p"/devices"}>What's Plugged in ›</.btn></.row>
+        <.kv :if={@snap} label="Mount" value={"#{@selected} · not answering"} />
+        <.row><.btn navigate={~p"/devices"}>Devices ›</.btn></.row>
       </.card>
 
       <%!-- steps 2 and 3 are the star-align page, nested --%>
@@ -218,28 +218,28 @@ defmodule Controller.StartLive do
       <%= if @step == :look do %>
         <.card class="lineup-status ok">
           <div class="state-line">
-            <strong>Locked · {@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
+            <strong>Aligned · {@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
             <span class="dim">{@status.axis_words} · good for {Enum.join(@status.good_for, " · ")}</span>
           </div>
           <.row>
-            <.btn class="btn-ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
-            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
+            <.btn variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
+            <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
           </.row>
         </.card>
 
         <.card title="On Target" :if={@tracker}>
           <div class="state-line">
             <strong>{@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
-            <span class="dim">Holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
+            <span class="dim">Tracking · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
           </div>
           <.row>
-            <.btn variant="primary" navigate={~p"/controls/eyepiece/#{@selected}"}>Centre It ›</.btn>
-            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's Centred</.btn>
-            <.btn phx-click="release">Stop Holding</.btn>
+            <.btn variant="primary" navigate={~p"/controls/eyepiece/#{@selected}"}>Center It ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred" aria-label={"Centered: #{@tracker.name} is in the middle of the eyepiece"}>Centered</.btn>
+            <.btn phx-click="release">Stop Tracking</.btn>
           </.row>
           <.row>
-            <.btn :if={@tracker[:target] && @tracker.target[:id]} class="btn-ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected]}"}>About {@tracker.name} ›</.btn>
-            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>Corrections ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:id]} variant="ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected, from: "start"]}"}>About {@tracker.name} ›</.btn>
+            <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>Corrections ›</.btn>
           </.row>
         </.card>
 
@@ -250,26 +250,21 @@ defmodule Controller.StartLive do
         <.card title="Look At">
           <.items :if={@targets != []} label="tonight's targets">
             <.item :for={t <- @targets} as="li" label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
-              <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go to #{t.name}"}>Go</.btn>
+              <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go To #{t.name}"}>Go To</.btn>
             </.item>
           </.items>
           <.hint :if={@targets == []}>Nothing up right now.</.hint>
+          <%!-- the rest of this list; every other page is in the sidebar, Home and Search --%>
           <.row>
-            <.btn navigate={~p"/sky/#{@selected}"}>Whole Sky ›</.btn>
-            <.btn navigate={~p"/sky/#{@selected}?tab=targets"}>Tonight's List ›</.btn>
+            <.btn navigate={~p"/tonight/#{@selected}"}>Tonight's List ›</.btn>
           </.row>
         </.card>
 
-        <.card title="Drive It">
-          <.row>
-            <.btn navigate={~p"/controls/nudge/#{@selected}"}>Nudge</.btn>
-            <.btn navigate={~p"/controls/dpad/#{@selected}"}>Keypad</.btn>
-            <.btn navigate={~p"/controls/tilt/#{@selected}"}>Tilt</.btn>
-            <.btn navigate={~p"/controls/orb/#{@selected}"}>Orb</.btn>
-          </.row>
-          <%!-- a plugged-in pad shows itself here, with the one switch that matters --%>
-          <.item :if={@pads != []} label="Pad" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
-            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Pad Moves Scope</.btn>
+        <%!-- a plugged-in pad shows itself here, with the one switch that matters; the
+              ways to move the scope are in the sidebar's Controls, not repeated here --%>
+        <.card :if={@pads != []} title="Drive It">
+          <.item label="Game controller" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
+            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Moves the Mount</.btn>
             <.btn :if={pad_on?(@mapper, @selected)} phx-click="pad" phx-value-on="false">Watch Only</.btn>
           </.item>
         </.card>
@@ -280,9 +275,7 @@ defmodule Controller.StartLive do
       </.hint>
 
       <p class="flow-more">
-        <.link navigate={~p"/"}>Home ›</.link>
-        · <.link href={~p"/docs/start"}>How This Works</.link>
-        · <.link navigate={~p"/events"}>Events</.link>
+        <.link href={~p"/docs/start"}>How This Works</.link>
       </p>
 
       <.notice notice={@notice} />
@@ -292,7 +285,7 @@ defmodule Controller.StartLive do
 
   defp steps(status) do
     n = if status, do: min(status.n, 3), else: 0
-    [{:plug, "Plug in"}, {:zero, "Zero"}, {:stars, "Stars #{n}/3"}, {:look, "Look"}]
+    [{:plug, "Plug In"}, {:zero, "Set Home"}, {:stars, "Stars #{n}/3"}, {:look, "Look"}]
   end
 
   @order [:plug, :zero, :stars, :look]
@@ -307,10 +300,9 @@ defmodule Controller.StartLive do
     end
   end
 
-  defp title(:plug, _), do: "Setup"
-  defp title(:zero, id), do: "#{short(id)} · Setup"
-  defp title(:stars, id), do: "#{short(id)} · Star Align"
-  defp title(:look, id), do: "#{short(id)} · Locked"
+  # the nav calls this page Start; the step strip under the title says which step
+  defp start_title(nil), do: "Start"
+  defp start_title(id), do: Controller.Words.title(short(id), "Start")
 
   # a serial port's name is long and mostly noise in a header: keep the tail that tells cables apart
   defp short("cu.usbserial-" <> tail), do: tail
@@ -329,14 +321,14 @@ defmodule Controller.StartLive do
 
   defp pad_words(m, id) do
     cond do
-      pad_on?(m, id) -> "Moves the scope"
+      pad_on?(m, id) -> "Moves the mount"
       Map.get(m, :off_reason) -> m.off_reason
       Map.get(m, :ignoring) -> "Held, but off"
       true -> "Watch only"
     end
   end
 
-  defp fmt(nil), do: "—"
+  defp fmt(nil), do: Controller.Words.none()
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
 
   defp safe(fun) do

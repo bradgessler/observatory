@@ -13,6 +13,14 @@ defmodule Telescope do
   def unsubscribe(topic), do: Phoenix.PubSub.unsubscribe(@pubsub, topic)
   def broadcast(topic, message), do: Phoenix.PubSub.broadcast(@pubsub, topic, message)
 
+  @doc """
+  To subscribers on this machine only. For what belongs to the machine it
+  happens on: a game pad is plugged into one machine, and its reports and its
+  mapper must not reach another's (two mappers hearing one pad would both
+  drive the scope, and each page would flicker between their states).
+  """
+  def local_broadcast(topic, message), do: Phoenix.PubSub.local_broadcast(@pubsub, topic, message)
+
   @doc "All connected nodes, this one first."
   def nodes, do: [node() | Node.list()]
 end

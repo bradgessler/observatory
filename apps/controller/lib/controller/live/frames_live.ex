@@ -17,7 +17,7 @@ defmodule Controller.FramesLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Recent Frames", night: Settings.get("night", false), pinned: params["frame"])
+     |> assign(page_title: "Observatory Camera · Frames", night: Settings.get("night", false), pinned: params["frame"])
      |> load()}
   end
 
@@ -31,6 +31,11 @@ defmodule Controller.FramesLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("pin", %{"name" => name}, socket), do: {:noreply, assign(socket, pinned: name)}
   def handle_event("pin", _, socket), do: {:noreply, assign(socket, pinned: nil)}
 
@@ -41,9 +46,9 @@ defmodule Controller.FramesLive do
     ~H"""
     <.page id="frames" night={@night}>
       <:header>
-        <.back navigate={~p"/controls/watch"} label="Watch" />
-        <.title>Recent Frames</.title>
-        <.actions><.help href={~p"/docs/watch"} label="watching" /></.actions>
+        <.back navigate={~p"/cameras/observatory"} label="Observatory Camera" />
+        <.title>Frames</.title>
+        <.actions><.help href={~p"/docs/watch"} label="the observatory camera" /><.stop /></.actions>
       </:header>
 
       <.card :if={@pin}>
@@ -53,7 +58,7 @@ defmodule Controller.FramesLive do
         <.hint>{Calendar.strftime(@pin.at, "%H:%M:%S")} UTC · {div(@pin.bytes, 1024)} KB · <button type="button" class="linklike" phx-click="pin">Close the Big Frame</button></.hint>
       </.card>
 
-      <.hint :if={@history == []}>Nothing kept yet. Frames arrive whenever the camera captures: timed stills, a tap on Capture, or a running stream.</.hint>
+      <.hint :if={@history == []}>Nothing kept yet. Frames arrive whenever the camera takes a still: timed stills while someone is looking, or video running.</.hint>
 
       <ul :if={@history != []} class="frame-grid" role="list" aria-label="recent frames, newest first">
         <li :for={e <- @history}>
@@ -66,7 +71,7 @@ defmodule Controller.FramesLive do
 
       <.hint :if={@summary.count > 0}>
         {@summary.count} frames · {div(@summary.bytes, 1_048_576)} MB · oldest {Calendar.strftime(@summary.oldest, "%H:%M:%S")} UTC ·
-        kept up to {@summary.policy.max_frames} frames or {div(@summary.policy.max_age_s, 60)} min, on disk under ~/.observatory/watch/frames
+        kept up to {@summary.policy.max_frames} frames or {div(@summary.policy.max_age_s, 60)} min, on this machine's disk
       </.hint>
     </.page>
     """

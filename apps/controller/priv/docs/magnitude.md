@@ -25,13 +25,13 @@ from your sky**:
 
 - **naked eye, obvious** — you can point at it.
 - **naked eye** — visible if you know where to look.
-- **naked eye, faint smudge · great in the scope** — a hint to the eye, a real
-  object in the eyepiece (Andromeda, the Beehive).
-- **easy in the scope** — comfortably within what the aperture shows.
-- **in the scope** — there, but not bright.
+- **naked eye, faint smudge · great in the telescope** — a hint to the eye, a
+  real object in the eyepiece (Andromeda, the Beehive).
+- **easy in the telescope** — comfortably within what the aperture shows.
+- **in the telescope** — there, but not bright.
 - **faint, needs dark-adapted eyes** — give it a minute; look slightly to the
   side of it.
-- **too faint for this scope** — not tonight with this aperture.
+- **too faint for this telescope** — not tonight with this aperture.
 - **washed out by the Moon** — a galaxy or nebula that a bright Moon will
   flatten into the sky glow.
 

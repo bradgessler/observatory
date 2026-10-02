@@ -21,7 +21,7 @@ defmodule Controller.Modes do
       if(p.dec_sign != base.dec_sign, do: {"Dec axis flipped", "sign #{p.dec_sign}"}),
       if(Settings.get("tracking_direction") == "reverse", do: {"Tracking reversed", "RA runs the other way"}),
       if(Settings.get("auto_track", true) == false, do: {"Auto-track off", "slews won't start tracking"}),
-      if(is_map(Settings.get("site")), do: {"Site override", "lat/lon set by hand or phone"}),
+      site_mode(),
       mount_tilt_mode(),
       mount_heading_mode(),
       lineup_mode(),
@@ -30,10 +30,20 @@ defmodule Controller.Modes do
     |> Enum.reject(&is_nil/1)
   end
 
+  # No site at all is the loudest: the sky and every Go To assume 0°, 0°.
+  # A configured site replaced by hand or phone is an override.
+  defp site_mode do
+    cond do
+      not Pointing.site_set?() -> {"No site", "the sky and Go To assume 0°, 0°. Set it on Site"}
+      Application.get_env(:controller, :site) != nil and is_map(Settings.get("site")) -> {"Site override", "lat/lon set by hand or phone"}
+      true -> nil
+    end
+  end
+
   # the optical axis scan drives the mount by itself for a few minutes: say so everywhere
   defp axis_scan_mode do
     case Controller.Optical.AxisScan.status() do
-      %{running: true, id: id} -> {"Axis scan running", "#{id} is being moved by the camera scan · Watch › Axes"}
+      %{running: true, id: id} -> {"Axis scan running", "#{id} is being moved by the camera scan · Alignment › Optical Axes"}
       _ -> nil
     end
   catch

@@ -23,7 +23,7 @@ defmodule Controller.PositionLive do
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        refs: %{},
-       selected: params["id"] || session["id"],
+       selected: params["id"] || session["id"] || session["telescope"],
        snap: nil,
        ra_target: "0",
        dec_target: "0",
@@ -48,7 +48,7 @@ defmodule Controller.PositionLive do
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
 
     snap =
       if ref = refs[selected] do
@@ -59,7 +59,7 @@ defmodule Controller.PositionLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Position")
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: Controller.Words.title(selected, "Position"))
   end
 
   @impl true
@@ -100,7 +100,7 @@ defmodule Controller.PositionLive do
           case fun.(ref) do
             :ok -> socket
             {:error, :limit} -> assign(socket, notice: "Soft limit")
-            {:error, e} -> assign(socket, notice: inspect(e))
+            {:error, e} -> assign(socket, notice: Controller.Words.error(e))
           end
         catch
           :exit, _ -> assign(socket, notice: "Mount unreachable")
@@ -113,29 +113,29 @@ defmodule Controller.PositionLive do
     ~H"""
     <.page id="position" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{@selected} · Position</.title>
-        <.actions><.help href={~p"/docs/position"} label="position" /></.actions>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
+        <.title>Position</.title>
+        <.actions><.help href={~p"/docs/position"} label="position" /><.stop /></.actions>
       </:header>
 
-      <.card title="Axes, Degrees From Zero">
+      <.card title="Axes, Degrees From Home">
         <%!-- typing only stores the target; Go is a separate key (3.2.2) --%>
         <form phx-change="targets" class="pos-grid" aria-label="axis targets">
           <label for="pos-ra" class="pos-k">RA</label>
-          <span class="pos-now" aria-label="RA now">{if @snap && @snap.axes[:ra], do: fmt(@snap.axes.ra.degrees), else: "—"}</span>
-          <input id="pos-ra" name="ra" type="text" inputmode="decimal" autocomplete="off" value={@ra_target} class="field" aria-label="RA target, degrees from zero" />
+          <span class="pos-now" aria-label="RA now">{if @snap && @snap.axes[:ra], do: fmt(@snap.axes.ra.degrees), else: Controller.Words.none()}</span>
+          <input id="pos-ra" name="ra" type="text" inputmode="decimal" autocomplete="off" value={@ra_target} class="field" aria-label="RA target, degrees from home" />
           <.btn type="button" phx-click="go" phx-value-axis="ra" aria-label="Go to the RA target">Go</.btn>
 
           <label for="pos-dec" class="pos-k">Dec</label>
-          <span class="pos-now" aria-label="Dec now">{if @snap && @snap.axes[:dec], do: fmt(@snap.axes.dec.degrees), else: "—"}</span>
-          <input id="pos-dec" name="dec" type="text" inputmode="decimal" autocomplete="off" value={@dec_target} class="field" aria-label="Dec target, degrees from zero" />
+          <span class="pos-now" aria-label="Dec now">{if @snap && @snap.axes[:dec], do: fmt(@snap.axes.dec.degrees), else: Controller.Words.none()}</span>
+          <input id="pos-dec" name="dec" type="text" inputmode="decimal" autocomplete="off" value={@dec_target} class="field" aria-label="Dec target, degrees from home" />
           <.btn type="button" phx-click="go" phx-value-axis="dec" aria-label="Go to the Dec target">Go</.btn>
         </form>
         <.row>
-          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to 0°?">Back to Zero (0°, 0°)</.btn>
+          <.btn variant="primary" phx-click="home" data-confirm="Move both axes back to the home position (0°, 0°)?">Go Home (0°, 0°)</.btn>
           <.btn :if={!@nested} phx-click="stop">Stop</.btn>
         </.row>
-        <.hint>Zero is where the axes were zeroed: counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once zeroed.</.hint>
+        <.hint>0° is the home position, wherever home was set: counterweight down, tube along the polar axis, if that's how the mount stood. Moves are full speed with the mount's own ramps; soft limits apply once home is set. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
       </.card>
 
       <.notice notice={@notice} />

@@ -65,6 +65,45 @@ defmodule Controller.Sky.Astro do
     {norm360(lst - ha), dec / @deg}
   end
 
+  @doc """
+  Precess J2000 RA/Dec to the mean equator and equinox of `dt` (IAU 1976,
+  Lieske's angles; good to well under an arcsecond for centuries). The star
+  catalogs and the plate solver's index are J2000; the sky turns about the
+  pole of date, which has moved about 0.15° since 2000.
+  """
+  def precess_from_j2000(ra, dec, %DateTime{} = dt),
+    do: rotate_radec(precession_matrix(dt), ra, dec)
+
+  @doc "The inverse of `precess_from_j2000/3`: RA/Dec of date back to J2000."
+  def precess_to_j2000(ra, dec, %DateTime{} = dt),
+    do: rotate_radec(transpose(precession_matrix(dt)), ra, dec)
+
+  defp precession_matrix(dt) do
+    t = (julian_date(dt) - 2_451_545.0) / 36_525
+    as = @deg / 3600
+    zeta = (2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t) * as
+    z = (2306.2181 * t + 1.09468 * t * t + 0.018203 * t * t * t) * as
+    theta = (2004.3109 * t - 0.42665 * t * t - 0.041833 * t * t * t) * as
+
+    {cz, sz, cZ, sZ, ct, st} =
+      {:math.cos(zeta), :math.sin(zeta), :math.cos(z), :math.sin(z), :math.cos(theta),
+       :math.sin(theta)}
+
+    {{cz * cZ * ct - sz * sZ, -sz * cZ * ct - cz * sZ, -cZ * st},
+     {cz * sZ * ct + sz * cZ, -sz * sZ * ct + cz * cZ, -sZ * st}, {cz * st, -sz * st, ct}}
+  end
+
+  defp transpose({{a, b, c}, {d, e, f}, {g, h, i}}), do: {{a, d, g}, {b, e, h}, {c, f, i}}
+
+  defp rotate_radec({{a, b, c}, {d, e, f}, {g, h, i}}, ra, dec) do
+    {x, y, zz} =
+      {:math.cos(dec * @deg) * :math.cos(ra * @deg), :math.cos(dec * @deg) * :math.sin(ra * @deg),
+       :math.sin(dec * @deg)}
+
+    {x2, y2, z2} = {a * x + b * y + c * zz, d * x + e * y + f * zz, g * x + h * y + i * zz}
+    {norm360(:math.atan2(y2, x2) / @deg), :math.atan2(z2, :math.sqrt(x2 * x2 + y2 * y2)) / @deg}
+  end
+
   @doc "Unit vector for alt/az in an east-north-up frame."
   def altaz_vec(alt, az) do
     a = alt * @deg

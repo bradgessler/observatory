@@ -2,6 +2,26 @@
 
 How the software finds the telescope, and what to do when it doesn't.
 
+## Adding hardware
+
+Everything is plugged in and found by itself: there's nothing to add by hand.
+**Devices** (under System) lists each piece of hardware by what it's for, says
+what was found and what it's doing, or, when there's none, how to add one.
+
+| For | What to plug in | Where | Its page |
+|---|---|---|---|
+| The mount | The EQDIR cable (an FTDI USB serial cable) into the mount's HAND CONTROL port | This machine or a box | Devices, then any of the Controls |
+| The telescope camera | A USB camera that speaks UVC (the SVBONY SV105C, most "planetary" cameras), in the focuser in place of an eyepiece | This machine or a box | [Telescope Camera](/docs/scope-camera) |
+| The observatory camera | A webcam pointed at the mount | A Mac for now: its own camera or a USB webcam (stills need `imagesnap`) | [Observatory Camera](/docs/watch) |
+| A game controller | A USB game pad | This machine or a box | Game Controller |
+| Power | Nothing: a box watches its own supply | A box | Devices, Power |
+
+A camera plugged into a box is found within a few seconds and becomes the
+telescope camera; the Mac shows it too, through the box. While you drive
+the scope on the keypad, what the telescope camera sees is beside the
+strips (the viewfinder), and on the telescope camera's page **Move the
+Scope** nudges it, so centering and looking happen in one place.
+
 ## How connecting works
 
 The mount talks over an EQDIR cable: a USB-to-serial lead (FTDI chip) that
@@ -13,7 +33,7 @@ mount answers, it shows up on the keypad and the sky page within a few
 seconds; the simulator (if one was running) goes away. Pull the cable and the
 driver goes away too.
 
-**Scan now** does that check immediately. **Connect** starts a driver on a
+**Scan Now** does that check immediately. **Connect** starts a driver on a
 port the auto-detector didn't recognize — a different USB-serial chip, for
 example. Drivers started that way have a **Disconnect** button.
 

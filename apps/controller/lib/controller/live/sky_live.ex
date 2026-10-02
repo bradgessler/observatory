@@ -5,17 +5,29 @@ defmodule Controller.SkyLive do
   anything and the selected mount slews to it. "Tonight" ranks what you can
   actually see over the next couple of hours from this spot.
 
-  Pointing is a first-order model and says so in the UI: homed at the pole
+  Pointing is a first-order model and says so in the UI: home at the pole
   with the counterweight down, axis signs from `config :controller, :pointing`.
   """
   use Controller, :live_view
   import Controller.Components.UI
+  import Controller.Components.SkyChart
 
   alias Controller.Settings
-  alias Controller.Sky.{Astro, Catalog, Ephemeris, HorizonScan, Solve, Pointing}
+
+  alias Controller.Sky.{
+    Astro,
+    Catalog,
+    Ephemeris,
+    HorizonScan,
+    Lineup,
+    Solve,
+    Pointing,
+    Reach,
+    Scene,
+    Tracker
+  }
 
   @tick_ms 15_000
-  @mag_limit 5.0
   # Search spiral: one low-power eyepiece field per step, a pause to look.
   @spiral_step 0.4
   @spiral_pause_ms 2_500
@@ -31,7 +43,7 @@ defmodule Controller.SkyLive do
       Settings.subscribe()
     end
 
-    # nested inside the bench, the mount id arrives in the session
+    # nested inside another page (live_render), the mount id arrives in the session
     # (and params is :not_mounted_at_router, not a map)
     params = if(is_map(params), do: params, else: %{}) |> Map.put_new("id", session["id"])
 
@@ -61,23 +73,49 @@ defmodule Controller.SkyLive do
        selected: params["id"],
        target: nil,
        notice: nil,
-       page_title: "Sky",
-       tab: "map"
+       page_title: if(socket.assigns[:live_action] == :tonight, do: "Tonight", else: "Sky Map"),
+       # the viewer's offset from UTC, from their browser (the Clock hook); nil until it says
+       utc_offset_min: nil,
+       # minutes ahead of (or behind) now that this viewer is looking at the sky, and
+       # the chart they picked: theirs (Controller.Viewer), kept from page to page
+       viewer: session["viewer"],
+       shift_min: Controller.Viewer.get(session["viewer"], :sky_shift, 0),
+       view: Controller.Viewer.get(session["viewer"], :sky_view, "dome"),
+       # Tonight is its own page (the list); the Sky map page is the map and the horizon
+       tab: if(socket.assigns[:live_action] == :tonight, do: "targets", else: "map")
      )
      # JPEG/PNG only: iOS converts HEIC to JPEG when HEIC isn't in the accept list,
      # and the solver can't read HEIC anyway.
-     |> allow_upload(:photo, accept: ~w(.jpg .jpeg .png), max_entries: 1, max_file_size: 30_000_000, auto_upload: true)
+     |> allow_upload(:photo,
+       accept: ~w(.jpg .jpeg .png),
+       max_entries: 1,
+       max_file_size: 30_000_000,
+       auto_upload: true
+     )
      |> rescan()
-     |> compute()}
+     |> compute()
+     |> pick(params["pick"])}
   end
 
-  # No handle_params: this view is also nested inside the bench (child views may
+  # the sky at the time this viewer is looking at: now, or an hour or two either side
+  defp sky_time(%{now: now, shift_min: shift}), do: DateTime.add(now, shift * 60, :second)
+
+  defp pick(socket, nil), do: socket
+
+  defp pick(socket, id) do
+    socket
+    |> assign(target: Catalog.object(id) || Enum.find(Ephemeris.objects(socket.assigns.now, socket.assigns.site), &(&1.id == id)))
+    |> night_path()
+  end
+
+  # No handle_params: this view can be nested inside another page (child views may
   # not define it). Mount and rescan pick the mount.
 
   # -- live updates ---------------------------------------------------------------------
 
   @impl true
-  def handle_info(:tick, socket), do: {:noreply, socket |> assign(now: DateTime.utc_now()) |> compute()}
+  def handle_info(:tick, socket),
+    do: {:noreply, socket |> assign(now: DateTime.utc_now()) |> compute()}
 
   # A setting changed on some phone: reload what this page derives from settings.
   def handle_info({:settings, _key, _v}, socket) do
@@ -101,7 +139,9 @@ defmodule Controller.SkyLive do
   end
 
   def handle_info({:mount, snap}, socket) do
-    if snap.id == socket.assigns.selected, do: {:noreply, assign(socket, snap: snap)}, else: {:noreply, socket}
+    if snap.id == socket.assigns.selected,
+      do: {:noreply, assign(socket, snap: snap)},
+      else: {:noreply, socket}
   end
 
   def handle_info({:solved, {:ok, sol, profile}}, socket) do
@@ -109,30 +149,44 @@ defmodule Controller.SkyLive do
     Settings.put("horizon", horizon)
 
     summary =
-      profile |> Enum.sort_by(fn {s, _} -> Enum.find_index(Settings.sectors(), &(&1 == s)) end) |> Enum.map_join(", ", fn {s, a} -> "#{s} #{a}°" end)
+      profile
+      |> Enum.sort_by(fn {s, _} -> Enum.find_index(Settings.sectors(), &(&1 == s)) end)
+      |> Enum.map_join(", ", fn {s, a} -> "#{s} #{a}°" end)
 
     note =
-      "solved: photo centered RA #{fmt1(sol.ra_deg / 15)}h Dec #{fmt1(sol.dec_deg)}°, #{fmt0(sol.radius_deg * 2)}° across" <>
+      "Solved: photo centered RA #{fmt1(sol.ra_deg / 15)}h Dec #{fmt1(sol.dec_deg)}°, #{fmt0(sol.radius_deg * 2)}° across" <>
         if(profile == %{}, do: "; no tree line found in frame", else: "; tree line → #{summary}")
 
-    {:noreply, socket |> assign(horizon: horizon, solving: false, solve_note: note, photo_cols: nil) |> compute()}
+    {:noreply,
+     socket
+     |> assign(horizon: horizon, solving: false, solve_note: note, photo_cols: nil)
+     |> compute()}
   end
 
   def handle_info({:solved, {:error, reason}}, socket) do
-    {:noreply, assign(socket, solving: false, solve_note: "solve failed: #{inspect(reason)}")}
+    {:noreply, assign(socket, solving: false, solve_note: "Plate solve failed: #{Controller.Words.error(reason)}")}
   end
 
   def handle_info(:search_step, %{assigns: %{search: nil}} = socket), do: {:noreply, socket}
 
-  def handle_info(:search_step, %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket) do
-    stopped? = is_map(snap) and is_integer(snap[:estop_at]) and snap.estop_at > Map.get(search, :started, 0)
+  def handle_info(
+        :search_step,
+        %{assigns: %{search: %{steps: steps, n: n} = search, snap: snap}} = socket
+      ) do
+    stopped? =
+      is_map(snap) and is_integer(snap[:estop_at]) and
+        snap.estop_at > Map.get(search, :started, 0)
 
-    case (if stopped?, do: :stopped, else: Enum.at(steps, n)) do
+    case if stopped?, do: :stopped, else: Enum.at(steps, n) do
       :stopped ->
-        {:noreply, assign(socket, search: nil, notice: "Search stopped")}
+        {:noreply, assign(socket, search: nil, notice: "Spiral Search stopped")}
 
       nil ->
-        {:noreply, assign(socket, search: nil, notice: "Search finished; nothing? try a wider eyepiece or re-check home")}
+        {:noreply,
+         assign(socket,
+           search: nil,
+           notice: "Spiral Search finished without it. Try a wider eyepiece, or tighten the alignment: center any star and tap Centered"
+         )}
 
       {dra, ddec} ->
         ref = socket.assigns.refs[socket.assigns.selected]
@@ -151,38 +205,45 @@ defmodule Controller.SkyLive do
 
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
+
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id) do
       Mount.subscribe(ref)
       # a tracking-direction flip made in the field applies to mounts that appear later, too
       case Settings.get("tracking_direction") do
-        d when d in ["forward", "reverse"] -> safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(d)) end)
-        _ -> :ok
+        d when d in ["forward", "reverse"] ->
+          safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(d)) end)
+
+        _ ->
+          :ok
       end
     end
+
     socket = assign(socket, refs: refs)
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: first_id(socket)
+
+    selected =
+      if socket.assigns.selected in Map.keys(refs),
+        do: socket.assigns.selected,
+        else: first_id(socket)
+
     snap = if ref = refs[selected], do: safe_snapshot(ref)
     assign(socket, selected: selected, snap: snap)
   end
 
-  defp first_id(socket), do: socket.assigns.refs |> Map.keys() |> Enum.sort() |> List.first()
+  defp first_id(socket), do: socket.assigns.refs |> Map.keys() |> Mount.default()
 
   # Config gives the defaults; anything changed from the Horizon tab overrides them.
-  defp site_setting do
-    base = Application.get_env(:controller, :site, %{lat: 0.0, lon: 0.0, name: "nowhere"})
-
-    case Settings.get("site") do
-      %{"lat" => lat, "lon" => lon} when is_number(lat) and is_number(lon) -> %{base | lat: lat / 1, lon: lon / 1}
-      _ -> base
-    end
-  end
+  defp site_setting,
+    do: Controller.Sky.Pointing.site() |> Map.put(:set, Controller.Sky.Pointing.site_set?())
 
   defp pointing_setting do
     base = Application.get_env(:controller, :pointing, %{ha_sign: 1, dec_sign: -1})
 
     case Settings.get("pointing") do
-      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] -> %{ha_sign: h, dec_sign: d}
-      _ -> base
+      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] ->
+        %{ha_sign: h, dec_sign: d}
+
+      _ ->
+        base
     end
   end
 
@@ -191,8 +252,17 @@ defmodule Controller.SkyLive do
     Settings.put("pointing", %{"ha_sign" => p.ha_sign, "dec_sign" => p.dec_sign})
     # the sync offset was measured under the old signs; it's meaningless now
     Settings.put("pointing_offset", %{"ra" => 0.0, "dec" => 0.0})
-    assign(socket, pointing: p, offset: %{"ra" => 0.0, "dec" => 0.0}, notice: "#{key} flipped; sync offset cleared; re-Sync on a star")
+
+    assign(socket,
+      pointing: p,
+      offset: %{"ra" => 0.0, "dec" => 0.0},
+      notice: "#{axis_words(key)} flipped; sync offset cleared. Center a star and tap Centered"
+    )
   end
+
+  # the same words the Modes strip uses for a flipped sign
+  defp axis_words(:ha_sign), do: "RA axis"
+  defp axis_words(:dec_sign), do: "Dec axis"
 
   defp safe(fun) do
     try do
@@ -230,18 +300,46 @@ defmodule Controller.SkyLive do
 
   @impl true
   def handle_event("pick", %{"id" => id}, socket) do
-    target = Catalog.object(id) || Enum.find(Ephemeris.objects(socket.assigns.now), &(&1.id == id))
-    {:noreply, assign(socket, target: target, notice: nil, tab: "map")}
+    target =
+      Catalog.object(id) ||
+        Enum.find(Ephemeris.objects(socket.assigns.now, socket.assigns.site), &(&1.id == id))
+
+    # the Sky Map shows a pick over its chart; Tonight keeps its list and shows it beside
+    tab = if socket.assigns.live_action == :tonight, do: socket.assigns.tab, else: "map"
+    {:noreply, socket |> assign(target: target, notice: nil, tab: tab) |> night_path()}
   end
 
-  def handle_event("clear", _, socket), do: {:noreply, assign(socket, target: nil, notice: nil)}
+  def handle_event("clear", _, socket), do: {:noreply, socket |> assign(target: nil, notice: nil) |> night_path()}
+
+  # step the sky an hour either side of now, up to a day; "now" comes back
+  def handle_event("shift", %{"by" => "now"}, socket), do: {:noreply, socket |> set_shift(0) |> compute()}
+
+  def handle_event("shift", %{"by" => by}, socket) do
+    case Integer.parse(by) do
+      {min, ""} ->
+        {:noreply,
+         socket
+         |> set_shift(max(min(socket.assigns.shift_min + min, 24 * 60), -24 * 60))
+         |> compute()}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
 
   def handle_event("night", _, socket) do
     night = !socket.assigns.night
     Settings.put("night", night)
     {:noreply, assign(socket, night: night)}
   end
+
   def handle_event("tab", %{"tab" => tab}, socket), do: {:noreply, assign(socket, tab: tab)}
+
+  # the chart: the dome, the horizon, the mount's axes (Projection); this viewer's, remembered
+  def handle_event("view", %{"view" => view}, socket) when view in ["dome", "horizon", "mount"] do
+    Controller.Viewer.put(socket.assigns.viewer, :sky_view, view)
+    {:noreply, socket |> assign(view: view) |> compute()}
+  end
 
   # -- photo → obstructions ------------------------------------------------------------------------
 
@@ -251,21 +349,27 @@ defmodule Controller.SkyLive do
     {:noreply, assign(socket, photo_cols: cols, photo_dims: {w, h}, solve_note: nil)}
   end
 
-  def handle_event("solve", _params, %{assigns: %{photo_cols: cols}} = socket) when is_list(cols) do
+  def handle_event("solve", _params, %{assigns: %{photo_cols: cols}} = socket)
+      when is_list(cols) do
     cond do
       not Solve.configured?() ->
-        {:noreply, assign(socket, solve_note: "no NOVA_API_KEY set; can't solve")}
+        {:noreply, assign(socket, solve_note: "Plate solving online needs an astrometry.net API key; set NOVA_API_KEY on the machine running the server.")}
 
       socket.assigns.solving ->
         {:noreply, socket}
 
       upload_in_progress?(socket) ->
-        {:noreply, assign(socket, solve_note: "still uploading the photo… try again in a moment")}
+        {:noreply, assign(socket, solve_note: "Still uploading the photo… try again in a moment")}
 
       true ->
         paths =
           consume_uploaded_entries(socket, :photo, fn %{path: path}, entry ->
-            dest = Path.join(System.tmp_dir!(), "sky-#{System.unique_integer([:positive])}#{Path.extname(entry.client_name)}")
+            dest =
+              Path.join(
+                System.tmp_dir!(),
+                "sky-#{System.unique_integer([:positive])}#{Path.extname(entry.client_name)}"
+              )
+
             File.cp!(path, dest)
             {:ok, dest}
           end)
@@ -288,25 +392,40 @@ defmodule Controller.SkyLive do
               send(lv, {:solved, result})
             end)
 
-            {:noreply, assign(socket, solving: true, solve_note: "uploaded; solving at nova.astrometry.net…")}
+            {:noreply,
+             assign(socket,
+               solving: true,
+               solve_note: "Uploaded; solving at nova.astrometry.net…"
+             )}
 
           _ ->
-            {:noreply, assign(socket, solve_note: "pick a photo first")}
+            {:noreply, assign(socket, solve_note: "Pick a photo first")}
         end
     end
   end
 
-  def handle_event("solve", _params, socket), do: {:noreply, assign(socket, solve_note: "pick a photo first")}
+  def handle_event("solve", _params, socket),
+    do: {:noreply, assign(socket, solve_note: "Pick a photo first")}
 
   # Field calibration without a rebuild: flip an axis sign if the map slews to the
   # mirror image; flip tracking if a star drifts out faster with tracking on.
-  def handle_event("flip", %{"what" => "ra"}, socket), do: {:noreply, flip_pointing(socket, :ha_sign)}
-  def handle_event("flip", %{"what" => "dec"}, socket), do: {:noreply, flip_pointing(socket, :dec_sign)}
+  def handle_event("flip", %{"what" => "ra"}, socket),
+    do: {:noreply, flip_pointing(socket, :ha_sign)}
+
+  def handle_event("flip", %{"what" => "dec"}, socket),
+    do: {:noreply, flip_pointing(socket, :dec_sign)}
 
   def handle_event("flip", %{"what" => "tracking"}, socket) do
-    dir = if Settings.get("tracking_direction", "forward") == "forward", do: "reverse", else: "forward"
+    dir =
+      if Settings.get("tracking_direction", "forward") == "forward",
+        do: "reverse",
+        else: "forward"
+
     Settings.put("tracking_direction", dir)
-    for {_id, ref} <- socket.assigns.refs, do: safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(dir)) end)
+
+    for {_id, ref} <- socket.assigns.refs,
+        do: safe(fn -> Mount.configure(ref, tracking_direction: String.to_atom(dir)) end)
+
     {:noreply, assign(socket, notice: "Tracking direction now #{dir}")}
   end
 
@@ -321,15 +440,33 @@ defmodule Controller.SkyLive do
     with {:ok, la} <- coord(lat, 90), {:ok, lo} <- coord(lon, 180) do
       Settings.put("site", %{"lat" => la, "lon" => lo})
       from_phone? = is_number(lat)
-      note = if from_phone?, do: "site set from your phone (±#{round(params["accuracy"] || 0)} m)", else: nil
-      {:noreply, socket |> assign(site: %{socket.assigns.site | lat: la, lon: lo, name: if(from_phone?, do: "here", else: socket.assigns.site.name)}, notice: note) |> compute()}
+
+      note =
+        if from_phone?,
+          do: "Site set from your phone (±#{round(params["accuracy"] || 0)} m)",
+          else: nil
+
+      {:noreply,
+       socket
+       |> assign(site: %{socket.assigns.site | lat: la, lon: lo, set: true}, notice: note)
+       |> compute()}
     else
       # say what is wrong with what was typed (3.3.1); nothing is saved until it is right
-      _ -> {:noreply, assign(socket, notice: "Site not saved: latitude is −90 to 90, longitude −180 to 180")}
+      _ ->
+        {:noreply,
+         assign(socket, notice: "Site not saved: latitude is −90 to 90, longitude −180 to 180")}
     end
   end
 
-  def handle_event("site_error", %{"reason" => r}, socket), do: {:noreply, assign(socket, notice: "Location: #{r}")}
+  def handle_event("site_error", %{"reason" => r}, socket),
+    do: {:noreply, assign(socket, notice: Controller.Site.location_error(r))}
+
+  # The viewer's clock: only its offset is used here, for local time. (The
+  # Site page is the one that may set the box's clock from it.)
+  def handle_event("clock", %{"offset_min" => off}, socket) when is_integer(off),
+    do: {:noreply, socket |> assign(utc_offset_min: off) |> night_path()}
+
+  def handle_event("clock", _, socket), do: {:noreply, socket}
 
   def handle_event("equipment", %{"aperture" => a}, socket) do
     aperture =
@@ -363,11 +500,8 @@ defmodule Controller.SkyLive do
 
     notice =
       case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
-        {:ok, d_ra, d_dec} -> "Slewing to #{t.name} (ΔRA #{fmt1(d_ra)}°, ΔDec #{fmt1(d_dec)}°)"
-        {:error, :not_connected} -> "No mount connected"
-        {:error, :not_homed} -> "Zero the axes first (Setup, mount upright); it arms the cable-safety limits"
-        {:error, :limit} -> "#{t.name} is outside the soft limits"
-        {:error, e} -> inspect(e)
+        {:ok, d_ra, d_dec} -> "Going to #{t.name} (RA #{fmt1(d_ra)}°, Dec #{fmt1(d_dec)}°)"
+        {:error, e} -> Pointing.refusal_words(e, t.name)
       end
 
     {:noreply, assign(socket, notice: notice)}
@@ -384,11 +518,17 @@ defmodule Controller.SkyLive do
   # "The scope is centred on the target right now." One tap is a one-star sync;
   # each further star tightens the alignment (Controller.Sky.Lineup).
   def handle_event("sync", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
-    if snap && snap.homed do
+    # "It's in the middle of the eyepiece": an alignment point, zeroed or not
+    if snap && snap.connected do
       st = Pointing.sync(snap, t, ctx(socket.assigns))
-      {:noreply, assign(socket, notice: "Aligned on #{t.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"} · agree to #{fmt1(st.rms_arcmin || 0.0)}′")}
+
+      {:noreply,
+       assign(socket,
+         notice:
+           "Centered on #{t.name}: #{st.n} point#{if st.n == 1, do: "", else: "s"}#{if st.n >= 3 and st.rms_arcmin, do: ", agreeing to #{fmt1(st.rms_arcmin)}′", else: ""}"
+       )}
     else
-      {:noreply, assign(socket, notice: "Zero the axes first (Setup)")}
+      {:noreply, assign(socket, notice: "No mount connected")}
     end
   end
 
@@ -402,7 +542,12 @@ defmodule Controller.SkyLive do
       {:noreply, socket}
     else
       Process.send_after(self(), :search_step, @spiral_pause_ms)
-      {:noreply, assign(socket, search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)}, notice: "Searching around #{t.name}… Stop when you see it")}
+
+      {:noreply,
+       assign(socket,
+         search: %{steps: spiral(), n: 0, started: System.monotonic_time(:millisecond)},
+         notice: "Spiral Search around #{t.name}… STOP when you see it"
+       )}
     end
   end
 
@@ -423,51 +568,92 @@ defmodule Controller.SkyLive do
 
   defp scope_radec(snap, assigns), do: Pointing.scope_radec(snap, ctx(assigns))
 
+  # the time this viewer looks at the sky, kept for them across Sky Map and Tonight
+  defp set_shift(socket, min) do
+    Controller.Viewer.put(socket.assigns.viewer, :sky_shift, min)
+    assign(socket, shift_min: min)
+  end
+
   # -- sky computation (once per tick, not per render) ----------------------------------------------
 
   defp compute(socket) do
-    %{now: now, site: site, horizon: horizon} = socket.assigns
+    %{site: site, horizon: horizon} = socket.assigns
+    now = sky_time(socket.assigns)
     lst = Astro.lst_deg(now, site.lon)
+    # no tree line given: the whole sky down to the real horizon, nothing dimmed
+    trees? = Settings.get("horizon") != nil
 
-    place = fn o ->
-      {alt, az} = Astro.alt_az(o.ra_deg, o.dec_deg, site.lat, lst)
-      {x, y} = Astro.project(alt, az)
-      Map.merge(o, %{alt: alt, az: az, x: x * 100, y: y * 100, hidden: alt < Settings.horizon_at(horizon, az)})
-    end
-
+    # the chart: everything where it lands in the projection this viewer picked
+    scene = Scene.build(now, site, horizon, view: socket.assigns.view, trees: trees?)
+    %{stars: stars, dsos: dsos} = scene
     aperture = socket.assigns.aperture
-    stars = for o <- Catalog.stars(@mag_limit), o = place.(o), o.alt > -1, do: o
-    sol = for o <- Ephemeris.objects(now), o = place.(o), o.alt > -1, do: o
-    dsos = sol ++ for(o <- Catalog.dsos(), o.mag < 10, o = place.(o), o.alt > -1, do: o)
-
-    lines =
-      for line <- Catalog.lines(),
-          pts = Enum.map(line, fn {ra, dec} -> Astro.alt_az(ra, dec, site.lat, lst) end),
-          Enum.all?(pts, fn {alt, _} -> alt > -3 end) do
-        Enum.map_join(pts, " ", fn {alt, az} ->
-          {x, y} = Astro.project(alt, az)
-          "#{fmt1(x * 100)},#{fmt1(y * 100)}"
-        end)
-      end
-
-    treeline =
-      Enum.map_join(0..360//5, " ", fn az ->
-        {x, y} = Astro.project(Settings.horizon_at(horizon, az), az)
-        "#{fmt1(x * 100)},#{fmt1(y * 100)}"
-      end)
 
     assign(socket,
+      at: now,
       lst: lst,
+      trees: trees?,
+      scene: scene,
       stars: stars,
       dsos: dsos,
-      lines: lines,
-      treeline: treeline,
       modes: Controller.Modes.active(),
+      lineup: socket.assigns.selected && Lineup.status(socket.assigns.selected),
       lim: limiting_mag(aperture),
       moon: moon_state(now, site, lst),
-      targets: targets(now, site, horizon, aperture)
+      # ranked against the real horizon until a tree line is given
+      targets:
+        targets(
+          now,
+          site,
+          if(trees?, do: horizon, else: Map.new(Settings.sectors(), &{&1, 0})),
+          aperture
+        )
     )
+    |> reaches()
+    |> night_path()
   end
+
+  # the picked object's night on the Sky Map's chart: worked out when the sky, the pick or the
+  # viewer's clock changes, never on the many renders between (a mount reports four times a second)
+  defp night_path(%{assigns: %{target: %{} = t, live_action: action, scene: scene}} = socket) when action != :tonight,
+    do: assign(socket, path: Scene.night_path(scene, t.ra_deg, t.dec_deg, socket.assigns.utc_offset_min))
+
+  defp night_path(socket), do: assign(socket, path: nil)
+
+  # Tonight, with a mount to drive: what Go To and the hold will do for each
+  # row (Reach, the same answers as an object's page). Without a lock every
+  # row would say so; the page says it once instead.
+  defp reaches(
+         %{assigns: %{live_action: :tonight, snap: %{connected: true} = snap, selected: id}} =
+           socket
+       ) do
+    ctx = Pointing.context(socket.assigns.now, id)
+
+    if snap.homed or Pointing.lined_up?(ctx) do
+      off = socket.assigns.utc_offset_min
+
+      opts = [
+        horizon: socket.assigns.horizon,
+        trees?: socket.assigns.trees,
+        field: Settings.get("eyepiece_field_arcmin", 72),
+        lock: socket.assigns.lineup,
+        tracker: Tracker.status(id),
+        ended: Tracker.ended(id),
+        clock: &hm(&1, off)
+      ]
+
+      reach =
+        for o <- socket.assigns.targets,
+            o.up,
+            into: %{},
+            do: {o.id, Reach.of(o, snap, ctx, opts).summary}
+
+      assign(socket, reach: reach, locked: true)
+    else
+      assign(socket, reach: %{}, locked: false)
+    end
+  end
+
+  defp reaches(socket), do: assign(socket, reach: %{}, locked: nil)
 
   # What's worth looking at from this spot, with this scope, over the next two hours.
   # Public: the agent/sky-tour layer (#8, #40) calls this same function.
@@ -477,9 +663,12 @@ defmodule Controller.SkyLive do
     moon = moon_state(now, site, hd(lsts))
 
     candidates =
-      Ephemeris.objects(now) ++
+      Ephemeris.objects(now, site) ++
         Catalog.dsos() ++
-        Enum.filter(Catalog.stars(4.0), &(&1.proper != nil and (&1.mag <= 2.6 or &1.proper in @showpiece_stars)))
+        Enum.filter(
+          Catalog.stars(4.0),
+          &(&1.proper != nil and (&1.mag <= 2.6 or &1.proper in @showpiece_stars))
+        )
 
     for o <- candidates,
         o.id != "sol-sun",
@@ -511,6 +700,49 @@ defmodule Controller.SkyLive do
     |> Enum.sort_by(& &1.wow, :desc)
     |> diversify()
     |> Enum.take(30)
+    |> windows(now, site, horizon)
+  end
+
+  # When each listed object is up, to ten minutes over the next twelve hours:
+  # `up` now, `sets_at` (nil: up the whole time), or `rises_at` if not yet.
+  # The sky turns the same for every object, so sidereal time is worked out
+  # once per step and shared.
+  #
+  # At night a window also ends at dawn (civil twilight, the Sun 6° down): a
+  # star that "stays up until noon" is no use to anyone.
+  defp windows(objects, now, site, horizon) do
+    dark? = fn t -> Ephemeris.sun_alt(t, site) < -6.0 end
+    night? = dark?.(now)
+
+    steps =
+      for m <- 0..720//10,
+          t = DateTime.add(now, m * 60),
+          do: {t, Astro.lst_deg(t, site.lon), not night? or dark?.(t)}
+
+    Enum.map(objects, fn o ->
+      up? = fn {_t, lst, dark} ->
+        {alt, az} = Astro.alt_az(o.ra_deg, o.dec_deg, site.lat, lst)
+        dark and alt > Settings.horizon_at(horizon, az)
+      end
+
+      [first | _] = steps
+
+      if up?.(first) do
+        sets = Enum.find(steps, &(not up?.(&1)))
+        Map.merge(o, %{up: true, rises_at: nil, sets_at: sets && elem(sets, 0), dawn: match?({_, _, false}, sets)})
+      else
+        after_rise = Enum.drop_while(steps, &(not up?.(&1)))
+        rises = List.first(after_rise)
+        sets = rises && Enum.find(after_rise, &(not up?.(&1)))
+
+        Map.merge(o, %{
+          up: false,
+          rises_at: rises && elem(rises, 0),
+          sets_at: sets && elem(sets, 0),
+          dawn: match?({_, _, false}, sets)
+        })
+      end
+    end)
   end
 
   # A casual top five shouldn't be five bright stars: at most two stars up top,
@@ -555,13 +787,15 @@ defmodule Controller.SkyLive do
   defp showable?(%{kind: k, mag: m}, lim, _moon), do: m <= lim - extended_margin(k)
 
   defp moon_state(now, site, lst) do
-    p = Ephemeris.position(:moon, now)
+    p = Ephemeris.position(:moon, now, site)
     {alt, _az} = Astro.alt_az(p.ra_deg, p.dec_deg, site.lat, lst)
     %{up: alt > 0, illumination: p.illumination}
   end
 
   # A bright Moon washes out the faint fuzzies, not the planets or clusters.
-  defp moon_penalty(%{kind: k}, %{up: true, illumination: i}) when k in [:galaxy, :nebula], do: 3.0 * i
+  defp moon_penalty(%{kind: k}, %{up: true, illumination: i}) when k in [:galaxy, :nebula],
+    do: 3.0 * i
+
   defp moon_penalty(_, _), do: 0.0
 
   # Magnitude translated for this scope and this sky. Nobody remembers the scale.
@@ -575,11 +809,11 @@ defmodule Controller.SkyLive do
       cond do
         m <= 1.5 -> "Naked eye, obvious"
         m <= 4.0 and k == :star -> "Naked eye"
-        m <= 4.5 and k != :star -> "Naked eye, faint smudge · great in the scope"
-        headroom >= 3 -> "Easy in the scope"
-        headroom >= 1 -> "In the scope"
+        m <= 4.5 and k != :star -> "Naked eye, faint smudge · great in the telescope"
+        headroom >= 3 -> "Easy in the telescope"
+        headroom >= 1 -> "In the telescope"
         headroom >= 0 -> "Faint, needs dark-adapted eyes"
-        true -> "Too faint for this scope"
+        true -> "Too faint for this telescope"
       end
 
     if k in [:galaxy, :nebula] and moon.up and moon.illumination > 0.5,
@@ -589,166 +823,398 @@ defmodule Controller.SkyLive do
 
   # -- render ------------------------------------------------------------------------------------------
 
+  @doc """
+  How far off the crosshair may be. The alignment's rms doubled (about 95% of
+  pointings land inside it) with tracking's live error on top. Fewer than
+  three alignment points can't be judged, and a mount with only home set is
+  assumed polar-aligned: the page says so rather than draw a number it doesn't
+  have.
+  """
+  def aim(nil, _tracker), do: :assumed
+  def aim(%{solved?: false}, _tracker), do: :assumed
+  def aim(%{n: n}, _tracker) when n < 3, do: {:unknown, n}
+
+  def aim(%{n: n, rms_arcmin: rms}, tracker) do
+    t = (tracker && tracker[:error_arcmin]) || 0.0
+    {:margin, %{margin: :math.sqrt(4 * rms * rms + t * t), rms: rms, n: n, tracking: t}}
+  end
+
+  @doc "The margin on the map: a ring `r` degrees from (alt, az) on the sky, projected, so it is true to size at any altitude and zoom."
+  def margin_ring(alt, az, r) do
+    deg = :math.pi() / 180
+    {a, z, d} = {alt * deg, az * deg, r * deg}
+
+    Enum.map_join(0..348//12, " ", fn b ->
+      b = b * deg
+      a2 = :math.asin(:math.sin(a) * :math.cos(d) + :math.cos(a) * :math.sin(d) * :math.cos(b))
+
+      z2 =
+        z +
+          :math.atan2(
+            :math.sin(b) * :math.sin(d) * :math.cos(a),
+            :math.cos(d) - :math.sin(a) * :math.sin(a2)
+          )
+
+      {x, y} = Astro.project(a2 / deg, z2 / deg)
+
+      "#{:erlang.float_to_binary(x * 100, decimals: 3)},#{:erlang.float_to_binary(y * 100, decimals: 3)}"
+    end)
+  end
+
+  def aim_words(:assumed), do: "Crosshair assumes a polar-aligned mount. Align to measure it"
+
+  def aim_words({:unknown, n}),
+    do: "Crosshair: margin unknown until a third alignment point (#{n} so far)"
+
+  def aim_words({:margin, a}) do
+    tracking = if a.tracking >= 0.1, do: " · tracking #{fmt1(a.tracking)}′", else: ""
+    "Crosshair ±#{arc(a.margin)} · #{a.n} alignment points agree to #{fmt1(a.rms)}′" <> tracking
+  end
+
+  defp arc(arcmin) when arcmin >= 60, do: "#{fmt1(arcmin / 60)}°"
+  defp arc(arcmin), do: "#{round(arcmin)}′"
+
   @impl true
   def render(assigns) do
-    scope =
-      case scope_radec(assigns.snap, assigns) do
-        {ra, dec} ->
-          {alt, az} = Astro.alt_az(ra, dec, assigns.site.lat, assigns.lst)
-          {x, y} = Astro.project(max(alt, -5.0), az)
-          %{x: x * 100, y: y * 100}
+    aim = aim(assigns.lineup, assigns.selected && Tracker.status(assigns.selected))
 
-        nil ->
-          nil
+    # the telescope's crosshair and margin, only for the sky as it is now
+    {scope, ring} =
+      case assigns.shift_min == 0 && scope_radec(assigns.snap, assigns) do
+        {ra, dec} ->
+          xy = Scene.place(assigns.scene, ra, dec)
+          ring = with {:margin, a} <- aim, do: Scene.ring(assigns.scene, ra, dec, a.margin / 60), else: (_ -> [])
+          {xy && %{x: elem(xy, 0), y: elem(xy, 1)}, ring}
+
+        _ ->
+          {nil, []}
       end
 
-    assigns = assign(assigns, scope: scope)
+    assigns = assign(assigns, scope: scope, ring: ring, aim: aim, views: Controller.Sky.Projection.views())
 
     ~H"""
-    <%!-- one <main> per document: inside the bench this is a plain block --%>
-    <.dynamic_tag tag_name={if @nested, do: "div", else: "main"} class={["sky", @night && "night", @nested && "nested"]} id="sky">
-      <%!-- inside the bench the header, STOP and the modes chip are the bench's --%>
-      <header :if={!@nested}>
-        <.link navigate={~p"/"} class="back back-home">‹ Home</.link>
-        <h1>{@site[:name]} · {Calendar.strftime(@now, "%H:%M")} UTC · LST {fmt_h(@lst)}</h1>
-        <span class="hdr-actions">
+    <%!-- one <main> per document: nested inside another page this is a plain block --%>
+    <.dynamic_tag
+      tag_name={if @nested, do: "div", else: "main"}
+      class={["sky", @live_action == :tonight && "tonight", @night && "night", @nested && "nested"]}
+      id="sky"
+    >
+      <%!-- nested inside another page, the header and STOP are that page's --%>
+      <header :if={!@nested} class="page-header">
+        <.back navigate={~p"/"} label="Home" section="Sky" />
+        <.title>{if @live_action == :tonight, do: "Tonight", else: "Sky Map"}</.title>
+        <.actions>
+          <.help href={~p"/docs/sky"} label="the sky" />
+          <button class="ghost night-key" phx-click="night" aria-label="Night mode" aria-pressed={to_string(@night)}>◐</button>
           <.stop />
-          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
-        </span>
+        </.actions>
       </header>
       <.skip_target :if={!@nested} />
+      <%!-- the viewer's clock and time zone, for local time --%>
+      <div id="sky-clock" phx-hook="Clock" hidden></div>
 
-      <.link :if={Mount.simulated?(@selected)} navigate={~p"/devices"} class="hint sim-line">simulator · no telescope on the cable · Devices ›</.link>
+      <%!-- when and where this sky is drawn: the same bar, in the same place, on the Sky Map and Tonight --%>
+      <.when_where :if={!@nested} at={@at} lst={@lst} shift_min={@shift_min} utc_offset_min={@utc_offset_min} site={@site} />
+
+      <.link :if={Mount.simulated?(@selected)} navigate={~p"/devices"} class="hint sim-line">
+        Simulator · no telescope on the cable · Devices ›
+      </.link>
       <Controller.Components.Modes.modes :if={!@nested} modes={@modes} id={@selected} />
 
-      <.seg label="sky page" class="tabs">
-        <:opt :for={{t, label} <- [{"map", "Map"}, {"targets", "Tonight"}, {"horizon", "Horizon"}]} on={t == @tab} click="tab" value={%{tab: t}}>{label}</:opt>
-      </.seg>
+      <%!-- the sky takes the room, and stays up on a wide screen while the side shows a
+            picked object or the horizon; on a phone the tabs switch between them --%>
+      <.split class="sky-split">
+        <:main>
+          <%!-- the map is a picture to assistive tech: its objects are the Tonight list, which is the keyboard path (2.1.1) --%>
+          <p :if={@live_action != :tonight} id="skymap-note" class="sr-only">
+            The map is a picture of the sky from {where(@site)} right now, north up, east left, with your tree line shaded. The Tonight page lists the same objects as links.
+          </p>
+          <.chart
+            :if={@live_action != :tonight}
+            id="skymap"
+            scene={@scene}
+            target={@target}
+            scope={@scope}
+            ring={@ring}
+            path={@path}
+            interactive
+            class={@tab != "map" && "map-aside"}
+            label={"the sky from #{where(@site)}, #{view_name(@view)} chart#{if @target, do: ", #{@target.name} picked", else: ""}"}
+            aria-describedby="skymap-note"
+          />
+          <%!-- the projection: the round dome, the flattened horizon, the mount's own axes --%>
+          <.seg :if={@live_action != :tonight} label="chart" class={if @tab != "map", do: "sky-views map-aside", else: "sky-views"}>
+            <:opt :for={{key, name, _} <- @views} on={key == @view} click="view" value={%{view: key}}>{name}</:opt>
+          </.seg>
+          <p :if={@live_action != :tonight} class={["fine", "sky-view-words", @tab != "map" && "map-aside"]}>{view_words(@view)}</p>
+          <section :if={@tab == "targets"} class="targets-wrap" aria-labelledby="targets-lede">
+            <p class="horizon-hint" id="targets-lede">
+              {if @trees, do: "Above your tree line", else: "Up"} now, best first.
+            </p>
+            <%!-- back to where it just was: the return-to-target test is one tap --%>
+            <% recent = if @selected, do: Pointing.recent(@selected) |> Enum.filter(& &1["id"]), else: [] %>
+            <nav :if={recent != []} class="recent" aria-label="Recent Go To targets">
+              <span class="dim">Recent</span>
+              <.link :for={r <- recent} navigate={~p"/object/#{r["id"]}?#{[mount: @selected, from: "tonight"]}"} class="btn">{r["name"]}</.link>
+            </nav>
+            <p :if={@locked == false} class="lock-line tone-caution" role="status">
+              Not aligned yet, so Go To and tracking can't place anything. Open any bright star or planet, center it with the touchpad or the D-pad, and tap Centered. <.link href={~p"/docs/align"}>What's alignment?</.link>
+            </p>
+            <% {up, later} = Enum.split_with(@targets, & &1.up) %>
+            <ol :if={up != []} class="targets" role="list">
+              <%!-- a phone opens the object's page; a wide screen shows it beside the list --%>
+              <li :for={{o, i} <- Enum.with_index(up, 1)}>
+                <.link
+                  navigate={~p"/object/#{o.id}?#{[mount: @selected, from: "tonight"]}"}
+                  class={["target", "pick-narrow", i <= 5 && "top"]}
+                >
+                  <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} reach={@reach[o.id]} />
+                </.link>
+                <button
+                  type="button"
+                  class={["target", "pick-wide", i <= 5 && "top", @target && @target.id == o.id && "picked"]}
+                  phx-click="pick"
+                  phx-value-id={o.id}
+                  aria-current={@target && @target.id == o.id && "true"}
+                >
+                  <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} reach={@reach[o.id]} />
+                  <span class="pick-arrow" aria-hidden="true">›</span>
+                </button>
+              </li>
+            </ol>
+            <p :if={later != []} class="targets-head" id="targets-later">Rising later</p>
+            <ol :if={later != []} class="targets later" role="list" aria-labelledby="targets-later">
+              <li :for={o <- later}>
+                <.link navigate={~p"/object/#{o.id}?#{[mount: @selected, from: "tonight"]}"} class="target pick-narrow">
+                  <.later_body o={o} at={@at} utc_offset_min={@utc_offset_min} />
+                </.link>
+                <button
+                  type="button"
+                  class={["target", "pick-wide", @target && @target.id == o.id && "picked"]}
+                  phx-click="pick"
+                  phx-value-id={o.id}
+                  aria-current={@target && @target.id == o.id && "true"}
+                >
+                  <.later_body o={o} at={@at} utc_offset_min={@utc_offset_min} />
+                  <span class="pick-arrow" aria-hidden="true">›</span>
+                </button>
+              </li>
+            </ol>
+            <p :if={@targets == []} class="horizon-hint">
+              Nothing above the tree line. Lower it on the Sky Map's Horizon tab if that's wrong.
+            </p>
+          </section>
+          <%!-- on Tonight the side is the plot; the help goes after the list --%>
+          <.sky_help :if={@live_action == :tonight} />
+        </:main>
+        <:side>
+          <%!-- Tonight: when each of the five best is up, dusk to dawn, numbered as the list is;
+                beside the list on a wide screen, above it on a phone --%>
+          <Controller.Components.Visibility.plot :if={@live_action == :tonight and is_nil(@target)} targets={Enum.take(Enum.filter(@targets, & &1.up), 5)} site={@site} at={@at} utc_offset_min={@utc_offset_min} horizon={if @trees, do: @horizon, else: nil} />
+          <.seg :if={@live_action != :tonight} label="sky page" class="tabs">
+            <:opt
+              :for={{t, label} <- [{"map", "Object"}, {"horizon", "Tree Line"}]}
+              on={t == @tab}
+              click="tab"
+              value={%{tab: t}}
+            >
+              {label}
+            </:opt>
+          </.seg>
+          <section :if={@tab == "horizon"} aria-label="horizon, equipment and site">
+            <p class="horizon-hint">
+              Tree line, degrees above level, each direction.
+              <.help href={~p"/docs/horizon"} label="tree line" />
+            </p>
+            <form phx-change="horizon" class="horizon" aria-label="tree line by direction, degrees">
+              <label :for={s <- Settings.sectors()}>
+                {s}<input name={s} type="text" inputmode="numeric" autocomplete="off" value={@horizon[s]} />
+              </label>
+            </form>
+            <form phx-change="equipment" class="horizon" aria-label="equipment">
+              <label>
+                Aperture mm<input
+                  name="aperture"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  value={@aperture}
+                />
+              </label>
+              <span class="hcell">Limit<span class="ro">mag {fmt1(@lim)}</span></span>
+              <span class="hcell">
+                Moon<span class="ro">{if @moon.up, do: "up · #{fmt0(@moon.illumination * 100)}%", else: "down"}</span>
+              </span>
+              <span class="hcell">
+                <span aria-hidden="true">&nbsp;</span>
+                <.help href={~p"/docs/magnitude"} label="magnitude and limit" />
+              </span>
+            </form>
 
-      <%!-- the map is a picture to assistive tech: its objects are the Tonight list, which is the keyboard path (2.1.1) --%>
-      <p :if={@tab == "map"} id="skymap-note" class="sr-only">The map is a picture of the sky from {@site[:name]} right now, north up, east left, with your tree line shaded. The Tonight tab lists the same objects as links.</p>
-      <svg :if={@tab == "map"} id="skymap" phx-hook="SkyZoom" viewBox="-104 -104 208 208" class="map" phx-click="clear" role="img" aria-label={"the sky from #{@site[:name]}#{if @target, do: ", #{@target.name} picked", else: ""}"} aria-describedby="skymap-note">
-        <defs>
-          <radialGradient id="dome" cx="50%" cy="50%" r="50%">
-            <stop offset="70%" stop-color="var(--sky1)" /><stop offset="100%" stop-color="var(--sky2)" />
-          </radialGradient>
-          <clipPath id="disc"><circle r="100" /></clipPath>
-        </defs>
-        <circle r="100" fill="url(#dome)" stroke="var(--edge)" stroke-width=".6" />
-        <g clip-path="url(#disc)">
-          <circle :for={alt <- [30, 60]} r={100 * :math.tan((90 - alt) / 2 * :math.pi() / 180) / :math.tan(:math.pi() / 4)} fill="none" stroke="var(--edge)" stroke-width=".3" stroke-dasharray="1 2" />
-          <line x1="-100" y1="0" x2="100" y2="0" stroke="var(--edge)" stroke-width=".3" />
-          <line x1="0" y1="-100" x2="0" y2="100" stroke="var(--edge)" stroke-width=".3" />
+            <div class="photo">
+              <p class="horizon-hint">Site <.help href={~p"/docs/site"} label="site" /></p>
+              <form phx-change="site" class="horizon" aria-label="site">
+                <label>
+                  Lat<input
+                    name="lat"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    value={@site.lat}
+                  />
+                </label>
+                <label>
+                  Lon<input
+                    name="lon"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    value={@site.lon}
+                  />
+                </label>
+                <span class="hcell">
+                  <span aria-hidden="true">&nbsp;</span><button
+                    type="button"
+                    id="use-location"
+                    phx-hook="Geo"
+                    class="ro"
+                  >Use This Phone's Location</button>
+                </span>
+                <span class="hcell">
+                  <span aria-hidden="true">&nbsp;</span><.link
+                    navigate={~p"/setup/#{@selected}"}
+                    class="ro"
+                  >Setup ›</.link>
+                </span>
+              </form>
+            </div>
 
-          <polyline :for={l <- @lines} points={l} class="lines" />
+            <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
+              <p class="horizon-hint" id="photo-lede">
+                Tree line from a Night-mode photo
+                <.help href={~p"/docs/horizon"} label="tree line from a photo" />
+              </p>
+              <form phx-change="validate" phx-submit="solve" aria-labelledby="photo-lede">
+                <.live_file_input upload={@uploads.photo} aria-label="a photo of the sky and tree line" />
+                <button :if={@photo_cols && !@solving} class="go">Plate Solve &amp; Apply</button>
+                <span :if={@solving} class="dim">Plate solving… (30–90 s)</span>
+              </form>
+              <p :if={@photo_cols} class="horizon-hint">
+                Traced {length(@photo_cols)} columns; sky/tree boundary found in {Enum.count(
+                  @photo_cols,
+                  fn [_, y] -> y < 1.0 end
+                )} of them.
+              </p>
+              <p :if={@solve_note} class="horizon-hint">{@solve_note}</p>
+              <%!-- only beside the photo tool, and not twice when Solve just said it --%>
+              <p :if={!Solve.configured?() and is_nil(@solve_note)} class="horizon-hint">
+                Plate solving online needs an astrometry.net API key; set <code>NOVA_API_KEY</code> on the machine running the server (free at nova.astrometry.net).
+              </p>
+            </div>
+          </section>
+          <%!-- the picked object: what it is, when it's up, and on Tonight its path across the sky
+                (the Sky Map's own chart draws that already) --%>
+          <section :if={@target} class="pick-panel" aria-labelledby="pick-name">
+            <div class="pick-head">
+              <h2 id="pick-name">{@target.name}</h2>
+              <button type="button" class="ghost pick-close" phx-click="clear" aria-label={"Close #{@target.name}"}>
+                <Controller.Components.Icons.icon name="close" />
+              </button>
+            </div>
+            <p class="dim" role="status">{describe(@target, @stars ++ @dsos, @lim, @moon, @scene)}</p>
+            <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} />
+            <Controller.Components.Visibility.plot targets={[@target]} site={@site} at={@at} utc_offset_min={@utc_offset_min} horizon={if @trees, do: @horizon, else: nil} />
+            <div class="row">
+              <button class="go" phx-click="goto" disabled={!@snap || !@snap.connected} aria-label={"Go To #{@target.name}"}>Go To</button>
+              <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected, from: if(@live_action == :tonight, do: "tonight", else: nil)]}"} class="btn" aria-label={"Details about #{@target.name}"}>Details ›</.link>
+            </div>
+          </section>
+          <p :if={!@target and @live_action != :tonight} class="hint sky-hint">
+            Tap to pick, pinch to zoom<span :if={@snap && !@snap.homed && !@scope}>. Set home or align to see where the telescope points</span><span :if={!@snap}>. No mount</span>
+          </p>
+          <p :if={@tab == "map" && @scope && @shift_min == 0} class="hint sky-aim">{aim_words(@aim)}</p>
 
-          <g :for={o <- @stars} phx-click="pick" phx-value-id={o.id} class={["obj", "star", o.mag > 3.5 && "faint", o.hidden && "hidden", @target && @target.id == o.id && "picked"]}>
-            <circle class="hit" cx={o.x} cy={o.y} r={radius(o) + 3.5} />
-            <circle cx={o.x} cy={o.y} r={radius(o)} />
-            <text :if={o.proper && o.mag < 1.9} x={o.x + 2.2} y={o.y + 1}>{o.proper}</text>
-          </g>
-
-          <g :for={o <- @dsos} phx-click="pick" phx-value-id={o.id} class={["obj", o.kind, o.hidden && "hidden", @target && @target.id == o.id && "picked"]}>
-            <circle class="hit" cx={o.x} cy={o.y} r="4.5" />
-            <rect x={o.x - 1.5} y={o.y - 1.5} width="3" height="3" transform={"rotate(45 #{o.x} #{o.y})"} />
-            <text :if={String.starts_with?(o.id, "sol-") or (o.mag < 6.5 and String.starts_with?(o.id, "m"))} x={o.x + 2.6} y={o.y + 1}>{short(o.name)}</text>
-          </g>
-
-          <path d={"M100,0 A100,100 0 1,1 -100,0 A100,100 0 1,1 100,0 Z M#{@treeline} Z"} fill-rule="evenodd" class="treeline" pointer-events="none" />
-          <polygon points={@treeline} class="treeline-edge" pointer-events="none" />
-
-          <g :if={@scope} class="scope" transform={"translate(#{fmt1(@scope.x)} #{fmt1(@scope.y)})"} pointer-events="none">
-            <circle r="5" fill="none" />
-            <line x1="-8" y1="0" x2="-3" y2="0" /><line x1="3" y1="0" x2="8" y2="0" />
-            <line x1="0" y1="-8" x2="0" y2="-3" /><line x1="0" y1="3" x2="0" y2="8" />
-          </g>
-        </g>
-        <text x="0" y="-101.5" class="card">N</text>
-        <text x="0" y="103.5" class="card">S</text>
-        <text x="-102" y="1" class="card" text-anchor="end">E</text>
-        <text x="102" y="1" class="card" text-anchor="start">W</text>
-      </svg>
-
-      <section :if={@tab == "targets"} class="targets-wrap" aria-labelledby="targets-lede">
-        <p class="horizon-hint" id="targets-lede">Above your tree line now, ranked by how good they look and how long they stay up.</p>
-        <ol :if={@targets != []} class="targets" role="list">
-          <li :for={{o, i} <- Enum.with_index(@targets, 1)}>
-            <.link navigate={~p"/object/#{o.id}?#{[mount: @selected]}"} class={["target", i <= 5 && "top"]}>
-              <span class="k" aria-hidden="true">{if i <= 5, do: "#{i}", else: glyph(o.kind)}</span>
-              <span class="t"><strong>{o.name}</strong><span>{fmt0(o.alt)}° up · {compass(o.az)} · {o.words}</span></span>
-              <span class={["when", when_class(o.status)]}>{when_text(o.status)}</span>
-            </.link>
-          </li>
-        </ol>
-        <p :if={@targets == []} class="horizon-hint">Nothing above the tree line. Lower it on the Horizon tab if that's wrong.</p>
-      </section>
-
-      <section :if={@tab == "horizon"} aria-label="horizon, equipment and site">
-        <p class="horizon-hint">Tree line, degrees above level, each direction. <.help href={~p"/docs/horizon"} label="tree line" /></p>
-        <form phx-change="horizon" class="horizon" aria-label="tree line by direction, degrees">
-          <label :for={s <- Settings.sectors()}>{s}<input name={s} type="text" inputmode="numeric" autocomplete="off" value={@horizon[s]} /></label>
-        </form>
-        <form phx-change="equipment" class="horizon" aria-label="equipment">
-          <label>aperture mm<input name="aperture" type="text" inputmode="numeric" autocomplete="off" value={@aperture} /></label>
-          <span class="hcell">limit<span class="ro">mag {fmt1(@lim)}</span></span>
-          <span class="hcell">Moon<span class="ro">{if @moon.up, do: "up · #{fmt0(@moon.illumination * 100)}%", else: "down"}</span></span>
-          <span class="hcell"><span aria-hidden="true">&nbsp;</span><.help href={~p"/docs/magnitude"} label="magnitude and limit" /></span>
-        </form>
-
-        <div class="photo">
-          <p class="horizon-hint">Site <.help href={~p"/docs/horizon"} label="site" /></p>
-          <form phx-change="site" class="horizon" aria-label="site">
-            <label>lat<input name="lat" type="text" inputmode="decimal" autocomplete="off" value={@site.lat} /></label>
-            <label>lon<input name="lon" type="text" inputmode="decimal" autocomplete="off" value={@site.lon} /></label>
-            <span class="hcell"><span aria-hidden="true">&nbsp;</span><button type="button" id="use-location" phx-hook="Geo" class="ro">Use My Location</button></span>
-            <span class="hcell"><span aria-hidden="true">&nbsp;</span><.link navigate={~p"/setup/#{@selected}"} class="ro">Setup ›</.link></span>
-          </form>
-        </div>
-
-        <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
-          <p class="horizon-hint" id="photo-lede">Tree line from a Night-mode photo <.help href={~p"/docs/horizon"} label="tree line from a photo" /></p>
-          <form phx-change="validate" phx-submit="solve" aria-labelledby="photo-lede">
-            <.live_file_input upload={@uploads.photo} aria-label="a photo of the sky and tree line" />
-            <button :if={@photo_cols && !@solving} class="go">Solve &amp; Apply</button>
-            <span :if={@solving} class="dim">Solving… (30–90 s)</span>
-          </form>
-          <p :if={@photo_cols} class="horizon-hint">Traced {length(@photo_cols)} columns; sky/tree boundary found in {Enum.count(@photo_cols, fn [_, y] -> y < 1.0 end)} of them.</p>
-          <p :if={@solve_note} class="horizon-hint">{@solve_note}</p>
-          <p :if={!Solve.configured?()} class="horizon-hint">Solving needs <code>NOVA_API_KEY</code> (free at nova.astrometry.net).</p>
-        </div>
-      </section>
-
-      <section class="pick" :if={@target} aria-label="picked object" aria-live="polite">
-        <div>
-          <strong>{@target.name}</strong>
-          <span class="dim">{describe(@target, @stars ++ @dsos, @lim, @moon)}</span>
-        </div>
-        <button class="go" phx-click="goto" aria-label={"Slew to #{@target.name}"}>Slew</button>
-        <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected]}"} class="btn-link" aria-label={"Info about #{@target.name}"}>Info ›</.link>
-      </section>
-      <section class="pick hint" :if={!@target and @tab == "map"}>
-        <span class="dim">
-          Tap to pick · pinch to zoom
-          <span :if={@snap && !@snap.homed}> · zero the axes to see the scope</span>
-          <span :if={!@snap}> · no mount</span>
-        </span>
-      </section>
-
-      <p class="fine"><.link href={~p"/docs/sky"} class="help">how the sky page works</.link> · <.link href={~p"/docs/magnitude"} class="help">magnitude in plain words</.link></p>
+          <.sky_help :if={@live_action != :tonight} />
+        </:side>
+      </.split>
       <.notice notice={@notice} />
     </.dynamic_tag>
     """
   end
 
-  defp radius(%{mag: m}), do: max(0.45, 2.4 - m * 0.45)
+  # one row of the Tonight list: its number (or kind), name over where it is, how high, how long
+  defp target_body(assigns) do
+    ~H"""
+    <span class="k" aria-hidden="true">{if @i <= 5, do: "#{@i}", else: glyph(@o.kind)}</span>
+    <span class="t">
+      <strong>{@o.name}</strong><span>{fmt0(@o.alt)}° up · {compass(@o.az)} · {@o.words}</span>
+    </span>
+    <.height alt={@o.alt} tree={if @trees, do: Settings.horizon_at(@horizon, @o.az), else: 0} />
+    <span class="when-col">
+      <span class={["when", sets_soon?(@o, @at) && "soon"]}>
+        {window_words(@o, @at, @utc_offset_min)}
+      </span>
+      <span :if={r = @reach} class={["reach-short", "tone-#{r.tone}"]}>
+        <span aria-hidden="true">{r.mark} </span>{r.text}
+      </span>
+    </span>
+    """
+  end
 
-  defp short(name), do: name |> String.split(" ") |> List.first()
+  defp later_body(assigns) do
+    ~H"""
+    <span class="k" aria-hidden="true">{glyph(@o.kind)}</span>
+    <span class="t"><strong>{@o.name}</strong><span>{compass(@o.az)} · {@o.words}</span></span>
+    <span class="when">{window_words(@o, @at, @utc_offset_min)}</span>
+    """
+  end
 
-  defp describe(t, placed, lim, moon) do
-    case Enum.find(placed, &(&1.id == t.id)) do
-      %{alt: alt, az: az, hidden: hidden} ->
+  defp sky_help(assigns) do
+    ~H"""
+    <p class="fine">
+      <.link href={~p"/docs/sky"} class="help">How the sky page works</.link>
+      · <.link href={~p"/docs/magnitude"} class="help">Magnitude in plain words</.link>
+    </p>
+    """
+  end
+
+  # when and where the sky is drawn, and the keys to move the time: the bar both Sky pages share
+  attr :at, :any, required: true
+  attr :lst, :any, required: true
+  attr :shift_min, :integer, required: true
+  attr :utc_offset_min, :any, default: nil
+  attr :site, :map, required: true
+
+  defp when_where(assigns) do
+    ~H"""
+    <section class="when-where" aria-label="When and where this sky is drawn">
+      <div class="ww-time" role="status" aria-live="polite">
+        <strong>{clock(@at, @utc_offset_min)}<span :if={@shift_min != 0} class="sky-shift"> {shift_words(@shift_min)}</span></strong>
+        <span>{date(@at, @utc_offset_min)} · {Calendar.strftime(@at, "%H:%M")} UTC · sidereal {fmt_h(@lst)}</span>
+      </div>
+      <div class="ww-keys" role="group" aria-label="Time">
+        <button class="btn" phx-click="shift" phx-value-by="-60" aria-label="One hour earlier">−1 h</button>
+        <button class="btn" phx-click="shift" phx-value-by="now" disabled={@shift_min == 0} aria-pressed={to_string(@shift_min == 0)}>Now</button>
+        <button class="btn" phx-click="shift" phx-value-by="60" aria-label="One hour later">+1 h</button>
+      </div>
+      <.link navigate={~p"/site"} class={["ww-site", !@site.set && "tone-caution"]}>
+        <strong>{if @site.set, do: latlon(@site), else: "Site not set"}</strong>
+        <span>{if @site.set, do: "Site ›", else: "Drawn for 0° N, 0° E. Set Site ›"}</span>
+      </.link>
+    </section>
+    """
+  end
+
+  defp view_name(view), do: Enum.find_value(Controller.Sky.Projection.views(), "dome", fn {k, n, _} -> if k == view, do: String.downcase(n) end)
+  defp view_words(view), do: Enum.find_value(Controller.Sky.Projection.views(), "", fn {k, _, w} -> if k == view, do: w end)
+
+
+
+  defp describe(t, placed, lim, moon, scene) do
+    case Enum.find(placed, &(&1.id == t.id)) || Scene.dir(scene, t.ra_deg, t.dec_deg) do
+      %{alt: alt, az: az} = p when alt > 0 ->
         "alt #{fmt0(alt)}° · #{compass(az)} (#{fmt0(az)}°) · mag #{t.mag} · #{words(t, lim, moon)}" <>
-          if(hidden, do: " · below your tree line", else: "")
+          if(p[:hidden], do: " · below your tree line", else: "")
 
       _ ->
         "below the horizon · mag #{t.mag}"
@@ -763,24 +1229,91 @@ defmodule Controller.SkyLive do
   defp glyph(:cluster), do: "Cl"
   defp glyph(_), do: "★"
 
-  defp when_text(:good), do: "Up 2h+"
-  defp when_text(:sets_later), do: "Sets <2h"
-  defp when_text(:sets_soon), do: "Sets <1h"
-  defp when_text(:rising), do: "Rises <2h"
+  # Until 23:40, Sets 20:10 (within the hour), All night, Rises 20:05: a time
+  # in the viewer's zone rather than a sign to decode
+  # How high it is, drawn: a quarter circle from the horizon to overhead, a line
+  # at the object's height, and the tree line in that direction shaded in, so
+  # "just over the trees" and "well clear" read at a glance.
+  attr :alt, :any, required: true
+  attr :tree, :any, default: 0
 
-  defp when_class(:sets_soon), do: "soon"
-  defp when_class(:rising), do: "rising"
-  defp when_class(_), do: nil
+  defp height(assigns) do
+    rad = fn deg -> max(min(deg, 90), 0) * :math.pi() / 180 end
+    at = fn deg -> {4 + 32 * :math.cos(rad.(deg)), 36 - 32 * :math.sin(rad.(deg))} end
+    {lx, ly} = at.(assigns.alt)
+    {tx, ty} = at.(assigns.tree)
+    # the number sits in whichever corner the line leaves empty
+    {nx, ny, anchor} = if assigns.alt >= 45, do: {37, 33, "end"}, else: {6, 21, "start"}
+
+    assigns =
+      assign(assigns,
+        lx: fmt1(lx),
+        ly: fmt1(ly),
+        tx: fmt1(tx),
+        ty: fmt1(ty),
+        nx: nx,
+        ny: ny,
+        anchor: anchor,
+        deg: "#{round(max(assigns.alt, 0))}°"
+      )
+
+    ~H"""
+    <svg class="height" viewBox="0 0 40 40" aria-hidden="true">
+      <path :if={@tree > 0} d={"M4,36 L36,36 A32,32 0 0,0 #{@tx},#{@ty} Z"} class="height-trees" />
+      <path d="M36,36 A32,32 0 0,0 4,4" class="height-arc" />
+      <line x1="4" y1="36" x2="36" y2="36" class="height-arc" />
+      <line x1="4" y1="36" x2={@lx} y2={@ly} class="height-line" />
+      <text x={@nx} y={@ny} text-anchor={@anchor} class="height-deg">{@deg}</text>
+    </svg>
+    """
+  end
+
+  defp window_words(%{up: true, sets_at: nil}, _now, _off), do: "All night"
+  defp window_words(%{up: true, sets_at: t, dawn: true}, _now, off), do: "Until dawn, #{hm(t, off)}"
+
+  defp window_words(%{up: true, sets_at: t} = o, now, off),
+    do: "#{if sets_soon?(o, now), do: "Sets", else: "Until"} #{hm(t, off)}"
+
+  defp window_words(%{up: false, rises_at: nil}, _now, _off), do: "Not tonight"
+  defp window_words(%{up: false, rises_at: t}, _now, off), do: "Rises #{hm(t, off)}"
+
+  defp sets_soon?(%{up: true, sets_at: %DateTime{} = t}, now), do: DateTime.diff(t, now) <= 3600
+  defp sets_soon?(_, _), do: false
+
+  defp hm(t, nil), do: Calendar.strftime(t, "%H:%M") <> " UTC"
+  defp hm(t, off), do: Calendar.strftime(DateTime.add(t, off * 60, :second), "%H:%M")
 
   defp compass(az) do
     Enum.at(~w(N NE E SE S SW W NW), round(Astro.norm360(az) / 45) |> rem(8))
   end
 
   defp fmt1(x), do: :erlang.float_to_binary(x * 1.0, decimals: 1)
+
+  defp where(%{set: true} = site), do: latlon(site)
+  defp where(_), do: "latitude 0, longitude 0 (no location set)"
+
+  # 37.77° N 122.42° W: a kilometre, enough to tell the sky is yours
+  defp latlon(%{lat: lat, lon: lon}),
+    do:
+      "#{:erlang.float_to_binary(abs(lat) * 1.0, decimals: 2)}° #{if lat >= 0, do: "N", else: "S"} #{:erlang.float_to_binary(abs(lon) * 1.0, decimals: 2)}° #{if lon >= 0, do: "E", else: "W"}"
+
+  # 19:15 over Fri Sep 25, in the viewer's zone once their browser has said which
+  defp clock(at, nil), do: "#{Calendar.strftime(at, "%H:%M")} UTC"
+  defp clock(at, off), do: Calendar.strftime(DateTime.add(at, off * 60, :second), "%H:%M")
+
+  defp date(at, off),
+    do: Calendar.strftime(DateTime.add(at, (off || 0) * 60, :second), "%a %b %-d")
+
+  defp shift_words(min) when rem(min, 60) == 0,
+    do: "#{if min > 0, do: "+", else: "−"}#{div(abs(min), 60)} h"
+
+  defp shift_words(min), do: "#{if min > 0, do: "+", else: "−"}#{abs(min)} min"
+
   defp fmt0(x), do: :erlang.float_to_binary(x * 1.0, decimals: 0)
 
   defp fmt_h(deg) do
     h = deg / 15
+
     "#{trunc(h)}h#{:erlang.float_to_binary((h - trunc(h)) * 60, decimals: 0) |> String.pad_leading(2, "0")}m"
   end
 end

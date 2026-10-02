@@ -1,7 +1,7 @@
 # Position
 
-Type where each axis should be, in degrees from home, and go there — or go
-home.
+Type where each axis should be, in degrees from the
+[home position](/docs/setup#home-position), and go there; or go home.
 
 ## Why it exists
 
@@ -12,5 +12,5 @@ plainest way to move an exact amount when debugging.
 ## Notes
 
 * Degrees are the mount's own axis angles, not sky coordinates.
-* Home must have been set (Setup, or the first step of Star Align); that is
-  also what arms the soft limits.
+* Home must have been set (**Set Home Here** on Setup, or the first step of
+  Star Align); that is also what arms the soft limits.

@@ -122,6 +122,53 @@ defmodule Controller.StillCameraTest do
     assert Enum.any?(index, &(Jason.decode!(&1)["files"] == side["files"]))
   end
 
+  # The simulated camera, telling the test (by name) the moment its shutter has been pressed.
+  defmodule Pressed do
+    @behaviour Camera.Transport
+    alias Camera.Transport.Sim
+
+    @impl true
+    defdelegate open(opts), to: Sim
+
+    @impl true
+    def write(s, bin, timeout) do
+      with {:ok, %{shots: n}} = pressed when n > s.shots <- Sim.write(s, bin, timeout) do
+        if pid = Process.whereis(:still_camera_test), do: send(pid, :shutter_pressed)
+        pressed
+      end
+    end
+
+    @impl true
+    defdelegate read(s, max, timeout), to: Sim
+    @impl true
+    defdelegate event(s, timeout), to: Sim
+    @impl true
+    defdelegate close(s), to: Sim
+  end
+
+  @tag timeout: 60_000
+  test "the sidecar has the settings the picture was taken at, not what the dial was turned to while it came down", %{cam: cam} do
+    stop_supervised!({Camera.Server, cam})
+    told = "sim-still-told-#{System.unique_integer([:positive])}"
+    start_supervised!({Camera.Server, id: told, transport: {Pressed, []}})
+    assert_receive {:still_camera, %{camera: %{id: ^told, state: :ready}}}, 10_000
+    assert {:ok, %{settings: %{iso: 3200}}} = StillCamera.set(iso: 3200)
+    Process.register(self(), :still_camera_test)
+
+    before = (StillCamera.status().last || %{})[:seq] || 0
+    StillCamera.shoot()
+    assert_receive :shutter_pressed, 5_000
+    # the night it happened: ISO 3200 turned to 800 between the shutter and the sidecar being written
+    assert {:ok, %{settings: %{iso: 800}}} = StillCamera.set(iso: 800)
+    assert_receive {:still_camera, %{busy: false, last: %{seq: seq} = last}} when seq > before, 15_000
+
+    side = last.sidecar |> File.read!() |> Jason.decode!()
+    assert %{"iso" => 3200, "settings_from" => "shutter"} = side["camera"]
+    # the camera itself says 800 by now, and the next picture is taken at that
+    assert Camera.status(told).settings.iso == 800
+    assert %{"iso" => 800} = (picture().sidecar |> File.read!() |> Jason.decode!())["camera"]
+  end
+
   @tag timeout: 60_000
   test "nothing is ever written over: two pictures with the same name in the same second are both kept" do
     a = picture()
@@ -320,10 +367,14 @@ defmodule Controller.StillCameraTest do
       Mount.subscribe(mount)
       assert_receive {:mount, %{connected: true}}, 2_000
       solver = Application.get_env(:controller, :solver)
+      # a solved picture measures the focal length and keeps it in Settings: what was there goes back
+      optics = {Controller.Settings.get("focal_length_mm"), Controller.Settings.get("focal_length_solved")}
 
       on_exit(fn ->
         if solver, do: Application.put_env(:controller, :solver, solver), else: Application.delete_env(:controller, :solver)
         StillCamera.solving(false)
+        Controller.Settings.put("focal_length_mm", elem(optics, 0))
+        Controller.Settings.put("focal_length_solved", elem(optics, 1))
       end)
 
       :ok
@@ -430,6 +481,42 @@ defmodule Controller.StillCameraTest do
       assert <<"P5\n1200 800\n255\n", _::binary>> = given
       assert given == direct
       assert %{state: :solved} = solve_outcome()
+    end
+
+    # a solver whose field is 0.388 arcsec a pixel across the a6000's 6000 pixels: what the 8SE's plates said
+    defmodule Measured do
+      def solve(image, opts) do
+        with {:ok, sol} <- Controller.StillCameraTest.Solved.solve(image, opts), do: {:ok, %{sol | width_deg: 0.388 * 6000 / 3600, height_deg: 0.388 * 4000 / 3600}}
+      end
+    end
+
+    @tag timeout: 60_000
+    test "the focal length is learned from the first solve, kept with the optics, and each sidecar says which it is" do
+      alias Controller.Settings
+      alias Controller.StillCamera.Optics
+      # the label on the tube
+      Settings.put("focal_length_mm", 2032)
+      Settings.put("focal_length_solved", nil)
+      Application.put_env(:controller, :solver, backend: Measured)
+      :ok = StillCamera.solving(true)
+
+      first = picture()
+      assert %{mount: mount} = first.plate
+      on_exit(fn -> Controller.Plates.clear(mount) end)
+      # written before its own solve came back: the label, said to be one
+      assert %{"focal_length_mm" => 2032, "focal_length_from" => "label"} = (first.sidecar |> File.read!() |> Jason.decode!())["optics"]
+      assert %{state: :solved} = solve_outcome()
+
+      # one solve at 0.388 arcsec per 3.9 micron pixel: 2,084 mm, within 5
+      assert %{mm: mm, from: "solve", label_mm: 2032} = Optics.focal_length()
+      assert_in_delta mm, 2084, 5
+      assert Settings.get("focal_length_mm") == mm
+      # the solve's own answer says what it measured
+      assert %{"focal_length_mm" => ^mm} = (first.base <> ".solve.json") |> File.read!() |> Jason.decode!()
+
+      # every picture from here on carries the measured one, and says where it came from
+      second = picture()
+      assert %{"focal_length_mm" => ^mm, "focal_length_from" => "solve", "focal_length_label_mm" => 2032} = (second.sidecar |> File.read!() |> Jason.decode!())["optics"]
     end
 
     test "with solving off a picture is not sent to the solver" do

@@ -20,7 +20,9 @@ defmodule Controller.StillCamera do
   `Controller.Plates` with the mount's encoders from the moment the shutter
   opened, so the picture says where the telescope pointed and adds to the
   mount's alignment. The answer is written beside the picture
-  (`<name>.solve.json`) and shown on the page.
+  (`<name>.solve.json`) and shown on the page. The first solved picture also
+  measures the telescope's focal length, which takes the place of the label's
+  in Settings (`Controller.StillCamera.Optics`).
 
   **It carries on after a restart.** Whether it was shooting continuously and
   whether it was solving are kept in `Controller.Settings` (`"still_camera"`);
@@ -34,7 +36,7 @@ defmodule Controller.StillCamera do
   require Logger
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
-  alias Controller.StillCamera.{Focus, Sidecar}
+  alias Controller.StillCamera.{Focus, Optics, Sidecar}
 
   @topic "still_camera"
   @look_ms 3_000
@@ -302,7 +304,11 @@ defmodule Controller.StillCamera do
 
       base = "#{stamp}-#{Path.rootname(hd(files).name)}"
       camera = safe(fn -> Camera.status(id) end)
-      exposure_s = Sidecar.seconds(get_in(camera || %{}, [:settings, :shutter])) || 0.0
+      # How the camera was set when the shutter was pressed, as its driver read it then. The status
+      # asked now is a later reading: an ISO turned while this picture came down and was measured is
+      # already in it (the night a frame taken at ISO 3200 was written down as 800).
+      settings = hd(files)[:settings]
+      exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
 
       # a sidecar that can't be written never costs the picture
@@ -315,6 +321,7 @@ defmodule Controller.StillCamera do
             ready_at: hd(files)[:ready_at],
             files: kept,
             camera: camera,
+            settings: settings,
             mount_id: mount_id,
             samples: samples,
             lock: LockOn.status(),
@@ -341,7 +348,9 @@ defmodule Controller.StillCamera do
         names: Enum.map(files, & &1.name),
         bytes: kept |> Enum.map(& &1.bytes) |> Enum.sum(),
         sidecar: sidecar,
-        mount: mount_id
+        mount: mount_id,
+        # the camera's JPEG, across: the sensor's whole width in this many pixels
+        full_w: jpeg && jpeg_width(jpeg.bytes)
       }
 
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
@@ -389,9 +398,21 @@ defmodule Controller.StillCamera do
 
       p ->
         solve = %{solve | state: p.state, reason: p[:reason], solution: p[:solution], residual_arcmin: p[:residual_arcmin]}
-        if p.state in [:solved, :failed] and not solve.written, do: write_solve(solve), else: solve
+        if p.state in [:solved, :failed] and not solve.written, do: solve |> learn() |> write_solve(), else: solve
     end
   end
+
+  # A solved picture measures the telescope. The field's width over the picture's pixels is the sky
+  # a pixel covers, the sensor's width over the same pixels is the pixel, and the two give the focal
+  # length (`Optics`): 2,084 mm from the 8SE's plates, where the label says 2,032. The first one is
+  # kept with the optics in Settings; every solve's own goes into its answer.
+  defp learn(%{state: :solved, solution: %{width_deg: w}, full_w: px} = solve) when is_number(w) and w > 0 and is_integer(px) and px > 0 do
+    {scale, pixel} = {w * 3600 / px, @sensor_mm * 1000 / px}
+    safe(fn -> Optics.learn(scale, pixel, plate: Path.basename(solve.base)) end)
+    %{solve | focal_length_mm: Float.round(Optics.focal_length_mm(scale, pixel), 1)}
+  end
+
+  defp learn(solve), do: solve
 
   # the answer beside the picture, once
   defp write_solve(solve) do
@@ -403,6 +424,7 @@ defmodule Controller.StillCamera do
       state: solve.state,
       reason: solve.reason,
       solution: solve.solution,
+      focal_length_mm: solve.focal_length_mm,
       written: DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
@@ -584,9 +606,9 @@ defmodule Controller.StillCamera do
   end
 
   # this picture's plate: follow it on its mount's plates until it is solved or failed
-  defp follow(s, %{plate: %{mount: mount, n: n}, seq: seq, base: base}) do
+  defp follow(s, %{plate: %{mount: mount, n: n}, seq: seq, base: base} = record) do
     s = if MapSet.member?(s.watching, mount), do: s, else: (Plates.subscribe(mount); %{s | watching: MapSet.put(s.watching, mount)})
-    solve = %{seq: seq, mount: mount, n: n, base: base, state: :queued, reason: nil, solution: nil, residual_arcmin: nil, written: false}
+    solve = %{seq: seq, mount: mount, n: n, base: base, state: :queued, reason: nil, solution: nil, residual_arcmin: nil, written: false, full_w: record[:full_w], focal_length_mm: nil}
     # it may have been solved before the picture's files were all saved
     %{s | solve: plate_state(solve, safe(fn -> Plates.view(mount) end) || %{plates: [%{n: n, state: :queued}]})}
   end

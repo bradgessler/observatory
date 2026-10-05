@@ -26,6 +26,8 @@ defmodule Camera.ServerTest do
   test "a picture comes back as its files, and the camera remembers it took one", %{id: id} do
     {:ok, [jpeg, _raw]} = Camera.capture(id)
     assert jpeg.format == :jpeg
+    # and each file says what the camera was set to when the shutter was pressed
+    assert jpeg.settings.iso == 6400 and jpeg.settings.quality == "RAW+JPEG"
     st = Camera.status(id)
     assert st.shots == 1 and length(st.last.files) == 2
   end

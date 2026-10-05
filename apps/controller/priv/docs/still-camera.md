@@ -91,7 +91,12 @@ files are never changed.
 
 - **Time**: when the shutter was pressed, when the exposure ended, when the
   camera had the picture. UTC.
-- **Camera**: ISO, shutter speed, quality, focus mode, battery.
+- **Camera**: ISO, shutter speed, quality, focus mode, battery, as they
+  were when the shutter was pressed. A dial turned while the picture is
+  still coming off the camera belongs to the next picture.
+- **Optics**: focal length and aperture, and where the focal length came
+  from: `label` (the number typed into Settings) or `solve` (measured from
+  a solved picture, see Plate solving).
 - **Mount**: both axes at the start and the end of the exposure (degrees,
   encoder steps, speed), whether it was tracking, and its track in between,
   four times a second.
@@ -137,6 +142,14 @@ the sky align the mount. **Alignment Photos** shows them and the fit. For a
 picture to count, the mount must have a home set.
 
 The answer is written beside the picture, in `<name>.solve.json`.
+
+**The first solved picture measures the focal length.** The number on the
+tube is a label: an 8 inch Schmidt-Cassegrain says 2032 mm, and its
+pictures say 2084. From how much sky a pixel covers and how big a pixel is,
+the box works out the real one, keeps it in Settings as `focal_length_mm`,
+and uses it from then on (star size in arcseconds, the scale the solver is
+told to expect). Put another focal length in Settings (another telescope,
+a reducer) and that one is used, until the next solved picture measures it.
 
 ## Lock On
 

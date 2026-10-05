@@ -370,11 +370,15 @@ defmodule Camera.Sony do
   picture allows for it; default 1000), `wait_ms:` how long after that to wait
   for the camera to have it ready (35000).
 
-  Returns `{:ok, [%{name, format, bytes, info, pressed_at, ready_at}], conn}`: `pressed_at` is
-  when the shutter press was sent, `ready_at` when the camera had the picture (both UTC).
+  Returns `{:ok, [%{name, format, bytes, info, pressed_at, ready_at, settings}], conn}`:
+  `pressed_at` is when the shutter press was sent, `ready_at` when the camera had the picture
+  (both UTC), and `settings` is what the camera was set to as the shutter was pressed
+  (`describe/1`: ISO, shutter speed, quality), read just before the press.
   """
   def capture(conn, opts \\ []) do
-    with {:ok, conn} <- drain_memory(conn, 4),
+    with {:ok, props, conn} <- drain_memory(conn, 4),
+         # what this picture is taken at: a dial turned while it comes down belongs to the next
+         settings = describe(props),
          {:ok, conn} <- press(conn, prop(:shutter_half), 2),
          pressed = DateTime.utc_now(),
          {:ok, conn} <- press(conn, prop(:shutter_full), 2),
@@ -390,21 +394,21 @@ defmodule Camera.Sony do
          {:ok, files, conn} <- download_all(conn, []) do
       # when the box pressed the shutter and when the camera had the picture: the exposure sits
       # just after the first (a manual-focus camera opens within tens of ms of the press)
-      {:ok, Enum.map(files, &Map.merge(&1, %{pressed_at: pressed, ready_at: ready})), conn}
+      stamps = %{pressed_at: pressed, ready_at: ready, settings: settings}
+      {:ok, Enum.map(files, &Map.merge(&1, stamps)), conn}
     end
   end
 
-  # a picture left in the camera's memory from before would come down as this one: clear it first
-  defp drain_memory(conn, 0), do: {:ok, conn}
-
+  # A picture left in the camera's memory from before would come down as this one: clear it first.
+  # Hands on the properties as it last read them: how the camera is set as the shutter is pressed.
   defp drain_memory(conn, tries) do
     with {:ok, props, conn} <- props(conn) do
       case current(props, :object_in_memory) do
-        n when is_integer(n) and n >= 0x8000 ->
+        n when is_integer(n) and n >= 0x8000 and tries > 0 ->
           with {:ok, _, conn} <- download(conn), do: drain_memory(conn, tries - 1)
 
         _ ->
-          {:ok, conn}
+          {:ok, props, conn}
       end
     end
   end

@@ -14,7 +14,11 @@ defmodule Camera.Transport.Sim do
     * `max_notches:` the most a dial moves per step command (default unlimited;
       a real a6000 sometimes moves fewer than asked);
     * `fail_after:` stop answering after this many transfers (a camera that
-      wedges), to test the driver's recovery.
+      wedges), to test the driver's recovery;
+    * `after_shot:` settings that change the moment the shutter has been
+      pressed (`[iso: 800]`, `[shutter: "1/60"]`): a dial turned while the
+      picture is on its way down, to test that a picture is recorded with
+      the settings it was taken at.
   """
   @behaviour Camera.Transport
 
@@ -94,6 +98,7 @@ defmodule Camera.Transport.Sim do
        time_scale: Keyword.get(opts, :time_scale, 0.0),
        max_notches: Keyword.get(opts, :max_notches, :infinity),
        fail_after: Keyword.get(opts, :fail_after, :infinity),
+       after_shot: Keyword.get(opts, :after_shot, []),
        picture: fixture("moon.jpg")
      }}
   end
@@ -277,13 +282,26 @@ defmodule Camera.Transport.Sim do
 
     files = if s.props[0x5004].current == 19, do: [jpeg, arw], else: [jpeg]
 
-    %{
-      s
-      | shots: n,
-        objects: [],
-        ready_at:
-          {System.monotonic_time(:millisecond) + round(seconds * 1000 * s.time_scale), files}
-    }
+    turned(
+      %{
+        s
+        | shots: n,
+          objects: [],
+          ready_at:
+            {System.monotonic_time(:millisecond) + round(seconds * 1000 * s.time_scale), files}
+      },
+      s.after_shot
+    )
+  end
+
+  # a dial someone turns while the picture is on its way down
+  defp turned(s, settings) do
+    Enum.reduce(settings, s, fn
+      {:iso, :auto}, s -> put_in(s.props[Sony.prop(:iso)].current, 0xFFFFFF)
+      {:iso, v}, s -> put_in(s.props[Sony.prop(:iso)].current, v)
+      {:shutter, v}, s -> put_in(s.props[Sony.prop(:shutter)].current, Sony.shutter_value(v))
+      _, s -> s
+    end)
   end
 
   # time passes: a picture whose exposure has ended shows up in memory

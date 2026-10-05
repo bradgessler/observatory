@@ -50,7 +50,11 @@ defmodule Camera.Server do
   def set(id, settings, timeout \\ 120_000),
     do: GenServer.call(via(id), {:set, settings}, timeout)
 
-  @doc "Take one picture: `{:ok, [%{name, format, bytes, info}]}` (two files for RAW+JPEG)."
+  @doc """
+  Take one picture: `{:ok, [%{name, format, bytes, info, pressed_at, ready_at, settings}]}` (two
+  files for RAW+JPEG). `settings` is what the camera was set to when the shutter was pressed;
+  `status/1`, asked afterwards, may already say something else.
+  """
   def capture(id, opts \\ []) do
     exposure = Keyword.get(opts, :exposure_ms, 0)
     GenServer.call(via(id), {:capture, opts}, exposure + 120_000)

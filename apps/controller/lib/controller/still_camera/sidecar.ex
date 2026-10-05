@@ -14,8 +14,13 @@ defmodule Controller.StillCamera.Sidecar do
       (that plus the shutter speed), when the camera had the picture, when it
       was saved. UTC, from the box's clock.
     * `files`: each file as saved: name, the camera's own name, bytes, SHA-256.
-    * `camera`: model, ISO, shutter, quality, focus mode, battery.
-    * `optics`: focal length and aperture, when they've been set.
+    * `camera`: model, ISO, shutter, quality, focus mode, battery, as they
+      were when the shutter was pressed (`settings_from`: `"shutter"`; or
+      `"status"`, when the driver could only say what they were afterwards).
+    * `optics`: focal length and aperture, when they've been set, and where
+      the focal length came from (`focal_length_from`): `"solve"` once a
+      plate solve has measured it (`Controller.StillCamera.Optics`; the label
+      it took the place of is `focal_length_label_mm`), `"label"` until then.
     * `mount`: the mount at the exposure's start and end (both axes: degrees,
       encoder steps, rate, running; tracking; homed) and its `track` between
       them, sampled four times a second.
@@ -42,6 +47,7 @@ defmodule Controller.StillCamera.Sidecar do
   alias Controller.ScopeCamera.Header
   alias Controller.Sky.Astro
   alias Controller.Settings
+  alias Controller.StillCamera.Optics
 
   @schema "observatory.still/1"
   @sample_ms 250
@@ -78,14 +84,15 @@ defmodule Controller.StillCamera.Sidecar do
   @doc """
   The record for one picture. `shot` is what `Controller.StillCamera` knows:
   `seq`, `saved_at`, `pressed_at`, `ready_at`, `files` (`[%{name, camera_name,
-  format, bytes, sha256}]`), `camera` (`Camera.status/1`), `mount_id`,
-  `samples` (from `stop/1`), `lock` (`Controller.LockOn.status/0`),
-  `calibration` (the mount's saved one), `measured`. Anything missing is left
-  out.
+  format, bytes, sha256}]`), `camera` (`Camera.status/1`), `settings` (the
+  camera's, as read when the shutter was pressed), `mount_id`, `samples`
+  (from `stop/1`), `lock` (`Controller.LockOn.status/0`), `calibration` (the
+  mount's saved one), `measured`. Anything missing is left out.
   """
   def build(shot) do
     camera = shot[:camera] || %{}
-    settings = camera[:settings] || %{}
+    # the settings the picture was taken at; without those, the camera's as it says now, and said to be so
+    {settings, settings_from} = if is_map(shot[:settings]), do: {shot[:settings], "shutter"}, else: {camera[:settings] || %{}, camera[:settings] && "status"}
     exposure_s = seconds(settings[:shutter])
     pressed = shot[:pressed_at] || shot[:saved_at]
     ended = if exposure_s, do: DateTime.add(pressed, round(exposure_s * 1000), :millisecond), else: pressed
@@ -115,9 +122,10 @@ defmodule Controller.StillCamera.Sidecar do
         quality: settings[:quality],
         f_number: settings[:f_number],
         focus: settings[:focus],
-        battery_pct: settings[:battery]
+        battery_pct: settings[:battery],
+        settings_from: settings_from
       },
-      optics: %{focal_length_mm: Settings.get("focal_length_mm"), aperture_mm: Settings.get("aperture_mm")},
+      optics: optics(),
       mount: mount(shot[:mount_id], shot[:samples] || [], pressed, ended),
       pointing: pointing(ctx[:pointing], ctx[:site], pressed),
       model: ctx[:model],
@@ -149,6 +157,12 @@ defmodule Controller.StillCamera.Sidecar do
   end
 
   def seconds(_), do: nil
+
+  # the focal length in force and whether a plate solve measured it or it is the label's
+  defp optics do
+    focal = Optics.focal_length() || %{}
+    %{focal_length_mm: focal[:mm], focal_length_from: focal[:from], focal_length_label_mm: focal[:label_mm], aperture_mm: Settings.get("aperture_mm")}
+  end
 
   # the mount at the exposure's two ends, and the samples between them
   defp mount(nil, _, _, _), do: nil

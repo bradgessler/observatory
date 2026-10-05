@@ -79,6 +79,17 @@ defmodule Camera.SonyTest do
     assert Sony.describe(props).in_memory == 0
   end
 
+  test "a picture carries the settings it was taken at, whatever a dial is turned to afterwards" do
+    # this simulated camera's ISO dial is turned the moment its shutter has been pressed
+    {:ok, _, conn} = Sony.connect(conn(after_shot: [iso: 800]))
+    assert {:ok, [jpeg, raw], conn} = Sony.capture(conn, exposure_ms: 10)
+    assert jpeg.settings.iso == 6400 and jpeg.settings.shutter == "4"
+    assert raw.settings == jpeg.settings
+    # asked now, the camera says 800: the wrong ISO for the picture it just took
+    {:ok, props, _} = Sony.props(conn)
+    assert Sony.describe(props).iso == 800
+  end
+
   test "a camera that stops answering is an error, not a hang" do
     {:ok, _, conn} = Sony.connect(conn())
     conn = %{conn | state: %{conn.state | fail_after: conn.state.transfers}}

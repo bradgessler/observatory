@@ -100,7 +100,14 @@ defmodule Mount do
     call(ref, :emergency_stop) |> logged(true, :emergency_stop, %{id: id_of(ref)})
   end
 
-  @doc "Move an axis by `degrees` at full goto speed (mount-managed ramps)."
+  @doc """
+  Move an axis by `degrees` at full goto speed (mount-managed ramps). Takes
+  the axis over from a held slew: its dead-man is cancelled and the axis
+  stopped first. `:ok` means the axis was seen on its way. `{:error, :limit}`
+  is a soft limit; `{:error, :motor_running}` an axis that would not stop
+  for it; `{:error, :goto_not_started}` a goto the mount acknowledged and
+  did not start. After an error the axis is stopped (or told to).
+  """
   def goto_relative(ref, axis, degrees) do
     call(ref, {:goto_relative, axis, degrees / 1}) |> logged(true, :goto, %{id: id_of(ref), axis: axis, degrees: degrees / 1})
   end

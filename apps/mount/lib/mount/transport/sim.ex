@@ -6,7 +6,16 @@ defmodule Mount.Transport.Sim do
 
   One command no real board has: `Z` with data `1` jams an axis (the motor
   "runs" but the count stays put, as a faulted board would), `0`
-  frees it. It is how the driver's stall watch is tested.
+  frees it. It is how the driver's stall watch is tested. `Z` with data `2`
+  swallows the axis's next goto: its `J` is acknowledged and nothing moves,
+  which is what a lost goto looks like from the driver's side.
+
+  It answers at once and stops at once, which the real thing does not. Two
+  options make it as slow: `latency_ms:` is how long each frame and its reply
+  take (tens of milliseconds on an EQDIR cable at 9600 baud), so the driver
+  is busy while it talks, as it is at the telescope; `stop_ms:` is how long
+  an axis runs on after `K`, the ramp down, during which the board refuses a
+  goto (`!2`) as a real one does.
   """
   @behaviour Mount.Transport
 
@@ -18,7 +27,7 @@ defmodule Mount.Transport.Sim do
   @max_goto_steps_per_s @cpr / 86_164.0905 * 800
 
   @impl true
-  def open(_opts) do
+  def open(opts) do
     axis = %{
       pos: P.center() * 1.0,
       mode: :slow,
@@ -27,15 +36,24 @@ defmodule Mount.Transport.Sim do
       period: @tf,
       target: nil,
       init: false,
-      jammed: false
+      jammed: false,
+      swallow: false,
+      stop_at: nil
     }
 
-    {:ok, %{axes: %{"1" => axis, "2" => axis}, t: now()}}
+    {:ok,
+     %{
+       axes: %{"1" => axis, "2" => axis},
+       t: now(),
+       latency_ms: Keyword.get(opts, :latency_ms, 0),
+       stop_ms: Keyword.get(opts, :stop_ms, 0)
+     }}
   end
 
   @impl true
   def exchange(state, ":" <> frame) do
     frame = String.trim_trailing(frame, "\r")
+    if state.latency_ms > 0, do: Process.sleep(state.latency_ms)
     state = advance(state)
     <<cmd::binary-1, axis::binary-1, data::binary>> = frame
 
@@ -91,13 +109,15 @@ defmodule Mount.Transport.Sim do
         {"=", put(state, a, %{ax | init: true})}
 
       {"K", _} ->
-        {"=", put(state, a, %{ax | running: false, target: nil})}
+        if ax.running and state.stop_ms > 0,
+          do: {"=", put(state, a, %{ax | stop_at: ax.stop_at || now() + state.stop_ms})},
+          else: {"=", put(state, a, %{ax | running: false, target: nil, stop_at: nil})}
 
       {"L", _} ->
-        {"=", put(state, a, %{ax | running: false, target: nil})}
+        {"=", put(state, a, %{ax | running: false, target: nil, stop_at: nil})}
 
       {"Z", v} ->
-        {"=", put(state, a, %{ax | jammed: v == "1"})}
+        {"=", put(state, a, %{ax | jammed: v == "1", swallow: v == "2"})}
 
       {"G", <<m, d>>} ->
         if ax.running do
@@ -132,6 +152,7 @@ defmodule Mount.Transport.Sim do
         cond do
           not ax.init -> {"!4", state}
           ax.mode == :goto and ax.target == nil -> {"!0", state}
+          ax.mode == :goto and ax.swallow -> {"=", put(state, a, %{ax | swallow: false, target: nil})}
           true -> {"=", put(state, a, %{ax | running: true})}
         end
 
@@ -157,10 +178,16 @@ defmodule Mount.Transport.Sim do
     dt = (t1 - t0) / 1000
 
     axes =
-      Map.new(state.axes, fn {a, ax} -> {a, step(ax, dt)} end)
+      Map.new(state.axes, fn {a, ax} -> {a, ax |> step(dt) |> ramped_down(t1)} end)
 
     %{state | axes: axes, t: t1}
   end
+
+  # a `K` under `stop_ms:` has run its course (or its goto landed first): now the axis is stopped
+  defp ramped_down(%{stop_at: at, running: running} = ax, t) when is_integer(at) and (t >= at or not running),
+    do: %{ax | running: false, target: nil, stop_at: nil}
+
+  defp ramped_down(ax, _t), do: ax
 
   defp step(%{running: false} = ax, _dt), do: ax
   defp step(%{jammed: true} = ax, _dt), do: ax

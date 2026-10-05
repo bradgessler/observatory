@@ -423,6 +423,8 @@ Hooks.Clock = {
 
 Hooks.Geo = {
   mounted() {
+    // the server guessed from the address whether this page is https; the browser knows (a tunnel can hide it)
+    if (String(window.isSecureContext) !== this.el.dataset.secure) this.pushEvent("secure_context", { secure: window.isSecureContext });
     this.el.addEventListener("click", () => {
       // browsers give location only to https pages; a box serves http
       if (!window.isSecureContext) { this.pushEvent("site_error", { reason: "insecure" }); return; }

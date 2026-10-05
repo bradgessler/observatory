@@ -16,7 +16,11 @@ defmodule Controller.Clock do
 
   @doc "Was this clock set by the network? A Mac keeps its own time: yes."
   def synced? do
-    if Code.ensure_loaded?(NervesTime), do: NervesTime.synchronized?(), else: true
+    # `config :controller, :clock_synced` stands in for the network's answer (tests of what an unset clock does)
+    case Application.get_env(:controller, :clock_synced) do
+      nil -> if Code.ensure_loaded?(NervesTime), do: NervesTime.synchronized?(), else: true
+      said -> said
+    end
   catch
     _, _ -> false
   end

@@ -265,6 +265,67 @@ defmodule Controller.ScopeCamera.Image do
     if n == 0, do: 0.0, else: Float.round(sum / n, 3)
   end
 
+  @doc """
+  A bright extended target (the Moon, a planet, a lit window): the middle of
+  everything at least half as bright as its brightest part (`%{x, y}`), how
+  much of the frame that is (`fraction`), its box (`x0, y0, x1, y1`), whether
+  that box reaches the frame's edge (`edge`: then the middle is only the middle
+  of what shows), and its `peak`. Read from every other pixel of every other
+  row. `nil` when nothing stands `min_contrast:` (20) levels above the
+  background, or it covers less than `min_fraction:` (0.0005) of the frame.
+
+  This is what `Controller.LockOn` holds still.
+  """
+  def bright(%{w: w, h: h, px: px}, stats, opts \\ []) do
+    top = Map.get(stats, :max, 0)
+    bg = Map.get(stats, :background, 0)
+
+    if top - bg < Keyword.get(opts, :min_contrast, 20) do
+      nil
+    else
+      t = bg + div(top - bg, 2)
+
+      {n, sx, sy, box} =
+        for y <- 0..(h - 1)//2, reduce: {0, 0, 0, nil} do
+          acc -> bright_row(binary_part(px, y * w, w), 0, y, t, acc)
+        end
+
+      total = div(w + 1, 2) * div(h + 1, 2)
+
+      if n == 0 or n / total < Keyword.get(opts, :min_fraction, 0.0005) do
+        nil
+      else
+        {x0, y0, x1, y1} = box
+        margin = 4
+
+        %{
+          x: sx / n,
+          y: sy / n,
+          fraction: n / total,
+          peak: top,
+          x0: x0,
+          y0: y0,
+          x1: x1,
+          y1: y1,
+          edge: x0 <= margin or y0 <= margin or x1 >= w - 1 - margin or y1 >= h - 1 - margin
+        }
+      end
+    end
+  end
+
+  defp bright_row(<<p, _, rest::binary>>, x, y, t, {n, sx, sy, box}) when p >= t do
+    box =
+      case box do
+        nil -> {x, y, x, y}
+        {x0, y0, x1, y1} -> {min(x0, x), min(y0, y), max(x1, x), max(y1, y)}
+      end
+
+    bright_row(rest, x + 2, y, t, {n + 1, sx + x, sy + y, box})
+  end
+
+  defp bright_row(<<_, _, rest::binary>>, x, y, t, acc), do: bright_row(rest, x + 2, y, t, acc)
+  defp bright_row(_, _, _, _, acc), do: acc
+
   # every other pixel along a row: the step to the right and the step down
   defp detail_row(<<a, _, rest::binary>>, <<c, _, below::binary>>, t, {sum, n}) when byte_size(rest) > 0 do
     <<b, _::binary>> = rest

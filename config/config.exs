@@ -49,6 +49,8 @@ config :mount,
 config :controller, ecto_repos: [Controller.Repo]
 config :controller, Controller.Repo, journal_mode: :wal, pool_size: 5, busy_timeout: 5_000
 
+# An environment switches this off with `topologies: :none`, not `[]`: an
+# empty list merges into this one and changes nothing.
 config :libcluster,
   topologies: [lan: [strategy: Cluster.Strategy.Gossip]]
 

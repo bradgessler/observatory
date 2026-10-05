@@ -1,4 +1,4 @@
-# Star Align
+# Align by Stars
 
 You don't need to see Polaris. Set the mount down roughly (the latitude knob
 near your latitude, the polar axis pointed vaguely north) and let a few stars

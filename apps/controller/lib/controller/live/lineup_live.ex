@@ -1,6 +1,6 @@
 defmodule Controller.LineupLive do
   @moduledoc """
-  Star Align: set the mount down anyhow, name a few stars, and the software
+  Align by Stars: set the mount down anyhow, name a few stars, and the software
   works out how it is really sitting. One star at a time: we suggest one and
   say where to look, you centre it with any control surface, you tap
   "that's it". After two the mount can be steered in the sky; after three we
@@ -69,7 +69,7 @@ defmodule Controller.LineupLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap, page_title: Controller.Words.title(selected, "Star Align"))
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: Controller.Words.title(selected, "Align by Stars"))
   end
 
   # Everything the page says, recomputed on a slow tick: the status, the
@@ -209,30 +209,27 @@ defmodule Controller.LineupLive do
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Star Align</.title>
+        <.title>Align by Stars</.title>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions><.help href={~p"/docs/align"} label="star alignment" /><.stop click="estop" /></.actions>
       </:header>
 
-      <%!-- where we stand, in one line --%>
-      <.card :if={@status} class={"lineup-status#{if @status.solved?, do: " ok", else: ""}"}>
-        <div class="state-line" aria-live="polite">
-          <strong :if={!@status.solved?}>Not aligned</strong>
-          <strong :if={@status.solved? and @status.n >= 3}>{@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
-          <strong :if={@status.solved? and @status.n < 3}>{@status.n} star{if @status.n == 1, do: "", else: "s"} · aligned, not yet checked</strong>
-          <span :if={@status.solved?} class="dim">{@status.axis_words}</span>
-          <span :if={@status.solved? and @status.good_for != []} class="dim">Good for {Enum.join(@status.good_for, " · ")}</span>
-          <span :if={@status.solved? and @status.n < 3} class="dim">{3 - @status.n} more to check it</span>
-          <span :if={@status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="dim">One star is off: forget the worst below</span>
-          <span :if={@status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="dim">Stars disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below</span>
-          <span :if={@status.signs_corrected?} class="dim">Axis sign corrected (Modes)</span>
-        </div>
-      </.card>
+      <%!-- how well it's aligned is the toolbar's (and the sidebar's); here only what to do about it --%>
+      <.hint :if={@status && @status.solved?} class="lineup-axis">{@status.axis_words}</.hint>
+      <p :if={@status && @status.solved? and @status.good_for == [] and @status.n >= 3 and is_number(@status.rms_arcmin) and @status.rms_arcmin < 120} class="lock-line tone-caution" role="status">
+        One star is off: forget the worst below.
+      </p>
+      <p :if={@status && @status.solved? and @status.n >= 2 and is_number(@status.rms_arcmin) and @status.rms_arcmin >= 120} class="lock-line tone-caution" role="status">
+        Stars disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below.
+      </p>
+      <.hint :if={@status && @status.signs_corrected?}>Axis sign corrected (shown in Modes).</.hint>
 
       <%!-- the two facts the maths needs, and where to change them; calm, never a nag --%>
       <.hint :if={@status} class="site-line">
-        Site {@site.name} · {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
-        <.link navigate={~p"/site"}>Change Site ›</.link>
-        <span :if={@site.name == "nowhere"}> · <b>no site set</b></span>
+        Location {fmt2(@site.lat)}°, {fmt2(@site.lon)}° · clock {Calendar.strftime(@now, "%H:%M")} UTC ·
+        <.link navigate={~p"/location"}>Change ›</.link>
+        <span :if={@site.name == "nowhere"}> · <b>no location set</b></span>
       </.hint>
 
       <%!-- step 0: home, for the limits --%>

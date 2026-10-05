@@ -427,7 +427,10 @@ defmodule Controller.ScopeCamera do
     stats = Image.stats(img)
     found = Image.find(img, stats: stats)
     {stars, specks} = Defects.split(defects, found.stars)
-    found = %{found | stars: stars, rejected: Enum.map(specks, &%{x: &1.x, y: &1.y, why: :defect}) ++ found.rejected}
+    bright = Image.bright(img, stats)
+    {stars, on_face} = off_the_face(stars, bright, img, stats.background)
+    rejected = Enum.map(specks, &%{x: &1.x, y: &1.y, why: :defect}) ++ Enum.map(on_face, &%{x: &1.x, y: &1.y, why: :bright_target})
+    found = %{found | stars: stars, rejected: rejected ++ found.rejected}
     focus = Image.focus(stars)
 
     star_png =
@@ -448,6 +451,8 @@ defmodule Controller.ScopeCamera do
       w: img.w,
       h: img.h,
       detail: Image.detail(img, stats),
+      # a bright target's middle (the Moon, a planet): what Lock On holds still
+      bright: bright,
       # what a page can draw over the picture: the stars kept, what was ignored and why, the border
       marks: %{
         stars: stars |> Enum.take(20) |> Enum.map(&%{x: round(&1.x), y: round(&1.y), hfr: Float.round(&1.hfr * 1.0, 1)}),
@@ -455,6 +460,35 @@ defmodule Controller.ScopeCamera do
         border: found.border
       }
     }
+  end
+
+  # Craters and the limb of the Moon look like stars to the star finder: forty of them on one
+  # picture of the Moon. When something in the picture is big enough to have a face (1% of the
+  # frame), a speck with that face around it is on it, at its limb, or catching sunlight just past
+  # the terminator: a quarter of one ring round it (1% to 5% of the picture's width out) is lit at
+  # least a quarter of the way to the peak. A star has dark sky all round it. A planet is too small
+  # to have a face, so it still counts as the star it looks like.
+  @face 0.01
+  @rings [0.008, 0.017, 0.033, 0.05]
+
+  defp off_the_face(stars, %{fraction: f, peak: peak} = _bright, img, bg) when f >= @face do
+    lit = bg + (peak - bg) / 4
+    Enum.split_with(stars, &(not on_face?(img, &1, lit)))
+  end
+
+  defp off_the_face(stars, _, _, _), do: {stars, []}
+
+  defp on_face?(%{w: w, h: h, px: px}, %{x: sx, y: sy}, lit) do
+    Enum.any?(@rings, fn r ->
+      ring =
+        for k <- 0..15,
+            x = round(sx + r * w * :math.cos(k * :math.pi() / 8)),
+            y = round(sy + r * w * :math.sin(k * :math.pi() / 8)),
+            x >= 0 and y >= 0 and x < w and y < h,
+            do: :binary.at(px, y * w + x)
+
+      ring != [] and Enum.count(ring, &(&1 >= lit)) * 4 >= length(ring)
+    end)
   end
 
   defp taken(s, %{started: started} = task, result) do
@@ -499,6 +533,7 @@ defmodule Controller.ScopeCamera do
           hfr_px: frame.focus.hfr && Float.round(frame.focus.hfr * 1.0, 2),
           verdict: frame.verdict,
           detail: frame[:detail],
+          bright: frame[:bright],
           marks: frame[:marks]
         })
 

@@ -49,7 +49,7 @@ field faster* with tracking on than off, the direction is backwards for this
 mount: flip **Tracking direction** under Modes on [Setup](/docs/setup#modes).
 Slow drift is normal and is your polar alignment talking; after a Go To on an
 aligned mount, tracking runs both motors and takes it out (see
-[Star Align](/docs/align#tracking-with-a-crooked-axis)).
+[Align by Stars](/docs/align#tracking-with-a-crooked-axis)).
 
 ## Exact moves and home
 

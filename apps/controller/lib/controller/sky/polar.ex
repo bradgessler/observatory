@@ -52,7 +52,9 @@ defmodule Controller.Sky.Polar do
   @doc """
   Fit and report. Options: `site:` `%{lat, lon}` (required), `signs:` the
   axis signs (required), `noise_arcmin:` (#{@noise_arcmin}), `min_spread_deg:`
-  (#{@min_spread_deg}), `start:` the model to start from (ideal for the site).
+  (#{@min_spread_deg}), `start:` the model to start from (ideal for the site),
+  `near:` the fit before the newest sample (see `Model.fit/4`: refitting from
+  it is quick).
 
   Returns `{:ok, report}`:
 
@@ -76,7 +78,7 @@ defmodule Controller.Sky.Polar do
     min_spread = Keyword.get(opts, :min_spread_deg, @min_spread_deg)
     model_samples = Enum.map(samples, &model_sample(&1, site))
 
-    {params, q, signs} = fit_model(model_samples, signs, start)
+    {params, q, signs} = fit_model(model_samples, signs, start, Keyword.get(opts, :near))
     spread = spread(samples)
 
     base = %{
@@ -110,8 +112,8 @@ defmodule Controller.Sky.Polar do
   # setting: a wrong RA sign cannot be absorbed by the geometry and shows as
   # degrees of disagreement once there are three photos; a wrong Dec sign is
   # absorbed as an RA offset of 180°, which does not move the axis at all.
-  defp fit_model(samples, signs, start) do
-    {:ok, p, q} = Model.fit(samples, signs, start)
+  defp fit_model(samples, signs, start, near) do
+    {:ok, p, q} = Model.fit(samples, signs, start, near: near)
 
     {p, q, signs} =
       if length(samples) >= 3 and q.rms_arcmin > 30.0 do

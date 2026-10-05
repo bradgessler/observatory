@@ -135,7 +135,7 @@ defmodule Controller.ScopeLive do
           <figure class="scope-sky">
             <Controller.Components.SkyChart.chart id="scope-sky" scene={@sky} scope={cross} label={"Where #{@selected} points: the sky now, hour angle across, declination up"} />
             <figcaption class="dim">
-              The sky now from {if @site_set, do: "the observatory's site", else: "0° N, 0° E (Site not set)"}, in the mount's own axes: hour angle across, the meridian down the middle, declination up.
+              The sky now from {if @site_set, do: "the telescope's location", else: "0° N, 0° E (location not set)"}, in the mount's own axes: hour angle across, the meridian down the middle, declination up.
               {if cross, do: "The crosshair is the telescope.", else: "Where the telescope points isn't known yet: set home, or align."}
             </figcaption>
           </figure>

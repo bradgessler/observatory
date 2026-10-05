@@ -46,7 +46,8 @@ defmodule Controller.Settings do
   end
 
   @doc "Minimum visible altitude per compass sector, degrees."
-  def horizon, do: get("horizon", @default_horizon) |> Map.merge(%{}, fn _, a, _ -> a end)
+  # an empty tree line (put back to nil) is no tree line: the default stands in
+  def horizon, do: (get("horizon") || @default_horizon) |> Map.merge(%{}, fn _, a, _ -> a end)
 
   def sectors, do: @sectors
 

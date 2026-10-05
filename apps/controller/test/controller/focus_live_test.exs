@@ -93,4 +93,23 @@ defmodule Controller.ScopeCameraFocusLiveTest do
     assert ScopeCamera.status().settings["exposure_ms"] == 250
     ScopeCamera.set(exposure_ms: before)
   end
+
+  test "a change of gain starts the readings over, so the noise it adds is never read as focus", %{conn: conn} do
+    Controller.Settings.put("sim_defocus", 1.5)
+    {:ok, view, _} = live(conn, ~p"/cameras/telescope/focus")
+    ScopeCamera.live(true)
+    eventually(view, "Nothing in the picture is getting sharper")
+
+    # the frame line sits under the picture, never on it
+    html = render(view)
+    assert html =~ ~s(class="focus-frame")
+    assert html =~ ~r/Frame \d+/
+    refute html =~ ~r/<section class="focus-pic"[^>]*>(?:(?!<\/section>).)*focus-pulse/s
+
+    # more gain, same blur: the page starts over rather than calling it sharper
+    ScopeCamera.set(gain: 90)
+    html = eventually(view, ~r/Turn the focuser slowly|Nothing in the picture is getting sharper/, 100)
+    refute html =~ "Getting sharper"
+    ScopeCamera.set(gain: 0)
+  end
 end

@@ -175,8 +175,68 @@ defmodule Controller.Sky.Model do
   tube was centred on something whose alt/az at that moment is known). With one
   sample only the offsets move (axis stays at `start`); with two or more all
   four parameters are free. Returns `{:ok, params, %{rms_arcmin, worst_arcmin, residuals_arcmin}}`.
+
+  `near:` is a fit that was already right for most of these samples (the one
+  before the newest sample was added). One descent from it is tried first
+  and kept when the samples agree with it; only when they do not is the
+  whole sky of starting points searched again. Refitting after every photo
+  then costs a few milliseconds instead of seconds, which matters on a Pi
+  that is also steering the mount (a night of plates used to make the plate
+  queue deaf for longer with each one).
   """
-  def fit(samples, signs, start) when is_list(samples) and samples != [] do
+  def fit(samples, signs, start, opts \\ [])
+
+  def fit(samples, signs, start, opts) when is_list(samples) and samples != [] do
+    case warm(samples, signs, opts[:near]) do
+      {:ok, _, _} = ok -> ok
+      nil -> search(samples, signs, start)
+    end
+  end
+
+  def fit([], _signs, _start, _opts), do: {:error, :no_samples}
+
+  # samples within this of a known fit, after one descent from it, are the same geometry
+  @warm_arcmin 10.0
+  # the search for the right geometry looks at no more samples than this: the
+  # rest only refine it
+  @search_n 6
+
+  # Three samples or more: two can be met exactly by the wrong geometry, so
+  # a pair is always searched.
+  defp warm(samples, signs, %{axis_alt: _, axis_az: _, off_ra: _, off_dec: _} = near) when length(samples) >= 3 do
+    free = [:axis_alt, :axis_az, :off_ra, :off_dec]
+    {params, _} = lm(samples, signs, Map.take(near, free), free)
+    params = canonical(params)
+    q = quality(params, signs, samples)
+    if q.rms_arcmin <= @warm_arcmin, do: {:ok, params, q}
+  end
+
+  defp warm(_samples, _signs, _near), do: nil
+
+  defp quality(params, signs, samples) do
+    res = Enum.map(samples, &(residual_deg(params, signs, &1) * 60))
+    rms = :math.sqrt(Enum.sum(Enum.map(res, &(&1 * &1))) / length(res))
+    %{rms_arcmin: rms, worst_arcmin: Enum.max(res), residuals_arcmin: res}
+  end
+
+  # The samples that pin the geometry down best: the ones furthest apart on
+  # the two axes. Many samples from one patch of sky say the same thing many
+  # times; the search needs each thing said once.
+  defp spread(samples, n) when length(samples) <= n, do: samples
+
+  defp spread([first | rest], n) do
+    Enum.reduce(2..n, {[first], rest}, fn _, {picked, left} ->
+      far = Enum.max_by(left, fn s -> picked |> Enum.map(&axis_gap(&1, s)) |> Enum.min() end)
+      {[far | picked], List.delete(left, far)}
+    end)
+    |> elem(0)
+  end
+
+  defp axis_gap(a, b), do: abs(a.theta_ra - b.theta_ra) + abs(a.theta_dec - b.theta_dec)
+
+  defp search(all, signs, start) do
+    samples = spread(all, @search_n)
+
     free =
       if length(samples) == 1,
         do: [:off_ra, :off_dec],
@@ -211,12 +271,11 @@ defmodule Controller.Sky.Model do
       |> Enum.filter(fn {_, cost} -> cost <= best + tol end)
       |> Enum.min_by(fn {p, _} -> axis_distance(p, start) end)
 
-    res = Enum.map(samples, &(residual_deg(params, signs, &1) * 60))
-    rms = :math.sqrt(Enum.sum(Enum.map(res, &(&1 * &1))) / length(res))
-    {:ok, params, %{rms_arcmin: rms, worst_arcmin: Enum.max(res), residuals_arcmin: res}}
+    # the geometry is found; every sample has its say in the numbers
+    {params, _} = if length(all) > length(samples), do: lm(all, signs, params, free), else: {params, nil}
+    params = if length(all) > length(samples), do: canonical(params), else: params
+    {:ok, params, quality(params, signs, all)}
   end
-
-  def fit([], _signs, _start), do: {:error, :no_samples}
 
   # the offsets (to 10°) that best fit the samples with this start's axis
   defp sweep_offsets(samples, signs, start) do

@@ -69,8 +69,8 @@ defmodule Firmware.MixProject do
   # page or a saved script) decides what else goes on it. Built by hand, with no
   # job given, it is the whole observatory: the page you open on a phone to
   # drive the scope is the point of the box.
-  @optional ~w(controller watch video input)
-  @default_job ~w(controller watch video input)
+  @optional ~w(controller watch video input camera)
+  @default_job ~w(controller watch video input camera)
 
   defp jobs do
     wanted =

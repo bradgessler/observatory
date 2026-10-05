@@ -46,7 +46,8 @@ defmodule Controller.Components.NightPath do
         now: now,
         # an hour's word gives way to Now and to the compass
         hours: thin(path.hours, f, if(now, do: [now | compass], else: compass)),
-        kinds: for({k, words} <- @kinds, k in path.classes, do: {k, words})
+        kinds: for({k, words} <- @kinds, k in path.classes, do: {k, words}),
+        behind: Enum.any?(path.segments, & &1[:behind])
       )
 
     ~H"""
@@ -59,13 +60,17 @@ defmodule Controller.Components.NightPath do
           <SkyChart.path path={@path} />
         </SkyChart.frame>
         <span :for={t <- @compass} class={["np-word", t.class, anchor(t.anchor)]} style={pos(t)} aria-hidden="true">{t.text}</span>
-        <span :for={h <- @hours} class={["np-word", "np-hour", h.class, h.side]} style={pos(h)} aria-hidden="true">{h.label}</span>
+        <span :for={h <- @hours} class={["np-word", "np-hour", h.class, h.side, h[:behind] && "behind"]} style={pos(h)} aria-hidden="true">{h.label}</span>
         <span :if={@now} class={["np-word", "np-now", @now.side]} style={pos(@now)} aria-hidden="true">Now</span>
       </div>
       <ul :if={@kinds != []} class="np-keys" aria-hidden="true">
         <li :for={{k, words} <- @kinds}>
           <svg class="np-key" viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><line class={["path", k]} x1="3" y1="3" x2="25" y2="3" /></svg>
           {words}
+        </li>
+        <li :if={@behind}>
+          <svg class="np-key" viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><line class="path dark behind" x1="3" y1="3" x2="25" y2="3" /></svg>
+          Behind the trees
         </li>
       </ul>
       <figcaption class="dim">{caption(@path)}</figcaption>

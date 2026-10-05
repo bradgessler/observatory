@@ -35,10 +35,10 @@ defmodule Controller.Nav do
       # to it, look; then the mount itself, and the machine underneath.
       {"Alignment", "Getting a mount that was set down anyhow onto the sky: where it stands, and where it points",
        [
-         page("Start", ~p"/start", "One guided flow from plugging in to looking, done once three stars agree", ~p"/docs/start", "play", also: ["/setup"]),
-         page("Site", ~p"/site", "Where the scope stands and what time it is: latitude for the mount, time for a hand controller", ~p"/docs/site", "compass"),
-         page("Star Align", ~p"/controls/align", "Center a few stars; the software works out how the mount really sits", ~p"/docs/align", "star"),
-         page("Align by Photo", ~p"/align/photo", "Photograph the eyepiece with a phone: the polar axis, which bolt to turn and how far", ~p"/docs/align-photo", "snap"),
+         page("Status", ~p"/alignment", "How well the telescope is aligned, and the steps from plugging in to looking", ~p"/docs/start", "play", also: ["/setup"]),
+         page("Location", ~p"/location", "Where the telescope stands: latitude and longitude for the sky and Go To, the time for a hand controller", ~p"/docs/location", "compass"),
+         page("Align by Stars", ~p"/controls/align", "Center a few stars in the eyepiece; each one is an alignment point", ~p"/docs/align", "star"),
+         page("Align by Photo", ~p"/align/photo", "Photos through the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap"),
          page("Optical Axes", ~p"/controls/watch/axes", "Experiment: turn each axis a little with the observatory camera watching, and find where it pivots", ~p"/docs/axes", "crosshair")
        ]},
       {"Sky", "What's up from here, and Go To",
@@ -63,6 +63,7 @@ defmodule Controller.Nav do
          page("All Cameras", ~p"/cameras", "Every camera's latest picture, side by side", ~p"/docs/cameras", "cameras"),
          page("Telescope Camera", ~p"/cameras/telescope", "The camera in the focuser: what the telescope sees, and Find Where It's Pointing", ~p"/docs/scope-camera", "camera"),
          page("Focus", ~p"/cameras/telescope/focus", "Turn the focuser slowly and watch it get sharper or blurrier", ~p"/docs/scope-camera", "focus"),
+         page("Stills Camera", ~p"/cameras/stills", "The Sony on the telescope: settings, pictures, and Lock On", ~p"/docs/still-camera", "camera"),
          page("Observatory Camera", ~p"/cameras/observatory", "The camera watching the mount: the latest still, and live video", ~p"/docs/watch", "video")
        ]},
       {"Mount", "The mount as it stands, drawn live from its encoders",
@@ -135,19 +136,48 @@ defmodule Controller.Nav do
   def on_mount(:default, _params, session, socket) do
     telescopes = telescopes()
 
+    # every telescope's alignment, for the sidebar and the switcher, kept current by
+    # Controller.Alignment.Watch; the page itself never sees these messages
+    if Phoenix.LiveView.connected?(socket), do: Controller.Alignment.subscribe()
+
     socket =
       socket
       |> assign(:telescopes, telescopes)
       |> assign(:telescope, current(telescopes, session["telescope"]))
+      |> assign(:alignments, Map.new(telescopes, &{&1.id, Controller.Alignment.get(&1.id)}))
+      |> attach_hook(:alignment, :handle_info, fn
+        {:alignment, id, summary}, socket -> {:halt, Phoenix.Component.update(socket, :alignments, &Map.put(&1, id, summary))}
+        _, socket -> {:cont, socket}
+      end)
       |> attach_hook(:nav_path, :handle_params, fn params, uri, socket ->
         path = URI.parse(uri).path
         # an object opened from Tonight belongs to Tonight in the sidebar, not the Sky Map
         nav = if String.starts_with?(path, "/object/") and params["from"] == "tonight", do: ~p"/tonight"
-        {:cont, socket |> Phoenix.Component.assign(:current_path, path) |> Phoenix.Component.assign(:nav_path, nav)}
+
+        {:cont,
+         socket
+         |> Phoenix.Component.assign(:current_path, path)
+         |> Phoenix.Component.assign(:nav_path, nav)
+         |> Phoenix.Component.assign_new(:secure, fn -> secure_context?(URI.parse(uri)) end)}
+      end)
+      # the browser has the last word on https (a tunnel can hide it from the server): the Geo hook says
+      |> attach_hook(:secure_context, :handle_event, fn
+        "secure_context", %{"secure" => secure}, socket -> {:halt, Phoenix.Component.assign(socket, :secure, secure == true)}
+        _, _, socket -> {:cont, socket}
       end)
 
     {:cont, socket}
   end
+
+  @doc """
+  Whether a browser at this address will share its location (and other
+  powerful features): only over https, or from the machine itself. A phone
+  on the box's http:// address can't, however the user answers.
+  """
+  def secure_context?(%URI{scheme: "https"}), do: true
+  def secure_context?(%URI{host: host}) when host in ["localhost", "127.0.0.1", "::1", "[::1]"], do: true
+  def secure_context?(%URI{host: host}) when is_binary(host), do: String.ends_with?(host, ".localhost")
+  def secure_context?(_), do: false
 
   @doc """
   Every telescope this machine can drive, for the switcher: its id, the box it

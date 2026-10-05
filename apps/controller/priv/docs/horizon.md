@@ -35,11 +35,11 @@ Aperture in millimetres of what you're looking through: 0 for eyes only, 50 for
 binoculars, 100 for a 4-inch refractor, 203 for an 8-inch SCT. This sets the
 faintest thing worth suggesting — see [Magnitude](/docs/magnitude).
 
-## Site
+## Location
 
-**Lat** and **Lon**: where the telescope is, in decimal degrees, north and
-east positive. Defaults come from the config file; override here or on the
-[Site](/docs/site) page when you travel.
+Where the telescope is, in decimal degrees, north and east positive. The
+default comes from the config file; change it on the
+[Location](/docs/location) page when you travel.
 
 ## Field calibration
 

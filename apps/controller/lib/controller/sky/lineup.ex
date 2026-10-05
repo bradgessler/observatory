@@ -75,15 +75,94 @@ defmodule Controller.Sky.Lineup do
   solved photos: the same model, the same GoTo.
   """
   def replace(id, samples, home_at) do
+    old = entry(id)
+    # the counterweight's side was told for this mount as it stands: it outlives the samples,
+    # and so does the model they were fitted to until the refit below replaces it
+    keep = if stale?(id, old), do: %{}, else: Map.take(old, ["cw", "cw_told", "model"])
+
     Settings.put(
       @key,
-      Map.put(Settings.get(@key, %{}), id, %{"samples" => samples, "home_at" => home_at})
+      Map.put(Settings.get(@key, %{}), id, Map.merge(keep, %{"samples" => samples, "home_at" => home_at}))
     )
 
     refit(id)
   end
 
   defp entry(id), do: Settings.get(@key, %{}) |> Map.get(id, %{})
+
+  # -- the counterweight ----------------------------------------------------------------------
+
+  # the bar this near level (or upright) and the question cannot be answered by eye
+  @cw_unsure_deg 10.0
+
+  @doc """
+  Say where the counterweight is, because the sky cannot. A telescope on
+  either side of the mount sees the same stars, so photos and centred stars
+  only ever guess it (`Model.cw_down/3`: "most of them were taken with it
+  hanging low"), and the guess is a coin toss when they were all taken with
+  the counterweight bar near level. Got wrong, Go To asks for a meridian flip
+  on the safe side of the sky and goes happily to the unsafe one. Told once,
+  it is kept with this mount's alignment until the mount is switched on again.
+
+  `where` is how the mount stands right now (`snap`, its snapshot):
+
+    * `:below` or `:above`: the counterweight is lower, or higher, than the
+      telescope tube. With the bar within #{trunc(@cw_unsure_deg)}° of level nobody can say:
+      `{:error, :level}`, ask for the side instead.
+    * `:east` or `:west`: the side of the mount the telescope tube is on (in
+      the north: stand behind the mount looking up the polar axis, east is on
+      your right). With the bar near upright: `{:error, :upright}`, ask
+      below or above instead.
+    * `:guess`: forget what was told.
+
+  Returns `{:ok, 1 | -1 | nil}` (the sign `Model.counterweight/3` uses), or
+  `{:error, :not_lined_up}` when there is no model to hang it on.
+  """
+  def set_counterweight(id, snap, where)
+
+  def set_counterweight(id, _snap, :guess) do
+    put_entry(id, &Map.drop(&1, ["cw", "cw_told"]))
+    {:ok, nil}
+  end
+
+  def set_counterweight(id, %{axes: %{ra: %{degrees: theta}}}, where) when where in [:below, :above, :east, :west] do
+    case model(id) do
+      nil ->
+        {:error, :not_lined_up}
+
+      m ->
+        h = (m.signs.ha_sign * theta + m.off_ra) * :math.pi() / 180
+        # the bar's height with the sign taken as +1, and which way a turn west moves it
+        level = :math.asin(:math.sin(h)) * 180 / :math.pi()
+        upright = 90.0 - abs(level)
+
+        cw =
+          cond do
+            where in [:below, :above] and abs(level) < @cw_unsure_deg -> {:error, :level}
+            where in [:east, :west] and upright < @cw_unsure_deg -> {:error, :upright}
+            where == :below -> if(level > 0, do: -1, else: 1)
+            where == :above -> if(level > 0, do: 1, else: -1)
+            # tube on the east, counterweight on the west: turning west lowers it
+            where == :east -> if(:math.cos(h) > 0, do: -1, else: 1)
+            where == :west -> if(:math.cos(h) > 0, do: 1, else: -1)
+          end
+
+        with c when is_integer(c) <- cw do
+          put_entry(id, &Map.merge(&1, %{"cw" => c, "cw_told" => Atom.to_string(where)}))
+          {:ok, c}
+        end
+    end
+  end
+
+  def set_counterweight(_id, _snap, _where), do: {:error, :not_lined_up}
+
+  defp told_cw(%{"cw" => c}) when c in [1, -1], do: c
+  defp told_cw(_), do: nil
+
+  defp put_entry(id, fun) do
+    all = Settings.get(@key, %{})
+    Settings.put(@key, Map.put(all, id, fun.(Map.get(all, id, %{}))))
+  end
 
   @doc "Forget one sample by index; refits."
   def drop(id, index) do
@@ -121,9 +200,10 @@ defmodule Controller.Sky.Lineup do
             signs: signs_of(e)
           }
 
-          # which way the counterweight hangs, from where the points were taken
+          # which way the counterweight hangs: as told (`set_counterweight/3`), else
+          # guessed from where the points were taken
           thetas = for s <- Map.get(e, "samples", []), is_number(s["theta_ra"]), do: s["theta_ra"]
-          Map.put(m, :cw, Model.cw_down(m, m.signs, thetas))
+          Map.put(m, :cw, told_cw(e) || Model.cw_down(m, m.signs, thetas))
         end
 
       _ ->
@@ -206,6 +286,8 @@ defmodule Controller.Sky.Lineup do
       # one or two stars fit exactly whatever they are; only three or more can be judged
       good_for: if(rms && n >= 3, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
       signs_corrected?: Map.get(entry, "signs_corrected", false),
+      # :told, or :guessed (from where the points were taken), once there is a model
+      counterweight: m && if(told_cw(entry), do: :told, else: :guessed),
       solved?: m != nil
     }
   end
@@ -237,8 +319,18 @@ defmodule Controller.Sky.Lineup do
     # once a sign was corrected during this star alignment, keep saying so
     corrected_before = old["signs_corrected"] == true
 
+    # the model these samples had before the newest one: the fit starts from it (`Model.fit/4`)
+    near =
+      case old["model"] do
+        %{"axis_alt" => a, "axis_az" => z, "off_ra" => r, "off_dec" => d} when is_number(a) and is_number(z) and is_number(r) and is_number(d) ->
+          %{axis_alt: a / 1, axis_az: z / 1, off_ra: r / 1, off_dec: d / 1}
+
+        _ ->
+          nil
+      end
+
     entry =
-      case fit_with_signs(fit_samples, signs, start) do
+      case fit_with_signs(fit_samples, signs, start, near) do
         {:ok, p, q} ->
           used = q[:signs_corrected] || signs
 
@@ -263,7 +355,7 @@ defmodule Controller.Sky.Lineup do
           %{"samples" => samples, "home_at" => old["home_at"]}
       end
 
-    Settings.put(@key, Map.put(all, id, entry))
+    Settings.put(@key, Map.put(all, id, Map.merge(Map.take(old, ["cw", "cw_told"]), entry)))
     status(id)
   end
 
@@ -275,8 +367,8 @@ defmodule Controller.Sky.Lineup do
   # it comes out as an RA offset near 180°, which means the model thinks the
   # counterweight is up when it is down and would pick the wrong side of the
   # pier for every goto. Flip it and refit. Either way the modes chip says so.
-  defp fit_with_signs(fit_samples, signs, start) do
-    case fit_with_ra_sign(fit_samples, signs, start) do
+  defp fit_with_signs(fit_samples, signs, start, near) do
+    case fit_with_ra_sign(fit_samples, signs, start, near) do
       {:ok, p, q, sg} when abs(p.off_ra) > 90 and abs(p.off_ra) < 270 ->
         flipped = %{sg | dec_sign: -sg.dec_sign}
 
@@ -307,8 +399,8 @@ defmodule Controller.Sky.Lineup do
     end
   end
 
-  defp fit_with_ra_sign(fit_samples, signs, start) do
-    case Model.fit(fit_samples, signs, start) do
+  defp fit_with_ra_sign(fit_samples, signs, start, near) do
+    case Model.fit(fit_samples, signs, start, near: near) do
       {:ok, _p, %{rms_arcmin: rms}} = first when length(fit_samples) >= 3 and rms > 30.0 ->
         others =
           for h <- [1, -1],

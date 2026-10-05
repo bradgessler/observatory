@@ -100,6 +100,28 @@ defmodule Controller.Components.UI do
     """
   end
 
+  @doc """
+  A section's status in the toolbar, between the title and the keys: what
+  every page of that section shares and wants in view (the Sky's time and
+  location, how well the telescope is aligned, where the mount points). Beside
+  the title on a wide screen; its own row under it on a phone.
+
+      <:header>
+        <.back navigate={~p"/"} label="Home" section="Sky" />
+        <.title>Sky Map</.title>
+        <.status label="Sky"><SkyStatus.bar ... /></.status>
+        <.actions>...</.actions>
+      </:header>
+  """
+  attr :label, :string, required: true, doc: "what it's the status of, for a screen reader"
+  slot :inner_block, required: true
+
+  def status(assigns) do
+    ~H"""
+    <div class="tb-status" role="group" aria-label={@label}>{render_slot(@inner_block)}</div>
+    """
+  end
+
   attr :search, :boolean, default: true, doc: "false on the Search page itself"
   slot :inner_block, required: true
 
@@ -114,6 +136,30 @@ defmodule Controller.Components.UI do
       <.search_key :if={@search} />
       {render_slot(@inner_block)}
     </span>
+    """
+  end
+
+  @doc """
+  The key that asks this phone where it is (the `Geo` hook), for the
+  Location page. Browsers share a location only with an https page (or one
+  opened on the machine itself), and the box serves http: there the key is
+  greyed out and one line above it says why and what to do instead, rather
+  than letting a tap fail. `secure` comes from the address (`Controller.Nav`),
+  and the hook corrects it from the browser's own answer.
+  """
+  attr :id, :string, required: true
+  attr :secure, :boolean, default: false
+
+  def phone_location(assigns) do
+    ~H"""
+    <div class="phone-location">
+      <p :if={!@secure} class="hint" role="status">
+        Phones share their location only with https pages, and this one is http, so this can't work here. Type the latitude and longitude below: the iPhone Compass app shows them.
+      </p>
+      <button id={@id} type="button" class="btn btn-primary" phx-hook="Geo" data-secure={to_string(@secure)} disabled={!@secure}>
+        Use This Phone's Location
+      </button>
+    </div>
     """
   end
 

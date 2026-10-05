@@ -117,6 +117,8 @@ defmodule Controller.NudgeLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
         <.title>Nudge</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @selected})}</.status>
         <.actions><.help href={~p"/docs/nudge"} label="nudging" /><.stop /></.actions>
       </:header>
 

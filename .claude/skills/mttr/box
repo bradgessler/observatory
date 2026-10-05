@@ -1,0 +1,5 @@
+#!/bin/sh
+# Run Elixir on the box:  box 'IO.puts(1 + 1)'   or code on stdin:  box - < file.exs
+# BOX names the box (default 10.0.1.44). The key is the one Stamp a Box made.
+if [ "$1" = "-" ]; then code=$(cat); else code="$1"; fi
+exec ssh -i "$HOME/.observatory/vm_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "nerves@${BOX:-10.0.1.44}" "$code"

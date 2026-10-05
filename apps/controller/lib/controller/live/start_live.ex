@@ -188,7 +188,9 @@ defmodule Controller.StartLive do
     <.page id="start" night={@night} class="start">
       <:header>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected && short(@selected))} />
-        <.title>Start</.title>
+        <.title>Status</.title>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions>
           <.help href={~p"/docs/start"} label="the start flow" />
           <.stop />
@@ -209,23 +211,26 @@ defmodule Controller.StartLive do
         <.row><.btn navigate={~p"/devices"}>Devices ›</.btn></.row>
       </.card>
 
-      <%!-- steps 2 and 3 are the star-align page, nested --%>
+      <%!-- the two ways to add alignment points, side by side: centring stars (here, below) or photos --%>
+      <.items :if={@step == :stars} label="ways to add alignment points" class="align-ways">
+        <.link_item navigate={~p"/controls/align/#{@selected}"} label="Align by Stars" detail="Center a few stars in the eyepiece, one at a time: the steps are below" />
+        <.link_item navigate={~p"/align/photo/#{@selected}"} label="Align by Photo" detail="Photos through the eyepiece, plate solved: also says which bolt to turn" />
+      </.items>
+
+      <%!-- steps 2 and 3 are Align by Stars, nested --%>
       <div :if={@step in [:zero, :stars]} class="flow-nested">
         <%= live_render(@socket, Controller.LineupLive, id: "start-align-#{@selected}", session: %{"id" => @selected, "nested" => true}) %>
       </div>
 
       <%!-- step 4: locked — control mode --%>
       <%= if @step == :look do %>
-        <.card class="lineup-status ok">
-          <div class="state-line">
-            <strong>Aligned · {@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
-            <span class="dim">{@status.axis_words} · good for {Enum.join(@status.good_for, " · ")}</span>
-          </div>
-          <.row>
-            <.btn variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
-            <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
-          </.row>
-        </.card>
+        <%!-- how well: the toolbar says; here, tighten it or see how it steers --%>
+        <.hint :if={@status.axis_words}>{@status.axis_words}</.hint>
+        <.row>
+          <.btn variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
+          <.btn variant="ghost" navigate={~p"/align/photo/#{@selected}"}>Add by Photo ›</.btn>
+          <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
+        </.row>
 
         <.card title="On Target" :if={@tracker}>
           <div class="state-line">
@@ -301,8 +306,8 @@ defmodule Controller.StartLive do
   end
 
   # the nav calls this page Start; the step strip under the title says which step
-  defp start_title(nil), do: "Start"
-  defp start_title(id), do: Controller.Words.title(short(id), "Start")
+  defp start_title(nil), do: "Alignment"
+  defp start_title(id), do: Controller.Words.title(short(id), "Alignment")
 
   # a serial port's name is long and mostly noise in a header: keep the tail that tells cables apart
   defp short("cu.usbserial-" <> tail), do: tail

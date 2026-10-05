@@ -79,8 +79,11 @@ defmodule Controller.Sky.Solve.Local do
   # Fewer sources than this and solve-field grinds to its CPU limit without a
   # match (eyepiece plates: 17 stars solved in 4 s, 12 never did).
   @min_stars 15
-  # fewer than this and a blind retry cannot do better than the hinted one did
-  @min_stars_for_blind 20
+  # Fewer than this and a blind retry is not worth its minutes. It was 20 until
+  # the night two telescope frames with 15 and 19 stars failed on a hint that
+  # was 19 degrees wrong, then solved in 3 s once told where to look: a narrow
+  # field has few stars, and the hint is as likely to be the trouble as they are.
+  @min_stars_for_blind 10
   @bins ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
   @steps [:solve_field, :djpeg, :an_pnmtofits, :image2xy]
   # used when there, never required

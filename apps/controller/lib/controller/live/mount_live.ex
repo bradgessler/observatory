@@ -267,6 +267,8 @@ defmodule Controller.MountLive do
       <header :if={!@nested} class="page-header">
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
         <.title>Axis Strips</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @selected})}</.status>
         <.actions>
           <.help href={~p"/docs/keypad"} label="the keypad" />
           <.stop click="estop" />

@@ -73,6 +73,46 @@ Keep the loop cheap: same setup order, same checks, same debrief.
   the first time).
 - After playing on the bench, **re-home** before slewing from the sky page.
 
+## With the camera on the scope (learned on the night of 3 October 2026)
+
+The box sits at the scope with the Sony a6000 at prime focus; the phone is
+the page; no laptop outside. A session on the Mac drives the box over ssh
+(`.claude/skills/mttr/box`) and curl. Never open the box's pages in the
+app's browser pane: it stops the session on a permission prompt.
+
+1. **Focus first.** The Stills page shows star size (half-flux diameter) and
+   the last value beside it. Turn the knob a little, shoot, read. Stars were
+   8.5 arcsec all evening unnoticed, and 5.0 after two minutes at the knob.
+2. **Tell the box which side the counterweight is on**
+   (`Lineup.set_counterweight/3`). Left to guess from plates all taken near
+   shaft-level, it guessed wrong, and Go To would have gone to the unsafe
+   side.
+3. **Is it the thing?** Solve a frame and find the target's place in it. The
+   brightest blob was a 7th magnitude star, not the nebula.
+4. **One driver of the mount at a time.** Killing a script on the Mac does
+   not stop what it started on the box. Two ran the mount together for ten
+   minutes at Orion. Before starting anything that moves the scope, check
+   nothing else is.
+5. **Order the list by the sky.** Dim objects before the Moon rises, the
+   west before it goes behind the tree (the Ring and the Dumbbell were lost
+   to it), bright things last.
+6. **Cloud.** Sky three times brighter with the same stars 20 percent dimmer
+   is thin cloud, not a lamp. It passed every 10 to 15 minutes. Shoot three
+   times the frames you want.
+7. **Short frames for bright cores**, and exposures no longer than the drift
+   allows (20 s at 0.1 arcsec per second).
+8. **Dawn: flats, then darks.** Twilight sky, tracking off, exposure walked
+   to mid-scale, 20 frames or more. Then the cap on for darks. The darks
+   were missed that night.
+9. **Offload as you go**, and delete a frame from the box only after its
+   copy on the Mac matches by SHA-256.
+10. **Keep the ledger**: `~/.observatory/nights/<date>.txt`, a numbered line
+    for everything done by hand that the box should have done itself. That
+    list is the debrief.
+
+What to do with the frames afterwards: `stack-pictures`, `finish-pictures`,
+`annotate-pictures`, `publish-observations`, `share-cards`.
+
 ## Record as you go (a note on the phone is fine)
 
 - Where each slew landed vs. where the target was (eyepiece fields off, and which way).
@@ -84,7 +124,9 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 
 ## Debrief (next day or right after)
 
-1. Findings → issues on `bradgessler/observatory`, milestone **v0: star party night**.
+1. Findings → issues on `bradgessler/observatory`, on the milestone of the kind of night it was
+   (**Camera night** with the camera on the scope, **Eyepiece night** by eye, **v0: star party night** before that).
+   Look for an open issue first and add to it rather than open a second one.
    Pointing/direction facts go on #21 (tracking direction) and #5; ranking misses on #37/#38.
 2. Corrections that are just config (axis signs, site, default horizon) → commit them.
 3. Update this skill if the order or checks were wrong.

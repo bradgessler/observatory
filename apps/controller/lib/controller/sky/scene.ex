@@ -52,6 +52,16 @@ defmodule Controller.Sky.Scene do
           p <- Projection.polylines(view, dirs, site),
           do: p
 
+    # the Sun, where it lands, and how dark the sky is because of it
+    sun_dir = with %{ra_deg: ra, dec_deg: dec} <- Ephemeris.position(:sun, at), do: Projection.dir(ra, dec, ctx)
+    {phase, _} = Controller.Sky.Daylight.phase(sun_dir.alt)
+
+    sun =
+      case sky? && sun_dir.alt > -1 && Projection.xy(view, sun_dir, site) do
+        {x, y} -> %{x: x, y: y, alt: sun_dir.alt, az: sun_dir.az}
+        _ -> nil
+      end
+
     tree_dirs = for az <- 0..360//5, do: Projection.dir_altaz(max(Settings.horizon_at(horizon, az * 1.0), 0.0), az * 1.0, ctx)
 
     %{
@@ -64,8 +74,13 @@ defmodule Controller.Sky.Scene do
       stars: stars,
       dsos: dsos,
       lines: lines,
+      sun: sun,
+      # a chart without the sky (an object's night) isn't of one moment, so it isn't tinted by one
+      phase: if(sky?, do: phase),
       trees: trees?,
       tree_line: if(trees?, do: Projection.polylines(view, tree_dirs, site), else: []),
+      # how high the trees reach by direction, for anything placed later (nil: the real horizon)
+      horizon: if(trees?, do: horizon),
       tree_fill: if(trees?, do: tree_fill(view, tree_dirs, site), else: nil),
       ctx: ctx
     }
@@ -127,14 +142,15 @@ defmodule Controller.Sky.Scene do
     * `now`: where it is at the scene's moment, `%{x, y}`, or nil when it's down;
     * `classes`: which of the three the path passes through, for a legend.
   """
-  def night_path(%{view: view, site: site, at: at}, ra, dec, utc_offset_min \\ nil) do
+  def night_path(%{view: view, site: site, at: at} = scene, ra, dec, utc_offset_min \\ nil) do
     until = dawn_after(at, site)
     minutes = div(DateTime.diff(until, at), 60)
 
     samples =
       for m <- 0..minutes//@step_min do
         t = DateTime.add(at, m * 60, :second)
-        {Projection.dir(ra, dec, %{lat: site.lat, lst: Astro.lst_deg(t, site.lon)}), sun_class(Ephemeris.sun_alt(t, site))}
+        d = Projection.dir(ra, dec, %{lat: site.lat, lst: Astro.lst_deg(t, site.lon)})
+        {d, {sun_class(Ephemeris.sun_alt(t, site)), behind?(scene, d)}}
       end
 
     # stretches of one class; each also takes the next one's first point, so the line doesn't break between them
@@ -143,9 +159,9 @@ defmodule Controller.Sky.Scene do
       |> Enum.chunk_by(&elem(&1, 1))
       |> then(fn runs -> Enum.zip(runs, tl(runs) ++ [[]]) end)
       |> Enum.flat_map(fn {run, next} ->
-        class = run |> hd() |> elem(1)
+        {class, behind} = run |> hd() |> elem(1)
         dirs = Enum.map(run ++ Enum.take(next, 1), &elem(&1, 0))
-        for p <- Projection.path_lines(view, dirs, site), do: %{points: p, class: class}
+        for p <- Projection.path_lines(view, dirs, site), do: %{points: p, class: class, behind: behind}
       end)
 
     now =
@@ -162,12 +178,17 @@ defmodule Controller.Sky.Scene do
 
     %{
       segments: segments,
-      hours: hours(view, site, at, until, ra, dec, utc_offset_min),
+      hours: hours(scene, at, until, ra, dec, utc_offset_min),
       now: now,
-      classes: samples |> Enum.filter(&(elem(&1, 0).alt > 0)) |> Enum.map(&elem(&1, 1)) |> Enum.uniq(),
+      classes: samples |> Enum.filter(&(elem(&1, 0).alt > 0)) |> Enum.map(&elem(elem(&1, 1), 0)) |> Enum.uniq(),
       until: until
     }
   end
+
+  # under the tree line in that direction (with no tree line given, nothing is)
+  defp behind?(%{horizon: nil}, _), do: false
+  defp behind?(%{horizon: horizon}, %{alt: alt, az: az}), do: alt > 0 and alt < Settings.horizon_at(horizon, az)
+  defp behind?(_, _), do: false
 
   defp sun_class(sun) when sun > 0, do: "day"
   defp sun_class(sun) when sun > -18, do: "twilight"
@@ -191,7 +212,7 @@ defmodule Controller.Sky.Scene do
   end
 
   # each whole hour of the viewer's time between now and dawn, where it is while it's up
-  defp hours(view, site, at, until, ra, dec, offset) do
+  defp hours(%{view: view, site: site} = scene, at, until, ra, dec, offset) do
     off = (offset || 0) * 60
     local = DateTime.add(at, off, :second)
     first = DateTime.add(at, (60 - local.minute) * 60 - local.second, :second)
@@ -202,7 +223,7 @@ defmodule Controller.Sky.Scene do
       d = Projection.dir(ra, dec, %{lat: site.lat, lst: Astro.lst_deg(t, site.lon)})
 
       case d.alt > 0 && Projection.xy(view, d, site) do
-        {x, y} -> [%{x: x, y: y, label: Calendar.strftime(DateTime.add(t, off, :second), "%H:%M"), class: sun_class(Ephemeris.sun_alt(t, site))}]
+        {x, y} -> [%{x: x, y: y, label: Calendar.strftime(DateTime.add(t, off, :second), "%H:%M"), class: sun_class(Ephemeris.sun_alt(t, site)), behind: behind?(scene, d)}]
         _ -> []
       end
     end)

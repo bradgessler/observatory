@@ -54,17 +54,26 @@ defmodule Controller.PagesTest do
   end
 
   describe "sky" do
-    test "the sky page is the map and the horizon; Tonight is its own page, both in the sidebar and not linked again", %{conn: conn, id: id} do
+    test "the sky page is the map; Tonight is its own page, both in the sidebar and not linked again", %{conn: conn, id: id} do
       {:ok, view, html} = live(conn, "/sky/#{id}")
       refute html =~ "Tonight ›"
-      assert view |> element("button", "Tree Line") |> render_click() =~ "aperture"
+      # the telescope's reach is under the chart; the tree line is the location's, on Location
+      assert html =~ "Aperture mm"
+      refute html =~ "Tree Line"
+      # the Sky's status in the toolbar: the time with its keys, how dark it is, where
+      assert html =~ "sky-status"
+      assert html =~ ~r/Daylight|Civil twilight|Nautical twilight|Astronomical twilight|Dark/
+      assert html =~ ~s(href="/location")
+      # a step of the time moves the sky and says by how much; Now brings it back
+      assert render_click(view, "shift", %{"by" => "60"}) =~ ~r/class="ss-shift"> \+1 h/
+      refute render_click(view, "shift", %{"by" => "now"}) =~ ~s(class="ss-shift")
 
       # no tree line set in tests: ranked against the real horizon, in two groups
       {:ok, _view, tonight} = live(conn, "/tonight/#{id}")
       assert tonight =~ "Up now, best first"
       refute tonight =~ "Sky Map ›"
       # how high each one is, drawn
-      assert tonight =~ ~s(class="height")
+      assert tonight =~ ~s(<svg class="height)
     end
 
     test "a row on Tonight opens the object's page on a phone and shows it beside the list on a wide screen", %{conn: conn, id: id} do
@@ -88,6 +97,29 @@ defmodule Controller.PagesTest do
       {:ok, view, _} = live(conn, "/sky/#{id}")
       render_click(view, "pick", %{"id" => "m13"})
       assert render_click(view, "goto", %{}) =~ ~r/set home/i
+    end
+  end
+
+  describe "location" do
+    test "the tree line is set here, a slider a direction, and every sky follows it", %{conn: conn} do
+      before = Controller.Settings.get("horizon")
+      on_exit(fn -> Controller.Settings.put("horizon", before) end)
+      {:ok, view, html} = live(conn, "/location")
+      assert html =~ "Tree Line"
+      assert html =~ ~s(type="range")
+      assert html =~ ~s(id="tree-dome")
+
+      render_change(view, "horizon", Map.new(~w(N NE E SE S SW W NW), &{&1, "35"}))
+      assert Controller.Settings.horizon()["SW"] == 35
+
+      render_click(view, "horizon_clear", %{})
+      assert Controller.Settings.horizon()["SW"] == 0
+    end
+
+    test "over plain http the phone-location key is greyed out and says why", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "http://10.0.1.44/location")
+      assert html =~ "only with https pages"
+      assert html =~ ~r/id="use-phone-location"[^>]*disabled/
     end
   end
 
@@ -140,7 +172,7 @@ defmodule Controller.PagesTest do
 
   describe "home" do
     test "the front door is the flow: four steps, the current one first", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/start")
+      {:ok, _view, html} = live(conn, "/alignment")
       for step <- ["Plug In", "Set Home", "Stars 0/3", "Look"], do: assert(html =~ step)
       # a simulated mount is connected but home is not set: step 2 is on
       assert html =~ "Set Home Here"
@@ -163,7 +195,7 @@ defmodule Controller.PagesTest do
 
     test "everything else lists every group with one line each", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
-      for name <- ["Alignment", "Sky", "Controls", "Cameras", "Mount", "System", "All Cameras", "Observatory Camera", "Start", "Star Align", "Orb", "Events"], do: assert(html =~ name)
+      for name <- ["Alignment", "Sky", "Controls", "Cameras", "Mount", "System", "All Cameras", "Observatory Camera", "Status", "Align by Stars", "Orb", "Events"], do: assert(html =~ name)
       assert html =~ "Center a few stars"
     end
   end
@@ -193,7 +225,7 @@ defmodule Controller.PagesTest do
   describe "accessibility" do
     defp routes(id) do
       [
-        "/", "/start", "/controls/scope/#{id}", "/controls/eyepiece/#{id}", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
+        "/", "/alignment", "/controls/scope/#{id}", "/controls/eyepiece/#{id}", "/#{id}", "/sky/#{id}", "/object/m31?mount=#{id}", "/controls/orb/#{id}", "/events",
         "/devices", "/devices/ports", "/devices/boxes", "/devices/mount/#{id}", "/input?mount=#{id}", "/tonight/#{id}",
         "/cameras", "/cameras/telescope", "/cameras/telescope/focus", "/cameras/telescope/settings", "/search",
         "/cameras/observatory", "/cameras/observatory/frames", "/cameras/observatory/settings", "/controls/watch/axes/#{id}",

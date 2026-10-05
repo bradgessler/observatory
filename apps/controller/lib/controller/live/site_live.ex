@@ -23,7 +23,8 @@ defmodule Controller.SiteLive do
   import Controller.Components.UI
 
   alias Controller.{Clock, Settings}
-  alias Controller.Sky.{Astro, Pointing}
+  alias Controller.Components.SkyChart
+  alias Controller.Sky.{Astro, HorizonScan, Pointing, Scene, Solve}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -34,13 +35,47 @@ defmodule Controller.SiteLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Site", night: Settings.get("night", false), notice: nil, phone: nil)
-     |> assign(now: DateTime.utc_now(), site: site())}
+     |> assign(page_title: "Location", night: Settings.get("night", false), notice: nil, phone: nil)
+     |> assign(now: DateTime.utc_now(), site: site())
+     |> assign(photo_cols: nil, photo_dims: nil, solving: false, solve_note: nil)
+     |> trees()
+     # JPEG/PNG only: iOS converts HEIC to JPEG when HEIC isn't in the accept list,
+     # and the solver can't read HEIC anyway.
+     |> allow_upload(:photo, accept: ~w(.jpg .jpeg .png), max_entries: 1, max_file_size: 30_000_000, auto_upload: true)}
+  end
+
+  # the tree line, and a dome with it drawn (the Sky Map's own layers, no stars), redrawn as it changes
+  defp trees(socket) do
+    # none set yet is a clear horizon here, as the toolbar says, not the stand-in the sky ranks against
+    set? = Settings.get("horizon") != nil
+    horizon = if set?, do: Settings.horizon(), else: Map.new(Settings.sectors(), &{&1, 0})
+    site = Pointing.site()
+    assign(socket, horizon: horizon, dome: Scene.build(DateTime.utc_now(), site, horizon, view: :dome, trees: set?, sky: false))
   end
 
   @impl true
   def handle_info(:tick, socket), do: {:noreply, assign(socket, now: DateTime.utc_now())}
-  def handle_info({:settings, "site", _}, socket), do: {:noreply, assign(socket, site: site())}
+  def handle_info({:settings, "site", _}, socket), do: {:noreply, socket |> assign(site: site()) |> trees()}
+  def handle_info({:settings, "horizon", _}, socket), do: {:noreply, trees(socket)}
+
+  def handle_info({:solved, {:ok, sol, profile}}, socket) do
+    horizon = HorizonScan.merge(socket.assigns.horizon, profile)
+    Settings.put("horizon", horizon)
+
+    summary =
+      profile
+      |> Enum.sort_by(fn {s, _} -> Enum.find_index(Settings.sectors(), &(&1 == s)) end)
+      |> Enum.map_join(", ", fn {s, a} -> "#{s} #{a}°" end)
+
+    note =
+      "Solved: the photo is centred at RA #{fmt(sol.ra_deg / 15, 1)}h Dec #{fmt(sol.dec_deg, 1)}°, #{round(sol.radius_deg * 2)}° across" <>
+        if(profile == %{}, do: "; no tree line found in it", else: "; tree line: #{summary}")
+
+    {:noreply, socket |> assign(solving: false, solve_note: note, photo_cols: nil) |> trees()}
+  end
+
+  def handle_info({:solved, {:error, reason}}, socket),
+    do: {:noreply, assign(socket, solving: false, solve_note: "Plate solve failed: #{Controller.Words.error(reason)}")}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
@@ -64,13 +99,93 @@ defmodule Controller.SiteLive do
         "at" => DateTime.utc_now() |> DateTime.to_iso8601()
       })
 
-      {:noreply, assign(socket, site: site(), notice: if(from_phone?, do: "Site set from this phone", else: "Site saved"))}
+      {:noreply, assign(socket, site: site(), notice: if(from_phone?, do: "Location set from this phone", else: "Location saved"))}
     else
       _ -> {:noreply, assign(socket, notice: "Not saved: latitude is -90 to 90, longitude -180 to 180")}
     end
   end
 
   def handle_event("site_error", %{"reason" => r}, socket), do: {:noreply, assign(socket, notice: Controller.Site.location_error(r))}
+
+  # -- the tree line ----------------------------------------------------------------------
+
+  # a slider moved: that direction's height, saved as it goes, so every sky redraws with it
+  def handle_event("horizon", params, socket) do
+    horizon =
+      for s <- Settings.sectors(), into: %{} do
+        v =
+          case Integer.parse(to_string(params[s] || "")) do
+            {n, _} -> n |> max(0) |> min(89)
+            :error -> socket.assigns.horizon[s] || 0
+          end
+
+        {s, v}
+      end
+
+    Settings.put("horizon", horizon)
+    {:noreply, trees(socket)}
+  end
+
+  def handle_event("horizon_clear", _, socket) do
+    Settings.put("horizon", Map.new(Settings.sectors(), &{&1, 0}))
+    {:noreply, trees(socket)}
+  end
+
+  # -- the tree line from a photo: traced in the browser (SkyPhoto), placed by a plate solve --
+
+  def handle_event("validate", _params, socket), do: {:noreply, socket}
+
+  def handle_event("photo_cols", %{"cols" => cols, "width" => w, "height" => h}, socket),
+    do: {:noreply, assign(socket, photo_cols: cols, photo_dims: {w, h}, solve_note: nil)}
+
+  def handle_event("solve", _params, %{assigns: %{photo_cols: cols}} = socket) when is_list(cols) do
+    {_done, uploading} = uploaded_entries(socket, :photo)
+
+    cond do
+      not Solve.configured?() ->
+        {:noreply, assign(socket, solve_note: "Plate solving online needs an astrometry.net API key; set NOVA_API_KEY on the machine running the server.")}
+
+      socket.assigns.solving ->
+        {:noreply, socket}
+
+      uploading != [] ->
+        {:noreply, assign(socket, solve_note: "Still uploading the photo… try again in a moment")}
+
+      true ->
+        paths =
+          consume_uploaded_entries(socket, :photo, fn %{path: path}, entry ->
+            dest = Path.join(System.tmp_dir!(), "sky-#{System.unique_integer([:positive])}#{Path.extname(entry.client_name)}")
+            File.cp!(path, dest)
+            {:ok, dest}
+          end)
+
+        case paths do
+          [path] ->
+            site = Pointing.site()
+            dims = socket.assigns.photo_dims
+            taken_at = DateTime.utc_now()
+            boundary = for [x, y] <- cols, y < 1.0, do: {x, y}
+            lv = self()
+
+            Task.start(fn ->
+              result =
+                with {:ok, sol} <- Solve.solve(path) do
+                  {:ok, sol, HorizonScan.profile(sol, boundary, site, taken_at, dims)}
+                end
+
+              File.rm(path)
+              send(lv, {:solved, result})
+            end)
+
+            {:noreply, assign(socket, solving: true, solve_note: "Uploaded; solving at nova.astrometry.net…")}
+
+          _ ->
+            {:noreply, assign(socket, solve_note: "Pick a photo first")}
+        end
+    end
+  end
+
+  def handle_event("solve", _params, socket), do: {:noreply, assign(socket, solve_note: "Pick a photo first")}
 
   # The phone's clock and time zone, sent once when the page connects.
   def handle_event("clock", %{"now_ms" => ms, "tz" => tz, "offset_min" => off, "std_offset_min" => std}, socket) do
@@ -96,9 +211,10 @@ defmodule Controller.SiteLive do
     %{
       lat: base.lat,
       lon: base.lon,
-      set: saved != %{},
+      # typed, from a phone, or the one in the config file: any of them is a location
+      set: Pointing.site_set?(),
       accuracy_m: saved["accuracy_m"],
-      source: saved["source"],
+      source: saved["source"] || if(saved == %{}, do: "config"),
       at: parse_at(saved["at"])
     }
   end
@@ -129,8 +245,10 @@ defmodule Controller.SiteLive do
     <.page id="site" night={@night}>
       <:header>
         <.back navigate={~p"/"} label="Home" section="Alignment" />
-        <.title>Site</.title>
-        <.actions><.help href={~p"/docs/site"} label="site" /><.stop /></.actions>
+        <.title>Location</.title>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@telescope && @telescope.id]} /></.status>
+        <.actions><.help href={~p"/docs/location"} label="location" /><.stop /></.actions>
       </:header>
 
       <div id="phone-clock" phx-hook="Clock" hidden></div>
@@ -142,14 +260,46 @@ defmodule Controller.SiteLive do
           <.kv label="From" value={source_words(@site, @now)} />
         </div>
         <.hint :if={!@site.set}>Not set. Pointing assumes latitude 0 until it is.</.hint>
-        <.row>
-          <button id="use-phone-location" class="btn btn-primary" phx-hook="Geo">Use This Phone's Location</button>
-        </.row>
-        <form phx-submit="site" class="site-typed" aria-label="type the site">
+        <.phone_location id="use-phone-location" secure={@secure} />
+        <form phx-submit="site" class="site-typed" aria-label="type the location">
           <label>Latitude <input name="lat" type="text" inputmode="decimal" class="field" value={if @site.set, do: fmt(@site.lat, 5)} /></label>
           <label>Longitude <input name="lon" type="text" inputmode="decimal" class="field" value={if @site.set, do: fmt(@site.lon, 5)} /></label>
           <.btn type="submit">Save</.btn>
         </form>
+      </.card>
+
+      <%!-- the horizon this location really has: how high the trees reach, by direction --%>
+      <.card title="Tree Line" id="tree-line">
+        <.hint>How high the trees, roofs or hills reach in each direction, in degrees above level. Anything lower is drawn faded on every sky chart and left off Tonight. <.link href={~p"/docs/horizon"}>About the tree line</.link></.hint>
+        <div class="tree-edit">
+          <SkyChart.frame id="tree-dome" scene={@dome} label="the tree line around the sky, from overhead" class="tree-dome">
+            <SkyChart.grid scene={@dome} except={["equator", "ecliptic"]} />
+            <SkyChart.trees scene={@dome} />
+            <:over><SkyChart.grid_labels scene={@dome} /></:over>
+          </SkyChart.frame>
+          <form phx-change="horizon" class="tree-sliders" aria-label="tree line by direction">
+            <label :for={s <- Settings.sectors()}>
+              <span class="tree-dir">{s}</span>
+              <input type="range" name={s} min="0" max="60" step="1" value={@horizon[s]} phx-throttle="120" aria-label={"#{s}, degrees above level"} />
+              <output>{@horizon[s]}°</output>
+            </label>
+          </form>
+        </div>
+        <.row><.btn variant="ghost" phx-click="horizon_clear">Clear to the Horizon</.btn></.row>
+      </.card>
+
+      <.card title="Tree Line from a Photo">
+        <div class="photo" id="sky-photo" phx-hook="SkyPhoto">
+          <.hint>A night-mode photo of the sky over the trees, plate solved, sets the directions it covers. <.link href={~p"/docs/horizon"}>How</.link></.hint>
+          <form phx-change="validate" phx-submit="solve" aria-label="a photo of the sky over the tree line">
+            <.live_file_input upload={@uploads.photo} aria-label="a photo of the sky and tree line" />
+            <button :if={@photo_cols && !@solving} class="go">Plate Solve &amp; Apply</button>
+            <span :if={@solving} class="dim">Plate solving… (30–90 s)</span>
+          </form>
+          <.hint :if={@photo_cols}>Traced {length(@photo_cols)} columns; the sky and tree boundary found in {Enum.count(@photo_cols, fn [_, y] -> y < 1.0 end)} of them.</.hint>
+          <.hint :if={@solve_note} role="status">{@solve_note}</.hint>
+          <.hint :if={!Solve.configured?() and is_nil(@solve_note)}>Plate solving online needs an astrometry.net API key: set <code>NOVA_API_KEY</code> on the machine running the server (free at nova.astrometry.net).</.hint>
+        </div>
       </.card>
 
       <.card :if={@site.set} title="Equatorial Mount">
@@ -184,6 +334,7 @@ defmodule Controller.SiteLive do
 
   defp source_words(%{source: "phone", accuracy_m: acc, at: at}, now), do: "This phone, ±#{round(acc || 0)} m, #{ago(at, now)}"
   defp source_words(%{source: "typed", at: at}, now), do: "Typed, #{ago(at, now)}"
+  defp source_words(%{source: "config"}, _), do: "The config file"
   defp source_words(_, _), do: "Set"
 
   defp ago(nil, _), do: "earlier"

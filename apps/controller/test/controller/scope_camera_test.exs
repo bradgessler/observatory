@@ -128,6 +128,35 @@ defmodule Controller.ScopeCameraTest do
       assert Image.average([a, b]) == %{w: 2, h: 1, px: <<20, 150>>}
     end
 
+    test "craters on the Moon aren't stars; the stars beside it still are, and so is a planet" do
+      {w, h} = {640, 240}
+      craters = [{150, 100}, {190, 140}, {210, 90}, {170, 170}, {230, 125}]
+      stars = [{500, 60}, {580, 180}]
+
+      spot = fn x, y, {sx, sy}, b -> b * :math.exp(-((x - sx) ** 2 + (y - sy) ** 2) / 4.5) end
+
+      moon =
+        for y <- 0..(h - 1), x <- 0..(w - 1), into: <<>> do
+          face = if((x - 190) ** 2 + (y - 120) ** 2 <= 70 * 70, do: 140, else: 0)
+          lit = Enum.sum(for(c <- craters, face > 0, do: spot.(x, y, c, 90))) + Enum.sum(for(s <- stars, do: spot.(x, y, s, 150)))
+          <<min(round(20 + rem((y * w + x) * 7919, 5) + face + lit), 255)>>
+        end
+
+      frame = ScopeCamera.analyse(Image.pgm(%{w: w, h: h, px: moon}))
+      assert frame.bright.fraction > 0.01
+      assert frame.focus.stars == 2
+      assert Enum.all?(frame.stars, &(&1.x > 400))
+      assert Enum.any?(frame.marks.rejected, &(&1.why == :bright_target))
+
+      # a planet is small: it has no face, so it's a star like any other
+      dot = for y <- 0..(h - 1), x <- 0..(w - 1), into: <<>>, do: <<if((x - 400) ** 2 + (y - 200) ** 2 <= 9, do: 220, else: 20 + rem((y * w + x) * 7919, 5))>>
+      planet = %{w: w, h: h, px: dot}
+
+      frame = ScopeCamera.analyse(Image.pgm(planet))
+      assert frame.bright == nil or frame.bright.fraction < 0.01
+      assert frame.focus.stars == 1
+    end
+
     test "PGM in and out" do
       img = frame(1.5)
       assert {:ok, ^img} = img |> Image.pgm() |> Image.from_pgm()

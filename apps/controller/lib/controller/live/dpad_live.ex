@@ -140,6 +140,8 @@ defmodule Controller.DpadLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
         <.title>Plain Keypad</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @selected})}</.status>
         <.actions><.help href={~p"/docs/keypad"} label="the keypad" /><.stop click="estop" /></.actions>
       </:header>
 

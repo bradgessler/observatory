@@ -4,7 +4,7 @@ defmodule Controller.Layouts do
   used by your application.
   """
   use Controller, :html
-  alias Controller.Components.Icons
+  alias Controller.Components.{AlignmentStatus, Icons}
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -23,7 +23,7 @@ defmodule Controller.Layouts do
   """
   def shell(assigns) do
     ~H"""
-    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]}>
+    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]} alignments={assigns[:alignments] || %{}}>
       {@inner_content}
       <:search><.live_component module={Controller.Spotlight} id="spotlight" here={assigns[:current_path]} /></:search>
     </.frame>
@@ -35,6 +35,7 @@ defmodule Controller.Layouts do
   attr :night, :boolean, default: false
   attr :telescopes, :list, default: []
   attr :telescope, :map, default: nil
+  attr :alignments, :map, default: %{}, doc: "each telescope's alignment (`Controller.Alignment`), by id"
   slot :inner_block, required: true
   slot :search, doc: "Search, on a LiveView page; a page without it (a doc) links to the search page instead"
 
@@ -61,7 +62,8 @@ defmodule Controller.Layouts do
               <li :for={t <- @telescopes}>
                 <a href={~p"/telescope/#{t.id}?#{[return: @current_path || "/"]}"} class="side-link switcher-item" aria-current={@telescope && @telescope.id == t.id && "true"}>
                   <Icons.icon name={if t.simulated, do: "sim", else: "telescope"} />
-                  <span class="switcher-name"><strong>{t.id}</strong><small>{telescope_where(t, @host)}</small></span>
+                  <span class="switcher-name"><strong>{t.id}</strong><small>{telescope_where(t, @host)}<span :if={@alignments[t.id]}> · {@alignments[t.id].words}</span></small></span>
+                  <AlignmentStatus.glyph :if={@alignments[t.id]} summary={@alignments[t.id]} size={18} class="switcher-al" />
                   <Icons.icon :if={@telescope && @telescope.id == t.id} name="check" class="icon switcher-check" />
                 </a>
               </li>
@@ -70,6 +72,9 @@ defmodule Controller.Layouts do
             <a href={~p"/devices"} class="side-link"><Icons.icon name="plug" /><span>Devices</span></a>
           </div>
         </div>
+        <%!-- how well the telescope you're driving is aligned: the same on every page, and it
+              changes with the switcher --%>
+        <AlignmentStatus.chip :if={@telescope} summary={@alignments[@telescope.id]} href={~p"/alignment/#{@telescope.id}"} />
 
         <%!-- a field-shaped key, so it reads as search; ⌘K opens the same thing --%>
         <button :if={@search != []} type="button" class="side-search" popovertarget="spotlight" phx-click={JS.push("reset", target: "#spotlight")}>

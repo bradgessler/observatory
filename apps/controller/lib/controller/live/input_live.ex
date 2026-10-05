@@ -118,6 +118,8 @@ defmodule Controller.InputLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section="Controls" />
         <.title>Game Controller</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @mapper.target})}</.status>
         <.actions>
           <.help href={~p"/docs/game-controller"} label="the game controller" />
           <.stop click="estop" />

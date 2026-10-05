@@ -26,6 +26,9 @@ defmodule Controller.Components.SkyChart do
   """
   use Phoenix.Component
 
+  # stars this bright or brighter are each tappable; fainter ones are only drawn
+  @tap_mag 4.0
+
   # -- the Sky Map's chart ---------------------------------------------------------------
 
   attr :id, :string, required: true
@@ -75,7 +78,7 @@ defmodule Controller.Components.SkyChart do
     assigns = assign(assigns, f: assigns.scene.frame, view: assigns.scene.view, clip: "#{assigns.id}-clip")
 
     ~H"""
-    <svg id={@id} viewBox={@f.view_box} data-base={@f.view_box} class={["map", "map-#{@view}", @class]} role="img" aria-label={@label} {@rest}>
+    <svg id={@id} viewBox={@f.view_box} data-base={@f.view_box} class={["map", "map-#{@view}", "sky-#{@scene[:phase] || :dark}", @class]} role="img" aria-label={@label} {@rest}>
       <defs>
         <radialGradient id={"#{@id}-dome"} cx="50%" cy="50%" r="50%">
           <stop offset="70%" stop-color="var(--sky1)" /><stop offset="100%" stop-color="var(--sky2)" />
@@ -118,11 +121,20 @@ defmodule Controller.Components.SkyChart do
   attr :interactive, :boolean, default: false
 
   def sky(assigns) do
+    # the bright stars are each a thing to tap; the faint ones (most of them) are drawn as a few
+    # dots in one path, so a step of the time sends a few kilobytes, not a hundred
+    {bright, faint} = Enum.split_with(assigns.scene.stars, &(&1.mag <= @tap_mag or (assigns.target && assigns.target.id == &1.id)))
+    {behind, clear} = Enum.split_with(faint, & &1.hidden)
+    assigns = assign(assigns, bright: bright, faint_clear: dots(clear), faint_behind: dots(behind))
+
     ~H"""
     <polyline :for={l <- @scene.lines} points={l} class="lines" pointer-events="none" />
 
+    <path :if={@faint_clear != ""} d={@faint_clear} class="stars-faint" pointer-events="none" />
+    <path :if={@faint_behind != ""} d={@faint_behind} class="stars-faint hidden" pointer-events="none" />
+
     <g
-      :for={o <- @scene.stars}
+      :for={o <- @bright}
       phx-click={@interactive && "pick"}
       phx-value-id={o.id}
       class={["obj", "star", o.mag > 3.5 && "faint", o.hidden && "hidden", @target && @target.id == o.id && "picked"]}
@@ -142,8 +154,18 @@ defmodule Controller.Components.SkyChart do
       <rect x={r1(o.x - 1.5)} y={r1(o.y - 1.5)} width="3" height="3" transform={"rotate(45 #{r1(o.x)} #{r1(o.y)})"} />
       <text :if={String.starts_with?(o.id, "sol-") or (o.mag < 6.5 and String.starts_with?(o.id, "m"))} x={r1(o.x + 2.6)} y={r1(o.y + 1)}>{short(o.name)}</text>
     </g>
+
+    <%!-- the Sun, when it's up: nothing else is worth looking for near it, and it washes out the rest --%>
+    <g :if={@scene[:sun]} class="sun" transform={"translate(#{r1(@scene.sun.x)} #{r1(@scene.sun.y)})"} pointer-events="none">
+      <circle r="10" class="sun-glow" />
+      <circle r="3.6" class="sun-disk" />
+      <text x="5.5" y="1.4">Sun</text>
+    </g>
     """
   end
+
+  # dots as one path: a zero-length stroke with round caps at each point
+  defp dots(stars), do: Enum.map_join(stars, "", &"M#{r1(&1.x)} #{r1(&1.y)}h0")
 
   attr :scene, :map, required: true
 
@@ -159,8 +181,8 @@ defmodule Controller.Components.SkyChart do
 
   def path(assigns) do
     ~H"""
-    <polyline :for={s <- @path.segments} points={s.points} class={["path", s.class]} pointer-events="none" />
-    <circle :for={h <- @path.hours} cx={r1(h.x)} cy={r1(h.y)} r="1.4" class={["hour", h.class]} pointer-events="none" />
+    <polyline :for={s <- @path.segments} points={s.points} class={["path", s.class, s[:behind] && "behind"]} pointer-events="none" />
+    <circle :for={h <- @path.hours} cx={r1(h.x)} cy={r1(h.y)} r="1.4" class={["hour", h.class, h[:behind] && "behind"]} pointer-events="none" />
     <circle :if={@path.now} cx={r1(@path.now.x)} cy={r1(@path.now.y)} r="4.5" class="mark" pointer-events="none" />
     """
   end

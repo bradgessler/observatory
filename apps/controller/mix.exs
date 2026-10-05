@@ -42,6 +42,8 @@ defmodule Controller.MixProject do
       # the frames pipeline's steps and the box's spool
       {:queues, in_umbrella: true},
       {:mount, in_umbrella: true},
+      # stills cameras over USB (the Sony a6000 in PC Remote): PTP in Elixir, a tiny C helper for the bytes
+      {:camera, in_umbrella: true},
       # JPEG in, grey pixels out, for the optical axis finder; a tiny C NIF, no Python
       {:stb_image, "~> 1.0"},
       {:input, in_umbrella: true},

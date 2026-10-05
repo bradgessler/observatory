@@ -113,6 +113,10 @@ defmodule Controller.ScopeCameraLive do
       </:header>
 
       <p :if={trouble(@cam)} class="hint tone-caution" role="status">{camera_line(@cam)}</p>
+      <%!-- a stills camera on the telescope has its own page: say so here, where people look first --%>
+      <p :if={!@cam[:camera] && stills()} class="hint" role="status">
+        A stills camera is on the box: <.link navigate={~p"/cameras/stills"}>{stills()}, on Stills Camera</.link>.
+      </p>
 
       <%!-- the picture takes the room; what to do with it beside (on a phone, below) --%>
       <.split :if={@cam[:camera]}>
@@ -190,6 +194,16 @@ defmodule Controller.ScopeCameraLive do
     s = cam[:settings] || %{}
     stack = if (s["stack"] || 1) > 1, do: "#{s["stack"]} stacked", else: "1 frame"
     "#{s["exposure_ms"]} ms, gain #{s["gain"]}, #{stack}#{if cam[:keep], do: ", keeping frames", else: ""}"
+  end
+
+  # the stills camera's name when one is plugged in, else nil
+  defp stills do
+    case Controller.StillCamera.status() do
+      %{camera: %{} = c} -> c[:model] || c[:id]
+      _ -> nil
+    end
+  catch
+    _, _ -> nil
   end
 
   defp camera_line(%{down: true}), do: "The camera part of the box isn't running."

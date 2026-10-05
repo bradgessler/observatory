@@ -177,6 +177,8 @@ defmodule Controller.AxesLive do
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section="Alignment" />
         <.title>Optical Axes</.title>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@telescope && @telescope.id]} /></.status>
         <.actions><.help href={~p"/docs/axes"} label="the optical axes" /><.stop /></.actions>
       </:header>
 

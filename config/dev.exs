@@ -74,3 +74,6 @@ config :controller, :scope_camera, sim: true
 
 # The Mac is the mothership: it copies kept frames off every box (Controller.Frames)
 config :controller, :frames, pull: true
+
+# No Sony on this Mac: a simulated a6000 (Camera.Transport.Sim) so the Stills Camera page works
+config :camera, simulate: true

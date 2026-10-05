@@ -1,7 +1,7 @@
-# Site
+# Location
 
 Where the telescope stands and what time it is. The phone in your hand knows
-both better than the box does, so the Site page takes them from it.
+both better than the box does, so the Location page takes them from it.
 
 ## Latitude and longitude
 
@@ -11,13 +11,14 @@ metres outdoors is typical, and a few kilometres would still point a
 telescope well. Typed coordinates work too (decimal degrees, north and east
 positive).
 
-What the phone reports is saved as the site, which the sky map, Go To and
-the pointing model all use. Without a site they assume 0°, 0°, and the Modes
-strip says *No site* on every page.
+What the phone reports is saved as the telescope's location, which the sky
+map, Go To and the pointing model all use. Without one they assume 0°, 0°,
+and the Modes strip says *No location* on every page.
 
-On a page served over plain http (a box, usually) the browser won't share
-the phone's location at all; type the numbers instead. The iPhone Compass app
-shows them.
+Browsers only share a phone's location with a page served over **https**
+(or opened on the machine itself, at localhost). The box serves plain http,
+so there the button is greyed out and says why: type the numbers instead.
+The iPhone Compass app shows them at the bottom of its screen.
 
 ## Equatorial mount
 

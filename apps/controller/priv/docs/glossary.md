@@ -55,11 +55,11 @@ How far each axis may turn from the home position before the mount stops
 itself, so it never winds up its cables. Armed once home is set.
 More in [Setup](/docs/setup#home-position).
 
-### Site
+### Location
 
 Where the telescope stands: latitude and longitude, plus the clock. The sky
 map, Go To and tracking all work from it.
-Not: *location* (that is what a phone reports). More in [Site](/docs/site).
+Not: *site*. More in [Location](/docs/location).
 
 ### Meridian flip
 
@@ -85,7 +85,7 @@ turns. **Sidereal tracking** is the mount's own: the RA motor alone at the
 sky's rate. **Tracking a target** runs both motors through the alignment, so
 a crooked polar axis doesn't matter; it starts after a Go To, or with
 **Track What I'm On**.
-Not: *hold*, *holding*. More in [Star Align](/docs/align#tracking-with-a-crooked-axis).
+Not: *hold*, *holding*. More in [Align by Stars](/docs/align#tracking-with-a-crooked-axis).
 
 ### Sidereal rate
 
@@ -97,7 +97,7 @@ crosses the sky.
 What the software has measured about how the mount really sits, fitted from
 alignment points. Three or more that agree make the telescope **aligned**,
 and Go To lands.
-Not: *lock*, *locked*, *line-up*, *lined up*. More in [Star Align](/docs/align).
+Not: *lock*, *locked*, *line-up*, *lined up*. More in [Align by Stars](/docs/align).
 
 ### Alignment point
 

@@ -22,6 +22,9 @@ defmodule Controller.Application do
       Controller.Sky.Moves,
       # the pad's (or the Center page's) Centered becomes an alignment point on the held target
       Controller.CenterPoints,
+      # each telescope's alignment, kept current and said when it changes; its own branch,
+      # left down (never restarting the app) if it keeps crashing
+      Supervisor.child_spec(Controller.Alignment.Supervisor, restart: :temporary),
       # the pad's hat in eyepiece terms, with the Center page's map
       Controller.PadView,
       # when each mount was last switched on: a never-zeroed alignment holds until then
@@ -39,6 +42,10 @@ defmodule Controller.Application do
       # the camera in the telescope's focuser, and the loop that finds where it points
       Controller.ScopeCamera.Supervisor,
       Controller.Optical.AxisScan,
+      # the stills camera (a Sony in PC Remote): pictures kept whole, measured, fed to Lock On
+      Supervisor.child_spec(Controller.StillCamera.Supervisor, restart: :temporary),
+      # Lock On: both motors steered from the camera; its own branch, left down if it keeps crashing
+      Supervisor.child_spec(Controller.LockOn.Supervisor, restart: :temporary),
       Controller.Endpoint
     ]
 

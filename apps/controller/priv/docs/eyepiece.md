@@ -11,7 +11,7 @@ it steps. Track something and it stays put.
 ## The simulator's hidden truth
 
 A simulated mount that is perfectly aligned teaches nothing: every Go To would
-land dead center and Star Align would have no work to do. So the simulator is
+land dead center and Align by Stars would have no work to do. So the simulator is
 given a **truth**: a polar axis a couple of degrees off the pole and encoder
 offsets that are not quite zero. That truth decides what the eyepiece shows.
 

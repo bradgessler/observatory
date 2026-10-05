@@ -43,14 +43,17 @@ defmodule Controller.Router do
 
     # the front door: a grouped list of everything, one line each
     live "/", HomeLive, :index
-    live "/start", StartLive, :index
-    live "/start/:id", StartLive, :show
+    live "/alignment", StartLive, :index
+    live "/alignment/:id", StartLive, :show
+    get "/start", RedirectController, :moved, assigns: %{to: "/alignment"}
+    get "/start/*rest", RedirectController, :moved, assigns: %{to: "/alignment"}
     live "/keypad", MountLive, :index
     live "/keypad/:id", MountLive, :show
     live "/sky", SkyLive, :index
     live "/tonight", SkyLive, :tonight
     # where the scope stands and what time it is, from the phone
-    live "/site", SiteLive, :index
+    live "/location", SiteLive, :index
+    get "/site", RedirectController, :moved, assigns: %{to: "/location"}
     live "/object/:id", ObjectLive, :show
     live "/controls/orb", OrbLive, :index
     live "/controls/orb/:id", OrbLive, :show
@@ -106,6 +109,14 @@ defmodule Controller.Router do
     live "/cameras/telescope/frames/:seq", ScopeCameraFramesLive, :show
     live "/cameras/telescope", ScopeCameraLive, :index
     live "/cameras/telescope/:id", ScopeCameraLive, :show
+    # the stills camera (a Sony in PC Remote): its last picture, the pictures kept (how they leave the box), then its page
+    # the box's own record of coming back after a restart (boots, locks picked up): JSON, newest last
+    get "/recoveries.json", RecoveryController, :index
+    get "/cameras/stills/latest.png", StillCameraController, :latest
+    get "/cameras/stills/files", StillCameraController, :nights
+    get "/cameras/stills/files/:night", StillCameraController, :night
+    get "/cameras/stills/files/:night/:name", StillCameraController, :file
+    live "/cameras/stills", StillCameraLive, :index
     live "/cameras/observatory", WatchLive, :index
     live "/cameras/observatory/frames", FramesLive, :index
     live "/cameras/observatory/settings", CameraLive, :index
@@ -116,6 +127,7 @@ defmodule Controller.Router do
     live "/setup/:id", SetupLive, :show
     live "/sky/:id", SkyLive, :show
     live "/tonight/:id", SkyLive, :tonight
+    get "/docs/site", RedirectController, :moved, assigns: %{to: "/docs/location"}
     get "/docs/:slug", DocsController, :show
     # STOP from a page without a LiveView (a help page)
     post "/stop", StopController, :stop

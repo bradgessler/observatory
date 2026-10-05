@@ -49,9 +49,9 @@ making can't quietly send Go To the wrong way.
   Flip it if a star drifts out of the field faster with tracking on than
   off.
 - **Auto-track off**: a Go To no longer starts tracking when it lands.
-- **No site**, **Site override**: the sky and Go To assume 0°, 0° until
-  there is a [site](/docs/site); an override is a site typed in or taken from
-  a phone in place of the configured one.
+- **No location**, **Location override**: the sky and Go To assume 0°, 0°
+  until there is a [location](/docs/location); an override is one typed in
+  or taken from a phone in place of the configured one.
 - **Mount tilt**, **Polar axis … of true north**: how the mount stands, under
   *Mount As It Stands*, when that differs from the site latitude and true
   north.

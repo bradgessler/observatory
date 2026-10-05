@@ -4,7 +4,7 @@ defmodule Controller.Source do
 
   # module name → the page's name in the sidebar, where the two differ
   @names %{
-    "Lineup" => "Star Align",
+    "Lineup" => "Align by Stars",
     "AlignPhoto" => "Align by Photo",
     "Axes" => "Optical Axes",
     "Dpad" => "Plain Keypad",

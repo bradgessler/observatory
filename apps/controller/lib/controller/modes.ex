@@ -25,7 +25,8 @@ defmodule Controller.Modes do
       mount_tilt_mode(),
       mount_heading_mode(),
       lineup_mode(),
-      axis_scan_mode()
+      axis_scan_mode(),
+      lock_on_mode()
     ]
     |> Enum.reject(&is_nil/1)
   end
@@ -34,11 +35,29 @@ defmodule Controller.Modes do
   # A configured site replaced by hand or phone is an override.
   defp site_mode do
     cond do
-      not Pointing.site_set?() -> {"No site", "the sky and Go To assume 0°, 0°. Set it on Site"}
-      Application.get_env(:controller, :site) != nil and is_map(Settings.get("site")) -> {"Site override", "lat/lon set by hand or phone"}
+      not Pointing.site_set?() -> {"No location", "the sky and Go To assume 0°, 0°. Set it on Location"}
+      Application.get_env(:controller, :site) != nil and is_map(Settings.get("site")) -> {"Location override", "lat/lon set by hand or phone"}
       true -> nil
     end
   end
+
+  # Lock On drives both motors from the camera: say so everywhere, in its own words
+  defp lock_on_mode do
+    case Controller.LockOn.status() do
+      %{state: :off} -> nil
+      %{state: st, why: why} -> {"Lock On: #{lock_on_words(st)}", "#{why} · Controls › Lock On"}
+      _ -> nil
+    end
+  end
+
+  defp lock_on_words(:calibrating), do: "calibrating"
+  defp lock_on_words(:holding), do: "holding"
+  defp lock_on_words(:coasting), do: "target hidden"
+  defp lock_on_words(:lost), do: "target lost"
+  defp lock_on_words(:waiting), do: "waiting for pictures"
+  defp lock_on_words(:stepped_aside), do: "pad in use"
+  defp lock_on_words(:resuming), do: "picking up"
+  defp lock_on_words(other), do: to_string(other)
 
   # the optical axis scan drives the mount by itself for a few minutes: say so everywhere
   defp axis_scan_mode do

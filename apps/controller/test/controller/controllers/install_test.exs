@@ -17,7 +17,7 @@ defmodule Controller.InstallTest do
   end
 
   test "every page says how to install it and draws under the notch", %{conn: conn} do
-    html = conn |> get("/site") |> html_response(200)
+    html = conn |> get("/location") |> html_response(200)
     assert html =~ ~s(rel="manifest")
     assert html =~ ~s(rel="apple-touch-icon")
     assert get(build_conn(), "/images/apple-touch-icon.png").status == 200

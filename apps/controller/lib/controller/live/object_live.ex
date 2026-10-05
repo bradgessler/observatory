@@ -413,7 +413,7 @@ defmodule Controller.ObjectLive do
 
   # The back link names the page that opened this one, when it said so.
   defp back_to("tonight", id), do: {"Tonight", if(id, do: ~p"/tonight/#{id}", else: ~p"/tonight")}
-  defp back_to("start", id), do: {"Start", if(id, do: ~p"/start/#{id}", else: ~p"/start")}
+  defp back_to("start", id), do: {"Status", if(id, do: ~p"/alignment/#{id}", else: ~p"/alignment")}
   defp back_to(_, id), do: {"Sky Map", if(id, do: ~p"/sky/#{id}", else: ~p"/sky")}
 
   @impl true

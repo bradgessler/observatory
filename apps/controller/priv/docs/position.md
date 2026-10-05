@@ -13,4 +13,4 @@ plainest way to move an exact amount when debugging.
 
 * Degrees are the mount's own axis angles, not sky coordinates.
 * Home must have been set (**Set Home Here** on Setup, or the first step of
-  Star Align); that is also what arms the soft limits.
+  Align by Stars); that is also what arms the soft limits.

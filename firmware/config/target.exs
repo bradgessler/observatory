@@ -2,6 +2,10 @@ import Config
 
 config :logger, backends: [RingLogger]
 
+# Debug fills the ring in minutes on a night of held slews and hides the line
+# you went looking for; info keeps an hour of what happened.
+config :logger, level: :info
+
 # Bring up networking + ssh (nerves_pack) before the app so a broken driver
 # never locks us out of the box.
 config :shoehorn, init: [:nerves_runtime, :nerves_pack], handler: Firmware.AppRestarter

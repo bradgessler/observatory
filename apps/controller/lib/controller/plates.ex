@@ -117,7 +117,7 @@ defmodule Controller.Plates do
     case report do
       %{n: n, params: p, signs: sg} when n >= 1 ->
         {ra, dec} = Model.radec(p, sg, snap.axes.ra.degrees, snap.axes.dec.degrees, site.lat, Astro.lst_deg(now, site.lon))
-        %{ra_deg: ra, dec_deg: dec, radius_deg: if(n >= 2, do: 5.0, else: 10.0)}
+        %{ra_deg: ra, dec_deg: dec, radius_deg: hint_radius(n)}
 
       _ ->
         case Pointing.scope_radec(snap, Pointing.context(now, snap.id)) do
@@ -131,6 +131,15 @@ defmodule Controller.Plates do
     :exit, _ -> nil
   end
 
+  # How far to trust the fit so far. One plate fixes the offsets and leaves the
+  # axis at the pole: on a mount set down 27 degrees off, a 13 degree move put
+  # the next plate 6 degrees from the hint. Two plates can be met exactly by
+  # the wrong geometry (the Dec axis running the other way), and then the hint
+  # for the third is tens of degrees out. Three or more are a fit.
+  defp hint_radius(1), do: 15.0
+  defp hint_radius(2), do: 25.0
+  defp hint_radius(_), do: 5.0
+
   # -- the API --------------------------------------------------------------------------------
 
   @doc """
@@ -139,8 +148,10 @@ defmodule Controller.Plates do
   `:unsupported_image`, `:old_photo`, `:down`. Options: `max_age_s:`, and
   for the solver, `scale:` `{low_deg, high_deg}` across the image (a camera
   at the telescope sees a much smaller patch of sky than a phone at the
-  eyepiece), `min_stars:`, and `timeout:` in ms (a first, blind solve on a
-  Pi can take minutes).
+  eyepiece), `min_stars:`, `nsigma:` (how far above the noise a star must
+  stand: a camera's own JPEG wants about 10, or its grain is counted as
+  thousands of stars), and `timeout:` in ms (a first, blind solve on a Pi can
+  take minutes).
   """
   def add(mount_id, image, capture, opts \\ []) when is_binary(image), do: call({:add, mount_id, image, capture, opts}, 15_000)
 
@@ -302,6 +313,7 @@ defmodule Controller.Plates do
           min_stars: opts[:min_stars],
           timeout: opts[:timeout],
           downsample: opts[:downsample],
+          nsigma: opts[:nsigma],
           queued_at: now,
           started_ms: nil,
           attempts: 0,
@@ -450,7 +462,8 @@ defmodule Controller.Plates do
     opts =
       [hint: plate.hint, scale: plate[:scale] || scale(session), timeout: plate[:timeout] || state.solve_timeout, sky: %{at: plate.at, site: Pointing.site()}] ++
         if(plate[:min_stars], do: [min_stars: plate.min_stars], else: []) ++
-        if(plate[:downsample], do: [downsample: plate.downsample], else: [])
+        if(plate[:downsample], do: [downsample: plate.downsample], else: []) ++
+        if(plate[:nsigma], do: [nsigma: plate.nsigma], else: [])
 
     task =
       Task.Supervisor.async_nolink(@tasks, fn ->
@@ -547,12 +560,14 @@ defmodule Controller.Plates do
 
   defp usable?(p), do: p.state == :solved and not p.moving and is_map(p.solution)
 
-  defp refit(state, mount), do: %{state | reports: Map.put(state.reports, mount, fit(state.sessions[mount]))}
+  # from the fit so far: one descent instead of a search of the whole sky (`Model.fit/4`)
+  defp refit(state, mount), do: %{state | reports: Map.put(state.reports, mount, fit(state.sessions[mount], state.reports[mount]))}
 
   # a fit that fails is no fit, never a crashed queue
-  defp fit(nil), do: nil
+  defp fit(session, last \\ nil)
+  defp fit(nil, _last), do: nil
 
-  defp fit(session) do
+  defp fit(session, last) do
     samples =
       for p <- session.plates, usable?(p) do
         %{theta_ra: p.enc.ra_deg, theta_dec: p.enc.dec_deg, ra_deg: p.solution.ra_deg, dec_deg: p.solution.dec_deg, at: p.at}
@@ -561,7 +576,7 @@ defmodule Controller.Plates do
     if samples == [] do
       nil
     else
-      {:ok, r} = Polar.fit(samples, site: Pointing.site(), signs: Pointing.pointing())
+      {:ok, r} = Polar.fit(samples, site: Pointing.site(), signs: Pointing.pointing(), near: last && last[:params])
       r
     end
   rescue

@@ -1,9 +1,30 @@
-# Start: from the box to looking at things
+# Alignment status: from the box to looking at things
 
-Start (`/start`, first under Alignment in the sidebar, and on Home on a
-phone) is a flow with four steps. It shows the step you are on and moves on
-by itself as the telescope's state changes. Two phones see the same step
-because nothing here lives in a browser.
+**Status**, first under Alignment in the sidebar, says how well the
+telescope is aligned and walks the four steps to get there. It shows the
+step you are on and moves on by itself as the telescope's state changes.
+Two phones see the same step because nothing here lives in a browser.
+
+## How well it's aligned
+
+The same picture everywhere: in the sidebar under the telescope you're
+driving, beside each telescope in the switcher, and at the top of every
+Alignment page. A bullseye and a line of words:
+
+- **Not aligned**: no home, no points. Every ring is dark.
+- **Home set · no points**: Go To assumes the mount is perfectly polar
+  aligned. The centre dot shows.
+- **1 or 2 points · margin unknown**: they fit exactly, whatever they are, so
+  the rings are dashed. A third point measures the margin.
+- **±3′ · 4 points**: how closely the points agree, which is about how close
+  a Go To lands. The rings light from the outside in as the margin meets
+  each goal: the outer ring at 30′ (good enough to just look), the middle at
+  10′ (the Moon and planets), the centre at 2′ (deep sky).
+
+There are two ways to add points: **Align by Stars** (center a few stars in
+the eyepiece, one at a time) and **Align by Photo** (photos through the
+eyepiece, plate solved, which also says which bolt to turn for the polar
+axis). Both feed the same alignment.
 
 ## 1. Plug in
 
@@ -57,7 +78,7 @@ and which control law is in charge.
 
 - **Setup › How It's Steered**: law 1/2/3, the fitted axis error, the
   offsets in force, tracking's rates and error.
-- **Star Align › Stars So Far**: how far off each star is.
+- **Align by Stars › Stars So Far**: how far off each star is.
 - **Events**: every move, who asked for it, every star, every stop.
 
 The words used on every page are in [Words](/docs/glossary).

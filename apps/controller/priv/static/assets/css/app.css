@@ -113,8 +113,8 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .map .lines { stroke: #2a3550; stroke-width: .35; fill: none; }
 .night .map .lines { stroke: #3a0a0a; }
 .map .obj.faint circle { fill: #9aa3b8; }
-.map .obj.hidden circle, .map .obj.hidden rect { opacity: .18; }
-.map .obj.hidden text { opacity: .25; }
+.map .obj.hidden circle, .map .obj.hidden rect { opacity: var(--behind-trees); }
+.map .obj.hidden text { opacity: var(--behind-trees); }
 .map .treeline { fill: #000; opacity: .55; }
 .night .map .treeline { fill: #000; opacity: .7; }
 .map .treeline-edge { fill: none; stroke: #3a4a2a; stroke-width: .5; }
@@ -126,7 +126,7 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .target .k { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 12px; color: var(--dim); border: 1px solid var(--edge); flex: none; }
 .target .t { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .target .t strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.target .t span { font-size: 12px; color: var(--dim); }
+.target .t > span { font-size: 12px; color: var(--dim); }
 .target .when { font-size: 12px; color: var(--dim); white-space: nowrap; }
 .target .when.soon { color: var(--amber); }
 .target .when.rising { color: var(--on); }
@@ -141,7 +141,8 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 .map .obj.moon rect { fill: #f4f1e6; stroke: #f4f1e6; width: 5px; height: 5px; }
 .map .obj.planet text, .map .obj.moon text { fill: var(--text); font-size: 4px; }
 .night .map .obj.planet rect, .night .map .obj.moon rect { fill: #ff7a7a; stroke: #ff7a7a; }
-.photo { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; margin-top: 12px; }
+/* one column the width of the box, not of what's in it: a file field's own width is wider than a small phone */
+.photo { background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; }
 .photo form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .photo input[type=file] { flex: 1; min-width: 0; font-size: 13px; color: var(--dim); }
 .photo code { color: var(--accent); }
@@ -154,7 +155,7 @@ a.ghost { color: var(--dim); text-decoration: none; font-size: 15px; padding: 6p
 @media (min-width: 960px) {
   /* the sky page lets out to the panel's width; the map is as big as the window is tall (UI.split does the columns) */
   .sky { max-width: none; }
-  .sky .map-dome { width: min(100%, calc(100dvh - 300px)); align-self: center; }
+  .sky .map-dome { width: min(100%, calc(100dvh - 190px)); align-self: center; }
 }
 @media (min-width: 1800px) {
   html { font-size: 18px; }
@@ -1242,19 +1243,47 @@ body:has([data-phx-main]:not(.phx-connected)) .conn-lost { display: block; posit
 
 /* Tonight: one panel of rows, not a stack of cards, so a phone shows ten at a
    glance. Two lines a row (name over where and how), 52 px, the top five
-   numbered. */
-.targets { gap: 0; background: var(--panel); border-radius: 14px; overflow: hidden; }
+   numbered.
+   A row is a grid of four fixed tracks, the same in every row, so each column
+   lines up down the whole list whatever a row's words are: the number, the
+   name over its detail, how long it's up (its times in one right-hand column),
+   and how high, drawn, last, at the row's far edge. The detail runs on under
+   the "until" column, so that column only ever takes room from the name, and
+   nothing in a row can push the drawn angle sideways. */
+.targets { gap: 0; background: var(--panel); border-radius: 14px; overflow: hidden; --when-w: 120px; }
 .targets > li + li .target { box-shadow: inset 0 1px 0 var(--edge); }
-.targets .target { background: transparent; border: 0; border-radius: 0; padding: 8px 12px; min-height: 52px; gap: 12px; }
-.targets .target .k { width: 24px; height: 24px; border-radius: 7px; font-size: 11px; }
+.targets .target {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) var(--when-w) 40px;
+  grid-template-areas: "k name when glyph" "k detail detail glyph";
+  align-content: center; align-items: start; gap: 1px var(--s2);
+  background: transparent; border: 0; border-radius: 0; padding: 8px 12px; min-height: 52px;
+}
+/* the number and the angle sit by the name's line, however many lines the detail takes on a phone */
+.targets .target .k { grid-area: k; margin-top: var(--s1); width: 24px; height: 24px; border-radius: 7px; font-size: 11px; }
 .targets .target.top .k { font-size: 12px; }
+.targets .target .height { grid-area: glyph; }
+/* the name and the detail are the row's own cells (their wrapper is only a group) */
+.targets .target .t { display: contents; }
+.targets .target .t > strong { grid-area: name; align-self: baseline; min-width: 0; }
 .targets .target .t strong, .targets .target.top .t strong { font-size: 15px; }
 /* the detail wraps to a second line rather than cutting off beside the height gauge */
 .targets .target .t span { white-space: normal; }
+.targets .target .d { grid-area: detail; display: flex; flex-wrap: wrap; column-gap: var(--s2); min-width: 0; }
+.targets .target .d > span { min-width: 0; }
+/* what Go To and the hold will do: words at the end of the detail line, under the "until" they go
+   with; where the line is full they take the next one whole, still at its end */
+.targets .target .d > .reach-short { margin-left: auto; text-align: right; }
+/* how long it's up: on the name's line, in its own track; too long for it (a time with "UTC"), it wraps there */
+.targets .target .when { grid-area: when; align-self: baseline; text-align: right; white-space: normal; font-variant-numeric: tabular-nums; }
 /* not up yet: the same rows, quieter, under their own heading */
 .targets-head { margin: 12px 0 0; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
 .targets.later .target .t strong { color: var(--dim); font-weight: 500; }
-.targets .target .when { font-variant-numeric: tabular-nums; }
+/* a phone: the "until" a size down in a narrower track, so the name keeps its one line */
+@media (max-width: 539px) {
+  .targets { --when-w: 104px; }
+  .targets .target { column-gap: var(--s1); }
+  .targets .target .when { font-size: var(--fs-1); }
+}
 
 /* Installed on a home screen and turned sideways, the notch is on one side:
    keep everything clear of it. Top and bottom are each page's own padding. */
@@ -1318,7 +1347,7 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 /* the object page's "will I see it?" line */
 .lock-line { margin: 0 0 8px; font-size: 14px; }
 
-/* Tonight: how high each object is, drawn beside its name */
+/* Tonight: how high each object is, drawn: the last column of its row */
 .target .height { width: 40px; height: 40px; flex: none; }
 .height .height-arc { fill: none; stroke: var(--key-edge); stroke-width: 1.5; }
 .height .height-trees { fill: var(--dim); fill-opacity: .28; stroke: none; }
@@ -1337,9 +1366,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .stall-line, .move-line { margin: 0 0 8px; font-size: 14px; }
 .move-line { color: var(--amber); }
 
-/* Tonight: when it's up over what Go To and the hold will do */
-.when-col { display: grid; justify-items: end; text-align: right; flex: none; }
-.reach-short { font-size: 12px; white-space: nowrap; }
+/* Tonight: what Go To and the hold will do, a few words with a mark, in the tone that says the same */
+.reach-short { font-size: var(--fs-2); }
 
 /* home: a mount on the cable that doesn't answer, said once, calmly */
 .home-quiet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 16px; }
@@ -1370,7 +1398,10 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .focus-legend .ov-speck line { stroke: var(--dim); stroke-width: 1.5; }
 .focus-legend .ov-star { fill: none; stroke: var(--on); stroke-width: 2; }
 /* one pulse per picture: a new element each time, so the animation plays again */
-.focus-pulse { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--on); box-shadow: 0 0 0 2px rgba(0, 0, 0, .6); }
+/* the frame line under the picture: a dot that pulses with each new frame, and what the frame is */
+.focus-frame { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s2); margin: 0 0 var(--s1); font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; }
+.focus-frame > span:nth-child(2) { color: var(--text); font-weight: 600; }
+.focus-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--on); }
 @media (prefers-reduced-motion: no-preference) {
   .focus-pulse { animation: focus-pulse 900ms ease-out 1 both; }
   @keyframes focus-pulse { 0% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(1); opacity: .45; } }
@@ -1557,7 +1588,9 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
    the title block (the section or parent page small above, the page's name
    below, left-aligned so it never shifts with what's beside it), then the
    page's keys, STOP last. A fixed height, stuck to the top while the page
-   scrolls, so STOP is always in reach. */
+   scrolls, so STOP is always in reach. Everything in it takes its width from
+   it; should something not, it is cut at the screen's edge (overflow-x: clip)
+   rather than widening the page, which on a phone zooms the whole page out. */
 .page { --page-x: var(--s3); }
 @media (min-width: 960px) { .page { --page-x: var(--s4); } }
 .page:has(> .page-header) { padding-top: 0; }
@@ -1568,6 +1601,7 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
   grid-template-rows: 16px 26px; align-items: center; column-gap: 12px;
   margin: 0 calc(-1 * var(--page-x)) var(--s1); padding: max(10px, env(safe-area-inset-top, 0px)) var(--page-x) 10px;
   background: var(--bg); border-bottom: 1px solid var(--key-edge);
+  overflow-x: clip;
 }
 .page-header > .tb-lead { grid-area: lead; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--key); box-shadow: var(--bevel); color: var(--text); text-decoration: none; }
 .page-header > .tb-lead .icon { width: 20px; height: 20px; }
@@ -1586,26 +1620,36 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 }
 .page.nested > .page-header { display: none; }
 
+/* a section's status (UI.status/1): beside the title on a wide screen, its own row under it on a phone.
+   It fills its area and takes its width from it, never from what's in it: a status sized to its
+   contents is as wide as its longest line, and on a phone the page went with it. So no justify-self
+   here, and what's inside wraps or ends in an ellipsis (design_test.exs holds this). */
+.page-header > .tb-status { grid-area: status; min-width: 0; display: flex; align-items: center; gap: var(--s2); }
+.page-header > .tb-status > * { min-width: 0; }
+.page-header:has(> .tb-status) { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "lead over status keys" "lead title status keys"; }
+.page-header:has(> .tb-status):not(:has(> .tb-lead)) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "over status keys" "title status keys"; }
+.page-header:has(> .tb-status) > .tb-status { margin-left: var(--s3); }
+@media (min-width: 1100px) {
+  .page-header:has(> .tb-status):has(> .tb-home) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "over status keys" "title status keys"; }
+}
+@media (max-width: 959px) {
+  .page-header:has(> .tb-status) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys" "status status status"; grid-template-rows: 16px 22px auto; }
+  .page-header:has(> .tb-status):not(:has(> .tb-lead)) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys" "status status"; }
+  .page-header:has(> .tb-status) > .tb-status { margin: var(--s1) 0 0; }
+}
+
 /* ---- the Sky pages: the toolbar, then when and where, the same on the Sky Map and Tonight ---- */
 .sky { --page-x: 16px; }
 @media (min-width: 960px) { .sky { --page-x: var(--s4); padding-left: var(--s4); padding-right: var(--s4); } }
 .sky:has(> .page-header) { padding-top: 0; }
-.when-where { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "time keys" "site site"; align-items: center; gap: var(--s1) var(--s2); }
-.when-where .ww-time { grid-area: time; display: grid; gap: 2px; min-width: 0; }
-.when-where .ww-time strong { font-size: var(--fs-4); font-weight: 650; font-variant-numeric: tabular-nums; }
-.when-where .ww-time span { font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; }
-.when-where .ww-keys { grid-area: keys; display: flex; gap: var(--s1); }
-.when-where .ww-keys .btn { min-height: 44px; padding: 0 14px; white-space: nowrap; }
-.when-where .ww-site { grid-area: site; display: flex; align-items: baseline; justify-content: space-between; gap: var(--s1); min-height: 44px; padding: 0 var(--s2); border-radius: var(--r); background: var(--panel); color: var(--text); text-decoration: none; }
-.when-where .ww-site strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; align-self: center; }
-.when-where .ww-site span { font-size: var(--fs-1); color: var(--dim); align-self: center; }
-.when-where .ww-site.tone-caution strong, .when-where .ww-site.tone-caution span { color: var(--amber); }
-@media (min-width: 960px) {
-  .when-where { grid-template-columns: minmax(0, 1fr) auto minmax(220px, auto); grid-template-areas: "time keys site"; }
-}
-
 /* the chart picker under the sky, and the line saying what this chart is */
-.sky-views { margin-top: var(--s1); }
+/* the chart picker floats over the chart's top corner: the sky keeps the room */
+.chart-wrap { position: relative; min-width: 0; width: 100%; display: flex; justify-content: center; }
+.chart-wrap > .map { flex: 0 1 auto; }
+.chart-wrap > .sky-views { position: absolute; top: var(--s1); right: var(--s1); margin: 0; width: auto; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: var(--r); }
+.chart-wrap > .sky-views .seg-opt { padding: 0 var(--s2); }
+/* a step of the time answers at once: the sky dims until the new one arrives */
+.sky.phx-click-loading .chart-wrap .map, .sky.phx-click-loading .targets, .sky.phx-click-loading .visibility { opacity: .45; transition: opacity .12s; }
 .sky-view-words { margin: 0; text-align: center; }
 
 /* ---- the sky chart (Components.SkyChart): one look for every projection ---- */
@@ -1663,7 +1707,7 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .visibility .vis-grid { stroke: var(--key-edge); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
 .visibility .vis-axis { stroke: var(--dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .visibility .vis-clear { fill: none; stroke: var(--text); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-.visibility .vis-behind { fill: none; stroke: var(--dim); stroke-width: 1.2; opacity: .45; vector-effect: non-scaling-stroke; }
+.visibility .vis-behind { fill: none; stroke: var(--dim); stroke-width: 1.2; opacity: var(--behind-trees); vector-effect: non-scaling-stroke; }
 .visibility .vis-now { stroke: var(--on); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .vis-y, .vis-x, .vis-peak { position: absolute; font-size: var(--fs-1); line-height: 16px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
 .vis-y { right: 100%; padding-right: 6px; transform: translateY(-50%); }
@@ -1725,7 +1769,7 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .pick-wide { display: none !important; }
 @media (min-width: 960px) {
   .pick-narrow { display: none !important; }
-  .pick-wide { display: flex !important; }
+  .pick-wide { display: grid !important; }
 }
 /* the picked object, in the side column */
 .pick-panel { display: grid; gap: var(--s2); padding: var(--s2) var(--s3) var(--s3); background: var(--panel); border-radius: var(--r-lg); }
@@ -1738,10 +1782,12 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .pick-panel .row > * { min-height: 44px; display: grid; place-items: center; text-decoration: none; }
 /* the row shown beside the list: lit, with a bar at its edge so it doesn't rest on tone alone */
 .targets .target.picked { background: var(--lit); box-shadow: none; border-radius: var(--r); }
-/* its number key fills in, and a chevron points at the panel it opened */
+/* its number key fills in, and a chevron points at the panel it opened: in the row's right gutter,
+   which every row on a wide screen keeps, so picking a row never moves its columns */
 .targets .target.picked .k { background: var(--on); color: var(--bg); }
-.pick-arrow { display: none; flex: none; width: 16px; color: var(--on); font-size: var(--fs-4); line-height: 1; text-align: right; }
-.targets .target.picked .pick-arrow { display: block; }
+.targets button.target { position: relative; padding-right: var(--s4); }
+.pick-arrow { display: none; position: absolute; top: 0; bottom: 0; right: 0; width: var(--s4); place-items: center; color: var(--on); font-size: var(--fs-4); line-height: 1; }
+.targets .target.picked .pick-arrow { display: grid; }
 @media (hover: hover) { .targets button.target:not(.picked):hover { background: var(--panel2); } }
 /* an object's page: its card, facts and keys first on a phone; on a wide screen its night
    (the path across the sky, the altitude curve) takes the room and the keys sit beside */
@@ -1749,3 +1795,175 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .object-split .actions { margin-top: 0; }
 @media (max-width: 959px) { .object-split .split-side { order: -1; } }
 @media (min-width: 960px) { .object:has(.object-split) { max-width: 1440px; } }
+/* the phone-location key and, where it can't work, the line that says why */
+.phone-location { display: grid; gap: var(--s1); }
+.phone-location .hint { margin: 0; }
+/* a primary key that can't be used here looks like any unusable key, not like the one to press */
+.btn-primary:disabled, button.btn-primary:disabled { background: var(--panel2); color: var(--dim); }
+
+/* ---- the Sky's status (SkyStatus.bar): the time, how dark it is then, where ----
+   One line where its 850 px fit. Where they don't, a part goes to the next line whole:
+   the bar is never wider than the toolbar, and it never scrolls sideways. */
+.tb-status > .sky-status { flex: 1 1 auto; }
+.sky-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); min-width: 0; }
+.ss-time { display: flex; align-items: center; gap: 6px; flex: none; }
+.ss-step { min-height: 44px; min-width: 52px; padding: 0 10px; font-size: var(--fs-2); white-space: nowrap; }
+.ss-clock { display: grid; min-width: 104px; text-align: center; line-height: 1.2; }
+.ss-clock strong { font-size: var(--fs-3); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ss-clock .ss-shift { color: var(--on); font-size: var(--fs-2); }
+.ss-clock > span { font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ss-sun { display: flex; align-items: center; gap: var(--s1); flex: none; }
+.ss-sun svg { display: block; flex: none; overflow: visible; }
+.ss-words { display: grid; line-height: 1.25; }
+.ss-words strong { font-size: var(--fs-2); font-weight: 650; white-space: nowrap; }
+.ss-words span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ss-dark .ss-words strong { color: var(--on); }
+/* the solar graph: the Sun's height noon to noon, drawn in line on the toolbar's own ground. No box
+   and no slab: the horizon is the line across; the Sun's path is bright while it is up, over the
+   daylight it brings, and dim while it is down; a faint step under the horizon at each end of the
+   night is twilight, and the gap between the two is the dark; the dot is the time shown. Every tone
+   is a token (shades of the ink, as on the altitude plot), so night mode draws it in red and
+   nothing here glows */
+.sg-day { fill: color-mix(in srgb, var(--text) 12%, transparent); }
+.sg-twilight { fill: color-mix(in srgb, var(--text) 8%, transparent); shape-rendering: crispEdges; }
+.sg-horizon { stroke: var(--dim); stroke-width: 1; shape-rendering: crispEdges; }
+.sg-curve { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sg-curve.sg-up { stroke: var(--text); }
+.sg-curve.sg-down { stroke: var(--dim); }
+.sg-halo { fill: var(--bg); }
+.sg-sun { fill: var(--bg); stroke: var(--text); stroke-width: 1.5; }
+.ss-day .sg-sun { fill: var(--amber); stroke: var(--amber); }
+.ss-dark .sg-sun { fill: var(--on); stroke: var(--on); }
+.ss-place { display: grid; flex: none; min-height: 44px; align-content: center; padding: 0 var(--s2); border-radius: var(--r); background: var(--panel); color: var(--text); text-decoration: none; line-height: 1.25; }
+.ss-place strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ss-place span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; }
+.ss-place.tone-caution strong, .ss-place.tone-caution span { color: var(--amber); }
+.ss-now:disabled { visibility: visible; }
+@media (min-width: 960px) {
+  .page-header:has(> .tb-status) { grid-template-rows: minmax(16px, auto) minmax(26px, auto); }
+}
+/* its one line sits beside the title only where the title, the keys and the sidebar leave it room
+   (1500 px); narrower, it takes its own row under the title, as every status does on a phone */
+@media (min-width: 960px) and (max-width: 1499px) {
+  .page-header:has(> .tb-status > .sky-status) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys" "status status status"; grid-template-rows: 16px 26px auto; }
+  .page-header:has(> .tb-status > .sky-status) > .tb-status { margin: var(--s1) 0 0; }
+}
+@media (min-width: 1100px) and (max-width: 1499px) {
+  .page-header:has(> .tb-status > .sky-status):has(> .tb-home) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys" "status status"; }
+}
+/* a tablet, a phone: two lines that hold still. The time on the first; how dark it is at the start
+   of the second and the place at its end, so neither moves when the other's words change length */
+@media (max-width: 959px) {
+  .sky-status { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "time time" "sun place"; }
+  .ss-time { grid-area: time; justify-self: start; min-width: 0; max-width: 100%; }
+  .ss-sun { grid-area: sun; }
+  .ss-place { grid-area: place; justify-self: end; min-width: 0; max-width: 100%; }
+  .ss-place strong, .ss-place span { overflow: hidden; text-overflow: ellipsis; }
+}
+/* a phone: the stepper spans the bar, a key at each end and the clock between. The solar graph makes
+   way (its words say the same, and the page under the bar draws it), so the bar stays two lines */
+@media (max-width: 539px) {
+  .sky-status { column-gap: var(--s1); }
+  .ss-time { justify-self: stretch; }
+  .ss-clock { flex: 1 1 auto; }
+  .ss-clock > span { white-space: normal; }
+  .ss-sun svg { display: none; }
+  .ss-place { padding: 0 var(--s1); }
+}
+/* the narrowest phones: the keys at 44 px leave the date its one line, and the place a size down
+   keeps its last letter beside the longest words ("Astronomical twilight at 05:42") */
+@media (max-width: 389px) {
+  .ss-time { gap: 4px; }
+  .ss-step { min-width: 44px; padding: 0 var(--s1); }
+  .ss-place strong { font-size: var(--fs-1); }
+}
+
+/* ---- the tree line on Location: a slider per direction beside the dome it shades ---- */
+.tree-edit { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: var(--s3); align-items: center; }
+.tree-dome { display: block; width: 100%; height: auto; }
+.tree-sliders { display: grid; }
+.tree-sliders label { display: grid; grid-template-columns: 32px minmax(0, 1fr) 44px; align-items: center; gap: var(--s1); min-height: 44px; }
+.tree-dir { font-size: var(--fs-1); font-weight: 600; letter-spacing: .04em; color: var(--dim); }
+.tree-sliders input[type="range"] { width: 100%; height: 44px; margin: 0; accent-color: var(--on); background: transparent; border: 0; box-shadow: none; padding: 0; }
+.tree-sliders output { font-size: var(--fs-2); font-variant-numeric: tabular-nums; text-align: right; }
+.sky-reach { margin: 0; }
+@media (max-width: 599px) {
+  .tree-edit { grid-template-columns: 1fr; }
+  .tree-dome { width: min(100%, 260px); justify-self: center; }
+}
+
+/* ---- the sky's ground follows the Sun: daylight is plainly daylight, twilight deepens to dark ---- */
+.map.sky-day { --sky1: #2b5487; --sky2: #3f6ea6; }
+.map.sky-civil { --sky1: #1d3354; --sky2: #2a4a75; }
+.map.sky-nautical { --sky1: #121d36; --sky2: #182a4c; }
+.map.sky-astronomical { --sky1: #0c1428; --sky2: #0b1222; }
+.night .map.sky-day { --sky1: #2a0000; --sky2: #380000; }
+.night .map.sky-civil { --sky1: #1c0000; --sky2: #260000; }
+.night .map.sky-nautical, .night .map.sky-astronomical { --sky1: #120000; --sky2: #0c0000; }
+/* the Sun outshines everything: in daylight the stars all but vanish, in twilight the faint ones go first */
+.map.sky-day .obj.star circle:not(.hit), .map.sky-day .stars-faint { opacity: .14; }
+.map.sky-civil .stars-faint, .map.sky-civil .obj.star.faint circle:not(.hit) { opacity: .3; }
+.map.sky-day .lines { opacity: .3; }
+.map .sun-glow { fill: #ffd27a; opacity: .22; }
+.map .sun-disk { fill: #ffd27a; }
+.map .sun text { font-size: 4.4px; fill: #ffd27a; font-weight: 650; }
+.map-mount .sun text, .map-horizon .sun text { font-size: 6px; }
+.night .map .sun-glow, .night .map .sun-disk { fill: #ff7a7a; }
+.night .map .sun text { fill: #ff7a7a; }
+/* the faint stars, as dots in one path (SkyChart.sky) */
+.map .stars-faint { fill: none; stroke: #9aa3b8; stroke-width: 1.05; stroke-linecap: round; }
+.night .map .stars-faint { stroke: #a83a3a; }
+:root.light .map .stars-faint { stroke: #4b5563; }
+.map .stars-faint.hidden { opacity: var(--behind-trees); }
+
+/* ---- the Sky Map: the chart the whole width; a pick floats over its right side on a wide screen ---- */
+.sky-stage { position: relative; display: grid; gap: var(--s2); }
+@media (min-width: 960px) {
+  .sky-stage > .pick-panel { position: absolute; top: calc(var(--s1) + 56px); right: var(--s1); width: min(380px, 40%); max-height: calc(100% - 72px); overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, .5); }
+  .sky-stage > .pick-panel.pick-left { right: auto; left: var(--s1); top: var(--s1); }
+}
+
+/* ---- behind your trees: one calm look on every sky (the tree line is an approximation, so never loud) ---- */
+:root { --behind-trees: .3; --near-trees: .65; }
+.height.near { opacity: var(--near-trees); }
+.height.near .height-line { stroke-dasharray: 3 2; }
+.height.behind { opacity: var(--behind-trees); }
+.map .path.behind, .np-key .path.behind { opacity: var(--behind-trees); }
+.map .hour.behind { opacity: var(--behind-trees); }
+.np-hour.behind { opacity: var(--behind-trees); }
+
+/* ---- alignment (AlignmentStatus): a bullseye whose rings light as the margin meets each goal ---- */
+.al-glyph { flex: none; display: block; }
+.al-glyph .al-ring { fill: none; stroke: var(--key-edge); stroke-width: 1.6; }
+.al-glyph .al-ring.lit { stroke: var(--on); }
+.al-glyph .al-core.lit { fill: color-mix(in srgb, var(--on) 30%, transparent); }
+.al-glyph .al-dot { fill: var(--text); }
+/* one or two points: they fit exactly, so the rings are dashed: no margin yet */
+.al-points .al-ring { stroke: var(--dim); stroke-dasharray: 2 2.2; }
+/* aligned but too loose for any goal: the outer ring in amber */
+.al-aligned:not(:has(.lit)) .al-ring:first-child { stroke: var(--amber); }
+.al-chip { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 var(--s1); padding: 4px var(--s2); border-radius: var(--r); color: var(--text); text-decoration: none; }
+@media (hover: hover) { .al-chip:hover { background: var(--panel2); } }
+.al-chip-text { display: grid; min-width: 0; line-height: 1.25; }
+.al-chip-text strong { font-size: var(--fs-1); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); }
+.al-chip-text span { font-size: var(--fs-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-bar { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.al-bar-text { display: grid; min-width: 0; line-height: 1.25; }
+.al-bar-text strong { font-size: var(--fs-3); font-weight: 650; white-space: nowrap; }
+.al-bar-text span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switcher-al { margin-left: auto; }
+
+/* ---- the Controls status (ControlsStatusLive): what the mount is doing, and where it points ---- */
+.ctl-status { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.ctl-motion { display: inline-flex; align-items: center; gap: var(--s1); flex: none; min-height: 32px; padding: 0 var(--s2); border-radius: 999px; background: var(--panel); }
+.ctl-motion strong { font-size: var(--fs-2); font-weight: 650; white-space: nowrap; }
+.ctl-lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
+.ctl-slewing .ctl-lamp { background: var(--amber); }
+.ctl-slewing strong { color: var(--amber); }
+.ctl-tracking .ctl-lamp { background: var(--on); }
+.ctl-down .ctl-lamp { background: var(--warn); }
+.ctl-where { display: grid; min-width: 0; line-height: 1.25; }
+.ctl-where strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctl-where span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: no-preference) { .ctl-slewing .ctl-lamp { animation: ctl-pulse 1s ease-in-out infinite; } }
+@keyframes ctl-pulse { 50% { opacity: .35; } }

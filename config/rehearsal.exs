@@ -11,7 +11,7 @@ config :controller, Controller.Endpoint,
 
 config :mount, mounts: [[id: "sim-eq", transport: {Mount.Transport.Sim, []}]], simulate_when_empty: false
 config :input, discover: false
-config :libcluster, topologies: []
+config :libcluster, topologies: :none
 config :controller, settings_path: "/private/tmp/claude-501/-Users-bradgessler-Projects-bradgessler-telescope/5882340a-5739-4a9c-8f7f-f174bd582638/scratchpad/rehearsal/settings.json"
 config :watch, dir: "/private/tmp/claude-501/-Users-bradgessler-Projects-bradgessler-telescope/5882340a-5739-4a9c-8f7f-f174bd582638/scratchpad/rehearsal/frames"
 config :video, dir: "/private/tmp/claude-501/-Users-bradgessler-Projects-bradgessler-telescope/5882340a-5739-4a9c-8f7f-f174bd582638/scratchpad/rehearsal/video"

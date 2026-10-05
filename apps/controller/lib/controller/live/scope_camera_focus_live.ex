@@ -88,23 +88,30 @@ defmodule Controller.ScopeCameraFocusLive do
 
   defp latest(cam), do: List.first(cam[:frames] || [])
 
-  # each new picture once: its detail, steadied over the last three (a blip isn't a change)
+  # each new picture once: its detail, steadied over the last three (a blip isn't a change).
+  # A change of exposure or gain starts the readings over: more gain is more noise, which
+  # reads as more detail, and that must never pass for focus (it did, on 2026-10-02).
   defp sample(socket, %{seq: seq, ok: true} = r) do
+    cfg = {r[:exposure_ms], r[:gain], r[:stack]}
+
     case socket.assigns.samples do
       [%{seq: ^seq} | _] ->
         socket
 
+      [%{cfg: last} | _] when last != cfg ->
+        socket |> assign(samples: []) |> sample(r)
+
       samples ->
         if smeared?(socket.assigns.moved_at, r) do
           # light gathered while the telescope moved: kept as a gap, not judged
-          assign(socket, samples: Enum.take([%{seq: seq, at: r.at, moving: true} | samples], @keep))
+          assign(socket, samples: Enum.take([%{seq: seq, at: r.at, moving: true, cfg: cfg} | samples], @keep))
         else
           still = Enum.reject(samples, & &1[:moving])
           steady = steady_hfr(r, still)
           # far from focus the stars' size moves (their discs shrink); near it, the detail does
           raw = (r[:detail] || 0.0) + if(steady, do: 2 / steady, else: 0.0)
           recent = [raw | still |> Enum.take(2) |> Enum.map(& &1.raw)] |> Enum.sort()
-          s = %{seq: seq, at: r.at, raw: raw, raw_hfr: hfr(r), detail: Enum.at(recent, div(length(recent), 2)), hfr: steady}
+          s = %{seq: seq, at: r.at, raw: raw, raw_hfr: hfr(r), detail: Enum.at(recent, div(length(recent), 2)), hfr: steady, cfg: cfg}
           assign(socket, samples: Enum.take([s | samples], @keep))
         end
     end
@@ -202,6 +209,10 @@ defmodule Controller.ScopeCameraFocusLive do
 
   defp fmt(h), do: :erlang.float_to_binary(h * 1.0, decimals: 1)
 
+  defp stars_found(%{stars: 1}), do: "1 star"
+  defp stars_found(%{stars: n}) when is_integer(n) and n > 0, do: "#{n} stars"
+  defp stars_found(_), do: "no stars"
+
   @doc false
   # How long after a step a picture shows it: the light of a whole picture
   # taken after the step (exposure x frames averaged), plus measuring it,
@@ -265,9 +276,16 @@ defmodule Controller.ScopeCameraFocusLive do
               <g :for={m <- @marks.rejected} class="ov-speck"><line x1={m.x - 5} y1={m.y - 5} x2={m.x + 5} y2={m.y + 5} /><line x1={m.x - 5} y1={m.y + 5} x2={m.x + 5} y2={m.y - 5} /></g>
               <circle :for={m <- @marks.stars} cx={m.x} cy={m.y} r="12" class="ov-star" />
             </svg>
-            <%!-- a new element each picture, so its one pulse plays again: the rhythm to step to --%>
-            <span :if={@latest} id={"pulse-#{@latest.seq}"} class="focus-pulse" aria-hidden="true"></span>
           </section>
+          <%!-- under the picture, never on it (a dot on the sky reads as a star): which frame this
+                is and how it was taken; the dot is new each frame, so its pulse plays again --%>
+          <p :if={@latest} class="focus-frame">
+            <span id={"pulse-#{@latest.seq}"} class="focus-pulse" aria-hidden="true"></span>
+            <span>Frame {@latest.seq}</span>
+            <span :if={@latest[:exposure_ms]}>{@latest.exposure_ms} ms</span>
+            <span :if={@latest[:gain]}>gain {@latest.gain}</span>
+            <span>{stars_found(@latest)}</span>
+          </p>
 
           <ul class="focus-legend" aria-label="What the marks mean">
             <li><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" class="ov-star" /></svg>Star, measured</li>

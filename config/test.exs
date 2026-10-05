@@ -10,7 +10,7 @@ config :controller, Controller.Endpoint,
 config :mount, mounts: []
 # don't fight the dev server for the real game controller during tests
 config :input, discover: false
-config :libcluster, topologies: []
+config :libcluster, topologies: :none
 config :logger, level: :warning
 
 # frame history goes to a scratch dir, never the user's ~/.observatory
@@ -29,3 +29,12 @@ config :controller, :frames,
 
 config :controller, plates_dir: Path.join(System.tmp_dir!(), "observatory-test-plates-#{System.os_time(:millisecond)}")
 config :video, dir: Path.join(System.tmp_dir!(), "observatory-test-video-#{System.os_time(:millisecond)}")
+
+# Lock On reads only what a test feeds it, not the simulated camera
+config :controller, :lock_on, follow_camera: false
+
+# the stills camera: tests start their own simulated cameras, and keep pictures in a temp folder
+config :camera, simulate: false
+# the box's record of its own recoveries: a scratch file, never the real one
+config :controller, recovery_log: Path.join(System.tmp_dir!(), "observatory-test-recoveries-#{System.os_time(:millisecond)}.jsonl")
+config :controller, still_camera_dir: Path.join(System.tmp_dir!(), "observatory-test-stills-#{System.os_time(:millisecond)}")

@@ -73,6 +73,18 @@ defmodule Controller.StillCamera.OpticsTest do
     assert Optics.focal_length() == %{mm: mm, from: "solve"}
   end
 
+  test "a solve far from the label is not believed, and the label stays" do
+    Settings.put("focal_length_mm", 714)
+    # the 8SE's scale with a refractor's label in the setting: a wrong label or a wrong solve
+    assert {:error, {:far_from_label, mm, 714}} = Optics.learn(0.388, @pixel_um, plate: "DSC00001")
+    assert_in_delta mm, 2084, 5
+    assert Optics.focal_length() == %{mm: 714, from: "label"}
+
+    # asked for by name, it is taken
+    assert {:ok, _} = Optics.learn(0.388, @pixel_um, again: true)
+    assert %{from: "solve", label_mm: 714} = Optics.focal_length()
+  end
+
   test "a scale that is no scale teaches nothing" do
     assert Optics.learn(0, @pixel_um) == {:error, :no_scale}
     assert Optics.learn(0.388, nil) == {:error, :no_scale}

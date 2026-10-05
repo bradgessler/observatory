@@ -29,7 +29,16 @@ defmodule Controller.StillCamera.Optics do
 
   The first solve is the one that is kept (`learn/3`); `again: true` takes a
   later one instead.
+
+  A solve far from the label is not believed. A Schmidt-Cassegrain's focal
+  length moves by a few percent; a solve that says the telescope is a
+  quarter longer or shorter than its label is a wrong label or a wrong
+  solve, and this cannot tell which. It leaves the setting alone and says
+  so in Events, rather than change a setting on the strength of one picture.
   """
+
+  # how far from the label a solved focal length may be and still take its place
+  @believable 0.25
 
   alias Controller.Settings
 
@@ -72,6 +81,9 @@ defmodule Controller.StillCamera.Optics do
   in force; `:kept` when one from a solve already is (the first solve is the
   one kept); `{:error, :no_scale}` when the numbers give none.
 
+  `{:error, {:far_from_label, mm, label_mm}}` when the solve is more than a
+  quarter away from the label in force, which is then left as it is.
+
   Options: `again: true` to take this solve whatever is there, and `plate:`
   (anything that says which solve it was), kept in the record.
   """
@@ -85,6 +97,11 @@ defmodule Controller.StillCamera.Optics do
 
       _ when is_map(now) and now.from == "solve" and not again? ->
         :kept
+
+      mm when is_map(now) and now.from == "label" and not again? and abs(mm / now.mm - 1) > @believable ->
+        mm = Float.round(mm, 1)
+        Telescope.Events.emit(:optics, :focal_length_not_believed, %{solved_mm: mm, label_mm: now.mm, plate: opts[:plate]})
+        {:error, {:far_from_label, mm, now.mm}}
 
       mm ->
         mm = Float.round(mm, 1)

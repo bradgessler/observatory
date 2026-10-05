@@ -178,6 +178,152 @@ defmodule Controller.StillCameraTest do
     assert a.sidecar != b.sidecar
   end
 
+  describe "the first picture after a slew" do
+    test "a shutter that opened within the settle time of the mount's last slew is settling: one second after is, three seconds after is not" do
+      # as the BEAM gives it, which is negative: nothing here may compare a time against 0
+      t = System.monotonic_time(:millisecond)
+      assert StillCamera.settling?(t, t + 1_000)
+      refute StillCamera.settling?(t, t + 3_000)
+      assert StillCamera.settling?(-9_000, -8_000) and not StillCamera.settling?(-9_000, -6_000)
+      # still slewing when the shutter opened
+      assert StillCamera.settling?(t, t)
+      # the settle time is a parameter
+      refute StillCamera.settling?(t, t + 1_000, 500)
+      assert StillCamera.settling?(t, t + 3_000, 5_000)
+      # a mount never seen slewing has nothing to settle from
+      refute StillCamera.settling?(nil, t)
+    end
+
+    test "a slew is a Go To in flight or an axis faster than a tracker drives it; tracking is not" do
+      axis = fn rate, goto -> %{degrees: 10.0, deg_per_s: rate, running: rate != 0.0, goto_pending: goto} end
+      still = %{id: "m", axes: %{ra: axis.(0.0, false), dec: axis.(0.0, false)}}
+      refute StillCamera.slewing?(still)
+      assert StillCamera.slewing?(put_in(still.axes.ra, axis.(3.3, true)))
+      assert StillCamera.slewing?(put_in(still.axes.dec, axis.(-0.2, false)))
+      # a Go To that has been asked for and not yet got going
+      assert StillCamera.slewing?(put_in(still.axes.ra, axis.(0.0, true)))
+      # sidereal tracking, and Lock On steering both motors at about that
+      refute StillCamera.slewing?(put_in(still.axes.ra, axis.(0.0042, false)))
+      refute StillCamera.slewing?(%{still | axes: %{ra: axis.(0.0041, false), dec: axis.(-0.0016, false)}})
+      # the speed that counts as a slew is a parameter
+      assert StillCamera.slewing?(put_in(still.axes.ra, axis.(0.0042, false)), 0.001)
+      # no mount, or one that isn't answering, isn't slewing
+      refute StillCamera.slewing?(nil)
+      refute StillCamera.slewing?(%{id: "m", connected: false})
+    end
+
+    # when a slew just asked for has ended, by this VM's clock (which is what the still camera stamps with)
+    defp slew_ended(mount, seen \\ false, tries \\ 600) do
+      slewing = StillCamera.slewing?(Mount.snapshot(mount))
+
+      cond do
+        seen and not slewing -> System.monotonic_time(:millisecond)
+        tries == 0 -> flunk("the slew never ended")
+        true -> Process.sleep(20) && slew_ended(mount, seen or slewing, tries - 1)
+      end
+    end
+
+    defp sleep_until(mono), do: Process.sleep(max(mono - System.monotonic_time(:millisecond), 0))
+
+    @tag timeout: 60_000
+    test "a picture one second after a simulated slew ends is marked settling in its sidecar and not counted; one three seconds after is neither" do
+      mount = "sim-still-settle-#{System.unique_integer([:positive])}"
+      start_supervised!({Mount.Server, id: mount, transport: {Mount.Transport.Sim, []}})
+      Mount.subscribe(mount)
+      assert_receive {:mount, %{connected: true}}, 2_000
+
+      # a picture through this mount, which stands still: the still camera follows the mount from here on
+      first = picture()
+      assert first.mount == mount and first.settling == false
+      assert (first.sidecar |> File.read!() |> Jason.decode!())["settling"] == false
+      good = StillCamera.status().good
+
+      :ok = Mount.goto_relative(mount, :ra, 2.0)
+      t = slew_ended(mount)
+
+      sleep_until(t + 1_000)
+      soon = picture()
+      assert soon.settling == true
+      side = soon.sidecar |> File.read!() |> Jason.decode!()
+      assert side["settling"] == true
+      assert %{"since_slew_s" => since, "settle_s" => 2.0} = side["settle"]
+      # (a tenth of slack: the still camera stamps the mount's last moving report as it reads it)
+      assert since >= 0.9 and since < 2.0
+      # marked, never deleted, and not counted as a good picture
+      assert Enum.all?(soon.files, &File.exists?/1)
+      assert StillCamera.status().good == good
+
+      sleep_until(t + 3_000)
+      later = picture()
+      assert later.settling == false
+      assert %{"settling" => false, "settle" => %{"since_slew_s" => since}} = later.sidecar |> File.read!() |> Jason.decode!()
+      assert since >= 2.9
+      assert StillCamera.status().good == good + 1
+    end
+
+    @tag timeout: 60_000
+    test "the settle time is the caller's: a picture one second after a slew is not settling when half a second is asked for" do
+      mount = "sim-still-settle-#{System.unique_integer([:positive])}"
+      start_supervised!({Mount.Server, id: mount, transport: {Mount.Transport.Sim, []}})
+      Mount.subscribe(mount)
+      assert_receive {:mount, %{connected: true}}, 2_000
+      picture()
+
+      :ok = Mount.goto_relative(mount, :dec, 2.0)
+      t = slew_ended(mount)
+      sleep_until(t + 1_000)
+      before = StillCamera.status().last.seq
+      StillCamera.shoot(settle_ms: 500)
+      assert_receive {:still_camera, %{busy: false, last: %{seq: seq} = last}} when seq > before, 15_000
+      assert last.settling == false
+      assert %{"settling" => false, "settle" => %{"settle_s" => 0.5}} = last.sidecar |> File.read!() |> Jason.decode!()
+    end
+
+    @tag timeout: 60_000
+    test "a picture the mount slewed under is marked too, though nothing moved before the shutter opened", %{cam: cam} do
+      mount = "sim-still-settle-#{System.unique_integer([:positive])}"
+      start_supervised!({Mount.Server, id: mount, transport: {Mount.Transport.Sim, []}})
+      Mount.subscribe(mount)
+      assert_receive {:mount, %{connected: true}}, 2_000
+
+      # a camera whose shutter is open for a second (its 4 s at a quarter of real time), and says when it is pressed
+      stop_supervised!({Camera.Server, cam})
+      slow = "sim-still-slow-#{System.unique_integer([:positive])}"
+      start_supervised!({Camera.Server, id: slow, transport: {Pressed, [time_scale: 0.25]}})
+      assert_receive {:still_camera, %{camera: %{id: ^slow, state: :ready}}}, 10_000
+      Process.register(self(), :still_camera_test)
+      good = StillCamera.status().good
+
+      before = (StillCamera.status().last || %{})[:seq] || 0
+      StillCamera.shoot()
+      assert_receive :shutter_pressed, 5_000
+      :ok = Mount.goto_relative(mount, :ra, 2.0)
+      assert_receive {:still_camera, %{busy: false, last: %{seq: seq} = last}} when seq > before, 15_000
+
+      assert last.mount == mount and last.settling == true and last.since_slew_s == 0.0
+      assert %{"settling" => true, "settle" => %{"since_slew_s" => since}} = last.sidecar |> File.read!() |> Jason.decode!()
+      assert since == 0.0
+      assert StillCamera.status().good == good
+    end
+
+    @tag timeout: 60_000
+    test "the page says in one line why the last picture isn't counted", %{conn: conn} do
+      last = picture()
+      {:ok, view, html} = live(conn, ~p"/cameras/stills")
+      refute html =~ "Mount settling"
+
+      status = StillCamera.status()
+      send(view.pid, {:still_camera, %{status | last: Map.merge(last, %{settling: true, since_slew_s: 1.04})}})
+      html = render(view)
+      assert html =~ "Mount settling: taken 1.0 s after a slew. Kept, not counted"
+      assert html =~ ~r/<p[^>]*role="status"[^>]*>\s*Mount settling/
+
+      # the mount slewed with the shutter open
+      send(view.pid, {:still_camera, %{status | last: Map.merge(last, %{settling: true, since_slew_s: 0.0})}})
+      assert render(view) =~ "Mount slewing during the exposure. Kept, not counted"
+    end
+  end
+
   describe "star size" do
     # A star field as the camera would send it: 1200 x 800, a dark sky, Gaussian stars 3 px in sigma
     # (a half-flux diameter of 7.06 px), made into a JPEG by ffmpeg.

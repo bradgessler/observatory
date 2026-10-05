@@ -74,6 +74,10 @@ defmodule Camera.SonyTest do
     assert {:ok, [jpeg, raw], conn} = Sony.capture(conn, exposure_ms: 10)
     assert jpeg.format == :jpeg and binary_part(jpeg.bytes, 0, 2) == <<0xFF, 0xD8>>
     assert raw.format == :arw and raw.name =~ ".ARW"
+    # when the shutter was pressed: by the wall clock, and by this VM's own (for measuring against
+    # other things that happened here, such as the mount's last slew)
+    assert %DateTime{} = jpeg.pressed_at
+    assert jpeg.pressed_mono <= System.monotonic_time(:millisecond) and raw.pressed_mono == jpeg.pressed_mono
     # and nothing is left in the camera's memory to come down as the next picture
     {:ok, props, _} = Sony.props(conn)
     assert Sony.describe(props).in_memory == 0

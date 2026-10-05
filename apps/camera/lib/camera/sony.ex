@@ -370,10 +370,12 @@ defmodule Camera.Sony do
   picture allows for it; default 1000), `wait_ms:` how long after that to wait
   for the camera to have it ready (35000).
 
-  Returns `{:ok, [%{name, format, bytes, info, pressed_at, ready_at, settings}], conn}`:
-  `pressed_at` is when the shutter press was sent, `ready_at` when the camera had the picture
-  (both UTC), and `settings` is what the camera was set to as the shutter was pressed
-  (`describe/1`: ISO, shutter speed, quality), read just before the press.
+  Returns `{:ok, [%{name, format, bytes, info, pressed_at, pressed_mono, ready_at, settings}],
+  conn}`: `pressed_at` is when the shutter press was sent, `ready_at` when the camera had the
+  picture (both UTC), `pressed_mono` is the press by this VM's monotonic clock in ms (for
+  measuring against other things that happened here, whatever the wall clock did), and
+  `settings` is what the camera was set to as the shutter was pressed (`describe/1`: ISO,
+  shutter speed, quality), read just before the press.
   """
   def capture(conn, opts \\ []) do
     with {:ok, props, conn} <- drain_memory(conn, 4),
@@ -381,6 +383,7 @@ defmodule Camera.Sony do
          settings = describe(props),
          {:ok, conn} <- press(conn, prop(:shutter_half), 2),
          pressed = DateTime.utc_now(),
+         pressed_mono = System.monotonic_time(:millisecond),
          {:ok, conn} <- press(conn, prop(:shutter_full), 2),
          {:ok, conn} <- hold_for_focus(conn),
          {:ok, conn} <- press(conn, prop(:shutter_full), 1),
@@ -394,7 +397,13 @@ defmodule Camera.Sony do
          {:ok, files, conn} <- download_all(conn, []) do
       # when the box pressed the shutter and when the camera had the picture: the exposure sits
       # just after the first (a manual-focus camera opens within tens of ms of the press)
-      stamps = %{pressed_at: pressed, ready_at: ready, settings: settings}
+      stamps = %{
+        pressed_at: pressed,
+        pressed_mono: pressed_mono,
+        ready_at: ready,
+        settings: settings
+      }
+
       {:ok, Enum.map(files, &Map.merge(&1, stamps)), conn}
     end
   end

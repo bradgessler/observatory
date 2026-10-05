@@ -24,6 +24,14 @@ defmodule Controller.StillCamera do
   measures the telescope's focal length, which takes the place of the label's
   in Settings (`Controller.StillCamera.Optics`).
 
+  **The first picture after a slew is marked, not counted.** The mount is
+  still settling and there is stray light about, so that picture is often
+  poor. This process follows the mount's reports and knows when it last
+  slewed; a picture whose shutter opened within the settle time of that (2 s,
+  `settle_ms:`) says `settling: true` in its sidecar and its record, and
+  `status().good`, the count of pictures that count, doesn't move for it. The
+  picture is kept all the same.
+
   **It carries on after a restart.** Whether it was shooting continuously and
   whether it was solving are kept in `Controller.Settings` (`"still_camera"`);
   a new process picks them up and starts shooting again as soon as the camera
@@ -52,6 +60,10 @@ defmodule Controller.StillCamera do
   @sharp_ms 15_000
   # the a6000's sensor, across: with the focal length, how much sky a picture covers
   @sensor_mm 23.5
+  # how long after a slew a picture is still the mount settling
+  @settle_ms 2_000
+  # a slew, not tracking: faster than a tracker ever drives an axis (12x sidereal, as `Plates` has it)
+  @slew_deg_s 0.05
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -63,18 +75,56 @@ defmodule Controller.StillCamera do
         seen: [],
         shooting: false,
         busy: false,
-        last: nil
+        last: nil,
+        good: 0
       })
 
   @doc "The last picture's grey copy as a PNG (for the page), or nil."
   def png, do: :persistent_term.get({__MODULE__, :png}, nil)
 
-  @doc "Take one picture now (ignored while one is being taken)."
-  def shoot, do: GenServer.cast(__MODULE__, :shoot)
+  @doc """
+  Take one picture now (ignored while one is being taken). Options, for this picture (those given
+  to `continuous/3` stand for the rest):
 
-  @doc "Take pictures one after another (`interval_ms` between them, 0 for back to back), or stop."
-  def continuous(on?, interval_ms \\ 0),
-    do: GenServer.call(__MODULE__, {:continuous, on?, interval_ms})
+    * `settle_ms:` how long after a slew a picture is still the mount settling (2000). A picture
+      whose shutter opened sooner than that is marked `settling: true` and not counted;
+    * `slew_deg_s:` how fast an axis must turn for it to be a slew and not tracking, in degrees a
+      second (0.05, which is 12x sidereal).
+  """
+  def shoot(opts \\ []), do: GenServer.cast(__MODULE__, {:shoot, opts})
+
+  @doc """
+  Take pictures one after another (`interval_ms` between them, 0 for back to back), or stop.
+  `opts` are `shoot/1`'s, for every picture of the run.
+  """
+  def continuous(on?, interval_ms \\ 0, opts \\ []),
+    do: GenServer.call(__MODULE__, {:continuous, on?, interval_ms, opts})
+
+  @doc """
+  Was the mount still settling when a shutter opened? `moved` is when the mount was last seen
+  slewing and `opened` when the shutter opened, both in this VM's monotonic milliseconds (which
+  are negative: they are only ever compared with each other). `false` for a mount never seen
+  slewing (`nil`).
+
+      t = System.monotonic_time(:millisecond)
+      StillCamera.settling?(t, t + 1_000)    #=> true
+      StillCamera.settling?(t, t + 3_000)    #=> false
+  """
+  def settling?(moved, opened, settle_ms \\ @settle_ms)
+  def settling?(moved, opened, settle_ms) when is_integer(moved) and is_integer(opened), do: opened - moved < settle_ms
+  def settling?(_, _, _), do: false
+
+  @doc """
+  Is this mount snapshot a slew? A Go To in flight, or an axis turning faster than `faster_than`
+  degrees a second (0.05: no tracker drives an axis that fast, and Lock On steers at about
+  sidereal, 0.004). Tracking is not a slew.
+  """
+  def slewing?(snap, faster_than \\ @slew_deg_s)
+
+  def slewing?(%{axes: axes}, faster_than) when is_map(axes),
+    do: Enum.any?(axes, fn {_, ax} -> is_map(ax) and (ax[:goto_pending] == true or abs(ax[:deg_per_s] || 0.0) > faster_than) end)
+
+  def slewing?(_, _), do: false
 
   @doc """
   Plate solve every picture from now on (or stop). A picture is solved on the box and added to the
@@ -176,13 +226,20 @@ defmodule Controller.StillCamera do
        solving: was["solving"] == true,
        solve_opts: [],
        solve: nil,
-       watching: MapSet.new()
+       watching: MapSet.new(),
+       # the run's options for each picture (`shoot/1`'s)
+       shot_opts: [],
+       # the mounts whose reports are followed, and when each was last seen slewing (monotonic ms)
+       mounts: MapSet.new(),
+       moved: %{},
+       # pictures that count: taken with the mount settled
+       good: 0
      })}
   end
 
   @impl true
-  def handle_call({:continuous, on?, interval}, _from, s) do
-    s = persist(%{s | continuous: on?, interval_ms: interval, failures: 0, why: nil})
+  def handle_call({:continuous, on?, interval, opts}, _from, s) do
+    s = persist(%{s | continuous: on?, interval_ms: interval, shot_opts: opts, failures: 0, why: nil})
     s = if on? and s.task == nil and not s.armed, do: arm(s, 0), else: s
     {:reply, :ok, announce(s)}
   end
@@ -197,7 +254,7 @@ defmodule Controller.StillCamera do
   def handle_call({:set, _}, _from, s), do: {:reply, {:error, :no_camera}, s}
 
   @impl true
-  def handle_cast(:shoot, s), do: {:noreply, start_shot(s)}
+  def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
 
   @impl true
   def handle_info(:look, s) do
@@ -212,6 +269,15 @@ defmodule Controller.StillCamera do
   end
 
   def handle_info({:camera, _st}, s), do: {:noreply, s |> look() |> announce()}
+
+  # A mount's report (four a second, and on every change): all that matters here is when it was
+  # last slewing. Stamped as it is read, so reports read late (this process was busy turning a
+  # dial) say "later" and a picture is marked that needn't have been: never the other way round.
+  def handle_info({:mount, %{id: id} = snap}, s) do
+    if slewing?(snap, s.shot_opts[:slew_deg_s] || @slew_deg_s),
+      do: {:noreply, %{s | moved: Map.put(s.moved, id, System.monotonic_time(:millisecond))}},
+      else: {:noreply, s}
+  end
 
   # a plate moved on (solving, solved, failed): is it the one this picture is waiting for?
   def handle_info({:plates, mount, view}, %{solve: %{mount: mount, n: n} = solve} = s) when is_integer(n) do
@@ -241,9 +307,23 @@ defmodule Controller.StillCamera do
       | camera: Enum.find(cams, &(&1[:state] == :ready)) || List.first(cams),
         seen: safe(fn -> Camera.seen() end) || []
     }
+    |> follow_mounts()
   end
 
-  defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s) do
+  # Follow the mounts a picture may be taken through, to know when one last slewed: this box's
+  # own and the one Lock On holds (both free to ask), and any a picture did go through.
+  defp follow_mounts(s, more \\ []) do
+    here = for %{id: id} <- safe(fn -> Mount.local_list() end) || [], do: id
+    lock = safe(fn -> LockOn.status()[:mount] end)
+
+    Enum.reduce(more ++ [lock | here], s, fn id, s ->
+      if is_binary(id) and not MapSet.member?(s.mounts, id) and safe(fn -> Mount.subscribe(id) end) == :ok, do: %{s | mounts: MapSet.put(s.mounts, id)}, else: s
+    end)
+  end
+
+  defp start_shot(s, opts \\ nil)
+
+  defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s, opts) do
     if is_integer(s.free) and s.free < floor_bytes() + pair_bytes(s) do
       # no room: say so and stop, rather than fill the card the box itself lives on
       announce(persist(%{s | continuous: false, why: "the SD card is nearly full (#{div(s.free, 1_000_000)} MB free): copy the pictures off the box, then carry on"}))
@@ -251,19 +331,21 @@ defmodule Controller.StillCamera do
       seq = s.seq + 1
       dir = dir()
       solve = if s.solving, do: s.solve_opts
-      task = Task.Supervisor.async_nolink(Controller.StillCamera.Tasks, fn -> take(id, seq, dir, solve) end)
+      # what this process knows that the picture's own task doesn't: when each mount last slewed
+      ctx = %{moved: s.moved, opts: opts || s.shot_opts}
+      task = Task.Supervisor.async_nolink(Controller.StillCamera.Tasks, fn -> take(id, seq, dir, solve, ctx) end)
       announce(%{s | task: task, seq: seq})
     end
   end
 
-  defp start_shot(s), do: s
+  defp start_shot(s, _opts), do: s
 
   defp pair_bytes(%{last: %{bytes: b}}) when is_integer(b) and b > 0, do: b
   defp pair_bytes(_), do: @pair_bytes
 
   # One picture: the camera's files kept whole, what was known when it was taken written beside
   # them (`Sidecar`), then the grey copy measured. The mount is watched while the shutter is open.
-  defp take(id, seq, dir, solve) do
+  defp take(id, seq, dir, solve, ctx) do
     started = System.monotonic_time(:millisecond)
     mount_id = mount_id()
     watch = Sidecar.watch(mount_id)
@@ -309,6 +391,7 @@ defmodule Controller.StillCamera do
       # already in it (the night a frame taken at ISO 3200 was written down as 800).
       settings = hd(files)[:settings]
       exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
+      settle = mount_id && settle(ctx.moved[mount_id], samples, pressed, hd(files)[:pressed_mono] || started, exposure_s, ctx.opts)
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
 
       # a sidecar that can't be written never costs the picture
@@ -324,6 +407,7 @@ defmodule Controller.StillCamera do
             settings: settings,
             mount_id: mount_id,
             samples: samples,
+            settle: settle,
             lock: LockOn.status(),
             calibration: mount_id && safe(fn -> LockOn.calibration(mount_id) end),
             measured: measured,
@@ -349,6 +433,8 @@ defmodule Controller.StillCamera do
         bytes: kept |> Enum.map(& &1.bytes) |> Enum.sum(),
         sidecar: sidecar,
         mount: mount_id,
+        settling: settle && settle.settling,
+        since_slew_s: settle && settle.since_slew_s,
         # the camera's JPEG, across: the sensor's whole width in this many pixels
         full_w: jpeg && jpeg_width(jpeg.bytes)
       }
@@ -356,6 +442,29 @@ defmodule Controller.StillCamera do
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
       {:ok, record}
     end
+  end
+
+  # Was the mount still settling when this picture's shutter opened? It last slewed when this
+  # process's reports said so (`moved`, handed over as the picture started), or in a sample taken
+  # just before the press. The samples from while the shutter was open say whether it slewed then:
+  # a picture the mount moved under is no better than one it was settling under. `opened` is the
+  # press by the monotonic clock, `pressed` the same moment by the wall clock the samples carry
+  # (used only for how far a sample is from the press, a second or so at most).
+  defp settle(moved, samples, pressed, opened, exposure_s, opts) do
+    settle_ms = opts[:settle_ms] || @settle_ms
+    faster = opts[:slew_deg_s] || @slew_deg_s
+    # each sample the mount was slewing in, as ms after the press (before it: negative); one sample
+    # past the exposure's end still belongs to it, since they are 250 ms apart
+    slews = for {t, snap} <- samples, slewing?(snap, faster), d = DateTime.diff(t, pressed, :millisecond), d <= exposure_s * 1000 + 250, do: d
+    during? = Enum.any?(slews, &(&1 >= 0))
+    moved = Enum.max(for(d <- slews, d < 0, do: opened + d) ++ if(is_integer(moved), do: [moved], else: []), fn -> nil end)
+    since = if during?, do: 0, else: moved && max(opened - moved, 0)
+
+    %{
+      settling: during? or settling?(moved, opened, settle_ms),
+      since_slew_s: since && Float.round(since / 1000, 2),
+      settle_s: settle_ms / 1000
+    }
   end
 
   # Nothing is ever written over: when a file of this name is already there (two pictures in one
@@ -582,7 +691,8 @@ defmodule Controller.StillCamera do
     # the star size of the picture before rides along: a page says which way a focus turn went
     record = record |> Map.delete(:png) |> Map.put(:star_size_was, s.last && s.last[:star_size])
     LockOn.frame(Map.put(record, :source, :still))
-    s = %{s | last: record, failures: 0, why: nil, free: free_bytes()} |> follow(record)
+    good = if counts?(record), do: s.good + 1, else: s.good
+    s = %{s | last: record, good: good, failures: 0, why: nil, free: free_bytes()} |> follow(record) |> follow_mounts([record[:mount]])
     announce(if s.continuous, do: arm(s, s.interval_ms), else: s)
   end
 
@@ -604,6 +714,9 @@ defmodule Controller.StillCamera do
 
     announce(%{s | failures: failures})
   end
+
+  # a picture that counts: every one that isn't marked (the mount settling)
+  defp counts?(record), do: record[:settling] != true
 
   # this picture's plate: follow it on its mount's plates until it is solved or failed
   defp follow(s, %{plate: %{mount: mount, n: n}, seq: seq, base: base} = record) do
@@ -640,6 +753,7 @@ defmodule Controller.StillCamera do
       interval_ms: s.interval_ms,
       busy: s.task != nil,
       last: s.last,
+      good: s.good,
       why: s.why,
       solving: s.solving,
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),

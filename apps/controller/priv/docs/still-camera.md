@@ -35,6 +35,18 @@ for the page to have something to show.
 notch at a time, the only way an a6000 takes them over USB, so a change takes
 a few seconds. The line above the keys says where they landed.
 
+## Pictures that are kept but not counted
+
+The box keeps a count of good pictures. Some pictures are marked and left
+out of that count. They are kept all the same: nothing is ever deleted.
+
+**The first picture after a slew.** The mount is still settling and there
+is stray light about, so that picture is often poor. A picture whose
+shutter opened within 2 seconds of the mount's last slew, or while it was
+slewing, is marked `settling` in its `.json`, and the page says so in one
+line: `Mount settling: taken 1.0 s after a slew. Kept, not counted`.
+Tracking, and Lock On steering the motors, are not slews.
+
 ## Focusing
 
 Under the picture the page says **Star size**: how wide the stars in that
@@ -100,6 +112,8 @@ files are never changed.
 - **Mount**: both axes at the start and the end of the exposure (degrees,
   encoder steps, speed), whether it was tracking, and its track in between,
   four times a second.
+- **Settling**: whether the shutter opened while the mount was still
+  settling after a slew, and how long after it.
 - **Pointing**: RA/Dec and altitude/azimuth, when the mount is homed or
   aligned. Without that it says `null`; the encoder positions are still there
   to work it out later.

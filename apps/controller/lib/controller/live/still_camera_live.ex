@@ -153,6 +153,8 @@ defmodule Controller.StillCameraLive do
               <p class="dim">No picture yet. Tap Take Picture.</p>
             </div>
             <p :if={@cam.last} class="dim" role="status">{caption(@cam.last)}</p>
+            <%!-- why the last picture isn't counted as a good one, a line each; gone with the next good picture --%>
+            <p :for={line <- uncounted(@cam.last)} class="hint" role="status">{line}</p>
             <%!-- the number to focus by, on a line of its own; under it what to do, with its ? at the row's end (UI.setting's layout) --%>
             <p :if={@cam.last} class="lock-line" role="status">{star_size_line(@cam.last)}</p>
             <div :if={@cam.last} class="setting">
@@ -276,6 +278,16 @@ defmodule Controller.StillCameraLive do
     |> Enum.filter(& &1)
     |> Enum.join(" · ")
   end
+
+  # Why the last picture is kept but not counted as a good one (`StillCamera.status().good`).
+  defp uncounted(%{settling: true} = last) do
+    case last[:since_slew_s] do
+      s when is_number(s) and s > 0 -> ["Mount settling: taken #{tenths(s)} s after a slew. Kept, not counted"]
+      _ -> ["Mount slewing during the exposure. Kept, not counted"]
+    end
+  end
+
+  defp uncounted(_), do: []
 
   # How wide the stars are, the number to focus by: this picture's, the picture before's (so which
   # way a turn of the knob went is plain), and how many stars it is from. In arcseconds once the

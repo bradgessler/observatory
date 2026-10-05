@@ -24,6 +24,10 @@ defmodule Controller.StillCamera.Sidecar do
     * `mount`: the mount at the exposure's start and end (both axes: degrees,
       encoder steps, rate, running; tracking; homed) and its `track` between
       them, sampled four times a second.
+    * `settling`: true when the shutter opened within `settle.settle_s`
+      seconds of the mount's last slew (`settle.since_slew_s` after it; 0 when
+      the mount slewed with the shutter open). The first picture after a slew
+      is often poor: it is kept, and not counted.
     * `pointing`: where the model says the scope pointed (RA/Dec, alt/az), and
       which model said so. Absent when the mount isn't homed or lined up.
     * `model`, `site`, `box`: the alignment in force, the site, which box and
@@ -86,8 +90,9 @@ defmodule Controller.StillCamera.Sidecar do
   `seq`, `saved_at`, `pressed_at`, `ready_at`, `files` (`[%{name, camera_name,
   format, bytes, sha256}]`), `camera` (`Camera.status/1`), `settings` (the
   camera's, as read when the shutter was pressed), `mount_id`, `samples`
-  (from `stop/1`), `lock` (`Controller.LockOn.status/0`), `calibration` (the
-  mount's saved one), `measured`. Anything missing is left out.
+  (from `stop/1`), `settle` (`%{settling, since_slew_s, settle_s}`), `lock`
+  (`Controller.LockOn.status/0`), `calibration` (the mount's saved one),
+  `measured`. Anything missing is left out.
   """
   def build(shot) do
     camera = shot[:camera] || %{}
@@ -127,6 +132,8 @@ defmodule Controller.StillCamera.Sidecar do
       },
       optics: optics(),
       mount: mount(shot[:mount_id], shot[:samples] || [], pressed, ended),
+      settling: shot[:settle] && shot.settle[:settling],
+      settle: shot[:settle] && Map.take(shot.settle, [:since_slew_s, :settle_s]),
       pointing: pointing(ctx[:pointing], ctx[:site], pressed),
       model: ctx[:model],
       site: ctx[:site],

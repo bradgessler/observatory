@@ -27,7 +27,14 @@ defmodule Controller.Test.KnownMount do
   @pole_distances [30.0, 45.0, 60.0, 75.0]
 
   def align(id, off_ra, turns) do
-    # another test's alignment may have corrected the signs: these plates are made under these
+    # another test's alignment may have corrected the signs: these plates are made under these.
+    # And they go back afterwards: left flipped, the next module's solves land below the horizon.
+    unless Process.get({__MODULE__, :pointing_saved}) do
+      Process.put({__MODULE__, :pointing_saved}, true)
+      was = Controller.Settings.get("pointing")
+      ExUnit.Callbacks.on_exit(fn -> Controller.Settings.put("pointing", was) end)
+    end
+
     Controller.Settings.put("pointing", %{"ha_sign" => @signs.ha_sign, "dec_sign" => @signs.dec_sign})
     site = Pointing.site()
     now = DateTime.utc_now()

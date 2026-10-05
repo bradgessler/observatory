@@ -16,7 +16,15 @@ defmodule Controller.Sky.NeverZeroedTest do
     start_supervised!({Mount.Server, id: id, transport: {Mount.Transport.Sim, []}})
     Mount.subscribe(id)
     assert_receive {:mount, %{connected: true}}, 2_000
-    on_exit(fn -> Lineup.clear(id) end)
+    # an alignment here can correct the global axis signs: put them back, or the modules that
+    # run after this one solve their photos under a flipped Dec
+    pointing = Controller.Settings.get("pointing")
+
+    on_exit(fn ->
+      Lineup.clear(id)
+      Controller.Settings.put("pointing", pointing)
+    end)
+
     %{id: id}
   end
 

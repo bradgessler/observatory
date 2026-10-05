@@ -40,11 +40,12 @@ defmodule Controller.Components.Scope do
   attr :size, :integer, default: 240
   attr :label, :string, default: nil
   attr :detail, :boolean, default: true
+  attr :outline, :boolean, default: false, doc: "a rim round the whole shape in the page's ink, for a small drawing on a card"
   attr :class, :string, default: nil
 
   def scope(assigns) do
     {polys, overlays, shadow} = model(assigns.pose, assigns.detail)
-    assigns = assign(assigns, polys: polys, overlays: overlays, shadow: shadow, words: words(assigns.pose, assigns.label))
+    assigns = assign(assigns, polys: polys, overlays: overlays, shadow: shadow, words: words(assigns.pose, assigns.label), rim: assigns.outline && rim(polys))
 
     ~H"""
     <svg
@@ -56,6 +57,8 @@ defmodule Controller.Components.Scope do
       aria-label={@words}
     >
       <ellipse :if={@shadow} cx={elem(@shadow, 0)} cy={elem(@shadow, 1)} rx={elem(@shadow, 2)} ry={elem(@shadow, 3)} class="sc-ground" />
+      <%!-- the whole shape once, under the faces, stroked in the page's ink: the faces cover all of it but the rim round the outside --%>
+      <path :if={@rim} d={@rim} class="sc-outline" />
       <%!-- far to near, each face shaded by how squarely it faces the light --%>
       <polygon :for={p <- @polys} class={"m-#{p.mat} l#{p.level}"} points={p.points} />
       <%= for part <- @overlays do %>
@@ -117,6 +120,12 @@ defmodule Controller.Components.Scope do
     polys = R.render(faces, cam)
     {polys, overlays(pose, pivots, cam), shadow(cam)}
   end
+
+  # Every face as one path, for the rim (`outline`). On a card the drawing is small and its
+  # faces are shades of the mesh inks: in night mode most of them are within 3:1 of the card,
+  # and the telescope could not be seen. Stroked under the faces, the path shows only round the
+  # outside of the shape, in an ink the theme's contrast test covers.
+  defp rim(polys), do: Enum.map_join(polys, fn p -> "M" <> String.replace(p.points, " ", "L") <> "Z" end)
 
   defp equatorial(pose, n, detail?) do
     pole = from_alt_az(pose[:polar_alt] || 38.0, pose[:polar_az] || 0.0)
@@ -279,7 +288,8 @@ defmodule Controller.Components.Scope do
     numbers =
       if pose[:kind] == :altaz,
         do: "azimuth #{fmt(pose[:az_deg])}°, altitude #{fmt(pose[:alt_deg])}°",
-        else: "RA #{fmt(pose[:ha_deg])}°, Dec #{fmt(pose[:dec_deg])}°"
+        # where the two axes stand, which is what the picture shows: not a place on the sky
+        else: "RA axis #{fmt(pose[:ha_deg])}°, Dec axis #{fmt(pose[:dec_deg])}°"
 
     state =
       cond do

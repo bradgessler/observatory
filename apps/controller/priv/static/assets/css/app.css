@@ -934,17 +934,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .home-scopes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s2); }
 .scope-badge { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: center; padding: var(--s2); background: var(--panel); border: 1px solid var(--key-edge); border-radius: var(--r-lg); color: var(--text); text-decoration: none; min-width: 0; }
 .sb-pic { display: grid; place-items: center; }
+/* the drawing's rim: the whole shape stroked under its faces, so what shows is 1 px round the
+   outside, in the text ink. The faces are shades of the mesh inks and, alone, sat too close to
+   the card to see (nearly all of them in night mode); design_test.exs holds the rim to 3:1 on
+   the badge's ground in every theme. */
+.scope-badge .sc-outline { stroke: var(--text); stroke-width: 2px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .sb-blank { display: block; width: 104px; height: 88px; background: var(--sunk); border-radius: 14px; box-shadow: var(--bevel-in); }
 .sb-text { display: grid; gap: 2px; min-width: 0; }
 .sb-text strong { font-size: var(--fs-3); overflow: hidden; text-overflow: ellipsis; }
 .sb-state { font-size: var(--fs-2); color: var(--dim); }
 .sb-state.on { color: var(--on); }
 .sb-state.warn { color: var(--warn); }
-.sb-nums { font-size: var(--fs-2); color: var(--dim); font-variant-numeric: tabular-nums; }
+/* the two axis angles, each beside its name: side by side where they fit, else one under the other, never split */
+.sb-nums { display: flex; flex-wrap: wrap; gap: 0 var(--s2); font-size: var(--fs-2); color: var(--dim); font-variant-numeric: tabular-nums; }
+.sb-num { white-space: nowrap; }
 .sb-sim { font-size: var(--fs-1); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
 .sb-where { font-size: var(--fs-1); color: var(--dim); }
 .home-offers { display: grid; gap: var(--s2); }
-@media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+@media (max-width: 380px) { .scope-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; } .sb-nums { justify-content: center; } }
 /* the drawing standing in for a camera picture */
 .watch-drawn { display: grid; place-items: center; padding: var(--s3) 0; background: var(--panel); border-radius: 14px; }
 .watch-show { max-width: 360px; margin: 0 auto; }

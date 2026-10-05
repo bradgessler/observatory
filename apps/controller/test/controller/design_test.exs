@@ -201,6 +201,70 @@ defmodule Controller.DesignTest do
     end
   end
 
+  # -- the telescope drawn on a scope badge can be seen --------------------------------------
+
+  # The night the little telescope on the Home card could not be seen: dark on
+  # the dark card. It is drawn in faces, each a mesh ink mixed towards
+  # --mesh-shade by how the light falls on it, with an edge of the same
+  # colour. The dark parts come out near the card's own tone in every theme,
+  # nearly all of it does in night mode, and in the light theme the white tube
+  # sits on a white card. So on a badge the shape gets a rim in a token, and
+  # the rim is what this holds to 3:1 against the badge's ground (WCAG 1.4.11:
+  # a graphic that says something). Everything is read from the stylesheet:
+  # the ground is the badge's own background, the rim its own rule. Without a
+  # rim the faces' edges are what draws the shape, and they are checked
+  # instead, which is how this failed before there was one.
+  test "the telescope drawn on a scope badge is 3:1 on the badge's ground, in every theme" do
+    rules = rules()
+    lits = for {_media, ".scope-3d .l" <> _, %{"--lit" => lit}} <- rules, do: lit |> String.trim_trailing("%") |> String.to_integer()
+    assert lits != [], "the faces' shading steps (.scope-3d .l0 and up) are gone"
+
+    for w <- [320, 390, 1280] do
+      assert "var(--" <> ground = cascade(rules, ".scope-badge", w)["background"]
+      ground = String.trim_trailing(ground, ")")
+      rim = cascade(rules, ".scope-badge .sc-outline", w)
+
+      # what draws the shape: the rim when it has one, else every face's own edge at its darkest
+      # (but for the lens, which is dark on purpose, inside the tube)
+      strokes =
+        if rim["stroke"],
+          do: [{".scope-badge .sc-outline", rim["stroke"], 100}],
+          else: for({_media, ".scope-3d .m-" <> _ = face, %{"stroke" => stroke}} <- rules, face != ".scope-3d .m-lens", do: {face, stroke, Enum.min(lits)})
+
+      assert strokes != []
+
+      for {theme, t} <- themes(), {selector, stroke, lit} <- strokes do
+        ink = ink(stroke, t, lit)
+        ratio = contrast(ink, t[ground])
+
+        assert ratio >= 3.0,
+               "#{theme}, at #{w} px: #{selector} { stroke: #{stroke} } draws the telescope in #{ink} on the badge's --#{ground} #{t[ground]}, #{Float.round(ratio, 2)}:1. " <>
+                 "It can't be seen. Give the badge's drawing a rim in a token: .scope-badge .sc-outline { stroke: var(--text) }"
+      end
+
+      if rim["stroke"] do
+        assert rim["stroke"] =~ ~r/^var\(--[a-z0-9-]+\)$/, "the rim is a token as it stands, not a share of one: #{rim["stroke"]}"
+        assert rim["opacity"] == nil and rim["stroke-opacity"] == nil, "a thinned rim is a contrast nobody checked"
+        # half of the stroke is under the faces, and the drawing is scaled to the badge: a rim of
+        # 1 px on the screen is a 2 px stroke that does not scale with the drawing
+        assert rim["vector-effect"] == "non-scaling-stroke" and px(rim["stroke-width"]) >= 2, "the rim is thinner than 1 px on the screen"
+      end
+    end
+  end
+
+  # a stroke as a colour in one theme: a token, or a mesh ink mixed towards its shade at `lit` percent
+  defp ink(value, tokens, lit) do
+    case Regex.run(~r/^(?:var\(--([a-z0-9-]+)\)|color-mix\(in srgb, var\(--([a-z0-9-]+)\) var\(--lit\), var\(--([a-z0-9-]+)\)\))$/, value) do
+      [_, token] ->
+        tokens[token]
+
+      [_, "", a, b] ->
+        {{ar, ag, ab}, {br, bg, bb}} = {rgb(tokens[a]), rgb(tokens[b])}
+        mix = fn x, y -> round(x * lit / 100 + y * (100 - lit) / 100) |> Integer.to_string(16) |> String.pad_leading(2, "0") end
+        "#" <> mix.(ar, br) <> mix.(ag, bg) <> mix.(ab, bb)
+    end
+  end
+
   # A width in px that a small phone doesn't have is only allowed where the
   # screen is known to be that wide: inside a min-width media query.
   test "nothing asks for more width than a 320 px phone has, outside a wide-screen media query" do

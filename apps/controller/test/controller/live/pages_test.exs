@@ -185,12 +185,59 @@ defmodule Controller.PagesTest do
       assert html =~ "scope-badge"
       assert html =~ id
       assert html =~ "Home not set"
-      # the badge draws the mount, and says the numbers for a screen reader
+      # the badge draws the mount, with a rim so it reads on the card, and says the numbers for a screen reader
       assert html =~ ~s(role="img")
-      assert html =~ "RA +0°00′"
+      assert html =~ ~s(class="sc-outline")
+      assert html =~ "RA axis +0°00′"
 
       Mount.set_home(id)
       assert render(view) =~ "Home set, still"
+    end
+
+    # The badge's two numbers are where the axes stand, in degrees from home. Under "RA" and
+    # "Dec" they read, once the mount was aligned, as where it points on the sky, and they are
+    # not that. So each is called an axis angle, aligned or not.
+    test "aligned, the badge still calls its two numbers what they are: RA axis and Dec axis", %{conn: conn, id: id} do
+      alias Controller.Sky.{Astro, Lineup, Model, Pointing, Stars}
+
+      :ok = Mount.set_home(id)
+      on_exit(fn -> Lineup.clear(id) end)
+
+      # a known alignment: three stars as a mount set down 30° round and 6° high would show them
+      truth = %{axis_alt: 43.9, axis_az: 330.0, off_ra: 12.0, off_dec: -4.0}
+      now = DateTime.utc_now()
+      site = Pointing.site()
+
+      for name <- ["Vega", "Altair", "Arcturus"] do
+        star = Enum.find(Stars.all(), &(&1.name == name))
+        {alt, az} = Astro.alt_az(star.ra_deg, star.dec_deg, site.lat, Astro.lst_deg(now, site.lon))
+        {r, d} = Model.encoders(truth, Pointing.pointing(), alt, az)
+        Lineup.add(%{id: id, homed: true, connected: true, tracking: :off, axes: %{ra: %{degrees: r}, dec: %{degrees: d}}}, star, now)
+      end
+
+      assert Pointing.lined_up?(Pointing.context(DateTime.utc_now(), id))
+
+      # the axes 10° and −5° from home
+      :ok = Mount.goto_relative(id, :ra, 10.0)
+      :ok = Mount.goto_relative(id, :dec, -5.0)
+      landed = fn -> Enum.all?(Mount.snapshot(id).axes, fn {_, axis} -> not Map.get(axis, :goto_pending, false) and not axis.running end) end
+      assert Enum.find(1..300, fn _ -> landed.() or (Process.sleep(50) && false) end), "the simulated mount never landed"
+      snap = Mount.snapshot(id)
+      assert_in_delta snap.axes.ra.degrees, 10.0, 0.001
+      assert_in_delta snap.axes.dec.degrees, -5.0, 0.001
+
+      {:ok, view, _html} = live(conn, "/")
+      badge = view |> element(~s(a.scope-badge[href="/setup/#{id}"])) |> render()
+
+      # each number beside its name, on the card and in what a screen reader is told
+      assert badge =~ ~r/<span class="sb-num">\s*RA axis \+10°00′\s*<\/span>\s*<span class="sb-num">\s*Dec axis −5°00′\s*<\/span>/
+      assert badge =~ "RA axis +10°00′, Dec axis −5°00′"
+      # no number under a bare "RA" or "Dec", in the text, the label or the drawing's own words
+      refute badge =~ ~r/\b(RA|Dec) [+−-]?\d/u
+
+      # where it points on the sky is another number altogether: with this alignment, Dec in the sixties
+      {_ra, dec} = Pointing.scope_radec(snap, Pointing.context(DateTime.utc_now(), id))
+      refute_in_delta dec, -5.0, 30.0
     end
 
     test "everything else lists every group with one line each", %{conn: conn} do

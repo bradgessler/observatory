@@ -1,7 +1,16 @@
 defmodule Controller.Components.ScopeBadge do
   @moduledoc """
   One telescope, small: a drawing of how it is standing, its name, one state
-  word and the two axis numbers. The status strip's picture-first sibling.
+  word and the two axis angles. The status strip's picture-first sibling.
+
+  The numbers are where the two axes stand, in degrees from where they were
+  zeroed, and are labelled as that: "RA axis", "Dec axis". They were once
+  labelled "RA" and "Dec", which on an aligned mount reads as a place on the
+  sky, and they are not one.
+
+  The drawing gets a rim in the text ink (`Scope.scope`'s `outline`): its
+  faces alone are too close to the card's ground to see, most of all in night
+  mode.
 
   Several of these sit in a row, because several telescopes is where this is
   going: an alt-az beside the equatorial, a friend's mount at a star party.
@@ -46,14 +55,16 @@ defmodule Controller.Components.ScopeBadge do
   defp inside(assigns) do
     ~H"""
     <span class="sb-pic">
-      <Scope.scope :if={@pose} pose={@pose} size={104} detail={false} label={@name} />
+      <Scope.scope :if={@pose} pose={@pose} size={104} detail={false} outline label={@name} />
       <span :if={!@pose} class="sb-blank" aria-hidden="true"></span>
     </span>
     <span class="sb-text">
       <strong>{@name}</strong>
       <span class={["sb-state", @tone]}>{@state}</span>
+      <%!-- each number beside what it is; a pair stays whole when the two don't fit on one line --%>
       <span :if={@snap && @snap[:axes][:ra]} class="sb-nums">
-        RA {deg(@snap.axes.ra.degrees)} · Dec {deg(@snap.axes.dec.degrees)}
+        <span class="sb-num">RA axis {deg(@snap.axes.ra.degrees)}</span>
+        <span class="sb-num">Dec axis {deg(@snap.axes.dec.degrees)}</span>
       </span>
       <span :if={@snap && @snap[:id] && Mount.simulated?(@id)} class="sb-sim">Simulator</span>
       <span :if={@where} class="sb-where">on {@where}</span>
@@ -95,7 +106,7 @@ defmodule Controller.Components.ScopeBadge do
     end
   end
 
-  defp numbers_words(%{axes: %{ra: ra, dec: dec}}), do: ", RA #{deg(ra.degrees)}, Dec #{deg(dec.degrees)}"
+  defp numbers_words(%{axes: %{ra: ra, dec: dec}}), do: ", RA axis #{deg(ra.degrees)}, Dec axis #{deg(dec.degrees)}"
   defp numbers_words(_), do: ""
 
   defp deg(d) when is_number(d) do

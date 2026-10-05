@@ -67,11 +67,12 @@ defmodule Controller.Components.ScopeTest do
     assert render_component(&Scope.scope/1, pose: high) =~ "alt-az mount"
   end
 
-  test "it is a labelled image with the numbers in the label" do
+  # the numbers are where the two axes stand (Dec axis 0 is the tube along the polar axis), and
+  # are called that: "RA 12°, Dec -45°" read as a place on the sky, which they are not
+  test "it is a labelled image with the axis angles in the label, each called an axis" do
     html = draw(eq(12.0, -45.0, tracking: :model))
     assert html =~ ~s(role="img")
-    assert html =~ "RA 12°"
-    assert html =~ "Dec -45°"
+    assert html =~ "RA axis 12°, Dec axis -45°"
     assert html =~ "tracking"
   end
 
@@ -92,5 +93,20 @@ defmodule Controller.Components.ScopeTest do
     plain = render_component(&Scope.scope/1, pose: eq(0.0, 0.0), detail: false)
     assert faces.(plain) < faces.(draw(eq(0.0, 0.0)))
     assert plain =~ "m-tube"
+  end
+
+  # On a card the faces alone can't be seen (dark shades on a dark ground), so the whole shape is
+  # drawn once more under them for the stylesheet to stroke: a rim round the outside.
+  test "with an outline it draws every face once more, as one path, before the faces" do
+    pose = eq(40.0, 20.0)
+    html = render_component(&Scope.scope/1, pose: pose, detail: false, outline: true)
+    assert [_, d] = Regex.run(~r/<path d="([^"]+)" class="sc-outline"/, html)
+    faces = length(String.split(html, "<polygon")) - 1
+    assert length(String.split(d, "Z", trim: true)) == faces
+    assert d =~ ~r/^M-?[\d.]+,-?[\d.]+L/
+    # under the faces: it comes first, so they cover all of it but what sticks out
+    assert :binary.match(html, "sc-outline") < :binary.match(html, "<polygon")
+
+    refute render_component(&Scope.scope/1, pose: pose, detail: false) =~ "sc-outline"
   end
 end

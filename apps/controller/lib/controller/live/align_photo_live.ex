@@ -296,6 +296,9 @@ defmodule Controller.AlignPhotoLive do
         waiting: Enum.count(plates, &(&1.state == :queued)),
         solving: Enum.count(plates, &(&1.state == :solving)),
         report: assigns.view && assigns.view.report,
+        # the model is fitted off to the side (#112): say when it is a photo behind, or when the last fit was dropped
+        fitting: assigns.view != nil and assigns.view[:fitting] == true,
+        fit_notice: assigns.view && assigns.view[:fit_notice],
         in_use: assigns.view != nil and assigns.view.applied,
         down: assigns.plates_status in [:down, :not_started],
         uploading: List.first(assigns.uploads.photo.entries),
@@ -380,6 +383,8 @@ defmodule Controller.AlignPhotoLive do
       <.card :if={@plates != []} title="Photos">
         <:aside :if={@waiting + @solving > 0}>{queue_words(@waiting, @solving)}</:aside>
         <.hint :if={@stale} role="status">Home was set again since these photos. The next photo starts a new set.</.hint>
+        <.hint :if={@fit_notice} role="status">{@fit_notice}</.hint>
+        <.hint :if={@fitting and !@fit_notice} role="status">Fitting the model with the new photos. The last one is in use meanwhile.</.hint>
         <.items label="photos">
           <.item :for={p <- @plates} as="li" label={"Photo #{p.n}"} detail={plate_words(p, @report, @now_ms)}>
             <.btn :if={p.state == :failed and not p.moving} phx-click="retry" phx-value-i={p.n} aria-label={"Retry photo #{p.n}"}>Retry</.btn>

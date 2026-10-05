@@ -185,6 +185,42 @@ defmodule Controller.Sky.NeverZeroedTest do
     Tracker.stop(id)
   end
 
+  # ... and it does not take the limit away for good. If the guess is right, a hold that began
+  # past the limit is carrying the tube toward the mount: it turns a short allowance and stops.
+  test "on a guess, a hold that begins past the limit turns only a short allowance, and says why", %{id: id} do
+    old = Application.get_env(:controller, :guessed_hold_deg)
+    # 0.02° of sky is five seconds
+    Application.put_env(:controller, :guessed_hold_deg, 0.02)
+    on_exit(fn -> if old, do: Application.put_env(:controller, :guessed_hold_deg, old), else: Application.delete_env(:controller, :guessed_hold_deg) end)
+
+    KnownMount.align(id, -60.0, [-2.0, 3.0, 5.0, 8.0])
+    snap = Mount.snapshot(id)
+    ctx = Pointing.context(DateTime.utc_now(), id)
+    assert Lineup.status(id).counterweight == :guessed
+    assert Pointing.counterweight(ctx, snap.axes.ra.degrees) > Pointing.meridian_hard()
+
+    {ra, dec} = Pointing.scope_radec(snap, ctx)
+    here = %{name: "here", ra_deg: ra, dec_deg: dec}
+    Tracker.track(id, here)
+    # it starts, as the guess allows
+    wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
+    assert Tracker.ended(id) == nil
+    # and ends on its own a little later, both axes stopped
+    wait(fn -> match?(%{why: :counterweight}, Tracker.ended(id)) end, 30_000)
+    assert Tracker.status(id) == nil
+    wait(fn -> not Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end) end, 5_000)
+
+    # told where it really is, below level, there is no limit to be past: the hold runs on
+    assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
+    Tracker.track(id, here)
+    wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
+    Process.sleep(8_000)
+    assert Tracker.ended(id) == nil
+    assert Tracker.status(id) != nil
+  after
+    Tracker.stop(id)
+  end
+
   defp wait(fun, ms) do
     deadline = System.monotonic_time(:millisecond) + ms
 

@@ -20,7 +20,9 @@ defmodule Controller.Sky.Tracker do
   it stops and says so rather than crawl across the sky at 16×. On a mount
   that was never zeroed (no soft limits) it also stops when the counterweight
   reaches the hard limit above level (`Pointing.meridian_hard/0`): the next Go
-  To flips to the other side of the pier.
+  To flips to the other side of the pier. While the counterweight's side is
+  only a guess a hold may begin past that limit (the guess may be upside
+  down), and then turns no further than `Pointing.guessed_hold_deg/0`.
 
   State is per mount; the current readout is in `:persistent_term` so status
   strips can show it for free.
@@ -243,12 +245,19 @@ defmodule Controller.Sky.Tracker do
     cw = Pointing.counterweight(ctx, r1)
     # where this hold had it a moment ago: as far behind as `later` is ahead
     cw_was = Pointing.counterweight(ctx, r1 - Astro.norm180(r2 - r1))
+    # past the limit on a guess: remember where the RA axis was when that was first seen
+    entry = past_from(entry, not snap.homed and Pointing.past_on_a_guess?(ctx, cw), r1)
 
     cond do
       # never zeroed: no soft limits, so the counterweight is the limit. With its side only
       # guessed, that is a limit the hold has to reach itself: where it starts is not refused
       not snap.homed and Pointing.hold_limit?(ctx, cw_was, cw) ->
         {:give_up, :meridian}
+
+      # ... but not for ever. If the guess is right the tube is heading for the mount, so a
+      # hold that began past the limit on a guess turns only a short allowance and then says why
+      Pointing.guess_spent?(ctx, entry[:past_from], r1, cw) ->
+        {:give_up, :counterweight}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->
         {:give_up, :lost}
@@ -290,6 +299,10 @@ defmodule Controller.Sky.Tracker do
          %{error_arcmin: error_arcmin, cw: cw}}
     end
   end
+
+  defp past_from(entry, false, _ra), do: Map.delete(entry, :past_from)
+  defp past_from(%{past_from: from} = entry, true, _ra) when is_number(from), do: entry
+  defp past_from(entry, true, ra), do: Map.put(entry, :past_from, ra)
 
   defp rebase(entry, snap, ctx) do
     case Pointing.scope_radec(snap, ctx) do
@@ -339,9 +352,9 @@ defmodule Controller.Sky.Tracker do
 
       :persistent_term.erase({__MODULE__, id})
       # a person or a limit ended it: nothing to offer back after a restart
-      if why in [:stop, :estop, :meridian, :lost], do: forget_interrupted(id)
+      if why in [:stop, :estop, :meridian, :counterweight, :lost], do: forget_interrupted(id)
       # ended on its own (not a person's stop or a Go To taking over): the pages say why
-      if why in [:meridian, :lost, :gone, :error, :estop],
+      if why in [:meridian, :counterweight, :lost, :gone, :error, :estop],
         do:
           :persistent_term.put({__MODULE__, :ended, id}, %{
             name: entry.obj.name,

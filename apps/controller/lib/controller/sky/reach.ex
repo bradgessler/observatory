@@ -66,6 +66,7 @@ defmodule Controller.Sky.Reach do
         {:ended, _} -> {:caution, "!", "Tracking stopped"}
         {:until, nil, _} -> {:good, "✓", "Tracks all night"}
         {:until, {:meridian, t}, _} -> {:caution, "!", "Tracks to #{clock.(t)}, then flip"}
+        {:until, {:guess, t}, _} -> {:caution, "!", "Tracks to #{clock.(t)}: counterweight side guessed"}
         {:until, {_, t}, _} -> {:good, "✓", "Tracks to #{clock.(t)}"}
       end
 
@@ -238,7 +239,10 @@ defmodule Controller.Sky.Reach do
   end
 
   # step the hold forward from its pose: the first thing that ends it
-  defp hold_end(obj, snap, ctx, pose, tree_at, dark_now) do
+  defp hold_end(obj, snap, ctx, {start, _} = pose, tree_at, dark_now) do
+    # a hold that begins past the limit on a guessed side has only a short allowance from here
+    from = if not snap.homed and Pointing.past_on_a_guess?(ctx, Pointing.counterweight(ctx, start)), do: start
+
     Enum.reduce_while(1..div(@horizon_h * 60, @step_min), pose, fn i, {was, _} = pose ->
       t = DateTime.add(ctx.now, i * @step_min * 60)
       c = %{ctx | now: t}
@@ -253,6 +257,9 @@ defmodule Controller.Sky.Reach do
         not snap.homed and
             Pointing.hold_limit?(c, Pointing.counterweight(c, was), Pointing.counterweight(c, ra)) ->
           {:halt, {:meridian, t}}
+
+        Pointing.guess_spent?(c, from, ra, Pointing.counterweight(c, ra)) ->
+          {:halt, {:guess, t}}
 
         dark_now and Ephemeris.sun_alt(t, ctx.site) >= @dark ->
           {:halt, {:dawn, t}}
@@ -277,6 +284,9 @@ defmodule Controller.Sky.Reach do
   defp same?(%{name: n}, %{name: n}), do: true
   defp same?(_, _), do: false
 
+  # 5.0 reads as 5, 0.5 as 0.5
+  defp trim(deg), do: if(deg == Float.round(deg), do: Integer.to_string(round(deg)), else: Float.to_string(deg))
+
   defp track_words(:no_mount, _obj, _clock), do: check(:off, "–", "No mount connected", nil)
 
   defp track_words(:no_lock, _obj, _clock),
@@ -290,6 +300,9 @@ defmodule Controller.Sky.Reach do
       case why do
         :meridian ->
           "the counterweight reached its limit. Go To again flips the mount and tracks it from the other side"
+
+        :counterweight ->
+          "the counterweight's side is a guess, and past its limit a hold on a guess turns only #{trim(Pointing.guessed_hold_deg())}°. Tell it the side in Setup, then Go To again"
 
         :estop ->
           "STOP was pressed. Go To again to track it"
@@ -324,6 +337,10 @@ defmodule Controller.Sky.Reach do
         {:meridian, t} ->
           {:caution, "!",
            "until #{clock.(t)}, when the counterweight reaches its limit; then Go To flips it"}
+
+        {:guess, t} ->
+          {:caution, "!",
+           "until #{clock.(t)}: the counterweight's side is a guess, and past its limit a hold on a guess turns only #{trim(Pointing.guessed_hold_deg())}°. Tell it the side in Setup to go on"}
       end
 
     rest = if tracker, do: "Until " <> String.replace_prefix(rest, "until ", ""), else: rest

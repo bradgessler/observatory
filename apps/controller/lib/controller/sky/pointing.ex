@@ -170,6 +170,29 @@ defmodule Controller.Sky.Pointing do
   def hold_limit?(_ctx, _was, cw), do: cw > @meridian_hard
 
   @doc """
+  How far a hold may turn the RA axis past the counterweight's limit while the
+  counterweight's side is only a guess. A hold may begin there in case the
+  guess is upside down; in case it is right, it must not carry the tube on
+  toward the mount for as long as the target stays up. Five degrees is twenty
+  minutes of sky: enough for the photo that settles the side, not enough to
+  reach a tripod leg.
+  """
+  def guessed_hold_deg, do: Application.get_env(:controller, :guessed_hold_deg, 5.0)
+
+  @doc """
+  Has a hold on a guessed side used up that allowance? `from` is the RA axis
+  where the hold was first seen past the limit, nil if it never was.
+  """
+  def guess_spent?(%{model: %{cw_told: false}}, from, ra, cw) when is_number(from),
+    do: cw > @meridian_hard and abs(Astro.norm180(ra - from)) > guessed_hold_deg()
+
+  def guess_spent?(_ctx, _from, _ra, _cw), do: false
+
+  @doc "Is the counterweight past its limit at `cw`, on a guessed side? Where a guessed hold's allowance starts counting."
+  def past_on_a_guess?(%{model: %{cw_told: false}}, cw), do: cw > @meridian_hard
+  def past_on_a_guess?(_ctx, _cw), do: false
+
+  @doc """
   Where a Go To to `obj` puts the axes of a never-zeroed, lined-up mount, and
   how it gets there. Both poses reach the object: the one on this side of the
   pier wins while its counterweight stays below level (within the margin; up

@@ -91,6 +91,14 @@ defmodule Controller.Sky.FlipTest do
       assert Pointing.hold_limit?(told, hard - 0.01, hard + 0.01)
       refute Pointing.hold_limit?(guessed, 10.0, 10.1)
       refute Pointing.hold_limit?(told, 10.0, 10.1)
+
+      # past the limit on a guess a hold has a short allowance, counted from where it was first seen there
+      spare = Pointing.guessed_hold_deg()
+      refute Pointing.guess_spent?(guessed, nil, 10.0, 40.0)
+      refute Pointing.guess_spent?(guessed, 10.0, 10.0 + spare - 0.1, 40.0)
+      assert Pointing.guess_spent?(guessed, 10.0, 10.0 + spare + 0.1, 40.0)
+      assert Pointing.guess_spent?(guessed, 10.0, 10.0 - spare - 0.1, 40.0)
+      refute Pointing.guess_spent?(told, 10.0, 10.0 + spare + 0.1, 40.0)
     end
   end
 

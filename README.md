@@ -180,3 +180,9 @@ and the real mount appears alongside it; pull it and it goes away.
   documented in `Mount.Protocol`. Measured on an EQ6-R: 9,216,000 steps/rev,
   timer 53,694 Hz, high-speed ratio 32, firmware `020B05`; full goto speed
   ≈3.4°/s; commanded sidereal rate within 0.001% of true.
+
+## Copyright
+
+The observations (everything under `observations/`) and the images in
+`posts/images/` are Brad Gessler's own work, all rights reserved, whatever
+licence the code carries. See [COPYRIGHT.md](COPYRIGHT.md).

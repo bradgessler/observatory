@@ -7,7 +7,7 @@ name: Blog
 on:
   push:
     branches: [main]
-    paths: ["posts/**", "apps/controller/lib/mix/tasks/site.build.ex", "bin/publish-blog", ".github/workflows/blog.yml"]
+    paths: ["posts/**", "observations/**", "apps/controller/lib/mix/tasks/site.build.ex", "bin/publish-blog", ".github/workflows/blog.yml"]
   workflow_dispatch:
 
 permissions:

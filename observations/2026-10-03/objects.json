@@ -1,0 +1,780 @@
+{
+ "credit": "© 2026 Brad Gessler  ·  Celestron 8SE (8 inch, 2,080 mm) and Sony a6000 on an EQ6-R  ·  San Francisco Bay Area  ·  4 October 2026",
+ "made_with": "Capture and mount: Observatory (Elixir on a Raspberry Pi 3).  Stacking: numpy, OpenCV, rawpy.  Plate solving: astrometry.net.  Stacked from the camera's RAW frames. Nothing generated.",
+ "objects": [
+  {
+   "slug": "orion-nebula",
+   "title": "The Orion Nebula",
+   "subtitle": "Messier 42",
+   "what": "A cloud of glowing gas where stars are being born right now. The four young stars at its heart, the Trapezium, light up the whole nebula.",
+   "facts": [
+    [
+     "Distance",
+     "1,344 light-years"
+    ],
+    [
+     "This picture spans",
+     "15 light-years"
+    ],
+    [
+     "The light left",
+     "Around the year 680"
+    ],
+    [
+     "For scale",
+     "Neptune's whole orbit would cover a fifth of one pixel"
+    ]
+   ],
+   "made": "39 frames of 20 s, with 16 of 2 s for the bright core",
+   "how": "13 minutes of light on one field, plus short frames so the core does not burn out",
+   "specs": [
+    [
+     "Exposures",
+     "39 x 20 s at ISO 3200 for the nebula; 16 x 2 s at ISO 800 for the core"
+    ],
+    [
+     "Frames",
+     "69 long frames taken, 39 kept. 30 lost to passing cloud (stars dimmed to between 3 and 77 percent)"
+    ],
+    [
+     "High dynamic range",
+     "The 2 s stack replaces the 20 s stack wherever any frame came within 7 percent of clipping: 31 star cores, the Trapezium among them. Measured ratio 41.0, expected 40"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell. Stars 4.2 arcsec wide"
+    ],
+    [
+     "Field",
+     "38.8 x 25.8 arcmin: one sensor frame"
+    ],
+    [
+     "When",
+     "4 October 2026, before dawn. 41 to 46 degrees up, 41 percent Moon in the sky, thin cloud passing"
+    ],
+    [
+     "Calibration",
+     "Flat from 26 twilight-sky frames, its large-scale shape from cloud-lit frames. No darks"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped mean. One sky constant per colour"
+    ],
+    [
+     "Finish",
+     "Black 19 and white 217 of 255, gamma 0.95, S-curve 0.3. Saturation x 1.6 in CIELAB. Dark sky made neutral and smoothed (bilateral, 2.5 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 3002,
+   "height": 1995,
+   "thumb": [
+    900,
+    598
+   ],
+   "arcsec_per_px": 0.776,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "moon",
+   "title": "The Moon at last quarter",
+   "subtitle": "4 October 2026  ·  41 percent lit",
+   "what": "Along the line between day and night the Sun is setting, so every crater rim and mountain throws a long shadow. That is why the detail is richest there.",
+   "facts": [
+    [
+     "Distance",
+     "365,000 km, measured from its size in this picture"
+    ],
+    [
+     "Across",
+     "3,475 km"
+    ],
+    [
+     "Light took",
+     "1.2 seconds"
+    ],
+    [
+     "For scale",
+     "Copernicus is 93 km wide; Clavius, 231 km"
+    ]
+   ],
+   "made": "39 frames of 1/60 s over four fields, flat-fielded",
+   "how": "Lucky imaging over a 2 x 2 mosaic in morning twilight, with cloud about",
+   "specs": [
+    [
+     "Exposures",
+     "1/60 s at ISO 100"
+    ],
+    [
+     "Frames",
+     "78 taken over five aims in two passes, 39 kept. 17 saw only the night side; the rest were lost to cloud"
+    ],
+    [
+     "Lucky imaging",
+     "Frames registered on the lunar surface itself (12,000 matched features, 0.8 px). In each patch only the sharpest 30 percent of the clear frames are averaged"
+    ],
+    [
+     "Restoration",
+     "Blur measured at the limb: 1.8 arcsec. Wiener and Richardson-Lucy with the gain capped at 3 x and held at the limb. No ringing found at limb, cusps or terminator"
+    ],
+    [
+     "Sampling",
+     "0.388 arcsec per pixel, the sensor's own: 0.7 km per pixel on the Moon"
+    ],
+    [
+     "Field",
+     "Disc 32.7 arcmin across, taller than one 38.8 x 25.9 frame: a 2 x 2 mosaic and a centre frame. One panel saw only the night side"
+    ],
+    [
+     "When",
+     "4 October 2026, in morning twilight, over half an hour. 62 to 70 degrees up"
+    ],
+    [
+     "Calibration",
+     "Flat from 7 twilight-sky frames: corners at 74 percent of the centre, 340 dust shadows divided out. Cloud glow fitted and subtracted per frame"
+    ],
+    [
+     "Orientation",
+     "Lunar north up, from 17 craters of known position (32.2 degrees from the sensor's way up)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 3036,
+   "height": 5434,
+   "thumb": [
+    503,
+    900
+   ],
+   "arcsec_per_px": 0.3881,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "pleiades",
+   "title": "The Pleiades",
+   "subtitle": "Messier 45, the Seven Sisters",
+   "what": "A family of about a thousand young stars, born together some 100 million years ago. The blue haze round Merope and Maia is a dust cloud they are drifting through, lit by their light.",
+   "facts": [
+    [
+     "Distance",
+     "444 light-years"
+    ],
+    [
+     "This picture spans",
+     "13 light-years"
+    ],
+    [
+     "The light left",
+     "In 1582, the year the modern calendar began"
+    ],
+    [
+     "Honest note",
+     "The glow round Atlas and Pleione is thin cloud that night, not nebula"
+    ]
+   ],
+   "made": "Nine fields, 60 frames of 10 s",
+   "how": "A 3 x 3 mosaic; each outline is one sensor frame, with frames kept of frames taken",
+   "specs": [
+    [
+     "Exposures",
+     "10 s at ISO 1600, about 7 frames per panel: one minute each"
+    ],
+    [
+     "Frames",
+     "72 taken, 60 kept: 10 minutes in all. Panels 3 and 7 were shot through cloud and only fill where clear panels have no data"
+    ],
+    [
+     "Mosaic",
+     "Each panel centred to 0.6 arcmin by plate solve and a local nudge. Placed by its own plate solution (shared stars agree to 0.5 arcsec); one brightness scale and one constant per panel; feathered"
+    ],
+    [
+     "Sampling",
+     "1.553 arcsec per pixel. Stars about 5 arcsec wide; the bright ones are saturated and left white"
+    ],
+    [
+     "Field",
+     "99 x 63 arcmin, cropped level from the mosaic; one frame is 38.8 x 25.8"
+    ],
+    [
+     "When",
+     "4 October 2026, before dawn, over 49 minutes. 74 degrees up, 41 percent Moon in the sky"
+    ],
+    [
+     "What is real",
+     "The haze at Merope and Maia repeats between independent stacks at 4 to 11 sigma. The glow at Atlas and Pleione is cloud"
+    ],
+    [
+     "Calibration",
+     "Flat and dust map from tonight's clouded frames; a faint sensor pattern common to all panels removed. No darks"
+    ],
+    [
+     "Finish",
+     "Black 24 of 255, gamma 0.95. Saturation x 1.45. Dark sky made neutral and smoothed (median 5 px, then bilateral 5 px): faint haze traded for a quiet sky"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 3832,
+   "height": 2428,
+   "thumb": [
+    900,
+    570
+   ],
+   "arcsec_per_px": 1.553,
+   "frames": true,
+   "card": null,
+   "card_text": "top"
+  },
+  {
+   "slug": "andromeda-core",
+   "title": "The heart of the Andromeda Galaxy",
+   "subtitle": "Messier 31",
+   "what": "The centre of the nearest big galaxy to our own. The glow is billions of stars, too far away to see one by one. The dark lanes are dust in its spiral arms, where new stars form.",
+   "facts": [
+    [
+     "Distance",
+     "2.5 million light-years"
+    ],
+    [
+     "This picture spans",
+     "28,000 light-years"
+    ],
+    [
+     "The light left",
+     "2.5 million years ago, when our ancestors were first making stone tools"
+    ],
+    [
+     "For scale",
+     "Each pixel is about 10 light-years across"
+    ]
+   ],
+   "made": "38 clear frames of 20 s",
+   "how": "An hour on one field; cloud took two frames in three",
+   "specs": [
+    [
+     "Exposures",
+     "38 x 20 s at ISO 3200: 12.7 minutes"
+    ],
+    [
+     "Frames",
+     "109 taken, 38 kept (27 clear, 11 through thin cloud and down-weighted). 71 lost to cloud, judged by how much each frame dimmed the stars"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell. Stars 4.1 arcsec wide"
+    ],
+    [
+     "Field",
+     "37.4 x 22.5 arcmin: the part of one sensor frame that at least 31 of the 38 frames cover, less 2.3 arcmin off the top, cropped to lose the shadow of a piece of chaff in the light path"
+    ],
+    [
+     "When",
+     "4 October 2026, after midnight, over 70 minutes. 83 degrees up, Moon just rising"
+    ],
+    [
+     "Field rotation",
+     "The mount was far off the pole, so the field turned 2.9 degrees during the run. Corrected in registration"
+    ],
+    [
+     "Calibration",
+     "Flat built from the clouded frames themselves: cloud glow seen through the optics, less the scaled clear frame. Dust shadows left out of the average. No darks"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped mean, weighted by transparency. One constant per frame; no sky surface fitted, the galaxy fills the frame"
+    ],
+    [
+     "Finish",
+     "Black 13 and white 229 of 255, gamma 1.2, S-curve 0.45. Saturation x 1.2. Dark parts made neutral and smoothed (bilateral, 2.5 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 2892,
+   "height": 1743,
+   "thumb": [
+    900,
+    542
+   ],
+   "arcsec_per_px": 0.776,
+   "frames": false,
+   "card": null,
+   "card_text": "top"
+  },
+  {
+   "slug": "saturn",
+   "title": "Saturn and seven of its moons",
+   "subtitle": "At opposition, 4 October 2026",
+   "what": "Saturn at its closest and brightest for the year, its rings tilted only a few degrees toward us. Every labelled point is a moon. Titan, the big one, is larger than the planet Mercury.",
+   "facts": [
+    [
+     "Distance",
+     "1.27 billion km"
+    ],
+    [
+     "Light took",
+     "About 70 minutes to get here"
+    ],
+    [
+     "The rings",
+     "270,000 km tip to tip: 70 percent of the way from Earth to the Moon"
+    ],
+    [
+     "Honest note",
+     "The three inner moons are named from how they moved between frames"
+    ]
+   ],
+   "made": "Planet: the 16 sharpest of 48 frames at 1/40 s; moons: 2 s frames",
+   "how": "Two exposures in one picture: 1/40 s for the planet, 2 s for the moons",
+   "specs": [
+    [
+     "Exposures",
+     "Planet: 1/40 s at ISO 800. Moons: 2 s at ISO 6400, 640 times the planet's exposure"
+    ],
+    [
+     "Frames",
+     "Planet: 61 taken, 48 usable, the 16 sharpest kept. Moons: 2 clear frames; the other ten were behind cloud"
+    ],
+    [
+     "Planet stack",
+     "Each RAW colour plane placed at its own sub-pixel offset on a grid 3 x finer than the sensor (0.129 arcsec). No demosaic. Colours re-registered for the air's prism effect. Shown here at the sensor's scale, not enlarged"
+    ],
+    [
+     "Restoration",
+     "Blur measured from Titan in the same frames: 2.7 x 2.2 arcsec (5.0 x 4.0 before the refocus). Richardson-Lucy, 8 rounds; stopped where a model planet starts to grow a false rim"
+    ],
+    [
+     "Composite",
+     "The planet is set into the moon field where the 2 s frames are blown out. The planet's glare is subtracted ring by ring. Moons are lifted about 640 x relative to the planet"
+    ],
+    [
+     "Sampling",
+     "Field: 0.388 arcsec per pixel, north up (9 catalogue stars, 0.6 arcsec)"
+    ],
+    [
+     "When",
+     "4 October 2026, after midnight, over 19 minutes. 52 degrees up, at opposition"
+    ],
+    [
+     "Moon names",
+     "No ephemeris used: each point keeps its place beside Saturn while the stars slide past, and sits at its orbit's reach. Worth a check"
+    ],
+    [
+     "Not seen",
+     "The Cassini division: no dip along the ring line in the plain stack or the restored one"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 3565,
+   "height": 1668,
+   "thumb": [
+    900,
+    600
+   ],
+   "arcsec_per_px": 0.388,
+   "frames": true,
+   "card": "saturn-card.jpg",
+   "card_text": "bottom"
+  },
+  {
+   "slug": "orion-nebula-wide",
+   "title": "The Orion Nebula, wide",
+   "subtitle": "Messier 42 and Messier 43",
+   "what": "Five overlapping fields joined into one, to take in the faint outer loops of gas round the bright heart of the nebula.",
+   "facts": [
+    [
+     "Distance",
+     "1,344 light-years"
+    ],
+    [
+     "This picture spans",
+     "27 light-years"
+    ],
+    [
+     "The light left",
+     "Around the year 680"
+    ],
+    [
+     "What it is",
+     "The nearest great nursery of new stars"
+    ]
+   ],
+   "made": "Mosaic of 5 fields, 20 s frames, joined to the deep centre",
+   "how": "A 2 x 2 mosaic round the deep centre field; each outline is one sensor frame, with frames kept of frames taken",
+   "specs": [
+    [
+     "Exposures",
+     "20 s at ISO 3200 throughout; 2 s at ISO 800 for the core"
+    ],
+    [
+     "Frames",
+     "Centre 39 of 69. Panels 13, 12, 5 and 2 of 13 each: the last two were shot under cloud and are shown in grey"
+    ],
+    [
+     "Mosaic",
+     "Each panel centred by plate solve, then placed by its own plate solution; scaled on shared stars; matched to the centre with a constant and a plane; feathered"
+    ],
+    [
+     "Sampling",
+     "1.552 arcsec per pixel (2 x 2 mean of the working grid). Stars 4.4 to 5 arcsec wide"
+    ],
+    [
+     "Field",
+     "67.9 x 43.4 arcmin, cropped level from the mosaic; one frame is 38.8 x 25.9"
+    ],
+    [
+     "When",
+     "4 October 2026, before dawn. 41 to 46 degrees up, Moon up, thin cloud passing"
+    ],
+    [
+     "Calibration",
+     "Flat from 26 twilight-sky frames, large-scale shape from cloud-lit frames. No darks"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped mean"
+    ],
+    [
+     "Finish",
+     "Black 34 and white 199 of 255, S-curve 0.3. Saturation x 1.5. Dark sky made neutral and smoothed (bilateral, 3 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 2624,
+   "height": 1676,
+   "thumb": [
+    900,
+    575
+   ],
+   "arcsec_per_px": 1.552,
+   "frames": true,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "andromeda-mosaic",
+   "title": "The Andromeda Galaxy: core, dust lanes and a companion",
+   "subtitle": "Messier 31 and Messier 32",
+   "what": "Six fields joined round the galaxy's core. M32, the fuzzy ball below it, is a small galaxy in orbit round Andromeda.",
+   "facts": [
+    [
+     "Distance",
+     "2.5 million light-years"
+    ],
+    [
+     "This picture spans",
+     "55,000 light-years; the galaxy's disc is about 2.5 times wider"
+    ],
+    [
+     "The light left",
+     "2.5 million years ago"
+    ],
+    [
+     "For scale",
+     "Each pixel is about 19 light-years across"
+    ]
+   ],
+   "made": "Six fields of 30 s frames joined to the deep core; thin cloud that hour",
+   "how": "A 3 x 2 mosaic joined to the deep core field; each outline is one sensor frame, with frames kept of frames taken",
+   "specs": [
+    [
+     "Exposures",
+     "Panels: 30 s at ISO 3200. Core: 20 s at ISO 3200"
+    ],
+    [
+     "Frames",
+     "66 panel frames taken, 23 kept: 11.5 minutes. 43 lost to cloud. The core adds 38 frames, 12.7 minutes"
+    ],
+    [
+     "Mosaic",
+     "Each panel plate-solved, then all solved jointly on shared stars (0.4 to 0.6 arcsec). One brightness scale per panel from shared stars; backgrounds matched with a plane per panel; feathered"
+    ],
+    [
+     "Sampling",
+     "1.552 arcsec per pixel. Stars 4.1 arcsec wide"
+    ],
+    [
+     "Field",
+     "74.8 x 42.5 arcmin, cropped level from the mosaic; one frame is 38.8 x 25.9"
+    ],
+    [
+     "When",
+     "4 October 2026, in the small hours, over 67 minutes. 72 to 61 degrees up, Moon up, cloud passing"
+    ],
+    [
+     "Honest limits",
+     "Outside the core field the panels hold 1 to 14 percent of the core's depth, and are shown in grey because their colour zero is not trusted. A map, not a measurement"
+    ],
+    [
+     "Calibration",
+     "Flat from 26 twilight-sky frames, its large-scale shape from cloud-lit frames; the dust in it checked against this hour's frames. No darks"
+    ],
+    [
+     "Finish",
+     "Black 53 and white 226 of 255, gamma 1.2, S-curve 0.3. Dark sky made neutral and smoothed (bilateral, 3.5 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 2892,
+   "height": 1644,
+   "thumb": [
+    900,
+    512
+   ],
+   "arcsec_per_px": 1.552,
+   "frames": true,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "m15",
+   "title": "Messier 15",
+   "subtitle": "A globular cluster in Pegasus",
+   "what": "A ball of well over a hundred thousand ancient stars, held together by their own gravity, in orbit round the Milky Way. At about 12 billion years old it is nearly as old as the universe.",
+   "facts": [
+    [
+     "Distance",
+     "About 33,600 light-years"
+    ],
+    [
+     "This picture spans",
+     "156 light-years"
+    ],
+    [
+     "The light left",
+     "In the last Ice Age, about when the oldest cave paintings in Europe were made"
+    ],
+    [
+     "For scale",
+     "Near its centre the stars are packed thousands of times closer than round the Sun"
+    ]
+   ],
+   "made": "23 frames of 15 s",
+   "how": "Under six minutes of light, straight after the telescope was refocused",
+   "specs": [
+    [
+     "Exposures",
+     "23 x 15 s at ISO 1600: 5.75 minutes"
+    ],
+    [
+     "Frames",
+     "26 taken, 23 kept. Two dimmed by cloud, one soft"
+    ],
+    [
+     "Sampling",
+     "0.388 arcsec per pixel, the sensor's own. Stars 4.4 arcsec across (half-flux), down from 7.0 before the refocus"
+    ],
+    [
+     "Field",
+     "16 x 16 arcmin, cropped from one sensor frame"
+    ],
+    [
+     "When",
+     "4 October 2026, just after midnight. 45 degrees up, no Moon yet"
+    ],
+    [
+     "Field rotation",
+     "1.1 degrees in 14 minutes, corrected in registration"
+    ],
+    [
+     "Calibration",
+     "Dust and vignetting divided out with a flat built from the run's own sky. No darks"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped mean. Core unclipped: 26 percent of full scale"
+    ],
+    [
+     "Finish",
+     "Black 28 and white 214 of 255, S-curve 0.2. Saturation x 1.5; dark sky shown without colour and smoothed (bilateral, 2.5 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 2474,
+   "height": 2474,
+   "thumb": [
+    900,
+    900
+   ],
+   "arcsec_per_px": 0.388,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "blue-snowball",
+   "title": "The Blue Snowball",
+   "subtitle": "NGC 7662, a planetary nebula in Andromeda",
+   "what": "A star like our Sun at the end of its life, puffing its outer layers into space. Its exposed core makes the gas glow; the blue-green is oxygen. The Sun will do this in about 5 billion years.",
+   "facts": [
+    [
+     "Distance",
+     "Roughly 5,700 light-years (not well known)"
+    ],
+    [
+     "The shell is",
+     "About 0.8 light-years across: 50,000 times the Earth to Sun distance"
+    ],
+    [
+     "The light left",
+     "Before the pyramids were built"
+    ],
+    [
+     "Honest note",
+     "Taken before the telescope was refocused, so it is soft"
+    ]
+   ],
+   "made": "25 frames of 6 s",
+   "how": "The first deep-sky target of the night, shot before the focus was fixed",
+   "specs": [
+    [
+     "Exposures",
+     "25 x 6 s at ISO 1600: 2.5 minutes"
+    ],
+    [
+     "Frames",
+     "25 taken, all kept"
+    ],
+    [
+     "Sampling",
+     "0.194 arcsec per pixel: the sensor's 0.388 enlarged 2 x by Lanczos. Stars are rings 7 arcsec across: out of focus"
+    ],
+    [
+     "Field",
+     "5.0 x 3.3 arcmin, cropped from one sensor frame"
+    ],
+    [
+     "When",
+     "3 October 2026, late evening. 84 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "0.5 degrees in 10 minutes, corrected in registration"
+    ],
+    [
+     "Calibration",
+     "None beyond a fitted sky. No flat, no darks"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped mean: noise 4.8 times lower than one frame"
+    ],
+    [
+     "Finish",
+     "Black 26 and white 194 of 255, S-curve 0.2. Saturation x 1.4; dark sky shown without colour and smoothed"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain with dew shield: 203 mm aperture, 2,084 mm focal length (measured by plate solve), f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down 27 degrees off the pole; both axes driven from a pointing model fitted to plate solves. Residual drift about 0.1 arcsec per second"
+    ]
+   ],
+   "width": 1548,
+   "height": 1032,
+   "thumb": [
+    900,
+    600
+   ],
+   "arcsec_per_px": 0.194,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  }
+ ]
+}

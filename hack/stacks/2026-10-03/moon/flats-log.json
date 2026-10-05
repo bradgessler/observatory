@@ -1,0 +1,155 @@
+[
+ {
+  "file": "20261004-134840-DSC01990.JPG",
+  "iso": 1600,
+  "shutter": "2",
+  "level": 243.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.976,
+  "kept": false
+ },
+ {
+  "file": "20261004-134907-DSC01991.JPG",
+  "iso": 400,
+  "shutter": "2",
+  "level": 181.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.893,
+  "kept": true
+ },
+ {
+  "file": "20261004-135041-DSC01995.JPG",
+  "iso": 200,
+  "shutter": "2",
+  "level": 154.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.876,
+  "kept": true
+ },
+ {
+  "file": "20261004-135220-DSC01996.JPG",
+  "iso": 200,
+  "shutter": "1",
+  "level": 131.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.862,
+  "kept": true
+ },
+ {
+  "file": "20261004-135448-DSC01997.JPG",
+  "iso": 200,
+  "shutter": "1",
+  "level": 171.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.884,
+  "kept": true
+ },
+ {
+  "file": "20261004-135718-DSC01998.JPG",
+  "iso": 100,
+  "shutter": "1",
+  "level": 158.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.873,
+  "kept": true
+ },
+ {
+  "file": "20261004-135820-DSC01999.JPG",
+  "iso": 200,
+  "shutter": "1/4",
+  "level": 124.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.84,
+  "kept": true
+ },
+ {
+  "file": "20261004-140045-DSC02000.JPG",
+  "iso": 200,
+  "shutter": "1/4",
+  "level": 151.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.873,
+  "kept": true
+ },
+ {
+  "file": "20261004-140108-DSC02001.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 107.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.825,
+  "kept": true
+ },
+ {
+  "file": "20261004-140132-DSC02002.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 117.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.852,
+  "kept": true
+ },
+ {
+  "file": "20261004-140152-DSC02003.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 122.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.844,
+  "kept": true
+ },
+ {
+  "file": "20261004-140300-DSC02004.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 141.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.857,
+  "kept": true
+ },
+ {
+  "file": "20261004-140348-DSC02005.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 148.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.861,
+  "kept": true
+ },
+ {
+  "file": "20261004-140408-DSC02006.JPG",
+  "iso": 100,
+  "shutter": "1/4",
+  "level": 156.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.871,
+  "kept": true
+ },
+ {
+  "file": "20261004-140455-DSC02008.JPG",
+  "iso": 100,
+  "shutter": "1/8",
+  "level": 104.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.836,
+  "kept": true
+ },
+ {
+  "file": "20261004-140520-DSC02009.JPG",
+  "iso": 100,
+  "shutter": "1/8",
+  "level": 97.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.835,
+  "kept": true
+ },
+ {
+  "file": "20261004-140712-DSC02014.JPG",
+  "iso": 100,
+  "shutter": "1/8",
+  "level": 138.0,
+  "clipped_pct": 0.0,
+  "corner_over_centre": 0.848,
+  "kept": true
+ }
+]

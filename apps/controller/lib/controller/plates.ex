@@ -21,10 +21,24 @@ defmodule Controller.Plates do
   each in its own task under `Controller.Plates.Tasks`. A solve that crashes,
   hangs past its deadline, or is removed fails (or forgets) that plate
   alone. Every change is saved (`Controller.Plates.Store`) and broadcast on
-  `"plates:<mount id>"`, and each solved plate refits the mount
-  (`Controller.Sky.Polar`), so every phone sees the queue and the answer
-  move together. A restart loses nothing: plates that were solving are
-  queued again.
+  `"plates:<mount id>"`, so every phone sees the queue move. A restart loses
+  nothing: plates that were solving are queued again.
+
+  **The fit** is the mount's model from every solved plate
+  (`Controller.Sky.Polar`), and the queue never computes it: a cold fit
+  takes seconds on a Pi, and a queue that fitted after every plate was deaf
+  for longer with each one (#112). It runs in a task under the same
+  supervisor, one at a time. Until it lands the view carries the last model
+  and `fitting: true`; when it lands the view is broadcast again. Plates
+  that solve meanwhile get one more fit afterwards, of all of them. A fit
+  that crashes, or runs past its deadline (`start_link(fit_timeout: ms)`,
+  `config :controller, :plate_fit_timeout`; 30 s), is dropped: the last
+  model stays, and the view's `fit_notice` says so in one line until a fit
+  lands. It is not tried again by itself; the next thing done with the
+  photos (another one, a retry, Use This Alignment) asks again.
+  `start_link(fit: SomeModule)` (or `config :controller, :plate_fit,
+  SomeModule`) puts a module with `fit(samples, opts)` in `Polar`'s place,
+  the way `Controller.Sky.Solve` takes its `backend:`.
 
   **The moment** a plate belongs to: when the mount is tracking, the tube
   stays on the same sky, so the capture's time; when it stands still, the
@@ -155,7 +169,12 @@ defmodule Controller.Plates do
   """
   def add(mount_id, image, capture, opts \\ []) when is_binary(image), do: call({:add, mount_id, image, capture, opts}, 15_000)
 
-  @doc "The session as every page shows it: plates (with `ahead` for queued ones), the fit, applied or not."
+  @doc """
+  The session as every page shows it: plates (with `ahead` for queued ones),
+  the fit (`report`), applied or not. `fitting` is true while the model is
+  being fitted again (`report` is the last one meanwhile); `fit_notice` is
+  one line when the last fit was dropped, nil otherwise.
+  """
   def view(mount_id), do: call({:view, mount_id})
 
   @doc "Queue a failed plate again (not one that was moving)."
@@ -183,7 +202,8 @@ defmodule Controller.Plates do
   end
 
   @doc """
-  `%{workers, solving, queued}`; `:restarting` for the moment between a
+  `%{workers, solving, queued, fitting}` (`fitting`: how many mounts' models
+  are being fitted or waiting to be); `:restarting` for the moment between a
   crash and its restart; `:down` when plate solving gave up after repeated
   crashes; `:not_started` when this server was updated in place (new code,
   no restart) and the queue was never started.
@@ -261,14 +281,22 @@ defmodule Controller.Plates do
 
     state = %{
       sessions: sessions,
-      reports: Map.new(sessions, fn {m, s} -> {m, fit(s)} end),
+      # each mount's last model, and what is known of its fit (see "the fit" below)
+      reports: %{},
+      fits: %{},
+      # the one fit running, and the mounts waiting for theirs, oldest first
+      fit: nil,
+      refits: [],
+      fit_with: opts[:fit],
+      fit_timeout: opts[:fit_timeout],
       running: %{},
       workers: opts[:workers] || Application.get_env(:controller, :plate_workers) || default_workers(),
       solve_timeout: opts[:solve_timeout] || Application.get_env(:controller, :plate_solve_timeout) || @solve_timeout
     }
 
     send(self(), :dispatch)
-    {:ok, state}
+    # the models, from the plates on disk: asked for here, fitted in tasks
+    {:ok, Enum.reduce(Map.keys(sessions), state, &refit(&2, &1))}
   end
 
   @impl true
@@ -395,7 +423,7 @@ defmodule Controller.Plates do
 
   def handle_call(:status, _from, state) do
     queued = state.sessions |> Map.values() |> Enum.flat_map(& &1.plates) |> Enum.count(&(&1.state == :queued))
-    {:reply, %{workers: state.workers, solving: map_size(state.running), queued: queued}, state}
+    {:reply, %{workers: state.workers, solving: map_size(state.running), queued: queued, fitting: length(fitting(state))}, state}
   end
 
   def handle_call({:workers, n}, _from, state), do: {:reply, :ok, dispatch(%{state | workers: n})}
@@ -432,6 +460,30 @@ defmodule Controller.Plates do
     state = Enum.reduce(Map.keys(state.sessions), state, &refit(&2, &1))
     for {mount, _} <- state.sessions, do: broadcast(state, mount)
     {:noreply, state}
+  end
+
+  # the fit's task: its answer, its crash, its deadline. Whichever it is, the
+  # next mount waiting gets its turn.
+  def handle_info({ref, result}, %{fit: %{ref: ref} = f} = state) do
+    Process.demonitor(ref, [:flush])
+    Process.cancel_timer(f.timer)
+    {:noreply, %{state | fit: nil} |> fitted(f, result) |> next_fit()}
+  end
+
+  def handle_info({:DOWN, ref, :process, _, reason}, %{fit: %{ref: ref} = f} = state) do
+    Process.cancel_timer(f.timer)
+    {:noreply, %{state | fit: nil} |> fitted(f, {:error, {:crashed, reason}}) |> next_fit()}
+  end
+
+  def handle_info({:fit_deadline, ref}, %{fit: %{ref: ref} = f} = state) do
+    # an answer that came in as the deadline did is still an answer
+    result =
+      case Task.shutdown(f.task, :brutal_kill) do
+        {:ok, answer} -> answer
+        _ -> {:error, :timeout}
+      end
+
+    {:noreply, %{state | fit: nil} |> fitted(f, result) |> next_fit()}
   end
 
   def handle_info(_, state), do: {:noreply, state}
@@ -560,30 +612,129 @@ defmodule Controller.Plates do
 
   defp usable?(p), do: p.state == :solved and not p.moving and is_map(p.solution)
 
-  # from the fit so far: one descent instead of a search of the whole sky (`Model.fit/4`)
-  defp refit(state, mount), do: %{state | reports: Map.put(state.reports, mount, fit(state.sessions[mount], state.reports[mount]))}
+  # -- the fit: in a task, one at a time, never in this process ----------------------------------
+  #
+  # state.reports[mount]  the last model that landed
+  # state.fits[mount]     %{asked, plates, dropped}: what the newest fit asked for was made
+  #                       from, the plates the last model was fitted from, and why the
+  #                       last fit was dropped if it was (:failed, :timeout)
+  # state.fit             the one fit running
+  # state.refits          mounts waiting for theirs, oldest first, each one once
 
-  # a fit that fails is no fit, never a crashed queue
-  defp fit(session, last \\ nil)
-  defp fit(nil, _last), do: nil
+  # a fit still running after this long is stopped (ms)
+  @fit_timeout 30_000
 
-  defp fit(session, last) do
-    samples =
-      for p <- session.plates, usable?(p) do
-        %{theta_ra: p.enc.ra_deg, theta_dec: p.enc.dec_deg, ra_deg: p.solution.ra_deg, dec_deg: p.solution.dec_deg, at: p.at}
+  # Ask for this mount's model again, from its plates as they are now.
+  # Nothing is computed here. Asking twice for the same plates is asking once,
+  # and a mount already waiting stays waiting once, however many plates
+  # arrive: its fit takes them all when its turn comes.
+  defp refit(state, mount) do
+    inputs = fit_inputs(state.sessions[mount])
+    known = state.fits[mount]
+
+    cond do
+      # nothing solved (or started over): no model, and a fit under way is of plates that are gone
+      inputs == nil ->
+        state |> drop_fit(mount) |> next_fit()
+
+      # asked already, of exactly these plates, and it landed or is on its way. One that was
+      # dropped is not tried again by itself (it would fail the same way, all night); the next
+      # thing done with the photos (another one, a retry, Use This Alignment) asks again.
+      known != nil and known.asked == inputs and (known.dropped == nil or mount in fitting(state)) ->
+        state
+
+      true ->
+        # another session's model (zeroed again) is not this one's last model
+        state = if known != nil and known.asked.sid != inputs.sid, do: drop_fit(state, mount), else: state
+        known = Map.put(state.fits[mount] || %{plates: [], dropped: nil}, :asked, inputs)
+        waiting = if mount in state.refits, do: state.refits, else: state.refits ++ [mount]
+        next_fit(%{state | fits: Map.put(state.fits, mount, known), refits: waiting})
+    end
+  end
+
+  # what a fit is made from: the session's solved plates, where the scope stands, which way the axes turn
+  defp fit_inputs(nil), do: nil
+
+  defp fit_inputs(session) do
+    case Enum.filter(session.plates, &usable?/1) do
+      [] ->
+        nil
+
+      used ->
+        samples = for p <- used, do: %{theta_ra: p.enc.ra_deg, theta_dec: p.enc.dec_deg, ra_deg: p.solution.ra_deg, dec_deg: p.solution.dec_deg, at: p.at}
+        %{sid: session.id, plates: Enum.map(used, & &1.n), samples: samples, site: Pointing.site(), signs: Pointing.pointing()}
+    end
+  end
+
+  # the next mount waiting, when no fit is running
+  defp next_fit(%{fit: nil, refits: [mount | waiting]} = state) do
+    %{asked: inputs} = state.fits[mount]
+    # from the last model: one descent instead of a search of the whole sky (`Model.fit/4`)
+    near = state.reports[mount] && state.reports[mount][:params]
+    mod = state.fit_with || Application.get_env(:controller, :plate_fit) || Polar
+    timeout = state.fit_timeout || Application.get_env(:controller, :plate_fit_timeout) || @fit_timeout
+
+    # monitored, not linked: a fit that falls over is a message here, never the end of the queue
+    task = Task.Supervisor.async_nolink(@tasks, fn -> mod.fit(inputs.samples, site: inputs.site, signs: inputs.signs, near: near) end)
+    timer = Process.send_after(self(), {:fit_deadline, task.ref}, timeout)
+    %{state | fit: %{ref: task.ref, task: task, timer: timer, mount: mount, inputs: inputs, timeout: timeout}, refits: waiting}
+  end
+
+  defp next_fit(state), do: state
+
+  # A fit's answer, or what became of it. A good one is the model from now on.
+  # Anything else is dropped: the last model stays and the view says so.
+  defp fitted(state, f, result) do
+    session = state.sessions[f.mount]
+
+    cond do
+      # started over or zeroed again while it ran: a model of plates that are gone
+      session == nil or session.id != f.inputs.sid or state.fits[f.mount] == nil ->
+        state
+
+      match?({:ok, %{}}, result) ->
+        {:ok, report} = result
+        state = %{state | reports: Map.put(state.reports, f.mount, report), fits: Map.update!(state.fits, f.mount, &%{&1 | plates: f.inputs.plates, dropped: nil})}
+        broadcast(state, f.mount)
+        state
+
+      true ->
+        why = if result == {:error, :timeout}, do: :timeout, else: :failed
+        said = if why == :timeout, do: "ran past #{f.timeout} ms and was stopped", else: "failed (#{result |> inspect() |> String.slice(0, 200)})"
+        Logger.warning("plates: the fit for #{f.mount} #{said}; the last model stays")
+        Telescope.Events.emit(:plates, :fit_dropped, %{id: f.mount, why: Atom.to_string(why)})
+        state = %{state | fits: Map.update!(state.fits, f.mount, &%{&1 | dropped: why})}
+        broadcast(state, f.mount)
+        state
+    end
+  end
+
+  # forget this mount's model, and stop fitting it
+  defp drop_fit(state, mount) do
+    state =
+      case state.fit do
+        %{mount: ^mount} = f ->
+          Process.cancel_timer(f.timer)
+          Task.shutdown(f.task, :brutal_kill)
+          %{state | fit: nil}
+
+        _ ->
+          state
       end
 
-    if samples == [] do
-      nil
-    else
-      {:ok, r} = Polar.fit(samples, site: Pointing.site(), signs: Pointing.pointing(), near: last && last[:params])
-      r
-    end
-  rescue
-    e ->
-      Logger.warning("plates: fit failed: #{Exception.message(e)}")
-      nil
+    %{state | reports: Map.delete(state.reports, mount), fits: Map.delete(state.fits, mount), refits: List.delete(state.refits, mount)}
   end
+
+  # the mounts whose model is behind their plates: being fitted, or waiting to be
+  defp fitting(state), do: Enum.uniq(if(state.fit, do: [state.fit.mount], else: []) ++ state.refits)
+
+  # one calm line while the last fit is one that was dropped
+  defp fit_notice(%{dropped: why}, report) when why != nil do
+    if(why == :timeout, do: "The fit took too long and was stopped.", else: "The fit failed.") <>
+      if(report, do: " The last model is in use.", else: " There is no model yet.")
+  end
+
+  defp fit_notice(_, _), do: nil
 
   # the field of the plates so far, with room either side; the default otherwise
   defp scale(session) do
@@ -598,11 +749,12 @@ defmodule Controller.Plates do
     report = state.reports[mount]
 
     if session == nil do
-      %{mount: mount, session: nil, plates: [], report: nil, applied: false, home_at: nil, workers: state.workers}
+      %{mount: mount, session: nil, plates: [], report: nil, applied: false, home_at: nil, workers: state.workers, fitting: false, fit_notice: nil}
     else
       order = state |> queue() |> Enum.map(fn {m, p} -> {m, p.n} end)
-      used = Enum.filter(session.plates, &usable?/1)
-      residuals = if report, do: Enum.zip(Enum.map(used, & &1.n), report.residuals_arcmin) |> Map.new(), else: %{}
+      known = state.fits[mount]
+      # by the plates the model was fitted from: with a fit under way, not every solved one
+      residuals = if report && known, do: Enum.zip(known.plates, report.residuals_arcmin) |> Map.new(), else: %{}
 
       plates =
         Enum.map(session.plates, fn p ->
@@ -612,7 +764,8 @@ defmodule Controller.Plates do
           })
         end)
 
-      %{mount: mount, session: session.id, plates: plates, report: report, applied: session.applied, home_at: session.home_at, workers: state.workers}
+      %{mount: mount, session: session.id, plates: plates, report: report, applied: session.applied, home_at: session.home_at, workers: state.workers,
+        fitting: mount in fitting(state), fit_notice: fit_notice(known, report)}
     end
   end
 end

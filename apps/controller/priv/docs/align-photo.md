@@ -30,6 +30,11 @@ alignment stars to name.
    was. Repeat until the error is small enough for what you want to do.
 6. **Use This Alignment.** The photos become the mount's alignment points
    (replacing any stars), and Go To goes through them.
+7. **Say where the counterweight is**, if home is not set. A
+   **Counterweight** card appears: tap **Below Level** or **Above Level**
+   for the mount as it stands. Both sides of the mount see the same sky, so
+   no photo can say which side the counterweight is on, and Go To picks its
+   side of the pier by it. [Why it asks](/docs/setup#counterweight).
 
 ## What the numbers mean
 

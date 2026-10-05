@@ -33,6 +33,40 @@ Photo works without home at all.
 
 The [Position](/docs/position) page sends both axes back to 0°, 0°.
 
+## Counterweight
+
+A German equatorial mount reaches every point in the sky two ways, one from
+each side of the pier, and only one of them has the counterweight below
+level. Which one depends on which side of the mount the counterweight is
+on, and the sky cannot say: both sides see the same stars, so no star you
+center and no photo it solves tells them apart.
+
+With home set there is nothing to ask: home is where the counterweight
+hangs straight down. With no home set (Align by Photo works without one)
+the software guesses that most alignment points were taken with the
+counterweight low. When they were all taken near the meridian, with the
+counterweight shaft close to level, that guess is a coin toss. Got wrong,
+Go To offers a flip to what it thinks is the safe side and goes to the
+unsafe one, tube toward the tripod legs.
+
+So once there is an alignment, the **Counterweight** card asks, here and on
+Align by Photo: *Is the counterweight below or above level right now?* Look
+at the mount and follow the counterweight shaft from the mount out to the
+weight. Sloping down is **Below Level**; sloping up is **Above Level**.
+With the shaft within 10° of level nobody can say by eye, so the keys are
+greyed out: turn the RA axis a little and answer then.
+
+The answer is kept with the alignment, through more alignment points and a
+restart of the box, until the mount itself is switched on again. The card
+then shows what the software has for the mount as it stands, with that key
+lit. If it ever disagrees with what you see, tap the other key.
+
+Until it is told, every page that picks a pose says *Counterweight side
+guessed*, and tracking does not trust the guess to refuse you: it holds the
+telescope wherever you put it, and stops at the counterweight's limit only
+when tracking itself has carried it there. Once told, tracking never holds
+with the counterweight more than 20° above level.
+
 ## Modes
 
 Anything kept between nights that changes where the telescope points. While
@@ -56,6 +90,9 @@ making can't quietly send Go To the wrong way.
   *Mount As It Stands*, when that differs from the site latitude and true
   north.
 - **Star-aligned**: Go To and tracking go through the alignment.
+- **Counterweight side guessed**: on a mount with no home set, Go To picks
+  its side of the pier by a guess. Tell it under
+  [Counterweight](/docs/setup#counterweight).
 - **Axis scan running**: the Optical Axes page is moving the mount.
 
 **Reset Pointing to Defaults** puts the axis signs and the sync offset back.

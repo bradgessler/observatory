@@ -67,6 +67,13 @@ Swinging the tube to the other side of the mount, so a target past the
 meridian can be followed without the counterweight rising.
 More in [Sky Map](/docs/sky#the-meridian-and-the-flip).
 
+### Counterweight side
+
+Which side of the mount the counterweight is on, and so whether it is below
+or above level in the pose the mount is in. The sky cannot say, so a mount
+with no home set asks.
+More in [Setup](/docs/setup#counterweight).
+
 ## Pointing
 
 ### Go To

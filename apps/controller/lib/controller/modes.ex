@@ -25,6 +25,7 @@ defmodule Controller.Modes do
       mount_tilt_mode(),
       mount_heading_mode(),
       lineup_mode(),
+      counterweight_mode(),
       axis_scan_mode(),
       lock_on_mode()
     ]
@@ -97,11 +98,30 @@ defmodule Controller.Modes do
         st = Controller.Sky.Lineup.status(id)
 
         if st.solved?,
-          do: {"Star-aligned · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "agree to #{:erlang.float_to_binary(st.rms_arcmin / 1, decimals: 1)}′ · #{st.axis_words}"},
+          do: {"Star-aligned · #{st.n} star#{if st.n == 1, do: "", else: "s"}", "#{agree(st.rms_arcmin)}#{st.axis_words}"},
           else: nil
 
       _ ->
         nil
+    end
+  end
+
+  # While a new set of points is being fitted the old model is still in force and there is no
+  # margin yet (`Lineup.replace/3`). Every open page asks for the modes at that moment, because
+  # the points just changed: it must get them, not crash on a number that isn't there.
+  defp agree(rms) when is_number(rms), do: "agree to #{:erlang.float_to_binary(rms / 1, decimals: 1)}′ · "
+  defp agree(_), do: ""
+
+  # A mount with no home picks its side of the pier for every Go To, and where a hold has to
+  # stop, by which side its counterweight is on. Both sides see the same sky, so an alignment
+  # only guesses it: until someone looking at the mount says, every page says it is a guess.
+  defp counterweight_mode do
+    Settings.get("lineup", %{})
+    |> Map.keys()
+    |> Enum.find(&match?(%{from: :guessed}, Controller.Sky.Lineup.counterweight(&1)))
+    |> case do
+      nil -> nil
+      id -> {"Counterweight side guessed", "#{id}: Go To picks its side of the pier by it. Tell it on Setup"}
     end
   end
 

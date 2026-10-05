@@ -77,7 +77,10 @@ defmodule Controller.Alignment do
     * `n`, `homed`, `margin_arcmin` (the rms of the fit, three or more points);
     * `tier`: the tightest goal the margin meets (`:look`, `:planets`,
       `:deep`) or nil; `rings`: how many of the bullseye's three rings light;
-    * `words`: one short line ("±3′ · 4 points"); `detail`: what it's good for.
+    * `words`: one short line ("±3′ · 4 points"); `detail`: what it's good for;
+    * `counterweight`: `:guessed` while a mount with no home picks its side of
+      the pier on a guess (`Lineup.counterweight/2`), and then `detail` says
+      that instead, because it is the next thing to do; `:told` or nil otherwise.
   """
   def summary(nil), do: none(nil)
 
@@ -103,6 +106,8 @@ defmodule Controller.Alignment do
         true -> :none
       end
 
+    counterweight = Map.get(status, :counterweight)
+
     %{
       id: id,
       state: state,
@@ -111,12 +116,13 @@ defmodule Controller.Alignment do
       margin_arcmin: margin,
       tier: tier,
       rings: rings,
+      counterweight: counterweight,
       words: words(state, n, margin),
-      detail: detail(state, tier, margin)
+      detail: if(counterweight == :guessed, do: "Counterweight side guessed. Tell it on Setup", else: detail(state, tier, margin))
     }
   end
 
-  defp none(id), do: %{id: id, state: :none, n: 0, homed: false, margin_arcmin: nil, tier: nil, rings: 0, words: "Not aligned", detail: "No home set and no alignment points"}
+  defp none(id), do: %{id: id, state: :none, n: 0, homed: false, margin_arcmin: nil, tier: nil, rings: 0, counterweight: nil, words: "Not aligned", detail: "No home set and no alignment points"}
 
   defp words(:none, _, _), do: "Not aligned"
   defp words(:home, _, _), do: "Home set · no points"

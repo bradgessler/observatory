@@ -21,6 +21,12 @@ Alignment page. A bullseye and a line of words:
   each goal: the outer ring at 30′ (good enough to just look), the middle at
   10′ (the Moon and planets), the centre at 2′ (deep sky).
 
+**Counterweight side guessed** under any of these is about a mount with no
+home set: the margin says how close a Go To lands, not which side of the
+pier it picks, and that side is a guess until you say where the
+counterweight is. Status links to the question, and
+[Setup](/docs/setup#counterweight) explains why it asks.
+
 There are two ways to add points: **Align by Stars** (center a few stars in
 the eyepiece, one at a time) and **Align by Photo** (photos through the
 eyepiece, plate solved, which also says which bolt to turn for the polar

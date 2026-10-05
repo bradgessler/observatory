@@ -204,6 +204,10 @@ defmodule Controller.StartLive do
       <%!-- the scope's live state, one line, on every step that has a scope --%>
       <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
 
+      <%!-- an alignment on a mount with no home: Go To picks its side of the pier by where the
+            counterweight is, and until someone says, that is a guess --%>
+      <Controller.Components.Counterweight.line from={@status && @status.counterweight} mount={@selected} />
+
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
         <.hint>Mount powered, EQDIR cable in this machine. This page moves on by itself.</.hint>

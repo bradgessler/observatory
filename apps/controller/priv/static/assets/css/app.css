@@ -1346,6 +1346,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 
 /* the object page's "will I see it?" line */
 .lock-line { margin: 0 0 8px; font-size: 14px; }
+/* a link in such a line ("Counterweight side: guessed. Tell it") reads in the line's own tone, underlined */
+.lock-line a { color: inherit; text-decoration: underline; }
 
 /* Tonight: how high each object is, drawn: the last column of its row */
 .target .height { width: 40px; height: 40px; flex: none; }

@@ -156,6 +156,38 @@ defmodule Controller.Sky.Lineup do
 
   def set_counterweight(_id, _snap, _where), do: {:error, :not_lined_up}
 
+  @doc """
+  The counterweight as a page says it, for the mount as it stands (`snap`)
+  under its alignment (`model/1`):
+
+      %{from: :told | :guessed, now: :below | :above | :level}
+
+  `from` is whether anyone has said (`set_counterweight/3`); `now` is where
+  the model has it at this moment, by the side it was told or guessed, and
+  `:level` with the bar within #{trunc(@cw_unsure_deg)}° of level, where nobody can answer by eye.
+
+  nil when nothing rests on it: no alignment in force, or home is set. Home
+  is where the counterweight hangs straight down, so with home set Go To and
+  the soft limits go by that, and there is nothing to ask.
+  """
+  def counterweight(%{signs: sg} = m, %{homed: false, axes: %{ra: %{degrees: theta}}}) when is_number(theta) do
+    height = Model.counterweight(m, sg, theta)
+
+    now =
+      cond do
+        abs(height) < @cw_unsure_deg -> :level
+        height < 0 -> :below
+        true -> :above
+      end
+
+    %{from: if(m[:cw_told], do: :told, else: :guessed), now: now}
+  end
+
+  def counterweight(_model, _snap), do: nil
+
+  @doc "The same for mount `id` on this machine, as it stands right now."
+  def counterweight(id) when is_binary(id), do: counterweight(model(id), safe_snapshot(id))
+
   defp told_cw(%{"cw" => c}) when c in [1, -1], do: c
   defp told_cw(_), do: nil
 
@@ -288,8 +320,9 @@ defmodule Controller.Sky.Lineup do
       # one or two stars fit exactly whatever they are; only three or more can be judged
       good_for: if(rms && n >= 3, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
       signs_corrected?: Map.get(entry, "signs_corrected", false),
-      # :told, or :guessed (from where the points were taken), once there is a model
-      counterweight: m && if(told_cw(entry), do: :told, else: :guessed),
+      # :told, or :guessed (from where the points were taken), on a mount whose home was never
+      # set; nil with home set, where nothing rests on it (`counterweight/2`)
+      counterweight: (cw = counterweight(m, safe_snapshot(id))) && cw.from,
       solved?: m != nil
     }
   end

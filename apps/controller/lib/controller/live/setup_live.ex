@@ -7,7 +7,8 @@ defmodule Controller.SetupLive do
   import Controller.Components.UI
 
   alias Controller.{Modes, Settings}
-  alias Controller.Sky.Pointing
+  alias Controller.Components.Counterweight
+  alias Controller.Sky.{Lineup, Pointing}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -74,6 +75,14 @@ defmodule Controller.SetupLive do
 
   def handle_event("home", _, socket) do
     {:noreply, socket |> run(&Mount.set_home/1, "Home set · soft limits armed") |> load()}
+  end
+
+  # Which side the counterweight is on, said by someone looking at it: the answer is for the
+  # mount as it stands this moment, and is kept with the alignment (`Lineup.set_counterweight/3`)
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    where = String.to_existing_atom(where)
+    said = Counterweight.words(Lineup.set_counterweight(socket.assigns.id, socket.assigns.snap, where), where)
+    {:noreply, socket |> assign(notice: said) |> load()}
   end
 
   def handle_event("goto", %{"axis" => axis, "sign" => sign, "deg" => deg}, socket) do
@@ -248,6 +257,9 @@ defmodule Controller.SetupLive do
         <.hint>Counterweight straight down, tube along the polar axis, by eye. Arms the soft limits; the stars do the sky. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
         <.btn phx-click="home" data-confirm="Set home here? Both axes read 0° from now on.">Set Home Here</.btn>
       </.card>
+
+      <%!-- with no home set, which side the counterweight is on is asked, not assumed (drawn only then) --%>
+      <Counterweight.card cw={Lineup.counterweight(@steering.model, @snap)} />
 
       <.row>
         <.btn navigate={~p"/controls/position/#{@id}"}>Move to an Exact Angle ›</.btn>

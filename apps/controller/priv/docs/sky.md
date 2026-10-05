@@ -63,8 +63,11 @@ counterweight is the limit:
   past, with you watching. Tracking stops when the counterweight is 20° above
   level, where the tube can reach the legs, and the page says so.
 
-Which way the counterweight hangs comes from where the alignment points were
-taken: you had it below level when you centered them.
+Which way the counterweight hangs is a guess from where the alignment points
+were taken (you probably had it below level), until you say. The sky cannot
+tell the two sides of the mount apart, so
+[Setup asks](/docs/setup#counterweight), and until it is told an object's
+page says *Counterweight side: guessed* above Go To.
 
 ## Tonight
 

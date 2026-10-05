@@ -9,7 +9,8 @@ defmodule Controller.Components.AlignmentStatus do
   one or two points the rings are dashed (they fit exactly, so there's no
   margin yet); with home set and no points, only the centre dot shows. The
   words always say it too ("±3′ · 4 points"), so it never rests on the
-  picture alone.
+  picture alone. While a mount with no home picks its side of the pier on a
+  guess, the words say that as well ("Counterweight side guessed").
 
     * `glyph/1`: the bullseye alone;
     * `chip/1`: the sidebar's line under the telescope switcher, a link to
@@ -41,7 +42,8 @@ defmodule Controller.Components.AlignmentStatus do
     ~H"""
     <.link :if={@summary} navigate={@href} class={["al-chip", "al-#{@summary.state}"]} aria-label={"Alignment: #{@summary.words}. #{@summary.detail}"}>
       <.glyph summary={@summary} size={22} />
-      <span class="al-chip-text"><strong>Alignment</strong><span>{@summary.words}</span></span>
+      <%!-- a margin says how close Go To lands, not which side of the pier it picks: say when that is a guess --%>
+      <span class="al-chip-text"><strong>Alignment</strong><span>{@summary.words}</span><span :if={@summary[:counterweight] == :guessed} class="tone-caution">Counterweight side guessed</span></span>
     </.link>
     """
   end

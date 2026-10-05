@@ -60,6 +60,7 @@ defmodule Controller.ObjectLive do
        aperture: Settings.get("aperture_mm", 100),
        confirming: false,
        can_undo: false,
+       counterweight: nil,
        flip_ask: nil,
        move: nil,
        holding: nil,
@@ -185,13 +186,14 @@ defmodule Controller.ObjectLive do
 
     id = socket.assigns.selected
     off = socket.assigns.utc_offset_min
+    lock = id && Lineup.status(id)
 
     reach =
       Reach.of(obj, socket.assigns.snap, ctx,
         horizon: horizon,
         trees?: Settings.get("horizon") != nil,
         field: Settings.get("eyepiece_field_arcmin", 72),
-        lock: id && Lineup.status(id),
+        lock: lock,
         tracker: id && Tracker.status(id),
         ended: id && Tracker.ended(id),
         clock: &clock(&1, off)
@@ -213,6 +215,8 @@ defmodule Controller.ObjectLive do
       visible: alt > tree,
       scope: Pointing.scope_radec(socket.assigns.snap, ctx),
       reach: reach,
+      # :guessed while Go To picks its side of the pier on a guess (`Lineup.status/1`)
+      counterweight: lock && lock.counterweight,
       holding: id && (Tracker.status(id) || %{})[:name]
     )
   end
@@ -510,6 +514,9 @@ defmodule Controller.ObjectLive do
             <p :if={@snap && @snap[:stalled]} class="stall-line tone-bad" role="status">
               {stall_words(@snap.stalled, @utc_offset_min)}
             </p>
+            <%!-- Go To picks its side of the pier by where the counterweight is: say when that is a guess
+                  (inside the flip question while it is open, so it is read with it) --%>
+            <Controller.Components.Counterweight.line :if={!@flip_ask} from={@counterweight} mount={@selected} />
             <button
               class="go big"
               phx-click="slew"
@@ -559,6 +566,7 @@ defmodule Controller.ObjectLive do
               <p class="hint">
                 From this side the counterweight would sit {round(@flip_ask.past)}° above level. Go To flips the mount to the other side of the pier in two legs: first to the home position (counterweight down, tube at the pole), where it stops so you can check the way is clear, then on to {@obj.name}.
               </p>
+              <Controller.Components.Counterweight.line from={@counterweight} mount={@selected} />
               <div class="row">
                 <button class="go" phx-click="flip">Flip, in Two Legs</button>
                 <button

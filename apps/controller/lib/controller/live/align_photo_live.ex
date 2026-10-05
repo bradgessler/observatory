@@ -17,7 +17,8 @@ defmodule Controller.AlignPhotoLive do
   import Controller.Components.UI
 
   alias Controller.{Plates, Settings}
-  alias Controller.Sky.{Pointing, Polar, Solve, Tracker}
+  alias Controller.Components.Counterweight
+  alias Controller.Sky.{Lineup, Pointing, Polar, Solve, Tracker}
 
   @where_every_ms 30_000
 
@@ -34,6 +35,8 @@ defmodule Controller.AlignPhotoLive do
         selected: params["id"] || session["id"] || session["telescope"],
         watching: nil,
         snap: nil,
+        # the alignment in force for this mount, for the one question the photos cannot answer
+        model: nil,
         notice: nil,
         # where solves would run: :checking until the cluster has been asked
         solver: :checking,
@@ -87,6 +90,8 @@ defmodule Controller.AlignPhotoLive do
   end
 
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
+  # the alignment changed (Use This Alignment here, a Centered or an answer on another phone)
+  def handle_info({:settings, "lineup", _}, socket), do: {:noreply, assign(socket, model: model(socket.assigns.selected))}
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
@@ -110,9 +115,12 @@ defmodule Controller.AlignPhotoLive do
       end
 
     socket
-    |> assign(refs: refs, selected: selected, snap: snap || socket.assigns.snap, page_title: Controller.Words.title(selected, "Align by Photo"))
+    |> assign(refs: refs, selected: selected, snap: snap || socket.assigns.snap, model: model(selected), page_title: Controller.Words.title(selected, "Align by Photo"))
     |> watch(selected)
   end
+
+  defp model(nil), do: nil
+  defp model(id), do: Lineup.model(id)
 
   # follow the selected mount's plates; ask for them again when plate
   # solving comes back from having given up
@@ -225,6 +233,14 @@ defmodule Controller.AlignPhotoLive do
   def handle_event("clear", _, socket) do
     Plates.clear(socket.assigns.selected)
     {:noreply, put_notice(socket, "Photos cleared")}
+  end
+
+  # Which side the counterweight is on: the one thing no photo can say, so it is asked here, where
+  # a mount with no home gets its alignment. The answer is for the mount as it stands this moment.
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    where = String.to_existing_atom(where)
+    said = Counterweight.words(Lineup.set_counterweight(socket.assigns.selected, socket.assigns.snap, where), where)
+    {:noreply, socket |> assign(model: model(socket.assigns.selected)) |> put_notice(said)}
   end
 
   def handle_event(action, %{"i" => n}, socket) when action in ["retry", "remove"] do
@@ -357,6 +373,9 @@ defmodule Controller.AlignPhotoLive do
         </.row>
         <.hint>After turning a bolt, Start Over: these photos describe the mount as it was.</.hint>
       </.card>
+
+      <%!-- once Go To goes through an alignment on a mount with no home: the side the photos cannot say --%>
+      <Counterweight.card cw={Lineup.counterweight(@model, @snap)} />
 
       <.card :if={@plates != []} title="Photos">
         <:aside :if={@waiting + @solving > 0}>{queue_words(@waiting, @solving)}</:aside>

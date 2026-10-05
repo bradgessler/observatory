@@ -29,6 +29,10 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 
 1. `cd ~/Projects/bradgessler/telescope && git pull && mix deps.get && mix phx.server`
    - No cable yet → a simulated mount appears; that's fine for checking the UI.
+   - Since October 2026 a dev server keeps to itself: no cluster, no looking for boxes, so a server
+     started for something else can never join a telescope in use (one did, and its simulated camera
+     showed on the box as live stars). When this Mac should be a node of the box's cluster (to drive
+     the box's mount from here, copy its frames, solve its plates): `OBSERVATORY_CLUSTER=1 mix phx.server`.
 2. Open `http://<laptop-ip>:4000` on the phone (same Wi-Fi). Toggle night mode (◐).
 3. Sky tab → **Horizon**: set the tree line per direction for tonight's spot;
    set aperture for the scope in use.

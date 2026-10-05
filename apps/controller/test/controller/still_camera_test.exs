@@ -324,6 +324,175 @@ defmodule Controller.StillCameraTest do
     end
   end
 
+  describe "cloud" do
+    # The simulated camera with a roll of pictures in it: each press of the shutter takes the next
+    # (and the last one again after that).
+    defmodule Roll do
+      @behaviour Camera.Transport
+      alias Camera.Transport.Sim
+
+      @impl true
+      def open(opts), do: with({:ok, s} <- Sim.open(opts), do: {:ok, Map.put(s, :roll, Keyword.fetch!(opts, :pictures))})
+      @impl true
+      def write(s, bin, timeout), do: Sim.write(%{s | picture: Enum.at(s.roll, min(s.shots, length(s.roll) - 1))}, bin, timeout)
+      @impl true
+      defdelegate read(s, max, timeout), to: Sim
+      @impl true
+      defdelegate event(s, timeout), to: Sim
+      @impl true
+      defdelegate close(s), to: Sim
+    end
+
+    # A star field as the camera would send it: made in light, then bent into a JPEG's levels the
+    # way a camera bends them (a power of 1/2.2). Its stars are `stars` times as bright as a clear
+    # sky's, over a sky `sky` times as bright.
+    defp sky_picture(stars, sky) do
+      {w, h, sigma} = {1200, 800, 2.5}
+      at = [{150, 120, 100}, {420, 200, 80}, {700, 150, 60}, {1000, 180, 110}, {250, 420, 70}, {560, 500, 50}, {860, 440, 90}, {1050, 650, 40}, {380, 680, 75}, {720, 660, 65}]
+
+      light =
+        for {cx, cy, peak} <- at, y <- (cy - 15)..(cy + 15), x <- (cx - 15)..(cx + 15), into: %{} do
+          {{x, y}, stars * peak * :math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma * sigma))}
+        end
+
+      px = for y <- 0..(h - 1), x <- 0..(w - 1), into: <<>>, do: <<round(255 * :math.pow(min(2.0 * sky + Map.get(light, {x, y}, 0.0), 255.0) / 255, 1 / 2.2))>>
+      pgm = Path.join(System.tmp_dir!(), "sky-picture-#{System.unique_integer([:positive])}.pgm")
+      File.write!(pgm, ["P5\n#{w} #{h}\n255\n", px])
+      {jpeg, 0} = System.cmd("ffmpeg", ~w(-loglevel error -i #{pgm} -q:v 2 -frames:v 1 -f image2pipe -vcodec mjpeg -))
+      File.rm(pgm)
+      jpeg
+    end
+
+    # this test's camera, with these pictures in it
+    defp roll(cam, pictures) do
+      stop_supervised!({Camera.Server, cam})
+      id = "sim-still-roll-#{System.unique_integer([:positive])}"
+      start_supervised!({Camera.Server, id: id, transport: {Roll, pictures: pictures}})
+      assert_receive {:still_camera, %{camera: %{id: ^id, state: :ready}}}, 10_000
+      id
+    end
+
+    defp side(record), do: record.sidecar |> File.read!() |> Jason.decode!()
+
+    @tag timeout: 120_000
+    test "three pictures with the stars 25 percent dimmer under a sky twice as bright are flagged in their sidecars, not counted, and the page says so while it lasts", %{cam: cam, conn: conn} do
+      {clear, cloudy} = {sky_picture(1.0, 1.0), sky_picture(0.75, 2.0)}
+      roll(cam, [clear, clear, cloudy, cloudy, cloudy, clear])
+      {:ok, view, _html} = live(conn, ~p"/cameras/stills")
+      good = StillCamera.status().good
+
+      # the first picture of a field is its own yardstick; the next, as clear, reads the same
+      first = picture()
+      assert first.cloud == false and first.transparency == 1.0
+      assert %{"cloud" => false, "transparency" => 1.0, "transparency_from" => %{"first" => true, "stars" => 10}} = side(first)
+      second = picture()
+      assert second.cloud == false
+      assert_in_delta second.transparency, 1.0, 0.02
+      assert StillCamera.status().good == good + 2
+      refute render(view) =~ "cloud"
+
+      for _ <- 1..3 do
+        through = picture()
+        assert through.cloud == true
+        assert_in_delta through.transparency, 0.75, 0.04
+        assert %{"cloud" => true, "transparency" => t, "transparency_from" => %{"stars" => 10, "sky_ratio" => sky}} = side(through)
+        assert t == through.transparency
+        # twice the light of sky is 1.37 times the level
+        assert_in_delta sky, 1.37, 0.08
+        # kept, like every picture
+        assert Enum.all?(through.files, &File.exists?/1)
+        html = render(view)
+        assert html =~ ~r/Thin cloud: stars 2\d percent dimmer\. Kept, not counted/
+        assert html =~ ~r/<p[^>]*role="status"[^>]*>\s*Thin cloud/
+      end
+
+      # the count of good pictures has not moved
+      assert StillCamera.status().good == good + 2
+
+      after_it = picture()
+      assert after_it.cloud == false
+      assert_in_delta after_it.transparency, 1.0, 0.02
+      assert StillCamera.status().good == good + 3
+      refute render(view) =~ "cloud"
+    end
+
+    @tag timeout: 120_000
+    test "the limits are the caller's: stars 25 percent dimmer are not cloud when 40 percent is asked for", %{cam: cam} do
+      roll(cam, [sky_picture(1.0, 1.0), sky_picture(0.75, 2.0)])
+      picture()
+      before = StillCamera.status().last.seq
+      StillCamera.shoot(cloud: [dimmer: 0.4])
+      assert_receive {:still_camera, %{busy: false, last: %{seq: seq} = last}} when seq > before, 15_000
+      assert last.cloud == false
+      assert_in_delta last.transparency, 0.75, 0.04
+    end
+
+    @tag timeout: 120_000
+    test "the field starts again when the mount slews further than a picture is wide, and not for a nudge", %{cam: cam} do
+      mount = "sim-still-cloud-#{System.unique_integer([:positive])}"
+      start_supervised!({Mount.Server, id: mount, transport: {Mount.Transport.Sim, []}})
+      Mount.subscribe(mount)
+      assert_receive {:mount, %{connected: true}}, 2_000
+      roll(cam, [sky_picture(1.0, 1.0), sky_picture(0.75, 2.0)])
+
+      # a picture's width at 2032 mm: 0.66 degrees
+      shoot = fn ->
+        before = (StillCamera.status().last || %{})[:seq] || 0
+        StillCamera.shoot(cloud: [field_deg: 0.66])
+        assert_receive {:still_camera, %{busy: false, last: %{seq: seq} = last}} when seq > before, 15_000
+        last
+      end
+
+      first = shoot.()
+      assert first.mount == mount and first.transparency == 1.0
+
+      # nudged a tenth of a degree: the same stars, held against the clear picture
+      :ok = Mount.goto_relative(mount, :ra, 0.1)
+      slew_ended(mount)
+      nudged = shoot.()
+      assert nudged.cloud == true
+      assert_in_delta nudged.transparency, 0.75, 0.04
+
+      # two degrees away: another field, with nothing yet to hold its stars against
+      :ok = Mount.goto_relative(mount, :ra, 2.0)
+      slew_ended(mount)
+      away = shoot.()
+      assert away.cloud == false and away.transparency == 1.0
+      assert %{"transparency_from" => %{"first" => true}} = side(away)
+    end
+
+    test "in the sidecar, what was said about cloud is written and what couldn't be said is left out" do
+      alias Controller.StillCamera.Sidecar
+      build = fn sky -> Sidecar.build(%{saved_at: DateTime.utc_now(), files: [%{name: "20261004-074708-DSC01383.JPG"}], sky: sky}) end
+
+      # thick cloud: the stars are gone, so there is no transparency, and it is cloud all the same
+      gone = build.(%{cloud: true, transparency: nil, stars: 0, sky_ratio: 4.2})
+      assert %{"cloud" => true, "transparency_from" => %{"stars" => 0, "sky_ratio" => 4.2}} = gone
+      refute Map.has_key?(gone, "transparency")
+
+      # nothing to go by (no stars, the Moon): no word about cloud at all, rather than "no cloud"
+      for sky <- [%{cloud: nil, transparency: nil, stars: 0, sky_ratio: 1.0}, nil] do
+        refute Enum.any?(~w(cloud transparency transparency_from), &Map.has_key?(build.(sky), &1))
+      end
+    end
+
+    @tag timeout: 60_000
+    test "the page says how much dimmer the stars are, or that they are gone", %{conn: conn} do
+      last = picture()
+      {:ok, view, _html} = live(conn, ~p"/cameras/stills")
+      status = StillCamera.status()
+      show = fn more -> send(view.pid, {:still_camera, %{status | last: Map.merge(last, more)}}) && render(view) end
+
+      assert show.(%{cloud: true, transparency: 0.8}) =~ "Thin cloud: stars 20 percent dimmer. Kept, not counted"
+      assert show.(%{cloud: true, transparency: 0.31}) =~ "Cloud: stars 69 percent dimmer. Kept, not counted"
+      assert show.(%{cloud: true, transparency: nil}) =~ "Cloud: no stars left to measure. Kept, not counted"
+      # dimmer stars that aren't cloud say nothing, and a settling picture through cloud says both
+      refute show.(%{cloud: false, transparency: 0.7}) =~ "loud"
+      both = show.(%{cloud: true, transparency: 0.75, settling: true, since_slew_s: 1.0})
+      assert both =~ "Mount settling" and both =~ "Thin cloud: stars 25 percent dimmer"
+    end
+  end
+
   describe "star size" do
     # A star field as the camera would send it: 1200 x 800, a dark sky, Gaussian stars 3 px in sigma
     # (a half-flux diameter of 7.06 px), made into a JPEG by ffmpeg.

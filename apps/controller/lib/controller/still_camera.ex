@@ -32,6 +32,15 @@ defmodule Controller.StillCamera do
   `status().good`, the count of pictures that count, doesn't move for it. The
   picture is kept all the same.
 
+  **So is a picture taken through cloud.** Thin cloud dims the stars and
+  brightens the sky at once. Each picture's stars are held against the same
+  stars in the clearest picture of this field so far
+  (`Controller.StillCamera.Cloud`): the picture says how much of their light
+  they still have (`transparency`), and `cloud: true` when they are more
+  than 20 percent dimmer while the sky is brighter. The field starts again
+  when the mount slews further than a picture is wide, the target changes,
+  or the ISO or shutter speed does.
+
   **It carries on after a restart.** Whether it was shooting continuously and
   whether it was solving are kept in `Controller.Settings` (`"still_camera"`);
   a new process picks them up and starts shooting again as soon as the camera
@@ -44,7 +53,7 @@ defmodule Controller.StillCamera do
   require Logger
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
-  alias Controller.StillCamera.{Focus, Optics, Sidecar}
+  alias Controller.StillCamera.{Cloud, Focus, Optics, Sidecar}
 
   @topic "still_camera"
   @look_ms 3_000
@@ -89,7 +98,11 @@ defmodule Controller.StillCamera do
     * `settle_ms:` how long after a slew a picture is still the mount settling (2000). A picture
       whose shutter opened sooner than that is marked `settling: true` and not counted;
     * `slew_deg_s:` how fast an axis must turn for it to be a slew and not tracking, in degrees a
-      second (0.05, which is 12x sidereal).
+      second (0.05, which is 12x sidereal);
+    * `cloud:` what counts as cloud, as `Controller.StillCamera.Cloud.judge/3` takes it:
+      `[dimmer: 0.2, sky: 1.1, lost_sky: 1.5, min_stars: 3, field_deg: ...]` (stars more than 20
+      percent dimmer than in the clearest picture of the field while the sky is more than 1.1
+      times as bright; the field's width is worked out from the focal length when not given).
   """
   def shoot(opts \\ []), do: GenServer.cast(__MODULE__, {:shoot, opts})
 
@@ -136,13 +149,17 @@ defmodule Controller.StillCamera do
 
   @doc "How much sky a picture covers, across, in degrees `{low, high}`: the sensor's width through the focal length in Settings, a quarter either way."
   def field_scale do
-    case Settings.get("focal_length_mm") do
-      f when is_number(f) and f > 0 ->
-        w = 2 * :math.atan(@sensor_mm / (2 * f)) * 180 / :math.pi()
-        {w * 0.75, w * 1.25}
+    case field_deg() do
+      w when is_number(w) -> {w * 0.75, w * 1.25}
+      _ -> {0.1, 5.0}
+    end
+  end
 
-      _ ->
-        {0.1, 5.0}
+  @doc "How wide a picture is on the sky, in degrees: the sensor's width through the focal length in Settings. `nil` until that is set."
+  def field_deg do
+    case Settings.get("focal_length_mm") do
+      f when is_number(f) and f > 0 -> 2 * :math.atan(@sensor_mm / (2 * f)) * 180 / :math.pi()
+      _ -> nil
     end
   end
 
@@ -232,7 +249,13 @@ defmodule Controller.StillCamera do
        # the mounts whose reports are followed, and when each was last seen slewing (monotonic ms)
        mounts: MapSet.new(),
        moved: %{},
-       # pictures that count: taken with the mount settled
+       # each mount's axes as last reported (and whether it was slewing then), and how far each
+       # axis has turned in slews, added up: what tells a nudge from a move to another field
+       axes: %{},
+       turned: %{},
+       # the stars of the field the pictures are of, as the clearest picture showed them (`Cloud`)
+       field: nil,
+       # pictures that count: taken with the mount settled, and not through cloud
        good: 0
      })}
   end
@@ -270,13 +293,32 @@ defmodule Controller.StillCamera do
 
   def handle_info({:camera, _st}, s), do: {:noreply, s |> look() |> announce()}
 
-  # A mount's report (four a second, and on every change): all that matters here is when it was
-  # last slewing. Stamped as it is read, so reports read late (this process was busy turning a
-  # dial) say "later" and a picture is marked that needn't have been: never the other way round.
+  # A mount's report (four a second, and on every change): what matters here is when it was last
+  # slewing, and how far its slews have carried it. Stamped as it is read, so reports read late
+  # (this process was busy turning a dial) say "later" and a picture is marked that needn't have
+  # been: never the other way round.
   def handle_info({:mount, %{id: id} = snap}, s) do
-    if slewing?(snap, s.shot_opts[:slew_deg_s] || @slew_deg_s),
-      do: {:noreply, %{s | moved: Map.put(s.moved, id, System.monotonic_time(:millisecond))}},
-      else: {:noreply, s}
+    slewing = slewing?(snap, s.shot_opts[:slew_deg_s] || @slew_deg_s)
+    {was, was_slewing} = Map.get(s.axes, id, {nil, false})
+
+    now =
+      case snap do
+        %{axes: %{ra: %{degrees: ra}, dec: %{degrees: dec}}} when is_number(ra) and is_number(dec) -> {ra, dec}
+        _ -> was
+      end
+
+    # the turn since the last report belongs to a slew when either end of it was one (the last
+    # leg into a stop is reported with the axis already still); tracking's turn is never added
+    {tra, tdec} = Map.get(s.turned, id, {0.0, 0.0})
+
+    turned =
+      case {was, now} do
+        {{ra0, dec0}, {ra1, dec1}} when slewing or was_slewing -> {tra + ra1 - ra0, tdec + dec1 - dec0}
+        _ -> {tra, tdec}
+      end
+
+    s = %{s | axes: Map.put(s.axes, id, {now, slewing}), turned: Map.put(s.turned, id, turned)}
+    {:noreply, if(slewing, do: %{s | moved: Map.put(s.moved, id, System.monotonic_time(:millisecond))}, else: s)}
   end
 
   # a plate moved on (solving, solved, failed): is it the one this picture is waiting for?
@@ -332,7 +374,8 @@ defmodule Controller.StillCamera do
       dir = dir()
       solve = if s.solving, do: s.solve_opts
       # what this process knows that the picture's own task doesn't: when each mount last slewed
-      ctx = %{moved: s.moved, opts: opts || s.shot_opts}
+      # and how far, and the field's stars as the clearest picture so far showed them
+      ctx = %{moved: s.moved, turned: s.turned, field: s.field, opts: opts || s.shot_opts}
       task = Task.Supervisor.async_nolink(Controller.StillCamera.Tasks, fn -> take(id, seq, dir, solve, ctx) end)
       announce(%{s | task: task, seq: seq})
     end
@@ -366,8 +409,27 @@ defmodule Controller.StillCamera do
           %{name: name, camera_name: f.name, format: f.format, bytes: byte_size(f.bytes), sha256: Base.encode16(:crypto.hash(:sha256, f.bytes), case: :lower)}
         end
 
+      # How the camera was set when the shutter was pressed, as its driver read it then. The status
+      # asked later is a later reading: an ISO turned while this picture came down and was measured
+      # is already in it (the night a frame taken at ISO 3200 was written down as 800).
+      settings = hd(files)[:settings]
       jpeg = Enum.find(files, &(&1.format == :jpeg))
       frame = jpeg && measure(jpeg.bytes)
+
+      # Cloud: this picture's stars against the same stars in the clearest picture of the field. The
+      # field is this process's (handed over as the picture started, handed back in its record), and
+      # where and how the picture was taken says whether it is still the same field. A measure that
+      # fails says nothing, and never costs the picture.
+      place = %{
+        camera: id,
+        mount: mount_id,
+        target: mount_id && safe(fn -> Controller.Sky.Tracker.status(mount_id)[:name] end),
+        settings: settings && {settings[:iso], settings[:shutter]},
+        slewed: mount_id && ctx.turned[mount_id]
+      }
+
+      cloud_opts = Keyword.put_new(ctx.opts[:cloud] || [], :field_deg, field_deg())
+      {sky, field} = (frame && safe(fn -> Cloud.judge(ctx.field, %{stars: frame.light, sky: frame.stats.background, place: place}, cloud_opts) end)) || {nil, ctx.field}
       # how wide its stars are, and the bigger copy that was measured on (the solver's starts from it)
       {star_size, sharp} = if frame, do: sharp(jpeg.bytes, frame.marks.stars, frame.w, []), else: {nil, nil}
 
@@ -386,10 +448,6 @@ defmodule Controller.StillCamera do
 
       base = "#{stamp}-#{Path.rootname(hd(files).name)}"
       camera = safe(fn -> Camera.status(id) end)
-      # How the camera was set when the shutter was pressed, as its driver read it then. The status
-      # asked now is a later reading: an ISO turned while this picture came down and was measured is
-      # already in it (the night a frame taken at ISO 3200 was written down as 800).
-      settings = hd(files)[:settings]
       exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
       settle = mount_id && settle(ctx.moved[mount_id], samples, pressed, hd(files)[:pressed_mono] || started, exposure_s, ctx.opts)
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
@@ -408,6 +466,7 @@ defmodule Controller.StillCamera do
             mount_id: mount_id,
             samples: samples,
             settle: settle,
+            sky: sky,
             lock: LockOn.status(),
             calibration: mount_id && safe(fn -> LockOn.calibration(mount_id) end),
             measured: measured,
@@ -435,6 +494,9 @@ defmodule Controller.StillCamera do
         mount: mount_id,
         settling: settle && settle.settling,
         since_slew_s: settle && settle.since_slew_s,
+        cloud: sky && sky.cloud,
+        transparency: sky && sky.transparency,
+        field: field,
         # the camera's JPEG, across: the sensor's whole width in this many pixels
         full_w: jpeg && jpeg_width(jpeg.bytes)
       }
@@ -564,8 +626,12 @@ defmodule Controller.StillCamera do
   # up (-noautorotate): the camera's tilt sensor flips its rotation flag as the scope slews, and a
   # picture that turns 90° under Lock On ruins its calibration. A big JPEG is decoded at a quarter or
   # an eighth of its size (-lowres), still wider than the copy: 0.9 s on a Pi instead of 5.8.
+  # Its stars' light is read off the same copy (`Cloud.light/3`, `:light`): what says whether
+  # there is cloud.
   defp measure(jpeg) do
-    with pgm when is_binary(pgm) <- grey(jpeg, lowres(jpeg_width(jpeg)), "scale=#{@copy_w}:-2,format=gray"), do: ScopeCamera.analyse(pgm)
+    with pgm when is_binary(pgm) <- grey(jpeg, lowres(jpeg_width(jpeg)), "scale=#{@copy_w}:-2,format=gray"),
+         %{marks: %{stars: stars}} = frame <- ScopeCamera.analyse(pgm),
+         do: Map.put(frame, :light, Cloud.light(pgm, stars))
   rescue
     _ -> nil
   end
@@ -688,8 +754,10 @@ defmodule Controller.StillCamera do
 
   defp finished(s, {:ok, record}) do
     if png = record[:png], do: :persistent_term.put({__MODULE__, :png}, png)
+    # the field's stars come back with the picture and stay here: the next picture is held against them
+    s = %{s | field: Map.get(record, :field, s.field)}
     # the star size of the picture before rides along: a page says which way a focus turn went
-    record = record |> Map.delete(:png) |> Map.put(:star_size_was, s.last && s.last[:star_size])
+    record = record |> Map.drop([:png, :field]) |> Map.put(:star_size_was, s.last && s.last[:star_size])
     LockOn.frame(Map.put(record, :source, :still))
     good = if counts?(record), do: s.good + 1, else: s.good
     s = %{s | last: record, good: good, failures: 0, why: nil, free: free_bytes()} |> follow(record) |> follow_mounts([record[:mount]])
@@ -715,8 +783,8 @@ defmodule Controller.StillCamera do
     announce(%{s | failures: failures})
   end
 
-  # a picture that counts: every one that isn't marked (the mount settling)
-  defp counts?(record), do: record[:settling] != true
+  # a picture that counts: every one that isn't marked (the mount settling, cloud)
+  defp counts?(record), do: record[:settling] != true and record[:cloud] != true
 
   # this picture's plate: follow it on its mount's plates until it is solved or failed
   defp follow(s, %{plate: %{mount: mount, n: n}, seq: seq, base: base} = record) do

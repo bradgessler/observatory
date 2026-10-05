@@ -279,15 +279,29 @@ defmodule Controller.StillCameraLive do
     |> Enum.join(" · ")
   end
 
-  # Why the last picture is kept but not counted as a good one (`StillCamera.status().good`).
-  defp uncounted(%{settling: true} = last) do
+  # Why the last picture is kept but not counted as a good one (`StillCamera.status().good`), a
+  # line for each reason.
+  defp uncounted(last) when is_map(last), do: Enum.filter([settling_line(last), cloud_line(last)], & &1)
+  defp uncounted(_), do: []
+
+  defp settling_line(%{settling: true} = last) do
     case last[:since_slew_s] do
-      s when is_number(s) and s > 0 -> ["Mount settling: taken #{tenths(s)} s after a slew. Kept, not counted"]
-      _ -> ["Mount slewing during the exposure. Kept, not counted"]
+      s when is_number(s) and s > 0 -> "Mount settling: taken #{tenths(s)} s after a slew. Kept, not counted"
+      _ -> "Mount slewing during the exposure. Kept, not counted"
     end
   end
 
-  defp uncounted(_), do: []
+  defp settling_line(_), do: nil
+
+  # how much of their light the stars have lost against the clearest picture of this field; thin
+  # while they keep more than half of it
+  defp cloud_line(%{cloud: true, transparency: t}) when is_number(t) do
+    dimmer = round((1 - t) * 100)
+    "#{if dimmer < 50, do: "Thin cloud", else: "Cloud"}: stars #{dimmer} percent dimmer. Kept, not counted"
+  end
+
+  defp cloud_line(%{cloud: true}), do: "Cloud: no stars left to measure. Kept, not counted"
+  defp cloud_line(_), do: nil
 
   # How wide the stars are, the number to focus by: this picture's, the picture before's (so which
   # way a turn of the knob went is plain), and how many stars it is from. In arcseconds once the

@@ -47,6 +47,22 @@ slewing, is marked `settling` in its `.json`, and the page says so in one
 line: `Mount settling: taken 1.0 s after a slew. Kept, not counted`.
 Tracking, and Lock On steering the motors, are not slews.
 
+**A picture taken through cloud.** Thin cloud does two things at once: the
+same stars get dimmer and the sky gets brighter. (A lamp only brightens the
+sky. A focus that has slipped only dims the stars.) The box holds each
+picture's stars against the same stars in the clearest picture of this
+field so far, and when they are more than 20 percent dimmer while the sky
+is brighter, the picture is marked `cloud` in its `.json` and the page says
+`Thin cloud: stars 25 percent dimmer. Kept, not counted` for as long as it
+lasts. When the stars are gone altogether under a much brighter sky it says
+`Cloud: no stars left to measure`.
+
+The first picture of a field has nothing to be held against, so it is the
+yardstick until a clearer one comes. A field starts again when the mount
+slews further than a picture is wide, and when the target, the ISO or the
+shutter speed changes. How much of their light the stars have, from 0 to 1,
+is kept with every picture as `transparency`.
+
 ## Focusing
 
 Under the picture the page says **Star size**: how wide the stars in that
@@ -114,6 +130,9 @@ files are never changed.
   four times a second.
 - **Settling**: whether the shutter opened while the mount was still
   settling after a slew, and how long after it.
+- **Cloud**: how much of their light the stars have against the clearest
+  picture of the field (`transparency`), whether that is cloud, and how many
+  stars say so.
 - **Pointing**: RA/Dec and altitude/azimuth, when the mount is homed or
   aligned. Without that it says `null`; the encoder positions are still there
   to work it out later.

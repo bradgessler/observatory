@@ -28,6 +28,14 @@ defmodule Controller.StillCamera.Sidecar do
       seconds of the mount's last slew (`settle.since_slew_s` after it; 0 when
       the mount slewed with the shutter open). The first picture after a slew
       is often poor: it is kept, and not counted.
+    * `cloud` and `transparency`: how much of their light the stars have
+      against the clearest picture of this field so far (1.0 is as clear as
+      it has been), and `cloud: true` when they are more than 20 percent
+      dimmer while the sky is brighter, or gone under a far brighter sky
+      (`Controller.StillCamera.Cloud`). `transparency_from` says how many
+      stars that is from and how bright the sky was against that picture's.
+      Left out when the picture has no stars to say. A picture through cloud
+      is kept, and not counted.
     * `pointing`: where the model says the scope pointed (RA/Dec, alt/az), and
       which model said so. Absent when the mount isn't homed or lined up.
     * `model`, `site`, `box`: the alignment in force, the site, which box and
@@ -90,7 +98,8 @@ defmodule Controller.StillCamera.Sidecar do
   `seq`, `saved_at`, `pressed_at`, `ready_at`, `files` (`[%{name, camera_name,
   format, bytes, sha256}]`), `camera` (`Camera.status/1`), `settings` (the
   camera's, as read when the shutter was pressed), `mount_id`, `samples`
-  (from `stop/1`), `settle` (`%{settling, since_slew_s, settle_s}`), `lock`
+  (from `stop/1`), `settle` (`%{settling, since_slew_s, settle_s}`), `sky`
+  (`Controller.StillCamera.Cloud.judge/3`'s verdict), `lock`
   (`Controller.LockOn.status/0`), `calibration` (the mount's saved one),
   `measured`. Anything missing is left out.
   """
@@ -134,6 +143,9 @@ defmodule Controller.StillCamera.Sidecar do
       mount: mount(shot[:mount_id], shot[:samples] || [], pressed, ended),
       settling: shot[:settle] && shot.settle[:settling],
       settle: shot[:settle] && Map.take(shot.settle, [:since_slew_s, :settle_s]),
+      cloud: shot[:sky] && shot.sky[:cloud],
+      transparency: shot[:sky] && shot.sky[:transparency],
+      transparency_from: if(is_map(shot[:sky]) and shot.sky[:cloud] != nil, do: Map.take(shot.sky, [:stars, :sky_ratio, :first])),
       pointing: pointing(ctx[:pointing], ctx[:site], pressed),
       model: ctx[:model],
       site: ctx[:site],

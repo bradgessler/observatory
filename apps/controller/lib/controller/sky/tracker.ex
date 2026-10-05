@@ -17,12 +17,16 @@ defmodule Controller.Sky.Tracker do
   and is refreshed each tick, so if this process dies or stalls the motors
   stop within a second on their own. It never chases a large error: past a
   few degrees (a pier flip the model wants, a target the limits won't allow)
-  it stops and says so rather than crawl across the sky at 16×. On a mount
-  that was never zeroed (no soft limits) it also stops when the counterweight
-  reaches the hard limit above level (`Pointing.meridian_hard/0`): the next Go
-  To flips to the other side of the pier. While the counterweight's side is
-  only a guess a hold may begin past that limit (the guess may be upside
-  down), and then turns no further than `Pointing.guessed_hold_deg/0`.
+  it stops and says so rather than crawl across the sky at 16×. A new target
+  is far off by nature until the Go To that named it lands, so it is not
+  judged until the axes have been seen moving and then stopped (or no Go To
+  showed at all), and never while a goto is in flight: giving up stops both
+  axes, and that must not be the goto (#122). On a mount that was never
+  zeroed (no soft limits) it also stops when the counterweight reaches the
+  hard limit above level (`Pointing.meridian_hard/0`): the next Go To flips
+  to the other side of the pier. While the counterweight's side is only a
+  guess a hold may begin past that limit (the guess may be upside down), and
+  then turns no further than `Pointing.guessed_hold_deg/0`.
 
   State is per mount; the current readout is in `:persistent_term` so status
   strips can show it for free.
@@ -40,6 +44,8 @@ defmodule Controller.Sky.Tracker do
   @max_rate 16.0
   # further off than this and something else is wrong: stop, don't chase
   @give_up_deg 5.0
+  # how long a new target's Go To has to show before far off can mean lost
+  @arrive_ms 5_000
   @sidereal_deg_s 360.0 / 86_164.0905
   # what is being held, per mount, for after a restart
   @hold_key "hold"
@@ -78,7 +84,7 @@ defmodule Controller.Sky.Tracker do
 
   def active?(id), do: status(id) != nil
 
-  @doc "Why the last hold on a mount ended, if it ended on its own: `%{name, why, at}` or nil."
+  @doc "Why the last hold on a mount ended, if it ended on its own: `%{name, why, at}` (and `off_deg` when `why` is `:lost`) or nil."
   def ended(id), do: :persistent_term.get({__MODULE__, :ended, id}, nil)
 
   @doc """
@@ -150,6 +156,8 @@ defmodule Controller.Sky.Tracker do
           cmd: %{ra: 0.0, dec: 0.0},
           paused: false,
           settled: false,
+          # :awaited until its Go To is seen in flight, :moving until that lands, then :landed
+          arrival: :awaited,
           since: DateTime.utc_now(),
           started_ms: System.monotonic_time(:millisecond)
         }
@@ -188,6 +196,9 @@ defmodule Controller.Sky.Tracker do
 
     case safe(fn -> Mount.snapshot(entry.ref) end) do
       %{connected: true, axes: axes} = snap ->
+        goto? = busy?(axes)
+        entry = arrival(entry, goto?)
+
         cond do
           # STOP was pressed somewhere since we started: that is the end of it
           is_integer(snap[:estop_at]) and snap.estop_at > entry.started_ms ->
@@ -196,7 +207,7 @@ defmodule Controller.Sky.Tracker do
 
           # our own goto (or a nudge) still in flight, or a hand on a control:
           # stand back; the readout says which
-          busy?(axes) ->
+          goto? ->
             {:noreply_entry, %{entry | paused: :goto}} |> commit(id, s, nil)
 
           driven_by_someone_else?(axes, entry.cmd) ->
@@ -204,8 +215,16 @@ defmodule Controller.Sky.Tracker do
 
           true ->
             case drive(id, entry, snap) do
-              {:ok, entry, readout} -> {:noreply_entry, entry} |> commit(id, s, readout)
-              {:give_up, why} -> drop(s, id, why)
+              {:ok, entry, readout} ->
+                {:noreply_entry, entry} |> commit(id, s, readout)
+
+              # far off, and its Go To has not shown yet: nothing is commanded meanwhile
+              :wait ->
+                {:noreply_entry, %{entry | paused: :goto}} |> commit(id, s, nil)
+
+              {:give_up, why, detail} ->
+                Logger.warning("tracker: #{id} gave up on #{entry.obj.name} (#{why}#{if detail[:off_deg], do: ", #{detail.off_deg}° off"}) — ending")
+                drop(s, id, why, detail)
             end
         end
 
@@ -252,15 +271,19 @@ defmodule Controller.Sky.Tracker do
       # never zeroed: no soft limits, so the counterweight is the limit. With its side only
       # guessed, that is a limit the hold has to reach itself: where it starts is not refused
       not snap.homed and Pointing.hold_limit?(ctx, cw_was, cw) ->
-        {:give_up, :meridian}
+        {:give_up, :meridian, %{}}
 
       # ... but not for ever. If the guess is right the tube is heading for the mount, so a
       # hold that began past the limit on a guess turns only a short allowance and then says why
       Pointing.guess_spent?(ctx, entry[:past_from], r1, cw) ->
-        {:give_up, :counterweight}
+        {:give_up, :counterweight, %{}}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->
-        {:give_up, :lost}
+        # a new target with nothing seen moving yet: its Go To may still be
+        # on the way, so wait for it, but not for ever
+        if entry[:arrival] == :awaited and System.monotonic_time(:millisecond) - entry.started_ms < @arrive_ms,
+          do: :wait,
+          else: {:give_up, :lost, %{off_deg: Float.round(max(abs(err_ra), abs(err_dec)), 1)}}
 
       true ->
         rate_ra = (Astro.norm180(r2 - r1) / @lookahead_s + err_ra / @correct_s) / @sidereal_deg_s
@@ -316,8 +339,19 @@ defmodule Controller.Sky.Tracker do
 
   defp clamp(r), do: r |> max(-@max_rate) |> min(@max_rate)
 
-  # a goto still in flight: the driver clears the flag once it has landed
-  defp busy?(axes), do: Enum.any?(axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) end)
+  # a goto still in flight: the driver's flag (cleared once it has landed), or
+  # the board itself running an axis as a goto
+  defp busy?(axes) do
+    Enum.any?(axes, fn {_, ax} ->
+      Map.get(ax, :goto_pending, false) or (Map.get(ax, :running, false) and ax[:mode] == :goto)
+    end)
+  end
+
+  # The grace a new target gets: seen in flight, then seen landed. Only after
+  # that (or with no Go To showing at all, @arrive_ms) can far off mean lost.
+  defp arrival(%{arrival: :awaited} = entry, true), do: %{entry | arrival: :moving}
+  defp arrival(%{arrival: :moving} = entry, false), do: %{entry | arrival: :landed}
+  defp arrival(entry, _goto?), do: entry
 
   # an axis moving at a rate we did not ask for means a hand on a control;
   # the driver's rate estimate is too coarse to tell 1× from 2×, so the game
@@ -342,9 +376,10 @@ defmodule Controller.Sky.Tracker do
     :exit, _ -> []
   end
 
-  defp drop(s, id, why) do
+  # `detail` is what a give-up measured (how far off), for Events and the pages
+  defp drop(s, id, why, detail \\ %{}) do
     if entry = s[id] do
-      Telescope.Events.emit(:tracker, :end, %{id: id, target: entry.obj.name, why: why})
+      Telescope.Events.emit(:tracker, :end, Map.merge(%{id: id, target: entry.obj.name, why: why}, detail))
 
       # :handoff — the caller is about to command the axes itself; every other end stops what we ran
       if why != :handoff,
@@ -356,11 +391,10 @@ defmodule Controller.Sky.Tracker do
       # ended on its own (not a person's stop or a Go To taking over): the pages say why
       if why in [:meridian, :counterweight, :lost, :gone, :error, :estop],
         do:
-          :persistent_term.put({__MODULE__, :ended, id}, %{
-            name: entry.obj.name,
-            why: why,
-            at: DateTime.utc_now()
-          })
+          :persistent_term.put(
+            {__MODULE__, :ended, id},
+            Map.merge(%{name: entry.obj.name, why: why, at: DateTime.utc_now()}, detail)
+          )
 
       Telescope.broadcast("tracker", {:tracker, id, nil})
     end

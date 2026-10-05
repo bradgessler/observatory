@@ -266,6 +266,12 @@ defmodule Controller.Sky.Pointing do
       :unreachable ->
         "The mount didn't answer"
 
+      :motor_running ->
+        "The mount was still moving and didn't take the Go To to #{name}: try again once it's still"
+
+      :goto_not_started ->
+        "The mount didn't start the Go To to #{name}: try again"
+
       {:flip, %{past: past}} ->
         "#{name} needs a meridian flip (on this side the counterweight would sit #{round(past)}° above level): open #{name} to flip in two legs"
 
@@ -412,11 +418,22 @@ defmodule Controller.Sky.Pointing do
       if track? and snap.tracking == :off, do: safe(fn -> Mount.track(ref, :sidereal) end)
     end
 
+    # :ok from the driver means the leg was seen on its way, so the tracker is
+    # only ever started behind a Go To that really began (#122)
     with :ok <- safe(fn -> Mount.goto_relative(ref, :ra, d_ra) end),
-         :ok <- safe(fn -> Mount.goto_relative(ref, :dec, d_dec) end) do
+         :ok <- dec_leg(ref, d_dec) do
       if track? and lined_up?(ctx), do: Controller.Sky.Tracker.track(snap.id, obj)
       if obj, do: remember(snap.id, obj)
       {:ok, d_ra, d_dec}
+    end
+  end
+
+  # never half a slew: when the Dec leg did not start, the RA leg that did is
+  # stopped, so an error always means nothing is moving
+  defp dec_leg(ref, d_dec) do
+    with {:error, _} = error <- safe(fn -> Mount.goto_relative(ref, :dec, d_dec) end) do
+      safe(fn -> Mount.stop(ref, :ra) end)
+      error
     end
   end
 

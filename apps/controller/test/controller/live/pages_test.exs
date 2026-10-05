@@ -256,6 +256,15 @@ defmodule Controller.PagesTest do
       assert html =~ "page · Nudge"
       assert html =~ "#{id} · RA by"
     end
+
+    test "a Go To the mount did not start, and tracking that gave up, are said in plain words (#122)", %{conn: conn, id: id} do
+      Telescope.Events.emit(:mount, :goto_failed, %{id: id, axis: :dec, why: :goto_not_started})
+      Telescope.Events.emit(:tracker, :end, %{id: id, target: "M31", why: :lost, off_deg: 23.1})
+      Process.sleep(100)
+      {:ok, _view, html} = live(conn, "/events")
+      assert html =~ "#{id} · Dec Go To did not start: the mount took the command and did not move"
+      assert html =~ "Gave up tracking M31: 23.1° off, too far to chase. The mount is not tracking"
+    end
   end
 
   describe "docs" do

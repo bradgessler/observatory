@@ -5,8 +5,11 @@ defmodule Telescope.Distribution do
   its pages.
 
   Off unless configured (`config :telescope, distribution: [name: "observatory",
-  cookie: :observatory]`); a box starts its own (Firmware.Distribution). The
-  node is `name@<hostname>.local`, long names, with the shared cookie.
+  cookie: :observatory]`); a box starts its own (Firmware.Distribution). A Mac
+  in development is configured that way only when it is started with
+  `OBSERVATORY_CLUSTER=1` (config/dev.exs), so a dev server never joins a
+  telescope in use by accident. The node is `name@<hostname>.local`, long
+  names, with the shared cookie.
   Distribution registers with `epmd`, which is started first if it is not
   running. Retries every 2 s until the network lets it.
 

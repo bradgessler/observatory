@@ -9,7 +9,9 @@ defmodule Camera do
       {:ok, files} = Camera.capture("sony-ilce-6000") # [%{name, format, bytes, info}]
 
   Every knob is a parameter here, so a page, an agent or IEx drives it the
-  same way. State is broadcast on `"cameras"` and `"camera:<id>"`.
+  same way. State is broadcast on `"cameras"` and `"camera:<id>"`: a real
+  camera's to every machine in the cluster, a simulated one's to this
+  machine only (`Telescope.listed?/3`).
   """
 
   defdelegate list, to: Camera.Discovery
@@ -17,6 +19,10 @@ defmodule Camera do
   defdelegate status(id), to: Camera.Server
   defdelegate set(id, settings), to: Camera.Server
   defdelegate capture(id, opts \\ []), to: Camera.Server
+
+  @doc "Is this a simulated camera? Its status says so (`sim: true`). One rule, so no page invents its own."
+  def simulated?(%{sim: true}), do: true
+  def simulated?(_), do: false
 
   @doc "Follow every camera: `{:camera, status}` messages."
   def subscribe, do: Telescope.subscribe("cameras")

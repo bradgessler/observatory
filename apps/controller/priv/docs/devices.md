@@ -63,7 +63,25 @@ The computer doesn't see the cable.
 
 Every cable gets its own driver, named after its port. The keypad and sky
 pages show a picker when there's more than one. Mounts attached to other
-machines on the same network appear too, tagged with that machine's name.
+machines on the same network appear too, tagged with that machine's name,
+once this machine has joined them (below).
+
+## A Mac next to a box
+
+A box can always be joined. A Mac running the software from source does not
+join one by itself: started with `mix phx.server` it keeps to itself, is not a
+node of the cluster, and does not look for boxes (Devices has no Boxes list).
+
+Started as a node, with `OBSERVATORY_CLUSTER=1 mix phx.server`, Devices lists
+the boxes on the network and **Connect** joins one. The box's mount and
+cameras then show on the Mac's pages, its frames are copied to the Mac and
+its photos can be solved there. A box connected once is joined again each
+time the Mac is started this way; **Disconnect** on Boxes forgets it.
+
+A simulator is listed only on the machine that runs it. A Mac with nothing
+plugged in runs a simulated mount and simulated cameras so that its pages
+work. They never show on a box it has joined: a box with no camera says it
+has none.
 
 ## Phones
 

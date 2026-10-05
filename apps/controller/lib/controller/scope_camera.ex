@@ -21,7 +21,10 @@ defmodule Controller.ScopeCamera do
   Frames are taken by a task, one at a time, so a camera that hangs never
   hangs this process; its deadline kills it. Everything a page needs is
   broadcast on `"scope_camera"` as `{:scope_camera, status}`; the frame's
-  bytes stay in `:persistent_term` for `latest/0`.
+  bytes stay in `:persistent_term` for `latest/0`. A real camera's status
+  goes to every machine in the cluster, the simulator's to this one only:
+  a simulated device is listed only on the node that runs it
+  (`Telescope.listed?/3`).
 
   Knobs (also on the page): `exposure_ms`, `gain`, `stack` (frames averaged
   per picture), kept in Settings under `"scope_camera"`.
@@ -63,23 +66,44 @@ defmodule Controller.ScopeCamera do
   The camera a page should show, across the cluster: a real camera before
   the simulator, the simulator before none, this machine's when it's a tie.
   So the Mac shows the camera plugged into the box, not its own stand-in.
+  Another machine's simulator is never the answer (`listed?/2`): a box with
+  no camera says it has none.
   """
   def find do
-    local = status()
+    others = Enum.map(Node.list(), fn n -> n |> status() |> Map.put_new(:node, n) end)
+    pick(status(), others)
+  end
 
-    Node.list()
-    |> Enum.map(fn n -> n |> status() |> Map.put_new(:node, n) end)
+  @doc false
+  # find/0 with the statuses in hand: this machine's, and the other machines'
+  def pick(local, others, here \\ node()) do
+    others
+    |> Enum.filter(&listed?(&1, here))
     |> Enum.reduce(local, fn st, best -> if rank(st) > rank(best), do: st, else: best end)
   end
 
   @doc """
-  Of the status a page has and one just heard (statuses are broadcast across
-  the cluster, so a page on the Mac hears the box's and the Mac's own), the
-  one to show: the same machine's news always, another machine's only when
-  its camera is better (`find/0`'s order), so the page doesn't flicker.
+  Is the camera in this status listed on this machine? A real camera
+  anywhere in the cluster is; a simulated one only on the node that runs it
+  (`Telescope.listed?/3`, the rule mounts go by too). A Mac's simulated
+  camera once showed on a box that had no camera as live frames of stars
+  that were not there.
   """
-  def prefer(old, new) do
-    if Map.get(old || %{}, :node) == Map.get(new, :node) or rank(new) > rank(old), do: new, else: old
+  def listed?(status, here \\ node()), do: Telescope.listed?(Map.get(status, :node, here), Map.get(status, :sim) == true, here)
+
+  @doc """
+  Of the status a page has and one just heard (a real camera's statuses are
+  broadcast across the cluster, so a page on the Mac hears the box's and the
+  Mac's own), the one to show: the same machine's news always, another
+  machine's only when its camera is better (`find/0`'s order), so the page
+  doesn't flicker; and never another machine's simulator.
+  """
+  def prefer(old, new, here \\ node()) do
+    cond do
+      not listed?(new, here) -> old
+      Map.get(old || %{}, :node) == Map.get(new, :node) or rank(new) > rank(old) -> new
+      true -> old
+    end
   end
 
   # a real camera, the simulator, none
@@ -268,7 +292,8 @@ defmodule Controller.ScopeCamera do
   @impl true
   def handle_info(:report, s) do
     Process.send_after(self(), :report, @report_ms)
-    if s.camera, do: Telescope.broadcast("queues", {:queue, node(), "camera", step_stats(s)})
+    # the simulator's numbers stay on this machine's Queues page, like the simulator itself
+    if s.camera, do: Telescope.broadcast("queues", {:queue, node(), "camera", step_stats(s)}, simulated: s.camera == :sim)
     {:noreply, s}
   end
 
@@ -313,6 +338,10 @@ defmodule Controller.ScopeCamera do
         publish(%{s | camera: nil, error: nil})
 
       true ->
+        # the other machines never hear of the simulator (publish/1), so when it takes a real
+        # camera's place they are told the real one is gone
+        if camera == :sim and s.camera != nil, do: Telescope.broadcast("scope_camera", {:scope_camera, public(%{s | camera: nil, error: nil})})
+
         camera =
           with %{path: path} <- camera do
             modes = safe(fn -> Device.modes(path) end) || []
@@ -371,7 +400,9 @@ defmodule Controller.ScopeCamera do
       exposure_ms: exposure,
       gain: wanted.gain,
       stack: stack,
-      mode: mode_words(camera)
+      mode: mode_words(camera),
+      # a frame from the simulator says so, and is only ever listed as the simulator's (public/1)
+      sim: camera == :sim
     }
 
     # the scope this camera is on: the one asked about, else this box's own
@@ -645,9 +676,11 @@ defmodule Controller.ScopeCamera do
   # -- telling pages ---------------------------------------------------------------------------
 
   defp public(s) do
+    sim = s.camera == :sim
+
     %{
       camera: s.camera && describe(s.camera),
-      sim: s.camera == :sim,
+      sim: sim,
       live: s.live,
       video: s.video,
       busy: s.task != nil,
@@ -659,7 +692,10 @@ defmodule Controller.ScopeCamera do
       keep: s.keep,
       kept: s.kept,
       not_kept: s.not_kept,
-      frames: s.frames,
+      # a frame is listed with the camera that took it. The simulator's status stays on this
+      # machine; a real camera's goes to all of them, and must not carry the simulator's last
+      # frames with it (a real camera plugged in after the simulator ran).
+      frames: Enum.filter(s.frames, &(Map.get(&1, :sim, false) == sim)),
       node: node()
     }
   end
@@ -690,8 +726,10 @@ defmodule Controller.ScopeCamera do
     })
   end
 
+  # to every machine that lists this camera: all of them for a real one, this one for the simulator
   defp publish(s) do
-    Telescope.broadcast("scope_camera", {:scope_camera, public(s)})
+    status = public(s)
+    Telescope.broadcast("scope_camera", {:scope_camera, status}, simulated: status.sim)
     s
   end
 

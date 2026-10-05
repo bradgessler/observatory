@@ -46,8 +46,11 @@ defmodule Controller.StillCameraLive do
      )}
   end
 
+  # another machine's simulated camera is never this page's camera (StillCamera.listed?/2)
   @impl true
-  def handle_info({:still_camera, cam}, socket), do: {:noreply, assign(socket, cam: cam)}
+  def handle_info({:still_camera, cam}, socket),
+    do: {:noreply, if(StillCamera.listed?(cam), do: assign(socket, cam: cam), else: socket)}
+
   def handle_info({:lock_on, lock}, socket), do: {:noreply, assign(socket, lock: lock)}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
 

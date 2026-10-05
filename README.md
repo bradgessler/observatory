@@ -39,6 +39,20 @@ The mount appears when the EQDIR cable is plugged in; a simulator runs when it
 isn't. Every host tool is optional: a missing one disables its feature and says
 what to install, and nothing else notices.
 
+Started like that, a laptop keeps to itself, even next to a box on the same
+network: it is not a node of the cluster and does not look for boxes. To put a
+box's mount and cameras on the laptop's pages, have its frames copied here and
+its plates solved here, start it as a node:
+
+```sh
+OBSERVATORY_CLUSTER=1 mix phx.server
+```
+
+then **Connect** the box on Devices. A box connected once is joined again
+whenever the laptop is started this way (`~/.observatory/boxes.txt`). A
+simulated mount or camera is listed only on the machine that runs it, so a
+laptop's stand-ins never show on a box.
+
 ### Hardware
 
 * Sky-Watcher EQ6-R (also EQ6-R Pro).

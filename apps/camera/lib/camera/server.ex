@@ -2,8 +2,9 @@ defmodule Camera.Server do
   @moduledoc """
   One camera: connects, keeps its settings fresh, takes pictures on request.
   Its state is broadcast on `"camera:<id>"` and `"cameras"` (via
-  `Telescope.broadcast/2`) whenever it changes, so every page shows the same
-  camera.
+  `Telescope.broadcast/3`) whenever it changes, so every page shows the same
+  camera: on every machine for a real one, on this machine only for the
+  simulated one.
 
   A camera that stops answering ends this process (`{:shutdown, reason}`):
   `Camera.Discovery` notices, restarts it within its budget, and says in one
@@ -22,7 +23,9 @@ defmodule Camera.Server do
 
   def start_link(opts) do
     id = Keyword.fetch!(opts, :id)
-    GenServer.start_link(__MODULE__, opts, name: via(id))
+    # registered with whether it is simulated, so its status says so from the first moment
+    name = {:via, Registry, {Camera.Registry, id, sim?(opts[:transport])}}
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   def child_spec(opts),
@@ -34,13 +37,24 @@ defmodule Camera.Server do
 
   def via(id), do: {:via, Registry, {Camera.Registry, id}}
 
-  @doc "What the camera is and what it's set to (never blocks on a busy camera)."
+  @doc """
+  What the camera is and what it's set to (never blocks on a busy camera). `sim` says whether it
+  is the simulated one, in every state: starting, ready or failed.
+  """
   def status(id) do
     case Registry.lookup(Camera.Registry, id) do
-      [{pid, _}] -> :persistent_term.get({__MODULE__, id}, %{id: id, state: :starting, pid: pid})
-      [] -> nil
+      [{pid, sim}] ->
+        {__MODULE__, id}
+        |> :persistent_term.get(%{id: id, state: :starting, pid: pid})
+        |> Map.put(:sim, sim == true)
+
+      [] ->
+        nil
     end
   end
+
+  # driven through the simulated a6000, not a camera on the USB bus
+  defp sim?(transport), do: match?({Camera.Transport.Sim, _}, transport)
 
   @doc """
   Change settings: `iso:` (a number or `:auto`), `shutter:` (`"1/200"`, `"1"`,
@@ -215,6 +229,8 @@ defmodule Camera.Server do
       model: s.info && s.info.model,
       manufacturer: s.info && s.info.manufacturer,
       device: s.device,
+      # the simulated a6000 says so itself (Camera.simulated?/1)
+      sim: sim?(s.transport),
       settings: Sony.describe(s.props),
       last: s.last,
       shots: s.shots
@@ -230,10 +246,11 @@ defmodule Camera.Server do
     s
   end
 
+  # to every machine for a real camera; a simulated one is this machine's alone (Telescope.listed?/3)
   defp broadcast(id, st) do
-    if Code.ensure_loaded?(Telescope) and function_exported?(Telescope, :broadcast, 2) do
-      Telescope.broadcast("camera:" <> id, {:camera, st})
-      Telescope.broadcast("cameras", {:camera, st})
+    if Code.ensure_loaded?(Telescope) and function_exported?(Telescope, :broadcast, 3) do
+      Telescope.broadcast("camera:" <> id, {:camera, st}, simulated: st.sim)
+      Telescope.broadcast("cameras", {:camera, st}, simulated: st.sim)
     end
   catch
     _, _ -> :ok

@@ -17,6 +17,18 @@ defmodule Camera.ServerTest do
              st.settings.quality == "RAW+JPEG"
   end
 
+  # a simulated device is listed only on the node that runs it (Telescope.listed?/3), so it has to say
+  test "the simulated a6000 says it is one, in its status and in what it broadcasts", %{id: id} do
+    assert Camera.status(id).sim
+    assert Camera.simulated?(Camera.status(id))
+    {:ok, _} = Camera.set(id, iso: 800)
+    assert_receive {:camera, %{settings: %{iso: 800}, sim: true}}, 1_000
+
+    refute Camera.simulated?(%{id: "sony-ilce-6000", state: :ready, sim: false})
+    refute Camera.simulated?(%{id: "sony-ilce-6000", state: :starting})
+    refute Camera.simulated?(nil)
+  end
+
   test "settings change on request and every page hears about it", %{id: id} do
     {:ok, st} = Camera.set(id, iso: 800, shutter: "1/60")
     assert st.settings.iso == 800 and st.settings.shutter == "1/60"

@@ -27,7 +27,8 @@ defmodule Telescope.Application do
   end
 
   # This machine joins the cluster and finds boxes only when configured to (the
-  # Mac in development); a box starts its own distribution.
+  # Mac in development, and only when started with OBSERVATORY_CLUSTER=1:
+  # config/dev.exs); a box starts its own distribution.
   defp cluster_children do
     case Application.get_env(:telescope, :distribution) do
       nil -> []

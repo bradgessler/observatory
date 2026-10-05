@@ -39,7 +39,8 @@ defmodule Mount do
   end
 
   @doc false
-  def listed?(%{node: n} = ref, here), do: n == here or not simulated?(ref)
+  # the rule itself is Telescope.listed?/3, the same for every device
+  def listed?(%{node: n} = ref, here), do: Telescope.listed?(n, simulated?(ref), here)
 
   @doc false
   def local_list do

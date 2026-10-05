@@ -235,9 +235,10 @@ defmodule Controller.LockOn do
 
   def handle_info(:revive, s), do: {:noreply, s}
 
-  # frames as the telescope camera analyses them
-  def handle_info({:scope_camera, %{frames: [f | _]}}, %{state: st} = s) when st != :off do
-    if s.opts[:source] == :scope, do: scope_frame(f, s), else: {:noreply, s}
+  # frames as the telescope camera analyses them; never another machine's simulated camera,
+  # whose stars are not this telescope's (the motors would be steered by a sky that isn't there)
+  def handle_info({:scope_camera, %{frames: [f | _]} = cam}, %{state: st} = s) when st != :off do
+    if s.opts[:source] == :scope and Controller.ScopeCamera.listed?(cam), do: scope_frame(f, s), else: {:noreply, s}
   end
 
   def handle_info(_, s), do: {:noreply, s}

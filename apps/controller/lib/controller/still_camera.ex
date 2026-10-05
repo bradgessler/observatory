@@ -54,7 +54,9 @@ defmodule Controller.StillCamera do
   answers. A stop it made itself (three failed pictures, a full card) is kept
   too, so it doesn't start again into the same wall.
 
-  Broadcasts `{:still_camera, status}` on `"still_camera"`.
+  Broadcasts `{:still_camera, status}` on `"still_camera"`: to every machine
+  in the cluster with a real camera, to this one only with the simulated
+  one (`listed?/2`).
   """
   use GenServer
   require Logger
@@ -226,6 +228,13 @@ defmodule Controller.StillCamera do
   def set(settings), do: GenServer.call(__MODULE__, {:set, settings}, 130_000)
 
   def subscribe, do: Telescope.subscribe(@topic)
+
+  @doc """
+  Is the camera in this status listed on this machine? A real camera anywhere in the cluster
+  is; a simulated one only on the node that runs it (`Telescope.listed?/3`, the rule mounts and
+  the telescope camera go by). A status with no `node` is this machine's own.
+  """
+  def listed?(status, here \\ node()), do: Telescope.listed?(Map.get(status, :node, here), Camera.simulated?(status[:camera]), here)
 
   @doc """
   Bytes free where pictures are kept, or nil when the system won't say. Pictures stop
@@ -967,12 +976,15 @@ defmodule Controller.StillCamera do
       solving: s.solving,
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
-      room_for: if(is_integer(s.free), do: max(div(s.free - floor_bytes(), pair_bytes(s)), 0))
+      room_for: if(is_integer(s.free), do: max(div(s.free - floor_bytes(), pair_bytes(s)), 0)),
+      # the machine the camera is plugged into, so another can tell whose status it hears (listed?/2)
+      node: node()
     }
 
     if :persistent_term.get({__MODULE__, :status}, nil) != st do
       :persistent_term.put({__MODULE__, :status}, st)
-      safe(fn -> Telescope.broadcast(@topic, {:still_camera, st}) end)
+      # a simulated camera's status stays on this machine
+      safe(fn -> Telescope.broadcast(@topic, {:still_camera, st}, simulated: Camera.simulated?(s.camera)) end)
     end
 
     s

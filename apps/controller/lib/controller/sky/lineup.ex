@@ -201,9 +201,11 @@ defmodule Controller.Sky.Lineup do
           }
 
           # which way the counterweight hangs: as told (`set_counterweight/3`), else
-          # guessed from where the points were taken
+          # guessed from where the points were taken. `cw_told` says which, for
+          # whoever has to decide how far to trust it (the hold's limit, the pages)
           thetas = for s <- Map.get(e, "samples", []), is_number(s["theta_ra"]), do: s["theta_ra"]
-          Map.put(m, :cw, told_cw(e) || Model.cw_down(m, m.signs, thetas))
+          told = told_cw(e)
+          Map.merge(m, %{cw: told || Model.cw_down(m, m.signs, thetas), cw_told: told != nil})
         end
 
       _ ->

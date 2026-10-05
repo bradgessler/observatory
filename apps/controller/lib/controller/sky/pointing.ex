@@ -151,6 +151,25 @@ defmodule Controller.Sky.Pointing do
   def counterweight(_ctx, _ra_axis), do: -90.0
 
   @doc """
+  Has a hold on a never-zeroed mount reached the counterweight's limit? `cw`
+  is the counterweight now (`counterweight/2`), `was` where the hold had it a
+  moment ago.
+
+  Told which side the counterweight is on (`Lineup.set_counterweight/3`),
+  above the hard limit is above it, wherever the hold began. Only guessed,
+  the sign can be upside down: the night every photo was taken with the bar
+  near level it was, the hold refused to start with the counterweight
+  hanging well down, and with no hold there was no sharp photo to put the
+  guess right. Holding a mount where someone put it is not a choice of pose,
+  so on a guess a hold may start anywhere, and ends only when it has itself
+  carried the bar over the limit.
+  """
+  def hold_limit?(%{model: %{cw_told: false}}, was, cw),
+    do: was <= @meridian_hard and cw > @meridian_hard
+
+  def hold_limit?(_ctx, _was, cw), do: cw > @meridian_hard
+
+  @doc """
   Where a Go To to `obj` puts the axes of a never-zeroed, lined-up mount, and
   how it gets there. Both poses reach the object: the one on this side of the
   pier wins while its counterweight stays below level (within the margin; up

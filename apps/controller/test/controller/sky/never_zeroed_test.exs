@@ -8,7 +8,8 @@ defmodule Controller.Sky.NeverZeroedTest do
   use Controller.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  alias Controller.Sky.Lineup
+  alias Controller.Sky.{Lineup, Model, Pointing, Tracker}
+  alias Controller.Test.KnownMount
 
   setup do
     id = "sim-nz-#{System.unique_integer([:positive])}"
@@ -80,6 +81,116 @@ defmodule Controller.Sky.NeverZeroedTest do
 
   test "with no alignment there is nothing to hang the counterweight on", %{id: id} do
     assert Lineup.set_counterweight(id, Mount.snapshot(id), :below) == {:error, :not_lined_up}
+  end
+
+  # The night of 3 October (#113). The mount stood 60° east of the meridian, counterweight well
+  # down, and every plate had been taken near the meridian, the bar within 10° of level. "Most of
+  # them had it low" then says nothing, and the guess came out upside down.
+  describe "every plate taken with the counterweight bar near level" do
+    setup %{id: id} do
+      truth = KnownMount.align(id, -60.0, [-2.0, 3.0, 5.0, 8.0])
+      %{truth: truth, snap: Mount.snapshot(id)}
+    end
+
+    test "the guess is upside down, and Go To would leave the safe pose for the unsafe one", %{id: id, truth: truth, snap: snap} do
+      ctx = Pointing.context(DateTime.utc_now(), id)
+      assert Lineup.status(id).counterweight == :guessed
+      # where the mount stands the counterweight hangs 60° below level; the guess has it 60° above
+      assert_in_delta Model.counterweight(truth, truth.signs, snap.axes.ra.degrees), -60.0, 0.5
+      assert_in_delta Pointing.counterweight(ctx, snap.axes.ra.degrees), 60.0, 0.5
+
+      plan = Pointing.landing(KnownMount.at_ha(-40.0), snap, ctx)
+      assert plan.pose == :flip
+      assert Model.counterweight(truth, truth.signs, plan.ra) > 0, "the flip the guess asks for ends with the counterweight in the air"
+    end
+
+    test "told it is below level, Go To picks the counterweight-down pose on both sides of the meridian", %{id: id, truth: truth, snap: snap} do
+      assert {:ok, _} = Lineup.set_counterweight(id, snap, :below)
+      assert Lineup.status(id).counterweight == :told
+      ctx = Pointing.context(DateTime.utc_now(), id)
+
+      for ha <- [-40.0, 40.0] do
+        plan = Pointing.landing(KnownMount.at_ha(ha), snap, ctx)
+        assert plan.cw < 0, "#{ha}° from the meridian: the model lands with the counterweight #{plan.cw}° above level"
+        assert Model.counterweight(truth, truth.signs, plan.ra) < 0, "#{ha}° from the meridian: the counterweight really is in the air there"
+      end
+
+      # and Go To itself, east of the meridian: it stays in the pose it is in, the safe one
+      ref = Enum.find(Mount.list(), &(&1.id == id))
+      assert {:ok, d_ra, _d_dec} = Pointing.slew(ref, snap, KnownMount.at_ha(-40.0), ctx, track: false)
+      assert Model.counterweight(truth, truth.signs, snap.axes.ra.degrees + d_ra) < 0
+    after
+      Mount.stop(id)
+    end
+
+    # The same wrong guess said the counterweight was above its limit, so the hold refused to
+    # start, and with no hold there was no photo with round stars to put the guess right.
+    test "a hold starts where the mount stands while the side is a guess, and is refused there only once told", %{id: id, snap: snap} do
+      ctx = Pointing.context(DateTime.utc_now(), id)
+      assert Pointing.counterweight(ctx, snap.axes.ra.degrees) > Pointing.meridian_hard()
+
+      # that night both axes were run at the model's rates by hand instead, and to Plates
+      # every picture taken that way was "moving"
+      :ok = Mount.slew(id, :ra, 1.0)
+      :ok = Mount.slew(id, :dec, 0.3)
+      wait(fn -> Mount.snapshot(id).axes.dec.running end, 3_000)
+      assert Controller.Plates.capture(Mount.snapshot(id)).moving
+      Mount.stop(id)
+      wait(fn -> not Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end) end, 5_000)
+
+      snap = Mount.snapshot(id)
+      {ra, dec} = Pointing.scope_radec(snap, ctx)
+      here = %{name: "here", ra_deg: ra, dec_deg: dec}
+
+      # guessed: holding the mount where it already is is not a choice of pose
+      Tracker.track(id, here)
+      wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
+      assert Mount.snapshot(id).axes.ra.running
+      assert Tracker.ended(id) == nil
+      # and a picture taken under the hold belongs to the sky it shows
+      refute Controller.Plates.capture(Mount.snapshot(id)).moving
+      Tracker.stop(id)
+
+      # told (wrongly, here) that it is above level: now it is known to be past the limit
+      assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :above)
+      Tracker.track(id, here)
+      wait(fn -> match?(%{why: :meridian}, Tracker.ended(id)) end, 6_000)
+      assert Tracker.status(id) == nil
+
+      # told what it is, below level: the hold runs
+      assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
+      Tracker.track(id, here)
+      wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
+      assert Tracker.ended(id) == nil
+    after
+      Tracker.stop(id)
+    end
+  end
+
+  # A guess takes the limit away only from where a hold begins. The plates here had the
+  # counterweight low, and the mount stands a hair under the limit with the sky carrying it up.
+  test "on a guess, a hold that itself carries the counterweight up to the limit still ends there", %{id: id} do
+    KnownMount.align(id, Pointing.meridian_hard() - 0.02, [-40.0, -30.0, -20.0, -25.0])
+    snap = Mount.snapshot(id)
+    ctx = Pointing.context(DateTime.utc_now(), id)
+    assert Lineup.status(id).counterweight == :guessed
+    assert Pointing.counterweight(ctx, snap.axes.ra.degrees) < Pointing.meridian_hard()
+
+    {ra, dec} = Pointing.scope_radec(snap, ctx)
+    Tracker.track(id, %{name: "here", ra_deg: ra, dec_deg: dec})
+    # 0.02° of sky is five seconds
+    wait(fn -> match?(%{why: :meridian}, Tracker.ended(id)) end, 20_000)
+    assert Tracker.status(id) == nil
+  after
+    Tracker.stop(id)
+  end
+
+  defp wait(fun, ms) do
+    deadline = System.monotonic_time(:millisecond) + ms
+
+    Stream.repeatedly(fn -> Process.sleep(100); fun.() end)
+    |> Enum.find(fn ok -> ok or System.monotonic_time(:millisecond) > deadline end)
+    |> then(fn ok -> assert ok, "timed out after #{ms} ms" end)
   end
 
   test "Centered asks first, records the point on a yes, and can be undone", %{conn: conn, id: id} do

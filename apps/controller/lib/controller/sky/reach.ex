@@ -239,7 +239,7 @@ defmodule Controller.Sky.Reach do
 
   # step the hold forward from its pose: the first thing that ends it
   defp hold_end(obj, snap, ctx, pose, tree_at, dark_now) do
-    Enum.reduce_while(1..div(@horizon_h * 60, @step_min), pose, fn i, pose ->
+    Enum.reduce_while(1..div(@horizon_h * 60, @step_min), pose, fn i, {was, _} = pose ->
       t = DateTime.add(ctx.now, i * @step_min * 60)
       c = %{ctx | now: t}
       {ra, _} = pose = Pointing.axes_for(obj, c, near: {:stay, pose})
@@ -248,7 +248,10 @@ defmodule Controller.Sky.Reach do
         Astro.alt_az(obj.ra_deg, obj.dec_deg, ctx.site.lat, Astro.lst_deg(t, ctx.site.lon))
 
       cond do
-        not snap.homed and Pointing.counterweight(c, ra) > Pointing.meridian_hard() ->
+        # the hold's own rule: with the counterweight's side only guessed, a hold is not
+        # stopped for where it began, so the page does not say it will be
+        not snap.homed and
+            Pointing.hold_limit?(c, Pointing.counterweight(c, was), Pointing.counterweight(c, ra)) ->
           {:halt, {:meridian, t}}
 
         dark_now and Ephemeris.sun_alt(t, ctx.site) >= @dark ->

@@ -241,10 +241,13 @@ defmodule Controller.Sky.Tracker do
     err_ra = Astro.norm180(r1 - elem(cur, 0))
     err_dec = d1 - elem(cur, 1)
     cw = Pointing.counterweight(ctx, r1)
+    # where this hold had it a moment ago: as far behind as `later` is ahead
+    cw_was = Pointing.counterweight(ctx, r1 - Astro.norm180(r2 - r1))
 
     cond do
-      # never zeroed: no soft limits, so the counterweight is the limit
-      not snap.homed and cw > Pointing.meridian_hard() ->
+      # never zeroed: no soft limits, so the counterweight is the limit. With its side only
+      # guessed, that is a limit the hold has to reach itself: where it starts is not refused
+      not snap.homed and Pointing.hold_limit?(ctx, cw_was, cw) ->
         {:give_up, :meridian}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->

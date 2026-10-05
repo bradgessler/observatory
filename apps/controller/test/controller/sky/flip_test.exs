@@ -78,6 +78,20 @@ defmodule Controller.Sky.FlipTest do
       assert_in_delta c.axis_az, 354.513, 0.001
       assert Model.axis_distance(over, c) < 1.0e-6
     end
+
+    # #113: with the counterweight's side only guessed, a hold is not refused for where it began
+    test "the hold's limit: told, anywhere past it; guessed, only where the hold itself carries the bar over" do
+      told = ctx()
+      guessed = put_in(told.model[:cw_told], false)
+      hard = Pointing.meridian_hard()
+
+      assert Pointing.hold_limit?(told, 40.0, 40.1)
+      refute Pointing.hold_limit?(guessed, 40.0, 40.1)
+      assert Pointing.hold_limit?(guessed, hard - 0.01, hard + 0.01)
+      assert Pointing.hold_limit?(told, hard - 0.01, hard + 0.01)
+      refute Pointing.hold_limit?(guessed, 10.0, 10.1)
+      refute Pointing.hold_limit?(told, 10.0, 10.1)
+    end
   end
 
   describe "where Go To lands" do
@@ -154,6 +168,21 @@ defmodule Controller.Sky.FlipTest do
       assert r.go.text =~ "Flips the mount first"
       assert r.track.text =~ "until it sets"
       assert r.summary.text =~ "Flip, then tracks"
+    end
+
+    # #113: the page's promise follows the hold's own rule (`Pointing.hold_limit?/3`)
+    test "a hold begun past the limit on a guess is not promised a stop it will not make" do
+      c = ctx()
+      # 40° past the meridian and the mount already on it, on this side: the counterweight 40° above level
+      o = at_ha(c, 40)
+      on_it = snap(40.0, -70.0)
+      held = %{name: o.name, target: o}
+
+      told = Reach.of(o, on_it, c, trees?: false, lock: @lock, tracker: held)
+      assert told.track.text =~ "counterweight reaches its limit"
+
+      guessed = Reach.of(o, on_it, put_in(c.model[:cw_told], false), trees?: false, lock: @lock, tracker: held)
+      refute guessed.track.text =~ "counterweight reaches its limit"
     end
 
     test "a hold that stopped at the limit says why and what to do" do

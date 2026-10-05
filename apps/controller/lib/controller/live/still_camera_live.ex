@@ -345,6 +345,7 @@ defmodule Controller.StillCameraLive do
   defp solve_words("no_solution"), do: "stars, but none that match the sky"
   defp solve_words("below_horizon"), do: "the only match was below the horizon"
   defp solve_words("timeout"), do: "the solver ran out of time"
+  defp solve_words("deadline"), do: "the finder solve missed its deadline. The model's aim stands"
   defp solve_words("no_solver"), do: "no plate solver on this box"
   defp solve_words("moving"), do: "the mount was slewing"
   defp solve_words(why), do: to_string(why)

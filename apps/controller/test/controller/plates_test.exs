@@ -189,6 +189,70 @@ defmodule Controller.PlatesTest do
     refute File.exists?(file)
   end
 
+  describe "a finder (a quick solve to check the aim before a series)" do
+    defp finder(id, image, spot, opts \\ []), do: Plates.add(id, image, Plates.capture(snap(id, spot), report: nil), [finder: true] ++ opts)
+
+    test "a solver that hangs: the finder fails as \"deadline\" at its own deadline, and the queue takes the next job", %{id: id} do
+      :ok = Plates.set_workers(1)
+      # nothing answers while the gate is shut: every solve hangs
+      Gate.open(false)
+      t0 = System.monotonic_time(:millisecond)
+      {:ok, 1} = finder(id, photo("STUB", 1), {10, -40}, deadline: 300)
+      {:ok, 2} = add(id, photo("STUB", 2), {20, -40})
+      assert solving_started() == photo("STUB", 1)
+
+      view = await(id, &(states(&1) == [:failed, :solving]))
+      assert System.monotonic_time(:millisecond) - t0 >= 300
+      assert %{reason: "deadline", finder: true, solution: nil} = hd(view.plates)
+      # the worker is free again and the next plate has it
+      assert solving_started() == photo("STUB", 2)
+      assert Plates.status().solving == 1
+
+      Gate.open(true)
+      view = await(id, &(states(&1) == [:failed, :solved]))
+      assert hd(view.plates).reason == "deadline"
+      # a finder is a plate like another afterwards: it can be asked for again
+      :ok = Plates.retry(id, 1)
+      await(id, &(states(&1) == [:solved, :solved]))
+    end
+
+    test "goes ahead of everything queued, and of the solve that has the only worker", %{id: id} do
+      :ok = Plates.set_workers(1)
+      Gate.open(false)
+      for i <- 1..3, do: add(id, photo("STUB", i), {i * 10, -40})
+      await(id, &(states(&1) == [:solving, :queued, :queued]))
+      assert solving_started() == photo("STUB", 1)
+
+      # the keeper that was solving makes way and is queued again, first among the keepers
+      {:ok, 4} = finder(id, photo("STUB", 4), {40, -40})
+      view = await(id, &(states(&1) == [:queued, :queued, :queued, :solving]))
+      assert Enum.map(view.plates, & &1.ahead) == [0, 1, 2, nil]
+      assert solving_started() == photo("STUB", 4)
+      assert Plates.status().solving == 1
+
+      Gate.open(true)
+      assert for(_ <- 1..3, do: solving_started()) == Enum.map(1..3, &photo("STUB", &1))
+      await(id, &(states(&1) == [:solved, :solved, :solved, :solved]))
+    end
+
+    test "that is solved in time is a plate like any other, and its deadline passing afterwards changes nothing", %{id: id} do
+      {:ok, 1} = finder(id, photo("STUB", 1), {10, -40}, deadline: 150)
+      assert [%{state: :solved, finder: true, solution: %{ra_deg: 11.0}}] = await(id, &(states(&1) == [:solved])).plates
+      Process.sleep(250)
+      assert [%{state: :solved, reason: nil}] = Plates.view(id).plates
+    end
+
+    test "has 30 seconds unless told otherwise", %{id: id} do
+      assert Plates.finder_deadline() == 30_000
+      Gate.open(false)
+      {:ok, 1} = finder(id, photo("STUB", 1), {10, -40})
+      await(id, &(states(&1) == [:solving]))
+      # well inside its 30 s: still solving
+      Process.sleep(400)
+      assert [%{state: :solving}] = Plates.view(id).plates
+    end
+  end
+
   test "a restart loses nothing: plates that were solving are queued again and finish", %{id: id} do
     :ok = Plates.set_workers(1)
     Gate.open(false)

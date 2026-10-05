@@ -41,6 +41,13 @@ defmodule Controller.StillCamera do
   when the mount slews further than a picture is wide, the target changes,
   or the ISO or shutter speed does.
 
+  **A finder picture** (`finder/1`) is one picture solved to check the aim
+  before a series. Its plate goes ahead of everything in the queue with a
+  deadline of its own (30 s), and the caller is told either way: where the
+  telescope points, or `{:error, :deadline}`; with `shoot_anyway: true`, the
+  model's aim as it stands, so a series never waits on a solve that isn't
+  coming.
+
   **It carries on after a restart.** Whether it was shooting continuously and
   whether it was solving are kept in `Controller.Settings` (`"still_camera"`);
   a new process picks them up and starts shooting again as soon as the camera
@@ -53,6 +60,7 @@ defmodule Controller.StillCamera do
   require Logger
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
+  alias Controller.ScopeCamera.Header
   alias Controller.StillCamera.{Cloud, Focus, Optics, Sidecar}
 
   @topic "still_camera"
@@ -73,6 +81,11 @@ defmodule Controller.StillCamera do
   @settle_ms 2_000
   # a slew, not tracking: faster than a tracker ever drives an axis (12x sidereal, as `Plates` has it)
   @slew_deg_s 0.05
+  # past a finder's deadline, how long this process waits to hear from the plate queue before it
+  # answers for it
+  @finder_grace_ms 2_000
+  # why a plate wasn't solved, as the queue words it: handed to a finder's caller as atoms
+  @unsolved ~w(deadline too_few_stars no_solution below_horizon timeout no_solver unsupported_image crashed moving)
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -146,6 +159,34 @@ defmodule Controller.StillCamera do
   `nsigma:` (10), `timeout:` in ms (60 000).
   """
   def solving(on?, opts \\ []), do: GenServer.call(__MODULE__, {:solving, on?, opts})
+
+  @doc """
+  A finder picture: one picture, plate solved ahead of everything in the queue, to check where the
+  telescope points before a series. Blocks until that is known or the solve has had its time:
+
+    * `{:ok, %{from: :solve, ra_deg:, dec_deg:, width_deg:, ..., seq:}}`: the picture's centre, as
+      solved;
+    * `{:error, :deadline}`: not solved within `deadline:` ms of reaching the plate queue
+      (`Controller.Plates.finder_deadline/0`, 30 s). The queue has stopped that solve and gone on
+      to the next plate;
+    * `{:error, reason}`: the solver's own reason (`:too_few_stars`, `:no_solution`), `:no_camera`,
+      `:busy` (a picture is being taken, or another finder is out), or why the picture failed.
+
+  `shoot_anyway: true` is for a caller that would rather start its series than stop: a picture
+  that was taken and not solved, whatever the reason, answers `{:ok, %{from: :model, why: reason,
+  ra_deg:, dec_deg:, seq:}}`, the model's aim as it stands (`nil` where the model can't say).
+
+  The other options are the solver's, as `solving/2` takes them (`scale:`, `min_stars:`,
+  `nsigma:`), and `shoot/1`'s. The picture is kept like any other, at whatever the camera is set
+  to: set a finder exposure first (`set(iso: 6400, shutter: "2")`). Pictures after it are solved
+  or not as `solving/2` left it.
+  """
+  def finder(opts \\ []) do
+    # the picture itself may take two minutes to come down before its solve has its time
+    GenServer.call(__MODULE__, {:finder, opts}, (opts[:deadline] || Plates.finder_deadline()) + 180_000)
+  catch
+    :exit, _ -> {:error, :down}
+  end
 
   @doc "How much sky a picture covers, across, in degrees `{low, high}`: the sensor's width through the focal length in Settings, a quarter either way."
   def field_scale do
@@ -243,6 +284,9 @@ defmodule Controller.StillCamera do
        solving: was["solving"] == true,
        solve_opts: [],
        solve: nil,
+       # a finder picture someone is waiting on: `%{from, seq, opts, deadline}` and, once it is
+       # taken, its `plate`, the model's `aim` and the `timer` this process stops waiting at
+       finder: nil,
        watching: MapSet.new(),
        # the run's options for each picture (`shoot/1`'s)
        shot_opts: [],
@@ -275,6 +319,24 @@ defmodule Controller.StillCamera do
   end
 
   def handle_call({:set, _}, _from, s), do: {:reply, {:error, :no_camera}, s}
+
+  # A finder picture: taken now, solved as a finder whether or not pictures are being solved, and
+  # answered when its plate is solved or failed (`answer_finder/2`), never from here.
+  def handle_call({:finder, _opts}, _from, %{finder: %{}} = s), do: {:reply, {:error, :busy}, s}
+  def handle_call({:finder, _opts}, _from, %{task: %Task{}} = s), do: {:reply, {:error, :busy}, s}
+
+  def handle_call({:finder, opts}, from, %{camera: %{state: :ready}} = s) do
+    deadline = opts[:deadline] || Plates.finder_deadline()
+    solve = s.solve_opts |> Keyword.merge(Keyword.take(opts, [:scale, :min_stars, :nsigma])) |> Keyword.merge(finder: true, deadline: deadline)
+
+    case start_shot(s, Keyword.merge(s.shot_opts, opts), solve) do
+      %{task: %Task{}, seq: seq} = s -> {:noreply, %{s | finder: %{from: from, seq: seq, opts: opts, deadline: deadline}}}
+      # not taken (no room on the card): `why` says so on the page
+      s -> {:reply, {:error, :not_taken}, s}
+    end
+  end
+
+  def handle_call({:finder, _opts}, _from, s), do: {:reply, {:error, :no_camera}, s}
 
   @impl true
   def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
@@ -321,10 +383,31 @@ defmodule Controller.StillCamera do
     {:noreply, if(slewing, do: %{s | moved: Map.put(s.moved, id, System.monotonic_time(:millisecond))}, else: s)}
   end
 
-  # a plate moved on (solving, solved, failed): is it the one this picture is waiting for?
-  def handle_info({:plates, mount, view}, %{solve: %{mount: mount, n: n} = solve} = s) when is_integer(n) do
-    {:noreply, announce(%{s | solve: plate_state(solve, view)})}
+  # a plate moved on (solving, solved, failed): is it the one the last picture is waiting for, or
+  # the one a finder's caller is?
+  def handle_info({:plates, mount, view}, s) do
+    s =
+      case s.solve do
+        %{mount: ^mount, n: n} = solve when is_integer(n) -> %{s | solve: plate_state(solve, view)}
+        _ -> s
+      end
+
+    # the caller is told last: whatever it asks next, the status already says what it was told
+    s = announce(s)
+
+    case s.finder do
+      %{plate: %{mount: ^mount, n: n}} -> {:noreply, answer_finder(s, Enum.find(view[:plates] || [], &(&1.n == n)) || %{state: :failed, reason: "forgotten"})}
+      _ -> {:noreply, s}
+    end
   end
+
+  # A finder's deadline has passed and the plate queue has not said so (it was restarted, and a
+  # plate it reads back from the card is a plate like any other): the caller is answered all the same.
+  def handle_info({:finder_deadline, seq}, %{finder: %{seq: seq} = finder} = s) do
+    GenServer.reply(finder.from, unsolved(:deadline, finder))
+    {:noreply, %{s | finder: nil}}
+  end
+
   def handle_info(:shoot_next, s) do
     s = %{s | armed: false}
     {:noreply, if(s.continuous, do: start_shot(s), else: s)}
@@ -363,16 +446,17 @@ defmodule Controller.StillCamera do
     end)
   end
 
-  defp start_shot(s, opts \\ nil)
+  defp start_shot(s, opts \\ nil, solve \\ nil)
 
-  defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s, opts) do
+  defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s, opts, solve) do
     if is_integer(s.free) and s.free < floor_bytes() + pair_bytes(s) do
       # no room: say so and stop, rather than fill the card the box itself lives on
       announce(persist(%{s | continuous: false, why: "the SD card is nearly full (#{div(s.free, 1_000_000)} MB free): copy the pictures off the box, then carry on"}))
     else
       seq = s.seq + 1
       dir = dir()
-      solve = if s.solving, do: s.solve_opts
+      # how this picture is solved: as it was asked for (a finder), else as every picture is, or not
+      solve = solve || if(s.solving, do: s.solve_opts)
       # what this process knows that the picture's own task doesn't: when each mount last slewed
       # and how far, and the field's stars as the clearest picture so far showed them
       ctx = %{moved: s.moved, turned: s.turned, field: s.field, opts: opts || s.shot_opts}
@@ -381,7 +465,7 @@ defmodule Controller.StillCamera do
     end
   end
 
-  defp start_shot(s, _opts), do: s
+  defp start_shot(s, _opts, _solve), do: s
 
   defp pair_bytes(%{last: %{bytes: b}}) when is_integer(b) and b > 0, do: b
   defp pair_bytes(_), do: @pair_bytes
@@ -497,6 +581,8 @@ defmodule Controller.StillCamera do
         cloud: sky && sky.cloud,
         transparency: sky && sky.transparency,
         field: field,
+        # for a finder: where the model says the telescope points, should the solve not come back
+        aim: solve[:finder] && safe(fn -> Header.context(mount_id, pressed)[:pointing] end),
         # the camera's JPEG, across: the sensor's whole width in this many pixels
         full_w: jpeg && jpeg_width(jpeg.bytes)
       }
@@ -548,7 +634,8 @@ defmodule Controller.StillCamera do
          {_, snap} = Enum.min_by(snaps, fn {t, _} -> abs(DateTime.diff(t, mid, :millisecond)) end),
          cap when is_map(cap) <- Plates.capture(Map.put_new(snap, :id, mount_id), now: mid, report: safe(fn -> Plates.view(mount_id)[:report] end)),
          pgm when is_binary(pgm) <- solver_copy(jpeg, sharp) do
-      solver = [scale: opts[:scale] || field_scale(), min_stars: opts[:min_stars] || 8, nsigma: opts[:nsigma] || 10, timeout: opts[:timeout] || 150_000]
+      # a finder goes ahead of the queue and has its own deadline there, which is all the time its solver gets
+      solver = [scale: opts[:scale] || field_scale(), min_stars: opts[:min_stars] || 8, nsigma: opts[:nsigma] || 10, timeout: opts[:timeout] || (opts[:finder] && opts[:deadline]) || 150_000] ++ Keyword.take(opts, [:finder, :deadline])
 
       case safe(fn -> Plates.add(mount_id, pgm, cap, solver) end) do
         {:ok, n} -> %{mount: mount_id, n: n}
@@ -761,7 +848,9 @@ defmodule Controller.StillCamera do
     LockOn.frame(Map.put(record, :source, :still))
     good = if counts?(record), do: s.good + 1, else: s.good
     s = %{s | last: record, good: good, failures: 0, why: nil, free: free_bytes()} |> follow(record) |> follow_mounts([record[:mount]])
-    announce(if s.continuous, do: arm(s, s.interval_ms), else: s)
+    s = announce(if s.continuous, do: arm(s, s.interval_ms), else: s)
+    # a finder's caller is told last: whatever it asks next, the status already has this picture
+    finder_taken(s, record)
   end
 
   defp finished(s, {:error, reason}) do
@@ -780,7 +869,59 @@ defmodule Controller.StillCamera do
           %{s | why: "the picture failed: #{words(reason)}"}
       end
 
-    announce(%{s | failures: failures})
+    s = announce(%{s | failures: failures})
+    # a finder whose picture failed has nothing to wait for
+    if match?(%{seq: seq} when seq == s.seq, s.finder), do: (GenServer.reply(s.finder.from, {:error, reason}); %{s | finder: nil}), else: s
+  end
+
+  # The finder's picture is on the card. From here its plate has until its deadline, which the
+  # plate queue keeps; a little past that this process stops waiting to hear (`:finder_deadline`).
+  # A picture that never reached the queue (no JPEG, no mount) is answered now.
+  defp finder_taken(%{finder: %{seq: seq} = finder} = s, %{seq: seq} = record) do
+    finder = Map.put(finder, :aim, record[:aim])
+
+    case record[:plate] do
+      %{mount: mount, n: n} ->
+        timer = Process.send_after(self(), {:finder_deadline, seq}, finder.deadline + @finder_grace_ms)
+        s = %{s | finder: Map.merge(finder, %{plate: %{mount: mount, n: n}, timer: timer})}
+        # it may be solved already: `follow/2` has just asked
+        if match?(%{seq: ^seq}, s.solve), do: answer_finder(s, s.solve), else: s
+
+      %{error: why} ->
+        answer_finder(%{s | finder: finder}, %{state: :failed, reason: why})
+
+      _ ->
+        answer_finder(%{s | finder: finder}, %{state: :failed, reason: "no JPEG to solve"})
+    end
+  end
+
+  defp finder_taken(s, _record), do: s
+
+  # the finder's plate, as the queue has it, is solved or failed: whoever asked is told, once
+  defp answer_finder(%{finder: %{} = finder} = s, %{state: state} = plate) when state in [:solved, :failed] do
+    if finder[:timer], do: Process.cancel_timer(finder.timer)
+
+    answer =
+      case plate do
+        %{state: :solved, solution: %{} = solution} -> {:ok, Map.merge(solution, %{from: :solve, seq: finder.seq})}
+        %{reason: why} when why in @unsolved -> unsolved(String.to_atom(why), finder)
+        _ -> unsolved(plate[:reason], finder)
+      end
+
+    GenServer.reply(finder.from, answer)
+    %{s | finder: nil}
+  end
+
+  defp answer_finder(s, _plate), do: s
+
+  # Not solved. An error; or, for a caller that said `shoot_anyway:`, the model's aim as it stands.
+  defp unsolved(why, finder) do
+    if finder.opts[:shoot_anyway] == true do
+      {ra, dec} = with {ra, dec, _source} <- finder[:aim], do: {ra, dec}, else: (_ -> {nil, nil})
+      {:ok, %{from: :model, why: why, ra_deg: ra, dec_deg: dec, seq: finder.seq}}
+    else
+      {:error, why}
+    end
   end
 
   # a picture that counts: every one that isn't marked (the mount settling, cloud)

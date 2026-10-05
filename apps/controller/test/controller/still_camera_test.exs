@@ -834,6 +834,103 @@ defmodule Controller.StillCameraTest do
       assert %{"focal_length_mm" => ^mm, "focal_length_from" => "solve", "focal_length_label_mm" => 2032} = (second.sidecar |> File.read!() |> Jason.decode!())["optics"]
     end
 
+    # a solver that never answers
+    defmodule Hangs do
+      def solve(_image, _opts), do: Process.sleep(:infinity)
+    end
+
+    @tag timeout: 60_000
+    test "a finder picture whose solver hangs gives {:error, :deadline} at its own deadline, the page says so, and the queue takes the next picture's plate", %{conn: conn} do
+      Application.put_env(:controller, :solver, backend: Hangs)
+      t0 = System.monotonic_time(:millisecond)
+      assert StillCamera.finder(deadline: 500) == {:error, :deadline}
+      took = System.monotonic_time(:millisecond) - t0
+      # the picture, then its half second: not the solver's minute and a half
+      assert took >= 500 and took < 5_000
+
+      last = StillCamera.status().last
+      assert %{mount: mount, n: n} = last.plate
+      on_exit(fn -> Controller.Plates.clear(mount) end)
+      assert %{state: :failed, reason: "deadline", finder: true} = Enum.find(Controller.Plates.view(mount).plates, &(&1.n == n))
+      assert Controller.Plates.status().solving == 0
+      # the picture is kept like any other, and its answer says why it has none
+      assert Enum.all?(last.files, &File.exists?/1)
+      assert %{"state" => "failed", "reason" => "deadline"} = (last.base <> ".solve.json") |> File.read!() |> Jason.decode!()
+      {:ok, _view, html} = live(conn, ~p"/cameras/stills")
+      assert html =~ "not solved: the finder solve missed its deadline. The model&#39;s aim stands"
+
+      # the queue has moved on: the next picture's plate is solved
+      Application.put_env(:controller, :solver, backend: Solved)
+      :ok = StillCamera.solving(true)
+      picture()
+      assert %{state: :solved} = solve_outcome()
+    end
+
+    @tag timeout: 60_000
+    test "shoot anyway: a finder that isn't solved hands back the model's aim instead, and the caller carries on" do
+      Application.put_env(:controller, :solver, backend: Hangs)
+      assert {:ok, %{from: :model, why: :deadline, seq: seq} = aim} = StillCamera.finder(deadline: 300, shoot_anyway: true)
+      assert Map.has_key?(aim, :ra_deg) and Map.has_key?(aim, :dec_deg)
+      last = StillCamera.status().last
+      assert last.seq == seq
+      on_exit(fn -> Controller.Plates.clear(last.plate.mount) end)
+
+      # the solver's own reasons come back as they are, and can be shot through the same way
+      Application.put_env(:controller, :solver, backend: Starless)
+      assert StillCamera.finder(deadline: 5_000) == {:error, :too_few_stars}
+      assert {:ok, %{from: :model, why: :too_few_stars}} = StillCamera.finder(deadline: 5_000, shoot_anyway: true)
+    end
+
+    @tag timeout: 60_000
+    test "a finder picture that solves says where the telescope points, well inside its 30 seconds, whether or not pictures are being solved" do
+      Application.put_env(:controller, :solver, backend: Solved)
+      :ok = StillCamera.solving(false)
+      {_, dec} = Solved.overhead()
+      assert {:ok, %{from: :solve, ra_deg: ra, dec_deg: ^dec, width_deg: 0.66, stars: 30, seq: seq}} = StillCamera.finder()
+      assert is_number(ra)
+      last = StillCamera.status().last
+      assert last.seq == seq
+      on_exit(fn -> Controller.Plates.clear(last.plate.mount) end)
+      # and the pictures after it are not solved, as before
+      refute StillCamera.status().solving
+      assert picture().plate == nil
+    end
+
+    @tag timeout: 60_000
+    @tag capture_log: true
+    test "a finder's caller is answered at the deadline even when the plate queue is restarted under it and forgets it was a finder" do
+      Application.put_env(:controller, :solver, backend: Hangs)
+      asked = Task.async(fn -> StillCamera.finder(deadline: 500) end)
+      # its plate is with the solver: now the queue dies, and comes back with a plate like any other
+      assert Enum.find(1..200, fn _ -> match?(%{solving: 1}, Controller.Plates.status()) or (Process.sleep(25) && false) end)
+      queue = Process.whereis(Controller.Plates)
+      Process.exit(queue, :kill)
+
+      assert Task.await(asked, 15_000) == {:error, :deadline}
+      assert Enum.find(1..200, fn _ -> Process.whereis(Controller.Plates) not in [nil, queue] or (Process.sleep(25) && false) end)
+      on_exit(fn -> Controller.Plates.clear(StillCamera.status().last.plate.mount) end)
+    end
+
+    @tag timeout: 60_000
+    test "a finder that can't take its picture says so at once: no camera, or a picture already being taken", %{cam: cam} do
+      # this camera's shutter is open for a second and a half
+      stop_supervised!({Camera.Server, cam})
+      slow = "sim-still-slow-#{System.unique_integer([:positive])}"
+      start_supervised!({Camera.Server, id: slow, transport: {Pressed, [time_scale: 0.4]}})
+      assert_receive {:still_camera, %{camera: %{id: ^slow, state: :ready}}}, 10_000
+      Process.register(self(), :still_camera_test)
+
+      before = (StillCamera.status().last || %{})[:seq] || 0
+      StillCamera.shoot()
+      assert_receive :shutter_pressed, 5_000
+      assert StillCamera.finder(deadline: 300) == {:error, :busy}
+      assert_receive {:still_camera, %{busy: false, last: %{seq: seq}}} when seq > before, 15_000
+
+      stop_supervised!({Camera.Server, slow})
+      assert_receive {:still_camera, %{camera: nil}}, 10_000
+      assert StillCamera.finder(deadline: 300) == {:error, :no_camera}
+    end
+
     test "with solving off a picture is not sent to the solver" do
       :ok = StillCamera.solving(false)
       last = picture()

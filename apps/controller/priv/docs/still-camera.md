@@ -176,6 +176,14 @@ picture to count, the mount must have a home set.
 
 The answer is written beside the picture, in `<name>.solve.json`.
 
+**A finder picture** is one quick picture solved to check the aim before a
+series starts (`Controller.StillCamera.finder()`, from a plan or IEx; set a
+short exposure at a high ISO first). It goes ahead of every picture waiting
+to be solved, and it has 30 seconds. When it isn't solved by then the box
+stops that solve, says `the finder solve missed its deadline`, and gets on
+with the next one. A series need not wait on it: with `shoot_anyway: true`
+the answer is the model's aim as it stands.
+
 **The first solved picture measures the focal length.** The number on the
 tube is a label: an 8 inch Schmidt-Cassegrain says 2032 mm, and its
 pictures say 2084. From how much sky a pixel covers and how big a pixel is,

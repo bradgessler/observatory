@@ -40,6 +40,13 @@ defmodule Controller.Plates do
   SomeModule`) puts a module with `fit(samples, opts)` in `Polar`'s place,
   the way `Controller.Sky.Solve` takes its `backend:`.
 
+  **A finder** (`add(..., finder: true)`) is a quick solve someone is
+  waiting on, to check the aim before a series. It goes ahead of everything
+  queued, and when every worker is busy one solve makes way for it and is
+  queued again. It has a deadline of its own, counted from when it was
+  added (`deadline:`, 30 s): not solved by then, it fails as "deadline",
+  its solve is stopped, and the queue takes the next plate.
+
   **The moment** a plate belongs to: when the mount is tracking, the tube
   stays on the same sky, so the capture's time; when it stands still, the
   shutter's (EXIF DateTimeOriginal with its offset), or the capture's when
@@ -165,9 +172,14 @@ defmodule Controller.Plates do
   eyepiece), `min_stars:`, `nsigma:` (how far above the noise a star must
   stand: a camera's own JPEG wants about 10, or its grain is counted as
   thousands of stars), and `timeout:` in ms (a first, blind solve on a Pi can
-  take minutes).
+  take minutes). `finder: true` is a solve someone is waiting on: ahead of
+  the queue, and failed as "deadline" when it isn't solved within
+  `deadline:` ms of being added (`finder_deadline/0`).
   """
   def add(mount_id, image, capture, opts \\ []) when is_binary(image), do: call({:add, mount_id, image, capture, opts}, 15_000)
+
+  @doc "How long a finder has when nothing says otherwise (`config :controller, :finder_deadline_ms`, 30 s)."
+  def finder_deadline, do: Application.get_env(:controller, :finder_deadline_ms, 30_000)
 
   @doc """
   The session as every page shows it: plates (with `ahead` for queued ones),
@@ -339,15 +351,19 @@ defmodule Controller.Plates do
           hint: cap[:hint],
           scale: opts[:scale],
           min_stars: opts[:min_stars],
-          timeout: opts[:timeout],
+          # a finder's solver gives up with its deadline, not a minute and a half after it
+          timeout: opts[:timeout] || (opts[:finder] == true && (opts[:deadline] || finder_deadline())) || nil,
           downsample: opts[:downsample],
           nsigma: opts[:nsigma],
+          finder: opts[:finder] == true,
           queued_at: now,
           started_ms: nil,
           attempts: 0,
           solution: nil
         }
 
+        # a finder's own deadline, counted from here: someone is waiting on it
+        if plate.finder and plate.state == :queued, do: Process.send_after(self(), {:deadline, mount, session.id, n}, opts[:deadline] || finder_deadline())
         session = %{session | plates: session.plates ++ [plate], next: n + 1, applied: false}
         Telescope.Events.emit(:plates, :added, %{id: mount, n: n, theta_ra: cap.enc.ra_deg, theta_dec: cap.enc.dec_deg, moving: cap.moving})
         {:reply, {:ok, n}, state |> put_session(session) |> dispatch()}
@@ -455,6 +471,23 @@ defmodule Controller.Plates do
     {:noreply, %{state | running: running} |> finish(r, {:error, :timeout}) |> dispatch()}
   end
 
+  # A finder's deadline. Not solved by now (still queued, or its solve still running): the solve is
+  # stopped, the plate fails as "deadline" so whoever waits on it hears, and the queue moves on.
+  def handle_info({:deadline, mount, sid, n}, state) do
+    with %{id: ^sid} <- state.sessions[mount], %{state: waiting} when waiting in [:queued, :solving] <- find(state, mount, n) do
+      Telescope.Events.emit(:plates, :deadline, %{id: mount, n: n})
+
+      state
+      |> stop_running(fn r -> r.sid == sid and r.n == n end)
+      |> update_plate(mount, n, &%{&1 | state: :failed, reason: "deadline"})
+      |> save_and_broadcast(mount)
+      |> dispatch()
+      |> then(&{:noreply, &1})
+    else
+      _ -> {:noreply, state}
+    end
+  end
+
   # the fit depends on where the scope stands and which way the axes turn
   def handle_info({:settings, key, _}, state) when key in ["site", "pointing"] do
     state = Enum.reduce(Map.keys(state.sessions), state, &refit(&2, &1))
@@ -491,6 +524,7 @@ defmodule Controller.Plates do
   # -- the queue --------------------------------------------------------------------------------
 
   defp dispatch(state) do
+    state = make_way(state)
     free = state.workers - map_size(state.running)
 
     if free <= 0 do
@@ -500,12 +534,36 @@ defmodule Controller.Plates do
     end
   end
 
-  # every queued plate, oldest first, across mounts
+  # A finder never waits for a worker. With every worker busy and a finder queued, one solve that
+  # is not a finder's is stopped and its plate queued again where it was (solved from the start,
+  # after the finder): never more solves at once than the machine was given workers for.
+  defp make_way(state) do
+    with true <- state.workers - map_size(state.running) <= 0,
+         true <- Enum.any?(queue(state), fn {_, p} -> p[:finder] == true end),
+         %{} = r <- state.running |> Map.values() |> Enum.find(&keeper?(state, &1)) do
+      state
+      |> stop_running(&(&1 == r))
+      |> update_plate(r.mount, r.n, &%{&1 | state: :queued, started_ms: nil})
+      |> save_and_broadcast(r.mount)
+    else
+      _ -> state
+    end
+  end
+
+  # a solve that may make way: its plate is still there, and is not a finder itself
+  defp keeper?(state, r) do
+    case find(state, r.mount, r.n) do
+      %{} = plate -> plate[:finder] != true
+      nil -> false
+    end
+  end
+
+  # every queued plate, finders first, then oldest first, across mounts
   defp queue(state) do
     for {mount, s} <- state.sessions, p <- s.plates, p.state == :queued do
       {mount, p}
     end
-    |> Enum.sort_by(fn {_, p} -> {DateTime.to_unix(p.queued_at, :microsecond), p.n} end)
+    |> Enum.sort_by(fn {_, p} -> {p[:finder] != true, DateTime.to_unix(p.queued_at, :microsecond), p.n} end)
   end
 
   defp start(state, mount, plate) do

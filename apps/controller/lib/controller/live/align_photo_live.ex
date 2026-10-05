@@ -446,6 +446,7 @@ defmodule Controller.AlignPhotoLive do
   defp failure_words("below_horizon"), do: "A match below the horizon, so a false one: take it again"
   defp failure_words("moving"), do: "Telescope was moving: take it again"
   defp failure_words("timeout"), do: "Took too long to solve"
+  defp failure_words("deadline"), do: "A finder solve that missed its deadline"
   defp failure_words("no_solver"), do: "No plate solver found"
   defp failure_words("unsupported_image"), do: "Can't read that photo: JPEG only for now"
   defp failure_words("crashed"), do: "The solver failed on this one"

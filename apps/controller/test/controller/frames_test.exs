@@ -27,56 +27,73 @@ defmodule Controller.FramesTest do
     %{id: id}
   end
 
+  # asks until `fun` answers (anything but nil or false), and gives the answer back; `tries` × 50 ms at most
   defp eventually(fun, tries \\ 300) do
     cond do
-      fun.() -> true
+      answer = fun.() -> answer
       tries == 0 -> flunk("never happened")
       true -> Process.sleep(50) && eventually(fun, tries - 1)
     end
   end
 
-  defp done(name), do: Queues.stats(name).counts.done
+  # the kept frames that are on this machine and through every step, as `{fits, header}`, of those numbered `seqs`
+  defp through(seqs) do
+    for file <- Path.wildcard(Path.join([Frames.dir(), "*", "*.fits"])),
+        {:ok, bin} <- [File.read(file)],
+        {:ok, fits} <- [Controller.Fits.read(bin)],
+        h = Map.new(fits.header),
+        h["OBS FRAME SEQ"] in seqs,
+        # the last thing the last step does is write what it measured into the frame's own header
+        h["OBS MEASURED ON"] != nil,
+        do: {fits, h}
+  end
 
   @tag timeout: 60_000
   test "kept frames go to the card, to this Mac, and get measured", %{id: id} do
-    before = done("frames.measure")
     :ok = ScopeCamera.keep(true)
-    {:ok, _} = ScopeCamera.grab(mount: id)
-    {:ok, _} = ScopeCamera.grab(mount: id)
+    {:ok, first} = ScopeCamera.grab(mount: id)
+    {:ok, second} = ScopeCamera.grab(mount: id)
+    asked = first.record
+    seqs = [first.record.seq, second.record.seq]
 
-    eventually(fn -> done("frames.measure") >= before + 2 end)
+    # These two frames, by their numbers, and no others. Another can be kept beside them: any
+    # frame that arrives while keep is on is kept, and the camera may still be taking one for
+    # the test before this one (the focus page's live view; the last picture of a Find Where
+    # It's Pointing that was stopped, taken a second later at its own gain). It carries that
+    # test's mount in its header. This used to wait until two more frames had been measured,
+    # then read the first file and the newest row. Now and then those were not this test's
+    # frames, and now and then this test's second frame was not through yet.
+    frames = eventually(fn -> both = through(seqs); length(both) == 2 and both end, 600)
 
     # FITS files, everything about each frame in its own header, nothing beside them
-    files = Path.wildcard(Path.join([Frames.dir(), "*", "*.fits"]))
     assert Path.wildcard(Path.join([Frames.dir(), "*", "*.json"])) == []
 
-    headers =
-      for f <- files, {:ok, fits} = Controller.Fits.read(File.read!(f)), h = Map.new(fits.header), h["INSTRUME"] == "Simulated camera", do: {fits, h}
+    for {fits, h} <- frames do
+      assert {fits.w, fits.h} == {960, 540}
+      # the standard keywords, saying what the camera was asked for
+      assert h["ROWORDER"] == "TOP-DOWN" and h["IMAGETYP"] == "LIGHT" and h["INSTRUME"] == "Simulated camera"
+      assert h["EXPTIME"] == asked.exposure_ms / 1000 and h["NCOMBINE"] == asked.stack and h["GAIN"] == asked.gain
+      assert {:ok, _} = NaiveDateTime.from_iso8601(h["DATE-OBS"])
+      assert is_float(h["SITELAT"]) and h["TELESCOP"] =~ "EQ6-R"
+      # ours: the frame, the mount at the start and end, the copy, the second measurement
+      assert h["OBS FRAME VERDICT"] == "stars" and h["OBS FRAME STARS"] > 0
+      assert h["OBS MOUNT ID"] == id
+      assert is_number(h["OBS MOUNT START RA DEG"]) and is_number(h["OBS MOUNT END DEC STEPS"])
+      assert h["OBS COPY TO"] == to_string(node()) and String.length(h["OBS COPY SHA256 A"] <> h["OBS COPY SHA256 B"]) == 64
+      assert h["OBS MEASURED STARS"] > 0
+    end
 
-    assert length(headers) >= 2
-    {fits, h} = hd(headers)
-    assert {fits.w, fits.h} == {960, 540}
-    # the standard keywords
-    assert h["ROWORDER"] == "TOP-DOWN" and h["IMAGETYP"] == "LIGHT"
-    settings = ScopeCamera.status().settings
-    assert h["EXPTIME"] == settings["exposure_ms"] / 1000 and h["NCOMBINE"] == 1 and h["GAIN"] == settings["gain"]
-    assert {:ok, _} = NaiveDateTime.from_iso8601(h["DATE-OBS"])
-    assert is_float(h["SITELAT"]) and h["TELESCOP"] =~ "EQ6-R"
-    # ours: the frame, the mount at the start and end, the copy, the second measurement
-    assert is_integer(h["OBS FRAME SEQ"]) and h["OBS FRAME VERDICT"] == "stars" and h["OBS FRAME STARS"] > 0
-    assert h["OBS MOUNT ID"] == id
-    assert is_number(h["OBS MOUNT START RA DEG"]) and is_number(h["OBS MOUNT END DEC STEPS"])
-    assert h["OBS COPY TO"] == to_string(node()) and String.length(h["OBS COPY SHA256 A"] <> h["OBS COPY SHA256 B"]) == 64
-    assert h["OBS MEASURED STARS"] > 0
+    # and each is a row in this machine's database, its header with it, measured
+    rows = Controller.Frames.copied(limit: 100) |> Enum.filter(&(&1.seq in seqs))
+    assert length(rows) == 2
 
-    # and each is a row in this machine's database, its header with it
-    rows = Controller.Frames.copied(limit: 100) |> Enum.filter(&(&1.header["INSTRUME"] == "Simulated camera"))
-    assert length(rows) >= 2
-    r = hd(rows)
-    assert r.place == "copied" and r.seq > 0 and r.stars > 0 and r.verdict == "stars" and r.gain == ScopeCamera.status().settings["gain"]
-    assert r.state in ["copied", "measured"] and File.exists?(r.path)
-    assert Enum.any?(rows, &(&1.state == "measured" and &1.measured_stars > 0))
-    assert Controller.Frames.copied(with_stars: true, limit: 100) != []
+    for r <- rows do
+      assert r.place == "copied" and r.header["INSTRUME"] == "Simulated camera"
+      assert r.stars > 0 and r.verdict == "stars" and r.gain == asked.gain
+      assert r.state == "measured" and r.measured_stars > 0 and File.exists?(r.path)
+    end
+
+    assert Enum.any?(Controller.Frames.copied(with_stars: true, limit: 100), &(&1.seq in seqs))
 
     # each step timed it
     for name <- ~w(frames.write frames.fetch frames.measure), do: assert(Queues.stats(name).work_ms.p50 != nil)
@@ -121,7 +138,9 @@ defmodule Controller.FramesTest do
   end
 
   test "the Queues page shows every step, in words and a bar", %{conn: conn} do
-    Process.sleep(1_200)
+    # the page lists the steps it has heard from, and each says its numbers once a second
+    steps = ~w(frames.write frames frames.fetch frames.measure)
+    eventually(fn -> Enum.all?(steps, &(&1 in Enum.map(Queues.board(), fn step -> step.name end))) end)
     {:ok, view, html} = live(conn, ~p"/queues")
     assert html =~ "Write to the SD card"
     assert html =~ "Waiting on the SD card for the Mac"

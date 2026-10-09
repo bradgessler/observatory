@@ -13,6 +13,13 @@ defmodule Controller.Sky.Revive do
   on), so the hold starts again by itself. Once per cut-off hold: if that Go
   To is refused, the offer stays on Home and this process says why in Events.
 
+  **Only a hold that stays cut off.** Every Go To ends the hold it replaces
+  and starts the new one a few hundred milliseconds later; on 8 October 2026
+  this process caught that gap, took it for an interruption and pulled a Go
+  To to the Ring Nebula back to the Dumbbell. So a cut-off hold has to be seen
+  twice, `settle_ms` apart (3 s), still cut off and still the same hold,
+  before it is gone back to. A Go To's new hold replaces it long before then.
+
   It doesn't guess. It leaves the offer on Home when the way back is longer
   than `max_deg` (10°: forty minutes of sky), when the mount was switched on
   since (its counts restarted, so `interrupted/1` already says nil), and
@@ -23,8 +30,8 @@ defmodule Controller.Sky.Revive do
   hold (`Tracker`), so nothing a person ended comes back.
 
   Started in the app's tree unless `config :controller, revive: false` (the
-  tests start their own). Options: `every_ms:` (2000), `max_deg:`,
-  `clock_wait_ms:`.
+  tests start their own). Options: `every_ms:` (2000), `settle_ms:` (3000),
+  `max_deg:`, `clock_wait_ms:`.
   """
   use GenServer
   require Logger
@@ -32,6 +39,7 @@ defmodule Controller.Sky.Revive do
   alias Controller.Sky.{Astro, Ephemeris, Pointing, Tracker}
 
   @every_ms 2_000
+  @settle_ms 3_000
   @max_deg 10.0
   @clock_wait_ms 60_000
 
@@ -44,6 +52,9 @@ defmodule Controller.Sky.Revive do
     {:ok,
      %{
        every: Keyword.get(opts, :every_ms, @every_ms),
+       settle: Keyword.get(opts, :settle_ms, @settle_ms),
+       # each cut-off hold, as {mount, since}, and when it was first seen cut off
+       seen: %{},
        max_deg: Keyword.get(opts, :max_deg, @max_deg),
        clock_wait: Keyword.get(opts, :clock_wait_ms, @clock_wait_ms),
        started: System.monotonic_time(:millisecond),
@@ -62,12 +73,18 @@ defmodule Controller.Sky.Revive do
   def handle_info(_, s), do: {:noreply, s}
 
   defp look(id, s) do
+    now = System.monotonic_time(:millisecond)
+
     with %{connected: true} = snap <- safe(fn -> Mount.snapshot(id) end),
          %{target: t, since: since} <- safe(fn -> Tracker.interrupted(id) end),
          false <- MapSet.member?(s.tried, {id, since}),
-         true <- clock_ok?(s) do
+         first = Map.get(s.seen, {id, since}, now),
+         s = %{s | seen: Map.put(s.seen, {id, since}, first)},
+         true <- now - first >= s.settle or s,
+         true <- clock_ok?(s) or s do
       %{s | tried: MapSet.put(s.tried, {id, since})} |> revive(id, snap, t)
     else
+      %{} = s -> s
       _ -> s
     end
   end

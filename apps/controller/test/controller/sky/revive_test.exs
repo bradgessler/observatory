@@ -41,7 +41,7 @@ defmodule Controller.Sky.ReviveTest do
 
   test "a cut-off hold close by is gone back to and held again, by itself", %{id: id} do
     target = cut_off(id, 2.0)
-    start_supervised!({Revive, name: :revive_test, every_ms: 200, clock_wait_ms: 0})
+    start_supervised!({Revive, name: :revive_test, every_ms: 200, settle_ms: 600, clock_wait_ms: 0})
 
     assert_receive {:event, %{module: :tracker, name: :revived, data: %{id: ^id, target: "Test star"}}}, 5_000
     assert Tracker.interrupted(id) == nil
@@ -60,7 +60,7 @@ defmodule Controller.Sky.ReviveTest do
 
   test "too far to go back without someone watching: the offer stays on Home, once", %{id: id} do
     cut_off(id, 30.0)
-    start_supervised!({Revive, name: :revive_test, every_ms: 200, clock_wait_ms: 0})
+    start_supervised!({Revive, name: :revive_test, every_ms: 200, settle_ms: 600, clock_wait_ms: 0})
 
     assert_receive {:event, %{module: :tracker, name: :revive_declined, data: %{id: ^id, why: why}}}, 5_000
     assert why =~ "too far"
@@ -68,6 +68,21 @@ defmodule Controller.Sky.ReviveTest do
     assert %{target: %{name: "Test star"}} = Tracker.interrupted(id)
     # once per cut-off hold, not every look
     refute_receive {:event, %{module: :tracker, name: :revive_declined, data: %{id: ^id}}}, 1_500
+  end
+
+  # 8 October 2026: a Go To ends the old hold and starts the new one a moment later, and the
+  # pick-up took that gap for an interruption and pulled the Ring Nebula back to the Dumbbell
+  test "the gap between one hold and the next Go To's is not an interruption", %{id: id} do
+    cut_off(id, 2.0)
+    start_supervised!({Revive, name: :revive_test, every_ms: 100, settle_ms: 1_500, clock_wait_ms: 0})
+    # the new Go To's hold starts well inside the settle time
+    Process.sleep(300)
+    ctx = Pointing.context(DateTime.utc_now(), id)
+    {ra, dec} = Pointing.scope_radec(Mount.snapshot(id), ctx)
+    Tracker.track(id, %{name: "New target", ra_deg: ra, dec_deg: dec - 1.0})
+
+    refute_receive {:event, %{module: :tracker, name: :revived, data: %{id: ^id}}}, 3_000
+    assert %{name: "New target"} = Tracker.status(id)
   end
 
   defp assert_eventually(fun, pred, timeout) do

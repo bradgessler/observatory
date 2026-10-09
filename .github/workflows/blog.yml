@@ -40,6 +40,11 @@ jobs:
 
       - run: mix deps.get
 
+      # The cache restores _build, and `mix site.build` doesn't compile on its
+      # own: without this the site is built by whatever builder was cached,
+      # not the one just pushed.
+      - run: mix compile
+
       - name: Publish
         env:
           BLOG_DEPLOY_KEY: ${{ secrets.BLOG_DEPLOY_KEY }}

@@ -38,3 +38,6 @@ config :camera, simulate: false
 # the box's record of its own recoveries: a scratch file, never the real one
 config :controller, recovery_log: Path.join(System.tmp_dir!(), "observatory-test-recoveries-#{System.os_time(:millisecond)}.jsonl")
 config :controller, still_camera_dir: Path.join(System.tmp_dir!(), "observatory-test-stills-#{System.os_time(:millisecond)}")
+
+# the hold's own pick-up after a restart is started by the tests that test it, never behind the others' backs
+config :controller, revive: false

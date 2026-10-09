@@ -47,9 +47,11 @@ defmodule Controller.Application do
       # the stills camera (a Sony in PC Remote): pictures kept whole, measured, fed to Lock On
       Supervisor.child_spec(Controller.StillCamera.Supervisor, restart: :temporary),
       # Lock On: both motors steered from the camera; its own branch, left down if it keeps crashing
-      Supervisor.child_spec(Controller.LockOn.Supervisor, restart: :temporary),
-      Controller.Endpoint
-    ]
+      Supervisor.child_spec(Controller.LockOn.Supervisor, restart: :temporary)
+    ] ++
+        # a hold cut off by a restart or a dropped mount cable picks itself up (#99)
+        if(Application.get_env(:controller, :revive, true), do: [Controller.Sky.Revive], else: []) ++
+        [Controller.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

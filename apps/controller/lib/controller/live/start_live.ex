@@ -11,11 +11,18 @@ defmodule Controller.StartLive do
   snapshot (connected, home set), the star alignment (`Controller.Sky.Lineup`),
   the tracker. Nothing here is remembered per browser, so two phones show
   the same step.
+
+  A camera alignment needs no home: with a camera on the telescope, or an
+  alignment already made without one, Set Home is optional and the page goes
+  straight to the stars. On such a mount the alignment step is done only
+  once someone says which side the counterweight is on, because Go To waits
+  for that (#113): the question sits right under Align with the Camera.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
   alias Controller.{AutoAlign, Settings}
+  alias Controller.Components.Counterweight
   alias Controller.Sky.{Lineup, Pointing, Tracker}
 
   # locked = three stars that agree well enough to land things in an eyepiece
@@ -95,13 +102,20 @@ defmodule Controller.StartLive do
     snap = socket.assigns.snap
     status = id && Lineup.status(id)
     locked? = status != nil and status.n >= 3 and @lock_goal in status.good_for
+    camera = AutoAlign.camera()
+    # home never set, and which side the counterweight is on only guessed: Go To waits for it
+    guessed? = status != nil and status.counterweight == :guessed
 
     step =
       cond do
         is_nil(snap) or not snap.connected -> :plug
-        not snap.homed -> :zero
-        not locked? -> :stars
-        true -> :look
+        snap.homed and not locked? -> :stars
+        snap.homed -> :look
+        # never zeroed: an alignment needs no home, but it is not done until the side is told
+        locked? and not guessed? -> :look
+        # the camera (or an alignment made without home) skips Set Home
+        locked? or camera != nil -> :stars
+        true -> :zero
       end
 
     now = DateTime.utc_now()
@@ -116,10 +130,14 @@ defmodule Controller.StartLive do
       step: step,
       page_title: start_title(id) <> " · " <> (steps(status) |> List.keyfind(step, 0) |> elem(1)),
       status: status,
+      # past Set Home without it: the camera does without, so the strip says it's optional
+      home_optional: step in [:stars, :look] and not snap.homed,
+      # for the counterweight question (`Lineup.counterweight/2`, drawn from the live snapshot)
+      cw_model: id && Lineup.model(id),
       targets: targets,
       tracker: id && Tracker.status(id),
       run: id && AutoAlign.status(id),
-      camera: AutoAlign.camera(),
+      camera: camera,
       pads: safe(fn -> Input.devices() end) || [],
       mapper: safe(fn -> Input.status() end) || %{armed: false, target: nil, off_reason: nil},
       now: now,
@@ -147,18 +165,50 @@ defmodule Controller.StartLive do
         {:ok, _, _} -> "Going to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
         {:error, :not_connected} -> "No mount"
+        # the page goes back to the question (`compute/1`), right under the camera card
+        {:error, :counterweight_unknown} -> Pointing.refusal_words(:counterweight_unknown, obj.name)
+        # a flip asks first, on the object's own page
+        {:error, {:flip, _} = e} -> Pointing.refusal_words(e, obj.name)
         {:error, e} -> Controller.Words.error(e)
         nil -> "Not on the list any more"
       end
 
-    {:noreply, notice(socket, text)}
+    {:noreply, socket |> compute() |> notice(text)}
+  end
+
+  # Which side the counterweight is on, from someone looking at the mount: Go To waited for it
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {_told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> compute() |> notice(said)}
+  end
+
+  # optional before a camera alignment: it arms the soft limits, and Align by Stars needs it
+  def handle_event("home", _, socket) do
+    id = socket.assigns.selected
+
+    text =
+      case socket.assigns.refs[id] do
+        nil ->
+          "No mount"
+
+        ref ->
+          Tracker.stop(id)
+
+          case safe(fn -> Mount.set_home(ref) end) do
+            :ok -> "Home set · soft limits armed"
+            {:error, e} -> Controller.Words.error(e)
+            nil -> Controller.Words.error(:unreachable)
+          end
+      end
+
+    {:noreply, socket |> rescan() |> compute() |> notice(text)}
   end
 
   # the target is centred in the eyepiece right now: that is one more alignment
-  # star, so the model tightens as the night goes on
+  # point, so the model tightens as the night goes on (zeroed or not, as on an object's page)
   def handle_event("centred", _, socket) do
     case {socket.assigns.snap, socket.assigns.tracker} do
-      {%{homed: true} = snap, %{target: %{ra_deg: ra, dec_deg: dec, name: name}}} ->
+      {%{connected: true} = snap, %{target: %{ra_deg: ra, dec_deg: dec, name: name}}} ->
         st = Lineup.add(snap, %{name: name, ra_deg: ra, dec_deg: dec})
         {:noreply, socket |> compute() |> notice("#{name} added · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′")}
 
@@ -233,15 +283,16 @@ defmodule Controller.StartLive do
       </:header>
 
       <ol class="flow-steps" aria-label="setup steps">
-        <li :for={{key, label} <- steps(@status)} class={state(key, @step)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step) == "done"} role="img" aria-label="done"> ✓</span></li>
+        <li :for={{key, label} <- steps(@status)} class={state(key, @step, @home_optional)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step, @home_optional) == "done"} role="img" aria-label="done"> ✓</span><span :if={key == :zero and @home_optional}> (optional)</span></li>
       </ol>
 
       <%!-- the scope's live state, one line, on every step that has a scope --%>
       <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
 
       <%!-- an alignment on a mount with no home: Go To picks its side of the pier by where the
-            counterweight is, and until someone says, that is a guess --%>
-      <Controller.Components.Counterweight.line from={@status && @status.counterweight} mount={@selected} />
+            counterweight is, and until someone says, that is a guess (the question itself is
+            right under Align with the Camera on the Stars step) --%>
+      <Counterweight.line :if={@step != :stars} from={@status && @status.counterweight} mount={@selected} />
 
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
@@ -252,7 +303,7 @@ defmodule Controller.StartLive do
 
       <%!-- the quickest way: the camera on the telescope, one tap --%>
       <.card :if={@step == :stars} title="Align with the Camera">
-        <p :if={!@run && @camera} class="dim">Takes four pictures a little apart and plate solves them. About three minutes. Watch the cables the first time it moves.</p>
+        <p :if={!@run && @camera} class="dim">Takes four pictures a little apart and plate solves them{if @snap && !@snap.homed, do: ", from wherever the telescope points: no home needed", else: ""}. About three minutes. Watch the cables the first time it moves.</p>
         <p :if={!@run && !@camera} class="dim">Put the Sony on the telescope and turn it on in PC Remote. Focused first: Stills Camera › star size.</p>
         <p :if={@run} class={["find-line", @run.done && !@run.ok && "tone-caution"]} role="status">
           <span :if={@run.done && @run.ok} aria-hidden="true">✓ </span>{@run.words}<span :if={!@run.done}> · {@run.solved} of {@run.enough} placed</span>
@@ -265,14 +316,25 @@ defmodule Controller.StartLive do
         </.row>
       </.card>
 
+      <%!-- a mount with no home, aligned: Go To waits for which side the counterweight is on, so the
+            question comes right after the alignment that needs it (nothing once told) --%>
+      <Counterweight.card :if={@step in [:stars, :look]} cw={Counterweight.asking(@cw_model, @snap)} />
+
       <%!-- the two ways to add alignment points, side by side: centring stars (here, below) or photos --%>
       <.items :if={@step == :stars} label="ways to add alignment points" class="align-ways">
-        <.link_item navigate={~p"/controls/align/#{@selected}"} label="Align by Stars" detail="Center a few stars in the eyepiece, one at a time: the steps are below" />
-        <.link_item navigate={~p"/align/photo/#{@selected}"} label="Align by Photo" detail="Photos through the eyepiece, plate solved: also says which bolt to turn" />
+        <.link_item navigate={~p"/controls/align/#{@selected}"} label="Align by Stars" detail={if @snap && @snap.homed, do: "Center a few stars in the eyepiece, one at a time: the steps are below", else: "Center a few stars in the eyepiece, one at a time, from home set by eye"} />
+        <.link_item navigate={~p"/align/photo/#{@selected}"} label="Align by Phone Photo" detail="Your phone held to the eyepiece, plate solved: also says which bolt to turn" />
       </.items>
 
-      <%!-- steps 2 and 3 are Align by Stars, nested --%>
-      <div :if={@step in [:zero, :stars]} class="flow-nested">
+      <%!-- no home yet and none needed for the camera: offered, not asked for. Only before any
+            alignment points, because setting home starts an alignment over --%>
+      <.card :if={@step == :stars and @snap && !@snap.homed and @status && @status.n == 0} title="Set Home, If You Like">
+        <.hint>Counterweight straight down, tube along the polar axis, by eye. It arms the soft limits, and Align by Stars needs it; the camera and phone photos don't. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
+        <.btn phx-click="home" data-confirm="Set home here? Both axes read 0° from now on.">Set Home Here</.btn>
+      </.card>
+
+      <%!-- steps 2 and 3 are Align by Stars, nested (it starts with Set Home, so not where the camera does without) --%>
+      <div :if={@step == :zero or (@step == :stars and @snap.homed)} class="flow-nested">
         <%= live_render(@socket, Controller.LineupLive, id: "start-align-#{@selected}", session: %{"id" => @selected, "nested" => true}) %>
       </div>
 
@@ -281,8 +343,9 @@ defmodule Controller.StartLive do
         <%!-- how well: the toolbar says; here, tighten it or see how it steers --%>
         <.hint :if={@status.axis_words}>{@status.axis_words}</.hint>
         <.row>
-          <.btn variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
-          <.btn variant="ghost" navigate={~p"/align/photo/#{@selected}"}>Add by Photo ›</.btn>
+          <%!-- Align by Stars starts with Set Home, which would start an alignment made without one over --%>
+          <.btn :if={@snap.homed} variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
+          <.btn variant="ghost" navigate={~p"/align/photo/#{@selected}"}>Add by Phone Photo ›</.btn>
           <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
         </.row>
 
@@ -348,7 +411,10 @@ defmodule Controller.StartLive do
   end
 
   @order [:plug, :zero, :stars, :look]
-  defp state(key, step) do
+  # Set Home passed by without it (the camera needs none): not done, and not in the way
+  defp state(:zero, _step, true), do: "later"
+
+  defp state(key, step, _home_optional) do
     i = Enum.find_index(@order, &(&1 == key))
     j = Enum.find_index(@order, &(&1 == step))
 
@@ -379,8 +445,9 @@ defmodule Controller.StartLive do
   defp aligning?(%{done: false}), do: true
   defp aligning?(_), do: false
 
-  # the tube along the polar axis, as Set Home leaves it: Dec still near its zero
-  defp at_pole?(%{axes: %{dec: %{degrees: d}}}) when is_number(d), do: abs(d) < 10
+  # the tube along the polar axis, as Set Home leaves it: Dec still near its zero. Never zeroed, a
+  # Dec of zero is only where the mount was switched on, which says nothing about where it points
+  defp at_pole?(%{homed: true, axes: %{dec: %{degrees: d}}}) when is_number(d), do: abs(d) < 10
   defp at_pole?(_), do: false
 
   defp pad_on?(m, id), do: Map.get(m, :armed, false) and Map.get(m, :target) == id

@@ -3,7 +3,8 @@ defmodule Controller.Sky.NeverZeroedTest do
   A mount that was never zeroed: its counts run from wherever it was switched
   on, so an alignment holds until it is switched on again, a Pi reboot or a
   firmware upgrade doesn't count. And with no soft limits, GoTo never lands
-  past the meridian.
+  past the meridian. Which side the counterweight is on no alignment can see:
+  until someone says, nothing moves by the guess (#113).
   """
   use Controller.ConnCase, async: false
   import Phoenix.LiveViewTest
@@ -112,10 +113,44 @@ defmodule Controller.Sky.NeverZeroedTest do
       assert Model.counterweight(truth, truth.signs, plan.ra) > 0, "the flip the guess asks for ends with the counterweight in the air"
     end
 
+    # The same guess again on 8 October: a Go To from Tonight's List drove the tube to the pose
+    # with the counterweight bar 64° above level, the camera near a tripod leg. So on a guess
+    # nothing moves by it: not a Go To, not either leg of a flip, until someone says.
+    test "while the side is a guess, Go To and the flip's first leg refuse, and nothing moves", %{id: id, snap: snap} do
+      ref = Enum.find(Mount.list(), &(&1.id == id))
+      ctx = Pointing.context(DateTime.utc_now(), id)
+      assert Pointing.side_guessed?(snap, ctx)
+
+      for ha <- [-40.0, 40.0] do
+        assert Pointing.slew(ref, snap, KnownMount.at_ha(ha), ctx, track: true) == {:error, :counterweight_unknown}
+        # the same with "stay this side, I'm watching" and with the flip's second leg
+        assert Pointing.slew(ref, snap, KnownMount.at_ha(ha), ctx, watched: true) == {:error, :counterweight_unknown}
+        assert Pointing.slew(ref, snap, KnownMount.at_ha(ha), ctx, flip: true) == {:error, :counterweight_unknown}
+      end
+
+      # the first leg goes to where the model has the counterweight straight down: on a guess, straight up
+      assert Pointing.home_leg(ref, snap, ctx) == {:error, :counterweight_unknown}
+      assert Controller.Sky.Moves.flip(id, KnownMount.at_ha(40.0)) == {:error, :counterweight_unknown}
+      assert Controller.Sky.Moves.pending(id) == nil
+
+      # nothing was sent: both axes where they were, still, and nothing held
+      Process.sleep(500)
+      now = Mount.snapshot(id)
+      refute Enum.any?(now.axes, fn {_, ax} -> ax.running or Map.get(ax, :goto_pending, false) end)
+      assert now.axes.ra.degrees == snap.axes.ra.degrees
+      assert now.axes.dec.degrees == snap.axes.dec.degrees
+      refute Tracker.active?(id)
+
+      # the words a page shows: the one question someone at the mount can answer by looking
+      assert Pointing.refusal_words(:counterweight_unknown, "M31") =~ "Which side is the counterweight on?"
+      assert Pointing.refusal_words(:counterweight_unknown, "M31") =~ "below or above level right now"
+    end
+
     test "told it is below level, Go To picks the counterweight-down pose on both sides of the meridian", %{id: id, truth: truth, snap: snap} do
       assert {:ok, _} = Lineup.set_counterweight(id, snap, :below)
       assert Lineup.status(id).counterweight == :told
       ctx = Pointing.context(DateTime.utc_now(), id)
+      refute Pointing.side_guessed?(snap, ctx)
 
       for ha <- [-40.0, 40.0] do
         plan = Pointing.landing(KnownMount.at_ha(ha), snap, ctx)
@@ -131,33 +166,21 @@ defmodule Controller.Sky.NeverZeroedTest do
       Mount.stop(id)
     end
 
-    # The same wrong guess said the counterweight was above its limit, so the hold refused to
-    # start, and with no hold there was no photo with round stars to put the guess right.
-    test "a hold starts where the mount stands while the side is a guess, and is refused there only once told", %{id: id, snap: snap} do
+    # On a guess the hold's limit can be upside down: it would let the tube track on into the
+    # tripod for as long as the target stays up. So no hold begins on a guess (#113).
+    test "no hold begins while the side is a guess, and it says why; told, the hold goes by the limit", %{id: id, snap: snap} do
       ctx = Pointing.context(DateTime.utc_now(), id)
+      # the guess has the counterweight past its limit here; the truth has it 60° below level
       assert Pointing.counterweight(ctx, snap.axes.ra.degrees) > Pointing.meridian_hard()
-
-      # that night both axes were run at the model's rates by hand instead, and to Plates
-      # every picture taken that way was "moving"
-      :ok = Mount.slew(id, :ra, 1.0)
-      :ok = Mount.slew(id, :dec, 0.3)
-      wait(fn -> Mount.snapshot(id).axes.dec.running end, 3_000)
-      assert Controller.Plates.capture(Mount.snapshot(id)).moving
-      Mount.stop(id)
-      wait(fn -> not Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end) end, 5_000)
-
-      snap = Mount.snapshot(id)
       {ra, dec} = Pointing.scope_radec(snap, ctx)
       here = %{name: "here", ra_deg: ra, dec_deg: dec}
 
-      # guessed: holding the mount where it already is is not a choice of pose
+      # guessed: not held, both axes left still, and why is there for the pages
       Tracker.track(id, here)
-      wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
-      assert Mount.snapshot(id).axes.ra.running
-      assert Tracker.ended(id) == nil
-      # and a picture taken under the hold belongs to the sky it shows
-      refute Controller.Plates.capture(Mount.snapshot(id)).moving
-      Tracker.stop(id)
+      wait(fn -> match?(%{why: :counterweight_unknown}, Tracker.ended(id)) end, 3_000)
+      assert Tracker.status(id) == nil
+      Process.sleep(600)
+      refute Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end)
 
       # told (wrongly, here) that it is above level: now it is known to be past the limit
       assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :above)
@@ -169,19 +192,29 @@ defmodule Controller.Sky.NeverZeroedTest do
       assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
       Tracker.track(id, here)
       wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
+      assert Mount.snapshot(id).axes.ra.running
       assert Tracker.ended(id) == nil
+      # and a picture taken under the hold belongs to the sky it shows
+      refute Controller.Plates.capture(Mount.snapshot(id)).moving
+
+      # what was told is taken back: the hold ends rather than trust a guess, both axes stopped
+      assert Lineup.set_counterweight(id, Mount.snapshot(id), :guess) == {:ok, nil}
+      wait(fn -> match?(%{why: :counterweight_unknown}, Tracker.ended(id)) end, 3_000)
+      assert Tracker.status(id) == nil
+      wait(fn -> not Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end) end, 5_000)
     after
       Tracker.stop(id)
     end
   end
 
-  # A guess takes the limit away only from where a hold begins. The plates here had the
+  # Told, the counterweight is the limit wherever the hold began. The plates here had the
   # counterweight low, and the mount stands a hair under the limit with the sky carrying it up.
-  test "on a guess, a hold that itself carries the counterweight up to the limit still ends there", %{id: id} do
+  test "told, a hold that carries the counterweight up to the limit ends there", %{id: id} do
     KnownMount.align(id, Pointing.meridian_hard() - 0.02, [-40.0, -30.0, -20.0, -25.0])
+    assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :above)
     snap = Mount.snapshot(id)
     ctx = Pointing.context(DateTime.utc_now(), id)
-    assert Lineup.status(id).counterweight == :guessed
+    assert Lineup.status(id).counterweight == :told
     assert Pointing.counterweight(ctx, snap.axes.ra.degrees) < Pointing.meridian_hard()
 
     {ra, dec} = Pointing.scope_radec(snap, ctx)
@@ -189,42 +222,6 @@ defmodule Controller.Sky.NeverZeroedTest do
     # 0.02° of sky is five seconds
     wait(fn -> match?(%{why: :meridian}, Tracker.ended(id)) end, 20_000)
     assert Tracker.status(id) == nil
-  after
-    Tracker.stop(id)
-  end
-
-  # ... and it does not take the limit away for good. If the guess is right, a hold that began
-  # past the limit is carrying the tube toward the mount: it turns a short allowance and stops.
-  test "on a guess, a hold that begins past the limit turns only a short allowance, and says why", %{id: id} do
-    old = Application.get_env(:controller, :guessed_hold_deg)
-    # 0.02° of sky is five seconds
-    Application.put_env(:controller, :guessed_hold_deg, 0.02)
-    on_exit(fn -> if old, do: Application.put_env(:controller, :guessed_hold_deg, old), else: Application.delete_env(:controller, :guessed_hold_deg) end)
-
-    KnownMount.align(id, -60.0, [-2.0, 3.0, 5.0, 8.0])
-    snap = Mount.snapshot(id)
-    ctx = Pointing.context(DateTime.utc_now(), id)
-    assert Lineup.status(id).counterweight == :guessed
-    assert Pointing.counterweight(ctx, snap.axes.ra.degrees) > Pointing.meridian_hard()
-
-    {ra, dec} = Pointing.scope_radec(snap, ctx)
-    here = %{name: "here", ra_deg: ra, dec_deg: dec}
-    Tracker.track(id, here)
-    # it starts, as the guess allows
-    wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
-    assert Tracker.ended(id) == nil
-    # and ends on its own a little later, both axes stopped
-    wait(fn -> match?(%{why: :counterweight}, Tracker.ended(id)) end, 30_000)
-    assert Tracker.status(id) == nil
-    wait(fn -> not Enum.any?(Mount.snapshot(id).axes, fn {_, ax} -> ax.running end) end, 5_000)
-
-    # told where it really is, below level, there is no limit to be past: the hold runs on
-    assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
-    Tracker.track(id, here)
-    wait(fn -> (Tracker.status(id) || %{})[:error_arcmin] != nil end, 6_000)
-    Process.sleep(8_000)
-    assert Tracker.ended(id) == nil
-    assert Tracker.status(id) != nil
   after
     Tracker.stop(id)
   end

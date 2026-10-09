@@ -3,18 +3,24 @@ defmodule Controller.Components.Counterweight do
   The one thing about a German equatorial mount the sky cannot say: which
   side its counterweight is on. Both sides of the mount see the same stars,
   so an alignment only ever guesses it, and a mount whose home was never set
-  picks its side of the pier for every Go To by that guess. So the page
-  asks, in words someone standing at the mount in the dark can answer by
-  looking at it, and `Controller.Sky.Lineup.set_counterweight/3` keeps the
-  answer with the alignment.
+  picks its side of the pier for every Go To by it. Twice the guess was
+  upside down, so on such a mount Go To and tracking wait until someone says
+  (`Controller.Sky.Pointing.side_guessed?/2`, #113). The page asks, in words
+  someone standing at the mount in the dark can answer by looking at it, and
+  `Controller.Sky.Lineup.set_counterweight/3` keeps the answer with the
+  alignment.
 
     * `card/1`: the question, two keys in a radio group for how the mount
       stands right now. Once told, the same card is the fact: the key the
       model now has is lit, and a tap on the other one changes it. On Setup
-      (`/setup/<mount>#counterweight`, where every mode points) and on Align
-      by Photo, where a mount with no home gets its alignment.
+      (`/setup/<mount>#counterweight`, where every mode points), on Align by
+      Phone Photo and under Align with the Camera, where a mount with no home
+      gets its alignment, and wherever a Go To was refused for want of it.
     * `line/1`: "Counterweight side: guessed. Tell it ›", wherever a pose is
       chosen on the guess.
+    * `asking/2`: the question while it is still open, for a page that asks it
+      only after a Go To waited for it.
+    * `answer/3`: a tap on one of the keys, for the page's event.
     * `words/2`: one line for what `set_counterweight/3` answered.
 
   `cw` is `Controller.Sky.Lineup.counterweight/2`; nil (no alignment, or home
@@ -59,7 +65,7 @@ defmodule Controller.Components.Counterweight do
   defp headline(%{now: :above}), do: "Above level right now"
   defp headline(%{now: :level}), do: "Close to level right now"
 
-  defp detail(%{from: :guessed}), do: "Guessed so far, from where the alignment points were taken. Go To picks its side of the pier by it."
+  defp detail(%{from: :guessed}), do: "Guessed so far, from where the alignment points were taken. Go To and tracking wait for an answer."
   defp detail(%{from: :told}), do: "As told. Go To and the tracking limit go by it until the mount is switched on again."
 
   defp level_words(%{from: :guessed}), do: "The counterweight shaft is close to level right now, too close to call by eye. Turn the RA axis a little, then answer."
@@ -78,6 +84,29 @@ defmodule Controller.Components.Counterweight do
       Counterweight side: guessed. <.link href={~p"/setup/#{@mount}" <> "#counterweight"}>Tell it ›</.link>
     </p>
     """
+  end
+
+  @doc """
+  The question while it is still open: `Lineup.counterweight/2` for `model`
+  and `snap` while the side is guessed, nil once told or with nothing resting
+  on it, so a card drawn with it goes away once anyone answers.
+  """
+  def asking(model, snap) do
+    case Controller.Sky.Lineup.counterweight(model, snap) do
+      %{from: :guessed} = cw -> cw
+      _ -> nil
+    end
+  end
+
+  @doc """
+  A tap on one of the card's keys, from a page's `"counterweight"` event:
+  tells mount `id` (as it stands in `snap`) where the counterweight is, and
+  returns `{told?, words}`, whether it took and the notice to show.
+  """
+  def answer(id, snap, where) when where in ["below", "above"] do
+    where = String.to_existing_atom(where)
+    result = Controller.Sky.Lineup.set_counterweight(id, snap, where)
+    {match?({:ok, _}, result), words(result, where)}
   end
 
   @doc """

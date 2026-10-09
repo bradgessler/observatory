@@ -38,7 +38,7 @@ defmodule Controller.Nav do
          page("Status", ~p"/alignment", "How well the telescope is aligned, and the steps from plugging in to looking", ~p"/docs/start", "play", also: ["/setup"]),
          page("Location", ~p"/location", "Where the telescope stands: latitude and longitude for the sky and Go To, the time for a hand controller", ~p"/docs/location", "compass"),
          page("Align by Stars", ~p"/controls/align", "Center a few stars in the eyepiece; each one is an alignment point", ~p"/docs/align", "star"),
-         page("Align by Photo", ~p"/align/photo", "Photos through the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap"),
+         page("Align by Phone Photo", ~p"/align/photo", "Your phone held to the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap"),
          page("Optical Axes", ~p"/controls/watch/axes", "Experiment: turn each axis a little with the observatory camera watching, and find where it pivots", ~p"/docs/axes", "crosshair")
        ]},
       {"Sky", "What's up from here, and Go To",

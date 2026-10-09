@@ -130,13 +130,13 @@ Not: *the fit*, *the geometry*. More in [Control Stack](/docs/stack).
 Turning the mount's altitude and azimuth bolts until the polar axis points at
 the celestial pole. Not needed for looking here; it matters for long
 exposures.
-More in [Align by Photo](/docs/align-photo).
+More in [Align by Phone Photo](/docs/align-photo).
 
 ### Plate solve
 
 Working out exactly where a photo or frame points by matching its stars
 against a star catalog. It needs no alignment and no idea where it points.
-Not: *solve* on its own. More in [Align by Photo](/docs/align-photo#where-it-solves).
+Not: *solve* on its own. More in [Align by Phone Photo](/docs/align-photo#where-it-solves).
 
 ### Auto Align
 
@@ -242,7 +242,7 @@ off.
 
 ### Photo
 
-A picture taken with your phone: through the eyepiece for Align by Photo, or
+A picture taken with your phone: through the eyepiece for Align by Phone Photo, or
 of the tree line.
 
 ### Live View

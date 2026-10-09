@@ -31,9 +31,9 @@ There are three ways to add points. The quickest is **Align with the
 Camera**: with a camera on the telescope (the Sony in PC Remote, or the
 telescope camera), one tap and the box does it alone. The others are
 **Align by Stars** (center a few stars in the eyepiece, one at a time) and
-**Align by Photo** (photos through the eyepiece, plate solved, which also
-says which bolt to turn for the polar axis). All three feed the same
-alignment.
+**Align by Phone Photo** (your phone held to the eyepiece, the photos plate
+solved, which also says which bolt to turn for the polar axis). All three
+feed the same alignment.
 
 ## 1. Plug in
 
@@ -50,6 +50,11 @@ by eye (counterweight straight down, tube along the polar axis) and tap
 and arms the soft limits that keep the cables safe. It has nothing to do with
 the sky; the stars do that next. Setting home again later starts the star
 alignment over, on purpose: the old stars counted from the old home.
+
+With a camera on the telescope this step is optional: the strip says
+*Set Home (optional)* and the page goes straight to the stars, because the
+pictures say where the telescope points without a home. Align by Stars
+still needs one.
 
 ## 3. Stars
 
@@ -70,6 +75,12 @@ and the mount moves on. Three in a row and it hands the mount to you: move
 to clear sky and tap **Continue**. If every frame says too few stars, the
 sky is not dark yet or the focus is off: the Stills Camera page's star size
 is the number to focus by.
+
+With no home set, one question is left when the frames agree: *Is the
+counterweight bar below or above level right now?* No picture can say which
+side of the pier the counterweight is on, and Go To waits for it, so the
+two keys are right under the camera's card. Look at the mount, tap one, and
+the page moves on to Look. [Why it asks](/docs/setup#counterweight).
 
 Once aligned, the camera can come off and an eyepiece go in. The alignment
 belongs to the mount, not the camera, as long as the tripod and the clutches

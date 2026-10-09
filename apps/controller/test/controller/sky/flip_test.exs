@@ -79,26 +79,25 @@ defmodule Controller.Sky.FlipTest do
       assert Model.axis_distance(over, c) < 1.0e-6
     end
 
-    # #113: with the counterweight's side only guessed, a hold is not refused for where it began
-    test "the hold's limit: told, anywhere past it; guessed, only where the hold itself carries the bar over" do
+    test "the hold's limit: anywhere the counterweight is past it" do
+      hard = Pointing.meridian_hard()
+      assert Pointing.hold_limit?(40.1)
+      assert Pointing.hold_limit?(hard + 0.01)
+      refute Pointing.hold_limit?(hard - 0.01)
+      refute Pointing.hold_limit?(-60.0)
+    end
+
+    # #113: the side was guessed upside down twice, so on a guess nothing moves by it
+    test "the side is a guess only on a mount with no home, whose alignment was never told" do
       told = ctx()
       guessed = put_in(told.model[:cw_told], false)
-      hard = Pointing.meridian_hard()
 
-      assert Pointing.hold_limit?(told, 40.0, 40.1)
-      refute Pointing.hold_limit?(guessed, 40.0, 40.1)
-      assert Pointing.hold_limit?(guessed, hard - 0.01, hard + 0.01)
-      assert Pointing.hold_limit?(told, hard - 0.01, hard + 0.01)
-      refute Pointing.hold_limit?(guessed, 10.0, 10.1)
-      refute Pointing.hold_limit?(told, 10.0, 10.1)
-
-      # past the limit on a guess a hold has a short allowance, counted from where it was first seen there
-      spare = Pointing.guessed_hold_deg()
-      refute Pointing.guess_spent?(guessed, nil, 10.0, 40.0)
-      refute Pointing.guess_spent?(guessed, 10.0, 10.0 + spare - 0.1, 40.0)
-      assert Pointing.guess_spent?(guessed, 10.0, 10.0 + spare + 0.1, 40.0)
-      assert Pointing.guess_spent?(guessed, 10.0, 10.0 - spare - 0.1, 40.0)
-      refute Pointing.guess_spent?(told, 10.0, 10.0 + spare + 0.1, 40.0)
+      assert Pointing.side_guessed?(snap(0.0, 0.0), guessed)
+      refute Pointing.side_guessed?(snap(0.0, 0.0), told)
+      # home set: home is where the counterweight hangs straight down, so nothing rests on a guess
+      refute Pointing.side_guessed?(snap(0.0, 0.0, %{homed: true}), guessed)
+      # no alignment: Go To has nothing to pick a side by (it refuses as not homed)
+      refute Pointing.side_guessed?(snap(0.0, 0.0), %{told | model: nil})
     end
   end
 
@@ -167,7 +166,6 @@ defmodule Controller.Sky.FlipTest do
       assert r.go.text =~ "±14′"
       assert r.go.tone == :good
       assert r.track.text =~ "counterweight reaches its limit"
-      assert r.summary.text =~ "then flip"
     end
 
     test "past the meridian: the flip is said up front, and the hold then lasts until it sets" do
@@ -175,22 +173,22 @@ defmodule Controller.Sky.FlipTest do
       r = Reach.of(at_ha(c, 30), snap(-10.0, -60.0), c, trees?: false, lock: @lock, field: 72)
       assert r.go.text =~ "Flips the mount first"
       assert r.track.text =~ "until it sets"
-      assert r.summary.text =~ "Flip, then tracks"
     end
 
-    # #113: the page's promise follows the hold's own rule (`Pointing.hold_limit?/3`)
-    test "a hold begun past the limit on a guess is not promised a stop it will not make" do
+    # #113: the page can't promise what the mount won't do, and on a guess it won't move
+    test "with the counterweight's side a guess, Go To and Track say they wait for it, and what to answer" do
       c = ctx()
-      # 40° past the meridian and the mount already on it, on this side: the counterweight 40° above level
-      o = at_ha(c, 40)
-      on_it = snap(40.0, -70.0)
-      held = %{name: o.name, target: o}
+      o = at_ha(c, -30)
+      guessed = Reach.of(o, snap(-10.0, -60.0), put_in(c.model[:cw_told], false), trees?: false, lock: @lock)
+      assert guessed.go.text =~ "is the counterweight below or above level right now?"
+      assert guessed.go.mark == "×"
+      assert guessed.track.text =~ "Waits for the same answer"
+      refute guessed.go.text =~ "lands within"
 
-      told = Reach.of(o, on_it, c, trees?: false, lock: @lock, tracker: held)
+      # told: what Go To and the hold will do, as before
+      told = Reach.of(o, snap(-10.0, -60.0), c, trees?: false, lock: @lock)
+      assert told.go.text =~ "±14′"
       assert told.track.text =~ "counterweight reaches its limit"
-
-      guessed = Reach.of(o, on_it, put_in(c.model[:cw_told], false), trees?: false, lock: @lock, tracker: held)
-      refute guessed.track.text =~ "counterweight reaches its limit"
     end
 
     test "a hold that stopped at the limit says why and what to do" do
@@ -234,6 +232,9 @@ defmodule Controller.Sky.FlipTest do
       Controller.Settings.put("pointing", %{"ha_sign" => 1, "dec_sign" => -1})
       Lineup.replace(id, points, nil)
       on_exit(fn -> Lineup.clear(id) end)
+      # every point east of the meridian: the guess is right here, and someone at the mount says so
+      # (on a guess nothing moves, #113)
+      Controller.Test.KnownMount.confirm_guess(id)
       %{id: id, site: site}
     end
 

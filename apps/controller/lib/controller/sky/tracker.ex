@@ -24,9 +24,12 @@ defmodule Controller.Sky.Tracker do
   axes, and that must not be the goto (#122). On a mount that was never
   zeroed (no soft limits) it also stops when the counterweight reaches the
   hard limit above level (`Pointing.meridian_hard/0`): the next Go To flips
-  to the other side of the pier. While the counterweight's side is only a
-  guess a hold may begin past that limit (the guess may be upside down), and
-  then turns no further than `Pointing.guessed_hold_deg/0`.
+  to the other side of the pier. And on such a mount it holds nothing while
+  the counterweight's side is only a guess (`Pointing.side_guessed?/2`): on a
+  guess that limit can be upside down, so a hold could carry the tube into
+  the tripod for as long as the target stays up. It doesn't start, or it
+  ends if the side goes back to a guess, and `ended/1` says why
+  (`:counterweight_unknown`).
 
   State is per mount; the current readout is in `:persistent_term` so status
   strips can show it for free.
@@ -84,7 +87,10 @@ defmodule Controller.Sky.Tracker do
 
   def active?(id), do: status(id) != nil
 
-  @doc "Why the last hold on a mount ended, if it ended on its own: `%{name, why, at}` (and `off_deg` when `why` is `:lost`) or nil."
+  @doc """
+  Why the last hold on a mount ended, if it ended on its own, or was refused:
+  `%{name, why, at}` (and `off_deg` when `why` is `:lost`) or nil.
+  """
   def ended(id), do: :persistent_term.get({__MODULE__, :ended, id}, nil)
 
   @doc """
@@ -141,33 +147,56 @@ defmodule Controller.Sky.Tracker do
         {:noreply, s}
 
       ref ->
-        # the driver's own sidereal tracking would fight ours; the driver
-        # keeps a goto in flight alive when the mode is turned off
-        case safe(fn -> Mount.snapshot(ref) end) do
-          %{tracking: mode} when mode != :off -> safe(fn -> Mount.track(ref, :off) end)
-          _ -> :ok
-        end
+        snap = safe(fn -> Mount.snapshot(ref) end)
 
-        entry = %{
-          ref: ref,
-          obj: obj,
-          # the catalogue object, untouched by re-basing: for "that's centred" and "about"
-          target: Map.take(obj[:target] || obj, [:id, :name, :ra_deg, :dec_deg]),
-          cmd: %{ra: 0.0, dec: 0.0},
-          paused: false,
-          settled: false,
-          # :awaited until its Go To is seen in flight, :moving until that lands, then :landed
-          arrival: :awaited,
-          since: DateTime.utc_now(),
-          started_ms: System.monotonic_time(:millisecond)
-        }
+        # never zeroed and the counterweight's side only guessed: no hold begins (#113)
+        if is_map(snap) and Pointing.side_guessed?(snap, Pointing.context(DateTime.utc_now(), id)),
+          do: {:noreply, refuse(s, id, obj)},
+          else: {:noreply, start(s, id, ref, snap, obj)}
+    end
+  end
 
-        Telescope.Events.emit(:tracker, :start, %{id: id, target: obj.name})
-        :persistent_term.erase({__MODULE__, :ended, id})
-        remember(id, entry.target)
-        publish(id, entry, nil)
-        send(self(), {:tick_one, id})
-        {:noreply, Map.put(s, id, entry)}
+  defp start(s, id, ref, snap, obj) do
+    # the driver's own sidereal tracking would fight ours; the driver
+    # keeps a goto in flight alive when the mode is turned off
+    case snap do
+      %{tracking: mode} when mode != :off -> safe(fn -> Mount.track(ref, :off) end)
+      _ -> :ok
+    end
+
+    entry = %{
+      ref: ref,
+      obj: obj,
+      # the catalogue object, untouched by re-basing: for "that's centred" and "about"
+      target: Map.take(obj[:target] || obj, [:id, :name, :ra_deg, :dec_deg]),
+      cmd: %{ra: 0.0, dec: 0.0},
+      paused: false,
+      settled: false,
+      # :awaited until its Go To is seen in flight, :moving until that lands, then :landed
+      arrival: :awaited,
+      since: DateTime.utc_now(),
+      started_ms: System.monotonic_time(:millisecond)
+    }
+
+    Telescope.Events.emit(:tracker, :start, %{id: id, target: obj.name})
+    :persistent_term.erase({__MODULE__, :ended, id})
+    remember(id, entry.target)
+    publish(id, entry, nil)
+    send(self(), {:tick_one, id})
+    Map.put(s, id, entry)
+  end
+
+  # Not held, and the pages say why. A hold already running for this mount ends with it.
+  defp refuse(s, id, obj) do
+    Logger.info("tracker: #{id} counterweight side is a guess — not holding #{obj.name}")
+    Telescope.Events.emit(:tracker, :refused, %{id: id, target: obj.name, why: :counterweight_unknown})
+
+    if Map.has_key?(s, id) do
+      drop(s, id, :counterweight_unknown)
+    else
+      :persistent_term.put({__MODULE__, :ended, id}, %{name: obj.name, why: :counterweight_unknown, at: DateTime.utc_now()})
+      Telescope.broadcast("tracker", {:tracker, id, nil})
+      s
     end
   end
 
@@ -262,21 +291,16 @@ defmodule Controller.Sky.Tracker do
     err_ra = Astro.norm180(r1 - elem(cur, 0))
     err_dec = d1 - elem(cur, 1)
     cw = Pointing.counterweight(ctx, r1)
-    # where this hold had it a moment ago: as far behind as `later` is ahead
-    cw_was = Pointing.counterweight(ctx, r1 - Astro.norm180(r2 - r1))
-    # past the limit on a guess: remember where the RA axis was when that was first seen
-    entry = past_from(entry, not snap.homed and Pointing.past_on_a_guess?(ctx, cw), r1)
 
     cond do
-      # never zeroed: no soft limits, so the counterweight is the limit. With its side only
-      # guessed, that is a limit the hold has to reach itself: where it starts is not refused
-      not snap.homed and Pointing.hold_limit?(ctx, cw_was, cw) ->
-        {:give_up, :meridian, %{}}
+      # what was told about the counterweight's side was taken back: the limit below may be
+      # upside down now, so the hold ends rather than trust it (#113)
+      Pointing.side_guessed?(snap, ctx) ->
+        {:give_up, :counterweight_unknown, %{}}
 
-      # ... but not for ever. If the guess is right the tube is heading for the mount, so a
-      # hold that began past the limit on a guess turns only a short allowance and then says why
-      Pointing.guess_spent?(ctx, entry[:past_from], r1, cw) ->
-        {:give_up, :counterweight, %{}}
+      # never zeroed: no soft limits, so the counterweight is the limit
+      not snap.homed and Pointing.hold_limit?(cw) ->
+        {:give_up, :meridian, %{}}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->
         # a new target with nothing seen moving yet: its Go To may still be
@@ -322,10 +346,6 @@ defmodule Controller.Sky.Tracker do
          %{error_arcmin: error_arcmin, cw: cw}}
     end
   end
-
-  defp past_from(entry, false, _ra), do: Map.delete(entry, :past_from)
-  defp past_from(%{past_from: from} = entry, true, _ra) when is_number(from), do: entry
-  defp past_from(entry, true, ra), do: Map.put(entry, :past_from, ra)
 
   defp rebase(entry, snap, ctx) do
     case Pointing.scope_radec(snap, ctx) do
@@ -387,9 +407,9 @@ defmodule Controller.Sky.Tracker do
 
       :persistent_term.erase({__MODULE__, id})
       # a person or a limit ended it: nothing to offer back after a restart
-      if why in [:stop, :estop, :meridian, :counterweight, :lost], do: forget_interrupted(id)
+      if why in [:stop, :estop, :meridian, :counterweight_unknown, :lost], do: forget_interrupted(id)
       # ended on its own (not a person's stop or a Go To taking over): the pages say why
-      if why in [:meridian, :counterweight, :lost, :gone, :error, :estop],
+      if why in [:meridian, :counterweight_unknown, :lost, :gone, :error, :estop],
         do:
           :persistent_term.put(
             {__MODULE__, :ended, id},

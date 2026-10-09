@@ -17,6 +17,10 @@ defmodule Controller.Sky.Pointing do
   home is unknown and the lined-up model says where the counterweight hangs
   (`counterweight/2`): Go To stays on this side of the pier while it hangs
   below level, and flips to the other side (asking first) when it wouldn't.
+
+  Which side of the mount the counterweight is on, the model cannot see: both
+  sides look at the same sky. Until someone at the mount says
+  (`Lineup.set_counterweight/3`), nothing moves by it (`side_guessed?/2`).
   """
 
   alias Controller.Settings
@@ -151,46 +155,28 @@ defmodule Controller.Sky.Pointing do
   def counterweight(_ctx, _ra_axis), do: -90.0
 
   @doc """
-  Has a hold on a never-zeroed mount reached the counterweight's limit? `cw`
-  is the counterweight now (`counterweight/2`), `was` where the hold had it a
-  moment ago.
-
-  Told which side the counterweight is on (`Lineup.set_counterweight/3`),
-  above the hard limit is above it, wherever the hold began. Only guessed,
-  the sign can be upside down: the night every photo was taken with the bar
-  near level it was, the hold refused to start with the counterweight
-  hanging well down, and with no hold there was no sharp photo to put the
-  guess right. Holding a mount where someone put it is not a choice of pose,
-  so on a guess a hold may start anywhere, and ends only when it has itself
-  carried the bar over the limit.
+  Has a hold on a never-zeroed mount carried the counterweight past its limit?
+  `cw` is the counterweight now (`counterweight/2`). A hold only runs once the
+  counterweight's side is told or home is set (`side_guessed?/2`), so the
+  height is known to be the right way up.
   """
-  def hold_limit?(%{model: %{cw_told: false}}, was, cw),
-    do: was <= @meridian_hard and cw > @meridian_hard
-
-  def hold_limit?(_ctx, _was, cw), do: cw > @meridian_hard
+  def hold_limit?(cw), do: cw > @meridian_hard
 
   @doc """
-  How far a hold may turn the RA axis past the counterweight's limit while the
-  counterweight's side is only a guess. A hold may begin there in case the
-  guess is upside down; in case it is right, it must not carry the tube on
-  toward the mount for as long as the target stays up. Five degrees is twenty
-  minutes of sky: enough for the photo that settles the side, not enough to
-  reach a tripod leg.
+  Is which side of the pier the counterweight is on only a guess, on a mount
+  whose home was never set? Then nothing moves the mount by the model's idea
+  of the pier side: Go To, the flip's legs and the hold all refuse (#113).
+
+  A telescope on either side of the mount sees the same stars, so an
+  alignment by stars, by photo or by the camera only guesses the side
+  (`Model.cw_down/3`). On 3 October and again on 8 October the guess was
+  upside down: a Go To drove the tube to the pose with the counterweight bar
+  64° above level and the camera near a tripod leg, and the flip it planned
+  would have swung it further the wrong way. Someone at the mount can answer
+  by looking (`Lineup.set_counterweight/3`); until then, it waits.
   """
-  def guessed_hold_deg, do: Application.get_env(:controller, :guessed_hold_deg, 5.0)
-
-  @doc """
-  Has a hold on a guessed side used up that allowance? `from` is the RA axis
-  where the hold was first seen past the limit, nil if it never was.
-  """
-  def guess_spent?(%{model: %{cw_told: false}}, from, ra, cw) when is_number(from),
-    do: cw > @meridian_hard and abs(Astro.norm180(ra - from)) > guessed_hold_deg()
-
-  def guess_spent?(_ctx, _from, _ra, _cw), do: false
-
-  @doc "Is the counterweight past its limit at `cw`, on a guessed side? Where a guessed hold's allowance starts counting."
-  def past_on_a_guess?(%{model: %{cw_told: false}}, cw), do: cw > @meridian_hard
-  def past_on_a_guess?(_ctx, _cw), do: false
+  def side_guessed?(%{homed: false}, %{model: %{cw_told: false}}), do: true
+  def side_guessed?(_snap, _ctx), do: false
 
   @doc """
   Where a Go To to `obj` puts the axes of a never-zeroed, lined-up mount, and
@@ -239,6 +225,13 @@ defmodule Controller.Sky.Pointing do
   never-zeroed, lined-up mount (a zeroed one has `Mount.goto_home`).
   """
   def home_leg(ref, snap, %{model: m, pointing: p} = ctx) when is_map(m) do
+    # "counterweight straight down" is only where the model has it: on a guess, it may be straight up
+    if side_guessed?(snap, ctx), do: {:error, :counterweight_unknown}, else: do_home_leg(ref, snap, m, p, ctx)
+  end
+
+  def home_leg(_ref, _snap, _ctx), do: {:error, :not_lined_up}
+
+  defp do_home_leg(ref, snap, m, p, ctx) do
     sg = signs_of(m, p)
     cur_ra = snap.axes.ra.degrees
     cur_dec = snap.axes.dec.degrees
@@ -248,8 +241,6 @@ defmodule Controller.Sky.Pointing do
     dec = dec_through_pole(m, sg, cur_dec, (0.0 - m.off_dec) / sg.dec_sign)
     go(ref, snap, nil, ctx, ra_turn(ctx, cur_ra, ra), dec - cur_dec, track: false)
   end
-
-  def home_leg(_ref, _snap, _ctx), do: {:error, :not_lined_up}
 
   @doc "One line for a Go To that didn't start, naming the object."
   def refusal_words(error, name) do
@@ -271,6 +262,10 @@ defmodule Controller.Sky.Pointing do
 
       :goto_not_started ->
         "The mount didn't start the Go To to #{name}: try again"
+
+      # the one question someone at the mount can answer by looking (#113)
+      :counterweight_unknown ->
+        "Which side is the counterweight on? Say whether the bar is below or above level right now, then Go To again"
 
       {:flip, %{past: past}} ->
         "#{name} needs a meridian flip (on this side the counterweight would sit #{round(past)}° above level): open #{name} to flip in two legs"
@@ -345,9 +340,11 @@ defmodule Controller.Sky.Pointing do
   zeroed, the lined-up model keeps the counterweight down (`landing/4`): a Go
   To that needs a meridian flip returns `{:error, {:flip, %{past:, stay?:}}}`
   until it is asked again with `flip: true` (or `watched: true` to stay on
-  this side, up to the hard limit). With `track: true` (default) tracking
-  follows: sidereal from the driver on a polar-aligned mount, the model
-  tracker on a lined-up one. Returns `{:ok, d_ra, d_dec}` or an error.
+  this side, up to the hard limit). Never zeroed with the counterweight's
+  side only guessed, it moves nothing: `{:error, :counterweight_unknown}`
+  (`side_guessed?/2`). With `track: true` (default) tracking follows:
+  sidereal from the driver on a polar-aligned mount, the model tracker on a
+  lined-up one. Returns `{:ok, d_ra, d_dec}` or an error.
   """
   def slew(ref, snap, obj, ctx, opts \\ []) do
     cond do
@@ -358,6 +355,11 @@ defmodule Controller.Sky.Pointing do
       # zeros are without a zero; otherwise zeroing is what places the sky
       not snap.homed and not lined_up?(ctx) ->
         {:error, :not_homed}
+
+      # never zeroed, and which side the counterweight is on only a guess: the guess was upside
+      # down twice, and Go To drove the tube toward the tripod (#113). Nothing moves until told.
+      side_guessed?(snap, ctx) ->
+        {:error, :counterweight_unknown}
 
       # never zeroed, lined up: the model says where the counterweight hangs
       not snap.homed ->

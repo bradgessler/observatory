@@ -1277,9 +1277,6 @@ body:has([data-phx-main]:not(.phx-connected)) .conn-lost { display: block; posit
 .targets .target .t span { white-space: normal; }
 .targets .target .d { grid-area: detail; display: flex; flex-wrap: wrap; column-gap: var(--s2); min-width: 0; }
 .targets .target .d > span { min-width: 0; }
-/* what Go To and the hold will do: words at the end of the detail line, under the "until" they go
-   with; where the line is full they take the next one whole, still at its end */
-.targets .target .d > .reach-short { margin-left: auto; text-align: right; }
 /* how long it's up: on the name's line, in its own track; too long for it (a time with "UTC"), it wraps there */
 .targets .target .when { grid-area: when; align-self: baseline; text-align: right; white-space: normal; font-variant-numeric: tabular-nums; }
 /* not up yet: the same rows, quieter, under their own heading */
@@ -1374,9 +1371,6 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .reach-t span { font-size: 14px; }
 .stall-line, .move-line { margin: 0 0 8px; font-size: 14px; }
 .move-line { color: var(--amber); }
-
-/* Tonight: what Go To and the hold will do, a few words with a mark, in the tone that says the same */
-.reach-short { font-size: var(--fs-2); }
 
 /* home: a mount on the cable that doesn't answer, said once, calmly */
 .home-quiet { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 16px; }

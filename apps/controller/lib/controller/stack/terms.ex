@@ -65,7 +65,7 @@ defmodule Controller.Stack.Terms do
       name: "Where the mount's axis points",
       what: "An equatorial mount tracks with one motor only if its main axis points at the celestial pole. This one points somewhere else; the fit found where, and every Go To and tracking correct for it.",
       source: "Fitted from alignment points: photos that were plate-solved, and objects centered by eye.",
-      fix: "Nothing needed for looking. For photos, turn the altitude and azimuth bolts toward the pole; Align by Photo says how much."
+      fix: "Nothing needed for looking. For photos, turn the altitude and azimuth bolts toward the pole; Align by Phone Photo says how much."
     },
     "tripod" => %{
       name: "Tripod tilt",

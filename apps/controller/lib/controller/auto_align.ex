@@ -8,7 +8,9 @@ defmodule Controller.AutoAlign do
   mount a little, and does it again, spreading the pictures over a patch of
   sky about 30° across. Once enough of them agree (`:enough`, 4), they become
   the mount's alignment, the same as "Use This Alignment" after photos from
-  a phone.
+  a phone. It needs no home: on a mount whose home was never set its last
+  words ask which side the counterweight is on, the one thing no picture can
+  say, and Go To waits for the answer (`Controller.Sky.Pointing.side_guessed?/2`).
 
   **Moves stay small and are only ever this one's own.** Each is at most
   15° on RA and 10° on Dec from where it started, so it never swings past the
@@ -359,7 +361,7 @@ defmodule Controller.AutoAlign do
     if run.solved >= run.enough do
       case Plates.use_alignment(run.id) do
         {:ok, st} ->
-          finish(run, true, "Found it: #{st.n} frames agree#{if st.rms_arcmin, do: " to #{round(st.rms_arcmin * 10) / 10}′", else: ""}. Go To uses this now")
+          finish(run, true, found_words(st))
 
         {:error, e} ->
           finish(run, false, "The frames were plate solved but couldn't be used: #{Controller.Words.error(e)}")
@@ -383,6 +385,16 @@ defmodule Controller.AutoAlign do
     else
       missed(run, "Frame #{run.picture} didn't plate solve (#{reason |> to_string() |> String.replace("_", " ")})")
     end
+  end
+
+  # On a mount whose home was never set, no picture can say which side of the pier the
+  # counterweight is on, and Go To waits for it (#113): the last words are the question.
+  defp found_words(st) do
+    agree = "#{st.n} frames agree#{if st.rms_arcmin, do: " to #{round(st.rms_arcmin * 10) / 10}′", else: ""}"
+
+    if st[:counterweight] == :guessed,
+      do: "Aligned: #{agree}. Is the counterweight bar below or above level right now?",
+      else: "Found it: #{agree}. Go To uses this now"
   end
 
   defp missed(run, why) do

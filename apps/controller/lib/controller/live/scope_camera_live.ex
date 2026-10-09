@@ -20,6 +20,7 @@ defmodule Controller.ScopeCameraLive do
   def mount(params, session, socket) do
     if connected?(socket) do
       ScopeCamera.subscribe()
+      Controller.StillCamera.subscribe()
       AutoAlign.subscribe()
       Video.subscribe()
       Settings.subscribe()
@@ -29,7 +30,7 @@ defmodule Controller.ScopeCameraLive do
     {:ok,
      socket
      |> assign(page_title: "Telescope Camera", night: Settings.get("night", false), notice: nil, selected: params["id"] || session["telescope"], refs: %{})
-     |> assign(cam: ScopeCamera.find(), playlist: playlist())
+     |> assign(cam: ScopeCamera.find(), playlist: playlist(), stills: stills(safe(&Controller.StillCamera.status/0)))
      |> rescan()}
   end
 
@@ -44,6 +45,9 @@ defmodule Controller.ScopeCameraLive do
   def handle_info({:auto_align, id, run}, socket) do
     if id == socket.assigns.selected, do: {:noreply, assign(socket, run: run)}, else: {:noreply, socket}
   end
+
+  # the Sony coming and going, and getting ready: the line about it follows
+  def handle_info({:still_camera, status}, socket), do: {:noreply, assign(socket, stills: stills(status))}
 
   def handle_info({:video, v}, socket), do: {:noreply, assign(socket, playlist: v[:playlist])}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
@@ -112,10 +116,14 @@ defmodule Controller.ScopeCameraLive do
         <.actions><.help href={~p"/docs/scope-camera"} label="the telescope camera" /><.stop /></.actions>
       </:header>
 
-      <p :if={trouble(@cam)} class="hint tone-caution" role="status">{camera_line(@cam)}</p>
+      <%!-- no telescope camera, but the Sony is on and ready: that is the one line, not "plug one in" --%>
+      <p :if={trouble(@cam) && !(!@cam[:camera] && ready?(@stills))} class="hint tone-caution" role="status">{camera_line(@cam)}</p>
+      <p :if={!@cam[:camera] && ready?(@stills)} class="hint" role="status">
+        No telescope camera. The {elem(@stills, 0)} is ready on <.link navigate={~p"/cameras/stills"}>Stills Camera ›</.link>
+      </p>
       <%!-- a stills camera on the telescope has its own page: say so here, where people look first --%>
-      <p :if={!@cam[:camera] && stills()} class="hint" role="status">
-        A stills camera is on the box: <.link navigate={~p"/cameras/stills"}>{stills()}, on Stills Camera</.link>.
+      <p :if={!@cam[:camera] && @stills && !ready?(@stills)} class="hint" role="status">
+        A stills camera is on the box: <.link navigate={~p"/cameras/stills"}>{elem(@stills, 0)}, on Stills Camera</.link>.
       </p>
 
       <%!-- the picture takes the room; what to do with it beside (on a phone, below) --%>
@@ -196,15 +204,12 @@ defmodule Controller.ScopeCameraLive do
     "#{s["exposure_ms"]} ms, gain #{s["gain"]}, #{stack}#{if cam[:keep], do: ", keeping frames", else: ""}"
   end
 
-  # the stills camera's name when one is plugged in, else nil
-  defp stills do
-    case Controller.StillCamera.status() do
-      %{camera: %{} = c} -> c[:model] || c[:id]
-      _ -> nil
-    end
-  catch
-    _, _ -> nil
-  end
+  # the stills camera when one is plugged in, `{name, ready?}`, else nil (from `StillCamera.status/0`)
+  defp stills(%{camera: %{} = c}), do: {c[:model] || c[:id], c[:state] == :ready}
+  defp stills(_), do: nil
+
+  defp ready?({_name, ready?}), do: ready?
+  defp ready?(_), do: false
 
   defp camera_line(%{down: true}), do: "The camera part of the box isn't running."
   defp camera_line(%{camera: nil, error: nil}), do: "No camera: plug the telescope camera into the box. It shows up here by itself."

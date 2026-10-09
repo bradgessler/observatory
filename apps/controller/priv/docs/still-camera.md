@@ -170,7 +170,7 @@ to show a dozen of them (a second or more at a high ISO). With too few it
 says so, and a longer shutter or a higher ISO is the fix.
 
 Every solved picture is also an alignment photo: it joins the mount's
-plates, the same ones Align by Photo collects, so a few of them spread over
+plates, the same ones Align by Phone Photo collects, so a few of them spread over
 the sky align the mount. **Alignment Photos** shows them and the fit. For a
 picture to count, the mount must have a home set.
 

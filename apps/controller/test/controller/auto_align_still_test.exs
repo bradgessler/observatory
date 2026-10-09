@@ -8,12 +8,16 @@ defmodule Controller.AutoAlignStillTest do
 
   The software is never told the truth. Only the stand-in plate solver reads
   it, the way a real one reads the sky.
+
+  And with no home at all (8 October): the same tap from wherever the
+  telescope points. No picture can say which side the counterweight is on,
+  so the run's last words ask, and Go To waits for the answer (#113).
   """
   use ExUnit.Case, async: false
 
   alias Controller.{AutoAlign, Plates, StillCamera}
   alias Controller.Sim.Truth
-  alias Controller.Sky.{Astro, Lineup, Pointing, Stars, Tracker}
+  alias Controller.Sky.{Astro, Lineup, Model, Pointing, Stars, Tracker}
 
   @moduletag timeout: 300_000
 
@@ -22,14 +26,23 @@ defmodule Controller.AutoAlignStillTest do
     def solve(_image, _opts) do
       id = Application.get_env(:controller, :auto_align_still_mount)
 
-      case Truth.radec(Mount.snapshot(id), DateTime.utc_now()) do
+      case true_radec(Mount.snapshot(id), DateTime.utc_now()) do
         {ra, dec} -> {:ok, %{ra_deg: ra, dec_deg: dec, width_deg: 0.66, height_deg: 0.44, rotation_deg: 0.0, parity: "neg", seconds: 0.1, stars: 30}}
         nil -> {:error, :too_few_stars}
       end
     end
+
+    # Zeroed, the truth counts from home. Never zeroed, the counts run from wherever the mount woke,
+    # and the truth's offsets say where that was: the sky is there all the same.
+    def true_radec(%{homed: true} = snap, now), do: Truth.radec(snap, now)
+
+    def true_radec(%{id: id, axes: %{ra: ra, dec: dec}}, now) do
+      site = Pointing.site()
+      Model.radec(Truth.get(id), Pointing.pointing(), ra.degrees, dec.degrees, site.lat, Astro.lst_deg(now, site.lon))
+    end
   end
 
-  setup do
+  setup tags do
     cam = "sim-still-aa-#{System.unique_integer([:positive])}"
     id = "sim-aa-still-#{System.unique_integer([:positive])}"
 
@@ -42,10 +55,20 @@ defmodule Controller.AutoAlignStillTest do
     start_supervised!({Mount.Server, id: id, transport: {Mount.Transport.Sim, []}})
     Mount.subscribe(id)
     assert_receive {:mount, %{connected: true}}, 2_000
-    :ok = Mount.set_home(id)
     Lineup.clear(id)
-    # 27° from the pole: 12° too low and 24° round to the west, encoders not quite zeroed
-    Truth.put(id, %{axis_alt: Pointing.site().lat - 12.0, axis_az: 336.0, off_ra: 1.0, off_dec: -1.5})
+
+    if tags[:no_home] do
+      # the same crooked tripod, never zeroed: it woke 60° east of the meridian with the tube 50° off
+      # the polar axis, up in the sky, its counterweight well below level (KnownMount's convention)
+      pointing = Controller.Settings.get("pointing")
+      Controller.Settings.put("pointing", %{"ha_sign" => 1, "dec_sign" => -1})
+      on_exit(fn -> Controller.Settings.put("pointing", pointing) end)
+      Truth.put(id, %{axis_alt: Pointing.site().lat - 12.0, axis_az: 336.0, off_ra: -60.0, off_dec: 50.0})
+    else
+      :ok = Mount.set_home(id)
+      # 27° from the pole: 12° too low and 24° round to the west, encoders not quite zeroed
+      Truth.put(id, %{axis_alt: Pointing.site().lat - 12.0, axis_az: 336.0, off_ra: 1.0, off_dec: -1.5})
+    end
 
     solver = Application.get_env(:controller, :solver)
     Application.put_env(:controller, :solver, backend: Sky)
@@ -108,6 +131,59 @@ defmodule Controller.AutoAlignStillTest do
   test "with no camera on the telescope it says so and moves nothing", %{id: id} do
     assert AutoAlign.start(id, camera: nil) == {:error, :no_camera}
     refute Mount.snapshot(id).axes.ra.goto_pending
+  end
+
+  @tag :no_home
+  test "one tap with no home: the pictures align it, the last words ask the counterweight's side, and Go To waits for it", %{id: id, ref: ref} do
+    refute Mount.snapshot(id).homed
+    :ok = AutoAlign.start(id)
+
+    assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
+    assert run.ok, run.words
+    assert run.words =~ "Aligned: 4 frames agree"
+    assert run.words =~ "Is the counterweight bar below or above level right now?"
+    status = Lineup.status(id)
+    assert status.n == 4 and "just look" in status.good_for
+    assert status.counterweight == :guessed
+
+    # a Go To now moves nothing
+    ctx = fn -> Pointing.context(DateTime.utc_now(), id) end
+    here = Sky.true_radec(Mount.snapshot(id), DateTime.utc_now())
+    target = east_star(here, ctx.())
+    snap = Mount.snapshot(id)
+    assert Pointing.slew(ref, snap, target, ctx.(), track: true) == {:error, :counterweight_unknown}
+    # (the mount's own sidereal drive, which the run turned on to keep the stars still, runs on)
+    now = Mount.snapshot(id)
+    refute Enum.any?(now.axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) or ax.mode == :goto and ax.running end)
+    refute now.axes.dec.running
+    assert_in_delta now.axes.dec.degrees, snap.axes.dec.degrees, 1.0e-6
+    refute Tracker.active?(id)
+
+    # told by someone looking at it (below level, 45° to 75° east of the meridian): Go To goes, and
+    # lands in a low-power eyepiece on a polar axis 27° out with no home
+    assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
+    assert {:ok, _, _} = Pointing.slew(ref, Mount.snapshot(id), target, ctx.(), track: true)
+    settle(id)
+    {ra, dec} = Sky.true_radec(Mount.snapshot(id), DateTime.utc_now())
+    landed = Astro.separation_radec(ra, dec, target.ra_deg, target.dec_deg)
+    assert landed < 0.2, "#{target.name} was #{Float.round(landed, 3)}° off"
+    assert %{name: name} = Tracker.status(id)
+    assert name == target.name
+  end
+
+  # a named star well up, east of the meridian and 15° to 50° from where the tube is: a Go To
+  # that stays on this side of the pier
+  defp east_star({ra0, dec0}, ctx) do
+    lst = Astro.lst_deg(ctx.now, ctx.site.lon)
+
+    Stars.all()
+    |> Enum.filter(fn s ->
+      {alt, _az} = Astro.alt_az(s.ra_deg, s.dec_deg, ctx.site.lat, lst)
+      ha = Astro.hour_angle(lst, s.ra_deg)
+      sep = Astro.separation_radec(ra0, dec0, s.ra_deg, s.dec_deg)
+      alt > 30 and ha < -10 and ha > -80 and sep > 15 and sep < 50
+    end)
+    |> Enum.min_by(fn s -> Astro.separation_radec(ra0, dec0, s.ra_deg, s.dec_deg) end, fn -> flunk("no bright star east of the meridian near the tube") end)
   end
 
   # a named star well up and at least 30° from where the tube is: a real Go To

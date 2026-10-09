@@ -55,6 +55,20 @@ defmodule Controller.Test.KnownMount do
     Map.merge(truth, %{signs: @signs, cw: 1})
   end
 
+  @doc """
+  Tell mount `id`'s alignment the counterweight side it already guesses, the
+  way someone at the mount would by looking, for a test whose plates make the
+  guess the truth: on a guess nothing moves (#113). Below or above level when
+  the bar is clear of level, else which side of the mount the tube is on.
+  """
+  def confirm_guess(id) do
+    %{cw: guess} = Lineup.model(id)
+    snap = Mount.snapshot(id)
+
+    Enum.find([:below, :above, :east, :west], fn where -> Lineup.set_counterweight(id, snap, where) == {:ok, guess} end) ||
+      raise "could not tell #{id} its counterweight side"
+  end
+
   @doc "An object `ha` degrees past the meridian right now (negative: east of it)."
   def at_ha(ha, dec \\ 20.0) do
     lst = Astro.lst_deg(DateTime.utc_now(), Pointing.site().lon)

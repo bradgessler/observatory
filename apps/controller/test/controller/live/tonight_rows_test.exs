@@ -4,10 +4,12 @@ defmodule Controller.TonightRowsTest do
   order: the number (or kind), the name over its detail, how long it's up,
   and how high, drawn, last. The night the list came out jagged, the drawn
   angle sat before the "until", and what Go To would do sat under that, so
-  every row's angle was wherever those words left it. What Go To and the
-  hold will do is now words on the detail line, and a row that has them is
-  laid out exactly as one that hasn't. (The tracks those columns sit in are
-  checked from the stylesheet, in design_test.exs.)
+  every row's angle was wherever those words left it. Then what Go To and
+  the hold would do became words on the detail line ("Tracks to 1:26, then
+  flip"), and on 8 October that was noise on a list: a row is what it is,
+  where, and until when. What Go To and tracking will do for one target is
+  on its own page. (The tracks the columns sit in are checked from the
+  stylesheet, in design_test.exs.)
   """
   use Controller.ConnCase, async: false
   import Phoenix.LiveViewTest
@@ -37,7 +39,7 @@ defmodule Controller.TonightRowsTest do
     assert html =~ "Not aligned yet"
   end
 
-  test "home set: each row that is up says how long tracking holds it, on its detail line, and its columns are the same", %{conn: conn, id: id} do
+  test "home set: the same columns, and no row says what Go To and tracking will do", %{conn: conn, id: id} do
     :ok = Mount.set_home(id)
     assert Mount.snapshot(id).homed
 
@@ -46,8 +48,9 @@ defmodule Controller.TonightRowsTest do
 
     assert up != []
     assert_columns(up, later)
-    for row <- up, do: assert([_one] = row.reach, "#{row.name}: what tracking will do, once")
-    assert Enum.all?(later, &(&1.reach == []))
+    assert Enum.all?(up ++ later, &(&1.reach == [])), "a row with what Go To will do: #{inspect(Enum.flat_map(up, & &1.reach))}"
+    refute html =~ "Tracks to"
+    refute html =~ "Not aligned yet"
   end
 
   test "star-aligned, where a Go To may have to flip the mount: the same columns again", %{conn: conn, id: id} do
@@ -66,19 +69,19 @@ defmodule Controller.TonightRowsTest do
 
     assert up != []
     assert_columns(up, later)
-    for row <- up, do: assert([_one] = row.reach, "#{row.name}: what Go To and tracking will do, once")
+    assert Enum.all?(up ++ later, &(&1.reach == []))
+    refute html =~ "then flip"
   end
 
-  # The "until" is said in the viewer's clock as soon as their browser gives its offset; the
-  # "tracks to" under it used to stay in UTC until the next tick: two clocks in one row.
-  test "once the viewer's clock is known, a row's two times are both in it", %{conn: conn, id: id} do
+  # The "until" is said in the viewer's clock as soon as their browser gives its offset.
+  test "once the viewer's clock is known, a row's time is in it", %{conn: conn, id: id} do
     :ok = Mount.set_home(id)
     {:ok, view, html} = live(conn, "/tonight/#{id}")
-    {up, _} = rows(html)
-    assert Enum.any?(up, &(Enum.join(&1.reach) =~ "UTC")), "no row with a time to track to: nothing to check"
+    {up, later} = rows(html)
+    assert Enum.any?(up ++ later, &(&1.when =~ "UTC")), "no row with a time: nothing to check"
 
     {up, later} = view |> render_hook("clock", %{"offset_min" => -420}) |> rows()
-    for row <- up ++ later, text <- [row.when | row.reach], do: refute(text =~ "UTC", "#{row.name}: #{text}")
+    for row <- up ++ later, do: refute(row.when =~ "UTC", "#{row.name}: #{row.when}")
   end
 
   # -- the rows as they are rendered ---------------------------------------------------

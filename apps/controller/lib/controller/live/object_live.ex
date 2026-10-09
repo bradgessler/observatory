@@ -7,12 +7,16 @@ defmodule Controller.ObjectLive do
   it, will Go To put it in the eyepiece, how long will tracking keep it. A Go
   To that needs a meridian flip asks first and goes in two legs
   (`Controller.Sky.Moves`), stopping at the home position to ask whether the
-  way is clear.
+  way is clear. On a mount with no home whose counterweight side is only a
+  guess, Go To waits, and the question is asked right under it
+  (`Controller.Components.Counterweight`); `?ask=counterweight` opens the
+  page with it asked.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
   alias Controller.Settings
+  alias Controller.Components.Counterweight
 
   alias Controller.Sky.{
     Astro,
@@ -61,6 +65,8 @@ defmodule Controller.ObjectLive do
        confirming: false,
        can_undo: false,
        counterweight: nil,
+       # the counterweight question, asked because a Go To (or a hold) waited for it
+       cw_ask: params["ask"] == "counterweight",
        flip_ask: nil,
        move: nil,
        holding: nil,
@@ -237,35 +243,42 @@ defmodule Controller.ObjectLive do
     watched = params["watched"] == "true"
     track = Settings.get("auto_track", true)
 
-    {notice, ask} =
+    {notice, ask, cw_ask} =
       case Pointing.slew(ref, snap, obj, socket.assigns.ctx, track: track, watched: watched) do
         {:ok, _d_ra, _d_dec} when watched ->
           {"Going to #{obj.name} on this side, with you watching. Tracking stops when the counterweight reaches its limit#{limit_in(socket.assigns.flip_ask)}",
-           nil}
+           nil, false}
 
         {:ok, d_ra, d_dec} ->
-          {"Going to #{obj.name} (RA #{fmt1(d_ra)}°, Dec #{fmt1(d_dec)}°)", nil}
+          {"Going to #{obj.name} (RA #{fmt1(d_ra)}°, Dec #{fmt1(d_dec)}°)", nil, false}
 
         # the other side of the pier: ask, and offer to stay while there's time
         {:error, {:flip, info}} ->
-          {nil, info}
+          {nil, info, false}
 
+        # which side the counterweight is on, only guessed: the question goes right under Go To
         {:error, e} ->
-          {Pointing.refusal_words(e, obj.name), nil}
+          {Pointing.refusal_words(e, obj.name), nil, e == :counterweight_unknown}
       end
 
-    {:noreply, socket |> assign(notice: notice, flip_ask: ask) |> compute()}
+    {:noreply, socket |> assign(notice: notice, flip_ask: ask, cw_ask: cw_ask) |> compute()}
   end
 
   def handle_event("flip", _, %{assigns: %{obj: obj}} = socket) do
-    notice =
+    {notice, cw_ask} =
       case Moves.flip(socket.assigns.selected, obj, track: Settings.get("auto_track", true)) do
-        {:ok, :home} -> nil
-        {:error, e} -> Pointing.refusal_words(e, obj.name)
+        {:ok, :home} -> {nil, false}
+        {:error, e} -> {Pointing.refusal_words(e, obj.name), e == :counterweight_unknown}
       end
 
     {:noreply,
-     assign(socket, flip_ask: nil, notice: notice, move: Moves.pending(socket.assigns.selected))}
+     assign(socket, flip_ask: nil, notice: notice, cw_ask: cw_ask, move: Moves.pending(socket.assigns.selected))}
+  end
+
+  # The one answer Go To waited for, from someone looking at the mount
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> assign(cw_ask: not told?, notice: said) |> compute()}
   end
 
   def handle_event("flip_on", _, socket) do
@@ -377,11 +390,22 @@ defmodule Controller.ObjectLive do
   # found: stop searching, hold right here as the object
   def handle_event("search_found", _, %{assigns: %{obj: obj, snap: snap}} = socket) do
     id = socket.assigns.selected
+    ctx = socket.assigns.ctx
 
-    case snap && Pointing.scope_radec(snap, socket.assigns.ctx) do
+    case snap && Pointing.scope_radec(snap, ctx) do
       {ra, dec} ->
-        Tracker.track(id, %{name: obj.name, ra_deg: ra, dec_deg: dec}, obj)
-        {:noreply, assign(socket, search: nil, notice: "Tracking #{obj.name} where you found it. Center it and tap Centered to make the next Go To land closer.")}
+        # no hold on a guessed side (#113): the mount's own drive keeps it meanwhile, and the question is asked
+        if Pointing.side_guessed?(snap, ctx) do
+          {:noreply,
+           assign(socket,
+             search: nil,
+             cw_ask: true,
+             notice: "Stopped on #{obj.name}. Tracking it waits for one answer: is the counterweight below or above level right now?"
+           )}
+        else
+          Tracker.track(id, %{name: obj.name, ra_deg: ra, dec_deg: dec}, obj)
+          {:noreply, assign(socket, search: nil, notice: "Tracking #{obj.name} where you found it. Center it and tap Centered to make the next Go To land closer.")}
+        end
 
       _ ->
         {:noreply, assign(socket, search: nil, notice: "Spiral Search stopped")}
@@ -516,7 +540,7 @@ defmodule Controller.ObjectLive do
             </p>
             <%!-- Go To picks its side of the pier by where the counterweight is: say when that is a guess
                   (inside the flip question while it is open, so it is read with it) --%>
-            <Controller.Components.Counterweight.line :if={!@flip_ask} from={@counterweight} mount={@selected} />
+            <Controller.Components.Counterweight.line :if={!@flip_ask && !@cw_ask} from={@counterweight} mount={@selected} />
             <button
               class="go big"
               phx-click="slew"
@@ -525,6 +549,8 @@ defmodule Controller.ObjectLive do
             >
               Go To
             </button>
+            <%!-- Go To waited for which side the counterweight is on: the question, right here --%>
+            <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@ctx.model, @snap)} />
             <div class="row">
               <button
                 :if={!@search}

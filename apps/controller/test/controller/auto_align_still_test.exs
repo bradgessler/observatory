@@ -57,13 +57,16 @@ defmodule Controller.AutoAlignStillTest do
     Mount.subscribe(id)
     assert_receive {:mount, %{connected: true}}, 2_000
     Lineup.clear(id)
+    # the axis signs as a fresh box has them, in every test here: another test may have left them
+    # flipped, and then the fit can land on the same crooked axis written the other way round
+    # (axis_alt 154 for 26, seen once in a full run)
+    pointing = Controller.Settings.get("pointing")
+    Controller.Settings.put("pointing", %{"ha_sign" => 1, "dec_sign" => -1})
+    on_exit(fn -> Controller.Settings.put("pointing", pointing) end)
 
     if tags[:no_home] do
       # the same crooked tripod, never zeroed: it woke 60° east of the meridian with the tube 50° off
       # the polar axis, up in the sky, its counterweight well below level (KnownMount's convention)
-      pointing = Controller.Settings.get("pointing")
-      Controller.Settings.put("pointing", %{"ha_sign" => 1, "dec_sign" => -1})
-      on_exit(fn -> Controller.Settings.put("pointing", pointing) end)
       Truth.put(id, %{axis_alt: Pointing.site().lat - 12.0, axis_az: 336.0, off_ra: -60.0, off_dec: 50.0})
     else
       :ok = Mount.set_home(id)

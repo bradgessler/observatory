@@ -196,6 +196,21 @@ defmodule Mount.ServerTest do
       )
     end
 
+    # 8 October 2026: a Go To issued under a tracker's slow held slew, late in a stall window, was
+    # judged over the whole window at the goto's speed and stopped 175 ms in as a "stall"
+    test "a new command starts the window again: a goto late in a slow slew's window is judged on its own", %{id: id} do
+      :ok = Mount.slew(id, :dec, 1.0)
+      Process.sleep(1_300)
+      # from here the count can't move: a real stall, but one the goto's own window must find
+      jam(id, :dec, true)
+      t0 = System.monotonic_time(:millisecond)
+      :ok = Mount.goto_relative(id, :dec, 30.0)
+      assert_eventually(fn -> Mount.snapshot(id) end, &(&1.stalled != nil), 4_000)
+      took = System.monotonic_time(:millisecond) - t0
+      assert took >= 1_400, "called a stall #{took} ms into the goto, judged by the slew's window"
+      jam(id, :dec, false)
+    end
+
     test "tracking at the sky's rate is too slow to judge, and never trips it", %{id: id} do
       :ok = Mount.track(id, :sidereal)
       Process.sleep(2_500)

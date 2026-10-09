@@ -786,29 +786,35 @@ defmodule Mount.Server do
   @goto_floor_x 20
   @brake_steps 6_000
 
+  # A window is judged by one command: when the axis is told something new (a goto taking over
+  # from a tracker's held slew, a new speed) the window starts again. Judging a window that began
+  # at 1x by the goto's speed called a stall 175 ms into a Go To on 8 October 2026, every so often,
+  # whenever the goto landed late in a window.
   defp watch_stalls(%{connected: true} = state) do
     now = System.monotonic_time(:millisecond)
 
     Enum.reduce([:ra, :dec], state, fn axis, st ->
       ax = st.axes[axis]
+      told = {ax[:mode], ax[:period], ax[:speed], ax[:goto_to]}
 
       case {ax.running, ax[:watch]} do
         {false, _} ->
           put_axis(st, axis, :watch, nil)
 
-        {true, nil} ->
-          put_axis(st, axis, :watch, {ax.steps, now})
-
-        {true, {from, t0}} when now - t0 >= @stall_window_ms ->
+        {true, {_from, _t0, ^told}} = {_, {from, t0, _}} when now - t0 >= @stall_window_ms ->
           expected = expected_steps_per_s(ax) * (now - t0) / 1000
           moved = abs(ax.steps - from)
 
           if expected >= @stall_min_steps and moved < 0.2 * expected,
             do: stall(st, axis, moved, expected),
-            else: put_axis(st, axis, :watch, {ax.steps, now})
+            else: put_axis(st, axis, :watch, {ax.steps, now, told})
 
-        _ ->
+        {true, {_from, _t0, ^told}} ->
           st
+
+        # nothing watched yet, or a new command since the window began
+        {true, _} ->
+          put_axis(st, axis, :watch, {ax.steps, now, told})
       end
     end)
   end

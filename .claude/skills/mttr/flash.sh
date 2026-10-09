@@ -1,11 +1,11 @@
 #!/bin/sh
 # One outage, timed. Checks what the box is doing, flashes it, watches it come back, and writes the
 # timings to ~/.observatory/outages.jsonl.
-#   flash.sh "why this flash"        (BOX=10.0.1.44 by default)
+#   flash.sh "why this flash"        (BOX=observatory.local by default: the address DHCP gives it moves)
 # Refuses while a goto or an auto-align is in flight, and when a lock is holding without a fresh
 # heartbeat (it would not be picked up).
 HERE=$(cd "$(dirname "$0")" && pwd); ROOT=$(cd "$HERE/../../.." && pwd)
-FW="$ROOT/firmware/_build/rpi3_prod/nerves/images/firmware.fw"; BOXIP=${BOX:-10.0.1.44}
+FW="$ROOT/firmware/_build/rpi3_prod/nerves/images/firmware.fw"; BOXIP=${BOX:-observatory.local}
 KEY="-i $HOME/.observatory/vm_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 WHY=${1:-"no reason given"}
 log() { echo "$(date -u +%H:%M:%S) $*"; }

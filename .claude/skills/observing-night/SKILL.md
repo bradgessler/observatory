@@ -15,6 +15,27 @@ Keep the loop cheap: same setup order, same checks, same debrief.
   bigger than a few degrees without a camera check**, and the person at the
   scope watches the cable during gotos. Soft limits stay armed (zero the axes).
 
+## Camera night, fastest to looking (8 October 2026)
+
+The box at the scope, the Sony a6000 on the 8SE, the phone on the box's page
+(`http://observatory.local`; the address DHCP hands out moves). A session can
+drive all of it: `.claude/skills/drive-the-box`.
+
+1. Tripod anywhere with open sky overhead; level and polar alignment don't
+   matter (13° off aligned to 14″ that night). Camera on, lens cap off.
+2. Alignment › **Align with the Camera**: four plate-solved pictures, about
+   3½ minutes, the box's own code. A frame of garage glow or tree is skipped.
+3. **Tell it the counterweight side** (below or above level) before any Go
+   To on a mount never homed. The guess was upside down twice.
+4. Go To from Tonight's list lands 1 to 3′ off; Go To and Centre (one
+   picture, one nudge) brings it under 0.5′. Two solves a minute apart prove
+   the tracking (0.19″/s that night).
+5. Eyepiece: prove tracking first, then camera off (switch, then USB),
+   diagonal and widest eyepiece in. D-pad steers in eyepiece terms; square it
+   on Center (Backwards / Swapped). A meridian flip turns the view 180°.
+6. For kids, build up and end on the best (Saturn, coloured doubles); a list
+   of nebulae is a list of smudges.
+
 ## Star-align night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.

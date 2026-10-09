@@ -51,7 +51,14 @@ outage starts at the reboot.
 
 ## 5. Restore: the box does it, you verify
 
-The box brings itself back (`Controller.LockOn`, `Controller.StillCamera`):
+The box brings itself back (`Controller.LockOn`, `Controller.StillCamera`,
+and `Controller.Sky.Revive` for the model tracker's hold):
+
+- the model tracker's hold goes back to its target by itself once the mount
+  answers and the clock is set (or a minute has passed), when the way back
+  is under 10°: after a flash on 8 Oct 2026 it made up 0.21° and held M27
+  again at +63 s. A hold has to stay cut off for 3 s first, so a Go To's
+  own handoff is never taken for an outage (that bug undid a Go To once);
 
 - the stills camera resumes continuous shooting and solving from what it
   saved in Settings (`"still_camera"`);
@@ -97,6 +104,10 @@ thing to remove.
 ## Rules
 
 - Never flash in the middle of a goto, an auto-align or a held slew.
+- Never flash while people are at the eyepiece unless asked; when Brad says
+  "last flash", the next one waits for him. Finish the flash and prove the
+  tracking before telling him to touch the scope.
+- The box is `observatory.local` (`box` and `flash.sh` default to it).
 - Never flash a holding lock that has no heartbeat.
 - A restore that needs a person is a bug: write down what you had to do by
   hand, then make the box do it.

@@ -1,0 +1,13 @@
+config BR2_PACKAGE_ASTROMETRY_NET
+	bool "astrometry-net"
+	select BR2_PACKAGE_CFITSIO
+	select BR2_PACKAGE_GSL
+	select BR2_PACKAGE_BZIP2
+	select BR2_PACKAGE_ZLIB
+	help
+	  Astrometry.net's plate solver: given a picture of the sky,
+	  where it is and which way is up. Only the C programs the
+	  observatory runs, with no Python: image2xy finds the stars,
+	  solve-field matches them against index files kept on /data.
+
+	  https://astrometry.net

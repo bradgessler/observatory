@@ -23,7 +23,7 @@ defmodule Controller.AxesLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Optical Axes", night: Settings.get("night", false), nested: session["nested"] == true, selected: params["id"] || session["id"], mounts: [], notice: nil)
+     |> assign(page_title: "Optical Axes", night: Settings.get("night", false), nested: session["nested"] == true, selected: params["id"] || session["id"] || session["telescope"], mounts: [], notice: nil)
      |> assign(scan: AxisScan.status(), still_v: 0, run_started: nil)
      |> rescan()
      |> load()}
@@ -31,7 +31,7 @@ defmodule Controller.AxesLive do
 
   defp rescan(socket) do
     mounts = Mount.list() |> Enum.map(& &1.id) |> Enum.sort()
-    selected = if socket.assigns.selected in mounts, do: socket.assigns.selected, else: List.first(mounts)
+    selected = if socket.assigns.selected in mounts, do: socket.assigns.selected, else: Mount.default(mounts)
     assign(socket, mounts: mounts, selected: selected)
   end
 
@@ -114,6 +114,11 @@ defmodule Controller.AxesLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("run", _, socket) do
     case AxisScan.run(socket.assigns.selected) do
       :ok -> {:noreply, assign(socket, notice: "Scanning: the mount will move ±3° on each axis")}
@@ -163,16 +168,18 @@ defmodule Controller.AxesLive do
   defp refused(:busy), do: "A scan is already running"
   defp refused(:no_mount), do: "No mount to scan"
   defp refused(why) when is_binary(why), do: why
-  defp refused(why), do: inspect(why)
+  defp refused(why), do: Controller.Words.error(why)
 
   @impl true
   def render(assigns) do
     ~H"""
     <.page id="axes" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/controls/watch"} label="Watch" />
+        <.back navigate={~p"/"} label="Home" section="Alignment" />
         <.title>Optical Axes</.title>
-        <.actions><.help href={~p"/docs/axes"} label="the optical axes" /></.actions>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@telescope && @telescope.id]} /></.status>
+        <.actions><.help href={~p"/docs/axes"} label="the optical axes" /><.stop /></.actions>
       </:header>
 
       <%!-- the procedure: one key, a line that says what it is doing, and an answer --%>
@@ -182,7 +189,7 @@ defmodule Controller.AxesLive do
         <.hint>Turns each axis a few degrees with the camera watching and works out where the two axes are in the picture. The mount comes back to where it started.</.hint>
         <div :if={@scan.running} class="state-line" role="status" aria-live="polite">
           <strong>{step_words(@scan)}</strong>
-          <span class="dim">{if @scan[:loop], do: "refining: run after run until you stop it", else: "about ten minutes"} · STOP on any page ends it</span>
+          <span class="dim">{if @scan[:loop], do: "Refining: run after run until you stop it", else: "About ten minutes"} · STOP on any page ends it</span>
         </div>
         <.row :if={!@scan.running}>
           <.btn variant="primary" phx-click="sweep" phx-value-range="6.0" disabled={cannot}>Find the Axes · 10 min</.btn>
@@ -193,11 +200,11 @@ defmodule Controller.AxesLive do
           <.btn phx-click="cancel">Cancel and Go Back</.btn>
         </.row>
         <.row :if={!@scan.running}>
-          <.btn class="btn-ghost" phx-click="run" disabled={cannot}>Quick Look · 1 min</.btn>
-          <.btn class="btn-ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide Sweep · 20 min</.btn>
+          <.btn variant="ghost" phx-click="run" disabled={cannot}>Quick Look · 1 min</.btn>
+          <.btn variant="ghost" phx-click="sweep" phx-value-range="20.0" disabled={cannot}>Wide Sweep · 20 min</.btn>
         </.row>
         <.hint :if={is_nil(@camera.tool)}>No camera tool on this machine.</.hint>
-        <.hint :if={@selected && !@homed}>Zero the axes first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
+        <.hint :if={@selected && !@homed}>Set home first (<.link navigate={~p"/setup/#{@selected}"}>Setup</.link>): the soft limits that keep a scan safe are only armed once the mount knows where it is.</.hint>
         <.hint :if={@scan.error} class="err" role="alert">{@scan.error}</.hint>
       </.card>
 
@@ -207,7 +214,7 @@ defmodule Controller.AxesLive do
       <% first = im["ra"] || im["dec"] %>
       <.card :if={@scan.running && !@details} title="Running">
         <div class="axes-pic">
-          <img src={~p"/watch/latest.jpg?#{[v: @still_v]}"} alt="the camera's latest picture of the mount" />
+          <img src={~p"/watch/latest.jpg?#{[v: @still_v]}"} alt="the Observatory Camera's latest still of the mount" />
           <svg :if={first} viewBox={"0 0 #{first["w"]} #{first["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
             <%= for {axis, colour} <- [{"ra", "var(--accent)"}, {"dec", "var(--on)"}], im[axis] do %>
               <polyline :for={t <- im[axis]["tracks"] || []} points={Enum.map_join(t, " ", fn [x, y] -> "#{x},#{y}" end)} fill="none" stroke={colour} stroke-width="1.2" opacity="0.85" />
@@ -222,7 +229,7 @@ defmodule Controller.AxesLive do
           <strong>{doing_words(@scan)}</strong>
           <span class="dim">{elapsed_words(@scan[:started_at] || @run_started)} · the mount comes back to where it started · STOP on any page ends it</span>
         </div>
-        <div :for={{axis, label} <- [{"ra", "RA (polar) axis"}, {"dec", "Dec axis"}]} class="run-axis">
+        <div :for={{axis, label} <- [{"ra", "RA axis"}, {"dec", "Dec axis"}]} class="run-axis">
           <span class="run-dots" aria-label={"#{label}: #{positions_done(@scan, axis)} of 5 positions"}>
             <i :for={i <- 1..5} class={["run-dot", i <= positions_done(@scan, axis) && "on", i == positions_done(@scan, axis) + 1 && running_axis?(@scan, axis) && "now"]}></i>
           </span>
@@ -255,7 +262,7 @@ defmodule Controller.AxesLive do
           </svg>
         </div>
         <div class="state-line">
-          <strong>RA (polar) axis · {answer_across(pair && pair["polar"], sw["ra"]["fit"])}</strong>
+          <strong>RA axis · {answer_across(pair && pair["polar"], sw["ra"]["fit"])}</strong>
           <span class="dim">{answer_depth(pair && pair["polar"], sw["ra"]["fit"])}</span>
         </div>
         <div class="state-line">
@@ -267,26 +274,26 @@ defmodule Controller.AxesLive do
           <span class="dim">The direction across the picture is the part one camera can measure; how far in or out needs a second camera</span>
         </div>
         <.row>
-          <.btn :if={@selected} navigate={~p"/controls/watch"}>See Them on the Live Picture ›</.btn>
-          <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn>
+          <.btn :if={@selected} navigate={~p"/cameras/observatory"}>See Them on the Observatory Camera ›</.btn>
+          <.btn variant="ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn>
         </.row>
       </.card>
 
       <.card :if={!sw && @result && @result["ra"] && !@details} title={"Quick Look · #{String.slice(@result["at"], 11, 5)} UTC"}>
         <div class="state-line">
-          <strong>RA (polar) axis · {@result["ra"]["words"]}</strong>
+          <strong>RA axis · {@result["ra"]["words"]}</strong>
         </div>
         <div class="state-line">
           <strong>Dec axis · {@result["dec"]["words"]}</strong>
         </div>
         <.hint>A quick look only says how each axis moves the picture. Find the axes for the lines.</.hint>
-        <.row><.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn></.row>
+        <.row><.btn variant="ghost" patch={~p"/controls/watch/axes/#{@selected}?details=1"}>All the Numbers ›</.btn></.row>
       </.card>
 
       <%= if @details do %>
       <.row>
-        <.btn class="btn-ghost" patch={~p"/controls/watch/axes/#{@selected}"}>‹ Back to the Answer</.btn>
-        <.btn :if={@result} class="btn-ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget These Results</.btn>
+        <.btn variant="ghost" patch={~p"/controls/watch/axes/#{@selected}"}>‹ Back to the Answer</.btn>
+        <.btn :if={@result} variant="ghost" phx-click="clear" data-confirm="Forget the axis scan results for this mount?">Forget These Results</.btn>
       </.row>
       <%!-- the sweep: the axis in space, with margins --%>
       <% sw = @result && @result["sweep"] %>
@@ -309,7 +316,7 @@ defmodule Controller.AxesLive do
         <div :if={pair} class="axes-row">
           <strong>Both axes together (perpendicular by construction)</strong>
           <span>
-            polar axis <b>{pair["polar"]["image_angle_deg"]}° ± {margin(pair["polar"]["image_angle_sd_deg"], nil)}°</b> across the picture, <b>{abs(pair["polar"]["tilt_deg"])}° ± {margin(pair["polar"]["tilt_sd_deg"], nil)}°</b> out of it ·
+            RA axis <b>{pair["polar"]["image_angle_deg"]}° ± {margin(pair["polar"]["image_angle_sd_deg"], nil)}°</b> across the picture, <b>{abs(pair["polar"]["tilt_deg"])}° ± {margin(pair["polar"]["tilt_sd_deg"], nil)}°</b> out of it ·
             Dec axis <b>{pair["dec"]["image_angle_deg"]}°</b> across, <b>{abs(pair["dec"]["tilt_deg"])}°</b> out · arcs fit to {pair["rms_px"]} px
           </span>
           <span class="dim">
@@ -317,14 +324,14 @@ defmodule Controller.AxesLive do
             Dec: {Enum.map_join(pair["steps"]["dec"], " · ", fn s -> "#{s["commanded_deg"]}→#{s["measured_deg"]}" end)} (strays {pair["step_error_deg"]["dec"]}°)
           </span>
           <span class="dim">The stray is the practical margin: it holds tracking noise and lens distortion the fit's own ± does not know about</span>
-          <span :if={sw["history_spread_deg"]} class="dim">The last {sw["history_n"]} sweeps put the polar axis within <b>{sw["history_spread_deg"]}°</b> of each other: repeatability, the margin that counts</span>
+          <span :if={sw["history_spread_deg"]} class="dim">The last {sw["history_n"]} sweeps put the RA axis within <b>{sw["history_spread_deg"]}°</b> of each other: repeatability, the margin that counts</span>
         </div>
 
-        <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
+        <div :for={{axis, label} <- [{"ra", "RA axis"}, {"dec", "Dec axis"}]} class="axes-row">
           <% f = sw[axis]["fit"] %>
           <strong class={"ax-#{axis}"}>{label}</strong>
           <span :if={f}>
-            runs at <b>{f["image_angle_deg"]}° ± {margin(f["image_angle_sd_deg"], f["bootstrap_sd_deg"])}°</b> across the picture,
+            Runs at <b>{f["image_angle_deg"]}° ± {margin(f["image_angle_sd_deg"], f["bootstrap_sd_deg"])}°</b> across the picture,
             <%= if f["tilt_ambiguous"] do %>
               tilt <b>about {abs(f["tilt_deg"])}°, toward or away the camera can't tell</b> from a sweep this small; the arcs are too nearly straight. Try the wide sweep.
             <% else %>
@@ -346,7 +353,7 @@ defmodule Controller.AxesLive do
         <.hint>Margins are 1σ: the larger of the fit's own estimate and a bootstrap over which spots were used. Not included: the camera's field of view is assumed ({sw["hfov_deg"]}°, a setting) and lens distortion is ignored; both bias the tilt more than the in-picture direction.</.hint>
       </.card>
 
-      <.card :if={@result && @result["ra"]} title={"Quick look · #{String.slice(@result["at"], 11, 5)} UTC"}>
+      <.card :if={@result && @result["ra"]} title={"Quick Look · #{String.slice(@result["at"], 11, 5)} UTC"}>
         <div class="axes-pic">
           <img :if={@result["frame"]} src={~p"/watch/frames/#{@result["frame"]}"} alt="the frame before any move" />
           <svg viewBox={"0 0 #{@result["w"]} #{@result["h"]}"} preserveAspectRatio="none" class="axes-overlay" aria-hidden="true">
@@ -367,22 +374,22 @@ defmodule Controller.AxesLive do
             <% end %>
           </svg>
         </div>
-        <div :for={{axis, label} <- [{"ra", "RA · polar axis"}, {"dec", "Dec axis"}]} class="axes-row">
+        <div :for={{axis, label} <- [{"ra", "RA axis"}, {"dec", "Dec axis"}]} class="axes-row">
           <% ax = @result[axis] %>
           <strong class={"ax-#{axis}"}>{label}</strong>
           <span>{ax["words"]}</span>
           <span :if={ax["fit"]} class="dim">
             {length(ax["vectors"])} blocks moved{if (ax["dropped"] || 0) > 0, do: " (#{ax["dropped"]} odd ones ignored)"} ·
             {if ax["fit"]["cx"], do: "pivot at (#{round(ax["fit"]["cx"] * @result["scale"])}, #{round(ax["fit"]["cy"] * @result["scale"])}) px · "}
-            spin {Float.round(ax["fit"]["quality"] / 1, 2)} · slide {Float.round(ax["fit"]["coherence"] / 1, 2)}
+            fit: turn {pct(ax["fit"]["quality"])}, slide {pct(ax["fit"]["coherence"])}
           </span>
           <span :if={!ax["fit"]} class="dim">Nothing moved enough to measure</span>
           <%!-- the line only means something for a slide; a turn has a pivot, not a direction --%>
           <span :if={ax["line"] && @predicted && ax["fit"] && ax["fit"]["coherence"] > 0.5} class="dim">
-            camera sees this axis at {round(measured(ax))}° · the orb, viewed from {@predicted["from"]}°, draws it at {round(@predicted[axis])}° · {apart(measured(ax), @predicted[axis])}° apart
+            Camera sees this axis at {round(measured(ax))}° · the orb, viewed from {@predicted["from"]}°, draws it at {round(@predicted[axis])}° · {apart(measured(ax), @predicted[axis])}° apart
           </span>
         </div>
-        <.hint :if={@predicted}>The comparison with the orb only means something if the orb's viewpoint (Orb › from N/E/S/W, or Setup) is roughly where the camera stands; camera roll and height are not accounted for yet.</.hint>
+        <.hint :if={@predicted}>The comparison with the orb only means something if the orb's viewpoint (Orb › From N/E/S/W, or Setup) is roughly where the camera stands; camera roll and height are not accounted for yet.</.hint>
         <.hint>Arrows show where the picture moved when that axis turned (RA with solid arrowheads, Dec with open ones), stretched 4×. A dashed line is the axis's direction across the picture when the motion is a slide (long dashes RA, short dashes Dec); a cross is the best-fit pivot when it turns. Numbers are in the original frame's pixels.</.hint>
       </.card>
 
@@ -425,10 +432,10 @@ defmodule Controller.AxesLive do
   defp long_line(_, _, _), do: nil
 
   # what the running view says it is doing right now
-  defp doing_words(%{step: {:sweep, ax, i, n}}), do: "Turning #{axis_name(ax)} to position #{i} of #{n}, then a picture"
-  defp doing_words(%{step: {:capture, ax}}), do: "Picture after #{axis_name(ax)} moved"
+  defp doing_words(%{step: {:sweep, ax, i, n}}), do: "Turning #{axis_name(ax)} to position #{i} of #{n}, then a still"
+  defp doing_words(%{step: {:capture, ax}}), do: "Still after #{axis_name(ax)} moved"
   defp doing_words(%{step: {:move, ax}}), do: "Turning #{axis_name(ax)}"
-  defp doing_words(%{step: :capture_before}), do: "First picture, before anything moves"
+  defp doing_words(%{step: :capture_before}), do: "First still, before anything moves"
   defp doing_words(%{step: :pair_fit}), do: "Fitting both axes together"
   defp doing_words(%{step: {:analyse, ax}}), do: "Working out the #{axis_name(ax)} axis from what moved"
   defp doing_words(%{step: :starting}), do: "Getting the camera"
@@ -476,6 +483,10 @@ defmodule Controller.AxesLive do
 
   defp confidence_words(_), do: "One run so far: run it again to see if it repeats"
 
+  # a 0..1 fit score as a percentage: how much the motion looks like a turn, or a slide
+  defp pct(x) when is_number(x), do: "#{round(x * 100)}%"
+  defp pct(_), do: Controller.Words.none()
+
   defp sd(nil), do: ""
   defp sd(x) when is_number(x), do: " (±#{round1(x)}°)"
   defp sd(_), do: ""
@@ -486,11 +497,11 @@ defmodule Controller.AxesLive do
   defp step_words(%{running: false, step: :failed}), do: "Failed"
   defp step_words(%{running: false, step: :cancelled}), do: "Cancelled"
   defp step_words(%{running: false}), do: "Idle"
-  defp step_words(%{step: :capture_before}), do: "First picture"
-  defp step_words(%{step: {:move, ax}}), do: "Turning #{ax}"
-  defp step_words(%{step: {:capture, ax}}), do: "Picture after #{ax}"
-  defp step_words(%{step: {:sweep, ax, i, n}}), do: "#{ax} · position #{i} of #{n}"
+  defp step_words(%{step: :capture_before}), do: "First still"
+  defp step_words(%{step: {:move, ax}}), do: "Turning #{axis_name(ax)}"
+  defp step_words(%{step: {:capture, ax}}), do: "Still after #{axis_name(ax)}"
+  defp step_words(%{step: {:sweep, ax, i, n}}), do: "#{axis_name(ax)} · position #{i} of #{n}"
   defp step_words(%{step: :pair_fit}), do: "Fitting both axes together"
-  defp step_words(%{step: {:analyse, ax}}), do: "Looking at #{ax}"
+  defp step_words(%{step: {:analyse, ax}}), do: "Looking at #{axis_name(ax)}"
   defp step_words(_), do: "Working"
 end

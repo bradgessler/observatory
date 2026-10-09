@@ -1,6 +1,7 @@
 # Optical axes
 
-Find the mount's axes in the camera picture by moving them.
+Find the mount's axes in the [Observatory Camera](/docs/watch)'s picture by
+moving them. The page is under Alignment, as **Optical Axes**.
 
 ## Why it exists
 
@@ -11,15 +12,15 @@ be written from data. This page is the first, deliberately simple step.
 
 ## What it does
 
-1. Takes a still.
+1. Takes a still with the Observatory Camera.
 2. Turns the RA axis 3°, takes another still, turns back.
 3. Does the same for Dec.
 4. For each axis, cuts the two stills into small blocks and finds where each
    block went (block matching, plain arithmetic, no learned model). Blocks
    that didn't move — the shelves, the wall — drop out. What remains is the
    moving part: the tube, the counterweight.
-5. Fits a rotation centre to those arrows: for a spin in the picture every
-   arrow is at right angles to the line from the centre, which is a small
+5. Fits a rotation center to those arrows: for a spin in the picture every
+   arrow is at right angles to the line from the center, which is a small
    least-squares problem.
 
 ## Reading the result
@@ -65,12 +66,13 @@ about.
 * This is a 2-D reading of a 3-D motion. It says where the axis *appears*
   to pivot in this camera's picture; the axis in space needs the camera's
   pose, which is the next step.
+* It needs home set first: the soft limits are what keep a scan safe.
 * It needs texture: a plain white tube against a plain wall gives few
   arrows. Tape, labels and the counterweight bar all help.
 * Anything else moving during the scan — a person walking past — adds
   arrows that don't belong. Run it when the scene is still.
-* The camera is assumed to be an ideal pinhole with the field of view on
-  the Camera page. Real lenses distort toward the edges; that shows up as
+* The camera is assumed to be an ideal pinhole with a 70° field of view
+  (the `camera_hfov_deg` setting). Real lenses distort toward the edges; that shows up as
   step readings straying by a degree or two. A checkerboard calibration is
   the cure, later.
 * Depth is in units of the distance to the axis: one camera never knows

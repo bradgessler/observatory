@@ -2,7 +2,7 @@ defmodule Controller.CameraLive do
   @moduledoc """
   The camera's own page: which camera, timed stills and their interval, what
   sizes it can do, which encoder video uses, and — when something fails —
-  the last lines ffmpeg said. The Watch page stays a picture; this is where
+  the last lines ffmpeg said. The Observatory Camera page stays a picture; this is where
   the knobs and the diagnostics live.
   """
   use Controller, :live_view
@@ -18,7 +18,7 @@ defmodule Controller.CameraLive do
       Settings.subscribe()
     end
 
-    {:ok, socket |> assign(page_title: "Camera", night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30), size: Settings.get("video_quality", "auto")) |> load()}
+    {:ok, socket |> assign(page_title: "Observatory Camera · Settings", night: Settings.get("night", false), notice: nil, rungs: nil, fps: Settings.get("video_fps", 30), size: Settings.get("video_quality", "auto")) |> load()}
   end
 
   defp load(socket) do
@@ -39,6 +39,11 @@ defmodule Controller.CameraLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("timed", %{"on" => on}, socket) do
     Watch.enable(on == "true")
     {:noreply, load(socket)}
@@ -80,13 +85,13 @@ defmodule Controller.CameraLive do
     ~H"""
     <.page id="camera" night={@night}>
       <:header>
-        <.back navigate={~p"/controls/watch"} label="Watch" />
-        <.title>Camera</.title>
-        <.actions><.help href={~p"/docs/watch"} label="the camera" /></.actions>
+        <.back navigate={~p"/cameras/observatory"} label="Observatory Camera" />
+        <.title>Settings</.title>
+        <.actions><.help href={~p"/docs/watch"} label="the observatory camera" /><.stop /></.actions>
       </:header>
 
       <.card title="Camera">
-        <.kv label="Capture tool" value={to_string(@status.tool || "none: brew install imagesnap, or ffmpeg")} />
+        <.kv label="Capture tool" value={to_string(@status.tool || "None found on this machine")} />
         <form :if={@devices != []} phx-change="select" class="row">
           <select name="device" class="field" disabled={@video.state != :off} aria-label="which camera">
             <option :for={d <- @devices} value={d} selected={d == @status.device}>{d}</option>
@@ -100,7 +105,7 @@ defmodule Controller.CameraLive do
           <:opt on={!@status.enabled} click="timed" value={%{on: "false"}}>Off</:opt>
           <:opt on={@status.enabled} click="timed" value={%{on: "true"}}>Every {div(@status.interval, 1000)} s</:opt>
         </.seg>
-        <.hint>Watching the Watch page turns these on. Each still is kept for a while (below) so a person or an agent can look back.</.hint>
+        <.hint>Looking at the Observatory Camera turns these on. Each still is kept for a while (below) so a person or an agent can look back.</.hint>
         <.kv label="Kept" value={"#{@summary.count} frames · #{div(@summary.bytes, 1_048_576)} MB · up to #{@summary.policy.max_frames} frames or #{div(@summary.policy.max_age_s, 60)} min"} />
         <.hint :if={@status.last_error} class="err">Last capture error: {@status.last_error}</.hint>
       </.card>

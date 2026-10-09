@@ -4,15 +4,16 @@ Everything that happened, newest first, with who did it.
 
 ## Why it exists
 
-The camera shows the tube somewhere odd. Was it the pad, a phone, the
-tracker — or nobody, which means the mount was moved by hand with the power
-off? This page answers in one glance. Every command through the mount
-driver is logged with its source: pages log as *page · Nudge*, the game pad
-as *game pad*, the model tracker as *tracker*. The star alignment logs each star;
-video logs starts and stops.
+The Observatory Camera shows the tube somewhere odd. Was it the game
+controller, a phone, tracking, or nobody, which means the mount was moved by
+hand with the power off? This page answers in one glance. Every command
+through the mount driver is logged with its source: pages log by their name
+in the sidebar (*page · Nudge*), the game controller as *game pad*, tracking
+as *tracking*. The alignment logs each star and photo; video logs starts and
+stops.
 
 ## Notes
 
 * In memory, last 500. The durable log with an outward feed for other
   services is planned (#50).
-* Filter by Mount, Tracker or Video at the top.
+* Filter by Mount, Tracking, Game Controller or Video at the top.

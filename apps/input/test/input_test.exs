@@ -36,6 +36,37 @@ defmodule Input.GamepadTest do
     assert Gamepad.interpret(state([0.0, 0.0], [], {0, -1})) == {:nudge, [dec: -8.0]}
   end
 
+  test "in eyepiece mode the hat moves the view: down is RA forward, right is Dec back (the first night's map)" do
+    eye = %{hat: :eyepiece}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {0, -1}), eye) == {:nudge, [ra: 2.0]}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {0, 1}), eye) == {:nudge, [ra: -2.0]}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {1, 0}), eye) == {:nudge, [dec: -2.0]}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {-1, 1}), eye) == {:nudge, [ra: -2.0, dec: 2.0]}
+  end
+
+  test "a tap crawls, a hold past the ramp goes at the fine rate" do
+    eye = %{hat: :eyepiece}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {1, 0}), Map.put(eye, :hat_held_ms, 400)) == {:nudge, [dec: -2.0]}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {1, 0}), Map.put(eye, :hat_held_ms, 2_000)) == {:nudge, [dec: -8.0]}
+    # held on, across something the size of the Pleiades
+    assert Gamepad.interpret(state([0.0, 0.0], [], {1, 0}), Map.put(eye, :hat_held_ms, 5_000)) == {:nudge, [dec: -32.0]}
+  end
+
+  test "RA carries on from tracking, so up and down move the view the same speed against the sky" do
+    eye = %{hat: :eyepiece, track_units: 1.0}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {0, -1}), eye) == {:nudge, [ra: 3.0]}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {0, 1}), eye) == {:nudge, [ra: -1.0]}
+  end
+
+  test "the view map is a parameter: a flipped pair drives the other way" do
+    flipped = %{hat: :eyepiece, view_right: {:dec, 1}}
+    assert Gamepad.interpret(state([0.0, 0.0], [], {1, 0}), flipped) == {:nudge, [dec: 2.0]}
+  end
+
+  test "the Dual Strike says it's centred with button 0" do
+    assert Input.Parsers.DualStrike.default_map().centered == 0
+  end
+
   test "stop button wins over everything" do
     assert Gamepad.interpret(state([1.0, 1.0], [0, 1])) == :stop
   end

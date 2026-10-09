@@ -39,13 +39,16 @@ defmodule Controller.MixProject do
   defp deps do
     [
       {:telescope, in_umbrella: true},
+      # the frames pipeline's steps and the box's spool
+      {:queues, in_umbrella: true},
       {:mount, in_umbrella: true},
+      # stills cameras over USB (the Sony a6000 in PC Remote): PTP in Elixir, a tiny C helper for the bytes
+      {:camera, in_umbrella: true},
       # JPEG in, grey pixels out, for the optical axis finder; a tiny C NIF, no Python
       {:stb_image, "~> 1.0"},
       {:input, in_umbrella: true},
       {:watch, in_umbrella: true},
       {:video, in_umbrella: true},
-      {:provision, in_umbrella: true},
       {:phoenix, "~> 1.8.5"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -54,6 +57,9 @@ defmodule Controller.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
+      # the database: settings and the frames index, SQLite on the card (#107)
+      {:ecto_sql, "~> 3.12"},
+      {:ecto_sqlite3, "~> 0.17"},
       {:req, "~> 0.5"},
       {:mdex, "~> 0.13"},
       {:bandit, "~> 1.5"}

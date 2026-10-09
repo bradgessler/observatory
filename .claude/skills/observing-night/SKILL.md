@@ -15,6 +15,27 @@ Keep the loop cheap: same setup order, same checks, same debrief.
   bigger than a few degrees without a camera check**, and the person at the
   scope watches the cable during gotos. Soft limits stay armed (zero the axes).
 
+## Camera night, fastest to looking (8 October 2026)
+
+The box at the scope, the Sony a6000 on the 8SE, the phone on the box's page
+(`http://observatory.local`; the address DHCP hands out moves). A session can
+drive all of it: `.claude/skills/drive-the-box`.
+
+1. Tripod anywhere with open sky overhead; level and polar alignment don't
+   matter (13° off aligned to 14″ that night). Camera on, lens cap off.
+2. Alignment › **Align with the Camera**: four plate-solved pictures, about
+   3½ minutes, the box's own code. A frame of garage glow or tree is skipped.
+3. **Tell it the counterweight side** (below or above level) before any Go
+   To on a mount never homed. The guess was upside down twice.
+4. Go To from Tonight's list lands 1 to 3′ off; Go To and Centre (one
+   picture, one nudge) brings it under 0.5′. Two solves a minute apart prove
+   the tracking (0.19″/s that night).
+5. Eyepiece: prove tracking first, then camera off (switch, then USB),
+   diagonal and widest eyepiece in. D-pad steers in eyepiece terms; square it
+   on Center (Backwards / Swapped). A meridian flip turns the view 180°.
+6. For kids, build up and end on the best (Saturn, coloured doubles); a list
+   of nebulae is a list of smudges.
+
 ## Star-align night (no Polaris needed)
 
 1. Set the mount down: latitude knob near the site latitude, axis roughly north. Level is nice, not needed.
@@ -29,6 +50,10 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 
 1. `cd ~/Projects/bradgessler/telescope && git pull && mix deps.get && mix phx.server`
    - No cable yet → a simulated mount appears; that's fine for checking the UI.
+   - Since October 2026 a dev server keeps to itself: no cluster, no looking for boxes, so a server
+     started for something else can never join a telescope in use (one did, and its simulated camera
+     showed on the box as live stars). When this Mac should be a node of the box's cluster (to drive
+     the box's mount from here, copy its frames, solve its plates): `OBSERVATORY_CLUSTER=1 mix phx.server`.
 2. Open `http://<laptop-ip>:4000` on the phone (same Wi-Fi). Toggle night mode (◐).
 3. Sky tab → **Horizon**: set the tree line per direction for tonight's spot;
    set aperture for the scope in use.
@@ -73,6 +98,46 @@ Keep the loop cheap: same setup order, same checks, same debrief.
   the first time).
 - After playing on the bench, **re-home** before slewing from the sky page.
 
+## With the camera on the scope (learned on the night of 3 October 2026)
+
+The box sits at the scope with the Sony a6000 at prime focus; the phone is
+the page; no laptop outside. A session on the Mac drives the box over ssh
+(`.claude/skills/mttr/box`) and curl. Never open the box's pages in the
+app's browser pane: it stops the session on a permission prompt.
+
+1. **Focus first.** The Stills page shows star size (half-flux diameter) and
+   the last value beside it. Turn the knob a little, shoot, read. Stars were
+   8.5 arcsec all evening unnoticed, and 5.0 after two minutes at the knob.
+2. **Tell the box which side the counterweight is on**
+   (`Lineup.set_counterweight/3`). Left to guess from plates all taken near
+   shaft-level, it guessed wrong, and Go To would have gone to the unsafe
+   side.
+3. **Is it the thing?** Solve a frame and find the target's place in it. The
+   brightest blob was a 7th magnitude star, not the nebula.
+4. **One driver of the mount at a time.** Killing a script on the Mac does
+   not stop what it started on the box. Two ran the mount together for ten
+   minutes at Orion. Before starting anything that moves the scope, check
+   nothing else is.
+5. **Order the list by the sky.** Dim objects before the Moon rises, the
+   west before it goes behind the tree (the Ring and the Dumbbell were lost
+   to it), bright things last.
+6. **Cloud.** Sky three times brighter with the same stars 20 percent dimmer
+   is thin cloud, not a lamp. It passed every 10 to 15 minutes. Shoot three
+   times the frames you want.
+7. **Short frames for bright cores**, and exposures no longer than the drift
+   allows (20 s at 0.1 arcsec per second).
+8. **Dawn: flats, then darks.** Twilight sky, tracking off, exposure walked
+   to mid-scale, 20 frames or more. Then the cap on for darks. The darks
+   were missed that night.
+9. **Offload as you go**, and delete a frame from the box only after its
+   copy on the Mac matches by SHA-256.
+10. **Keep the ledger**: `~/.observatory/nights/<date>.txt`, a numbered line
+    for everything done by hand that the box should have done itself. That
+    list is the debrief.
+
+What to do with the frames afterwards: `stack-pictures`, `finish-pictures`,
+`annotate-pictures`, `publish-observations`, `share-cards`.
+
 ## Record as you go (a note on the phone is fine)
 
 - Where each slew landed vs. where the target was (eyepiece fields off, and which way).
@@ -84,7 +149,9 @@ Keep the loop cheap: same setup order, same checks, same debrief.
 
 ## Debrief (next day or right after)
 
-1. Findings → issues on `bradgessler/observatory`, milestone **v0: star party night**.
+1. Findings → issues on `bradgessler/observatory`, on the milestone of the kind of night it was
+   (**Camera night** with the camera on the scope, **Eyepiece night** by eye, **v0: star party night** before that).
+   Look for an open issue first and add to it rather than open a second one.
    Pointing/direction facts go on #21 (tracking direction) and #5; ranking misses on #37/#38.
 2. Corrections that are just config (axis signs, site, default horizon) → commit them.
 3. Update this skill if the order or checks were wrong.

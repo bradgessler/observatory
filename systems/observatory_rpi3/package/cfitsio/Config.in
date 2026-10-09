@@ -1,0 +1,9 @@
+config BR2_PACKAGE_CFITSIO
+	bool "cfitsio"
+	select BR2_PACKAGE_ZLIB
+	help
+	  CFITSIO, NASA's C library for reading and writing FITS files,
+	  the image and table format of astronomy. Needed by
+	  astrometry.net.
+
+	  https://heasarc.gsfc.nasa.gov/fitsio/

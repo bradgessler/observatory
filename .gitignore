@@ -20,3 +20,7 @@ erl_crash.dump
 *.ez
 
 _site/
+
+# the custom Nerves system: its build log and local artifact pointers stay local
+systems/*/build.log
+systems/*/.nerves/

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Stands in for ffmpeg reading a camera: a 4x2 gray frame every 50 ms, each a
+# little brighter, as PGM on stdout, until it's stopped. FAKE_FFMPEG_FRAMES
+# makes it exit after that many (a camera unplugged mid-stream).
+exec 2>/dev/null
+trap 'exit 0' PIPE TERM INT
+n=0
+while [ -z "$FAKE_FFMPEG_FRAMES" ] || [ $n -lt "$FAKE_FFMPEG_FRAMES" ]; do
+  v=$(( n % 200 + 20 ))
+  printf 'P5\n4 2\n255\n'
+  printf "$(printf '\\%03o' $v $v $v $v $v $v $v $v)"
+  n=$((n + 1))
+  sleep 0.05
+done
+exit 3

@@ -1,13 +1,14 @@
 defmodule Controller.SetupLive do
   @moduledoc """
   Mount setup, on its own page: home, exact moves, and every mode that changes
-  where the scope goes — with the current value shown and a way to undo it.
+  where the telescope points — with the current value shown and a way to undo it.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
   alias Controller.{Modes, Settings}
-  alias Controller.Sky.Pointing
+  alias Controller.Components.Counterweight
+  alias Controller.Sky.{Lineup, Pointing}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -67,8 +68,21 @@ defmodule Controller.SetupLive do
   # -- events -------------------------------------------------------------------------
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("home", _, socket) do
-    {:noreply, socket |> run(&Mount.set_home/1, "home set · limits armed") |> load()}
+    {:noreply, socket |> run(&Mount.set_home/1, "Home set · soft limits armed") |> load()}
+  end
+
+  # Which side the counterweight is on, said by someone looking at it: the answer is for the
+  # mount as it stands this moment, and is kept with the alignment (`Lineup.set_counterweight/3`)
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    where = String.to_existing_atom(where)
+    said = Counterweight.words(Lineup.set_counterweight(socket.assigns.id, socket.assigns.snap, where), where)
+    {:noreply, socket |> assign(notice: said) |> load()}
   end
 
   def handle_event("goto", %{"axis" => axis, "sign" => sign, "deg" => deg}, socket) do
@@ -79,7 +93,7 @@ defmodule Controller.SetupLive do
         {:noreply,
          socket
          |> assign(goto_deg: deg)
-         |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d), "moving #{axis} #{d}°")}
+         |> run(&Mount.goto_relative(&1, String.to_existing_atom(axis), d), "Moving #{axis_name(axis)} #{d}°")}
 
       :error ->
         {:noreply, assign(socket, notice: "Degrees?")}
@@ -102,7 +116,7 @@ defmodule Controller.SetupLive do
 
     Settings.put("pointing", %{"ha_sign" => p.ha_sign, "dec_sign" => p.dec_sign})
     Modes.clear_sync()
-    {:noreply, socket |> assign(notice: "#{what} axis flipped; sync offset cleared") |> load()}
+    {:noreply, socket |> assign(notice: "#{axis_name(what)} axis flipped; sync offset cleared") |> load()}
   end
 
   def handle_event("reset_pointing", _, socket) do
@@ -142,11 +156,14 @@ defmodule Controller.SetupLive do
     case safe(fn -> fun.(socket.assigns.ref) end) do
       :ok -> assign(socket, notice: ok_msg)
       {:error, :limit} -> assign(socket, notice: "Soft limit")
-      {:error, e} -> assign(socket, notice: inspect(e))
+      {:error, e} -> assign(socket, notice: Controller.Words.error(e))
     end
   end
 
   defp fmt1(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
+
+  defp axis_name("ra"), do: "RA"
+  defp axis_name("dec"), do: "Dec"
 
   defp safe(fun) do
     try do
@@ -173,10 +190,10 @@ defmodule Controller.SetupLive do
 
     law =
       cond do
-        align.solved? and align.n >= 3 -> {3, "Sky · star-aligned", "Gotos and tracking go through the fitted geometry of this mount"}
+        align.solved? and align.n >= 3 -> {3, "Sky · star-aligned", "Go To and tracking go through this mount's pointing model"}
         align.solved? -> {3, "Sky · star-aligned (#{align.n} star#{if align.n == 1, do: "", else: "s"})", "Steerable in the sky; a third star would grade it"}
         abs(off["ra"]) > 0.01 or abs(off["dec"]) > 0.01 -> {2, "Sky · ideal geometry + sync offset", "Assumes the mount is polar-aligned; one star fixed the offsets"}
-        true -> {2, "Sky · ideal geometry", "Assumes the mount is polar-aligned and zeroed upright; no correction yet"}
+        true -> {2, "Sky · ideal geometry", "Assumes the mount is polar-aligned and home was set upright; no correction yet"}
       end
 
     corrections =
@@ -192,8 +209,8 @@ defmodule Controller.SetupLive do
 
     tracking =
       cond do
-        tracker && tracker.paused -> "Model tracker on #{tracker.name} · paused while a hand is on a control"
-        tracker -> "model tracker on #{tracker.name} · RA #{fmt1(tracker.ra_rate)}× Dec #{fmt1(tracker.dec_rate)}×#{if tracker.error_arcmin, do: " · #{fmt1(tracker.error_arcmin)}′ off"}"
+        tracker && tracker.paused -> "Tracking #{tracker.name} · paused while a hand is on a control"
+        tracker -> "Tracking #{tracker.name} · RA #{fmt1(tracker.ra_rate)}× Dec #{fmt1(tracker.dec_rate)}×#{if tracker.error_arcmin, do: " · #{fmt1(tracker.error_arcmin)}′ off"}"
         true -> nil
       end
 
@@ -218,14 +235,13 @@ defmodule Controller.SetupLive do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{short(@id)} · Setup</.title>
-        <.actions><.help href={~p"/docs/keypad"} label="setup and modes" /></.actions>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", short(@id))} />
+        <.title>Setup</.title>
+        <.actions><.help href={~p"/docs/setup"} label="setup and modes" /><.stop /></.actions>
       </:header>
 
       <%!-- the one place to see what is steering the scope and what it is correcting for --%>
       <.card title="How It's Steered" class="steering">
-        <:aside><.badge on={elem(@steering.law, 0) == 3}>law {elem(@steering.law, 0)}</.badge></:aside>
         <div class="state-line">
           <strong>{elem(@steering.law, 1)}</strong>
           <span class="dim">{elem(@steering.law, 2)}</span>
@@ -234,25 +250,28 @@ defmodule Controller.SetupLive do
       <ul :if={@steering.corrections != []} class="checklist"><li :for={c <- @steering.corrections}>{c}</li></ul>
       </.card>
 
-      <.card title="Zero the Axes">
+      <.card title="Home Position">
         <:aside>
-          <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "zeroed · limits armed", else: "not zeroed"}</.badge>
+          <.badge on={@snap && @snap.homed}>{if @snap && @snap.homed, do: "home set · soft limits armed", else: "home not set"}</.badge>
         </:aside>
-        <.hint>Counterweight straight down, tube along the polar axis, by eye. Arms the cable-safety limits; the stars do the sky.</.hint>
-        <.btn phx-click="home" data-confirm="Zero both axes at the current position?">Zero the Axes Here</.btn>
+        <.hint>Counterweight straight down, tube along the polar axis, by eye. Arms the soft limits; the stars do the sky. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
+        <.btn phx-click="home" data-confirm="Set home here? Both axes read 0° from now on.">Set Home Here</.btn>
       </.card>
 
+      <%!-- with no home set, which side the counterweight is on is asked, not assumed (drawn only then) --%>
+      <Counterweight.card cw={Lineup.counterweight(@steering.model, @snap)} />
+
       <.row>
-        <.btn navigate={~p"/bench/position?#{[mount: @id]}"}>Move to an Exact Angle ›</.btn>
+        <.btn navigate={~p"/controls/position/#{@id}"}>Move to an Exact Angle ›</.btn>
       </.row>
 
       <.card title="Modes">
         <:aside><.badge :if={@modes == []} on>all stock</.badge><.badge :if={@modes != []} warn>{length(@modes)} on</.badge></:aside>
-        <.hint>Each of these changes where the scope goes and shows on every page while on.</.hint>
+        <.hint>Each of these changes where the telescope points, and shows on every page while it is on. <.link href={~p"/docs/setup#modes"}>What each one does</.link></.hint>
 
         <%!-- every one of these changes where the scope goes: named keys, and a confirm where a flip also throws data away (3.3.4) --%>
         <.setting label="Sync offset" value={"RA #{fmt(@offset["ra"])}° · Dec #{fmt(@offset["dec"])}°"}>
-          <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01} aria-label="Clear the sync offset" data-confirm="Clear the sync offset? Gotos go back to the plain model until you sync again.">Clear</.btn>
+          <.btn phx-click="clear_sync" disabled={abs(@offset["ra"]) < 0.01 and abs(@offset["dec"]) < 0.01} aria-label="Clear the sync offset" data-confirm="Clear the sync offset? Go To goes back to the plain model.">Clear</.btn>
         </.setting>
         <.setting label="RA axis sign" value={to_string(@pointing.ha_sign)}>
           <.btn phx-click="flip" phx-value-what="ra" aria-label="Flip the RA axis sign" data-confirm="Flip the RA axis sign? This also clears the sync offset.">Flip</.btn>
@@ -260,28 +279,23 @@ defmodule Controller.SetupLive do
         <.setting label="Dec axis sign" value={to_string(@pointing.dec_sign)}>
           <.btn phx-click="flip" phx-value-what="dec" aria-label="Flip the Dec axis sign" data-confirm="Flip the Dec axis sign? This also clears the sync offset.">Flip</.btn>
         </.setting>
-        <.setting label="Tracking direction" value={@tracking_direction}>
+        <.setting label="Tracking direction" value={sentence(@tracking_direction)}>
           <.btn phx-click="tracking_direction" aria-label="Flip the tracking direction">Flip</.btn>
         </.setting>
-        <.setting label="Auto-track after slew" value={if @auto_track, do: "on", else: "off"}>
-          <.btn phx-click="auto_track" aria-label={"Turn auto-track after slew #{if @auto_track, do: "off", else: "on"}"} aria-pressed={to_string(@auto_track)}>{if @auto_track, do: "Turn off", else: "Turn on"}</.btn>
+        <.setting label="Auto-track after slew" value={if @auto_track, do: "On", else: "Off"}>
+          <.btn phx-click="auto_track" aria-label={"Turn auto-track after slew #{if @auto_track, do: "off", else: "on"}"} aria-pressed={to_string(@auto_track)}>{if @auto_track, do: "Turn Off", else: "Turn On"}</.btn>
         </.setting>
         <.setting label="Soft limits from home" value={"RA #{lim(@limits, :ra)} · Dec #{lim(@limits, :dec)}"} />
         <.btn variant="ghost" phx-click="reset_pointing" data-confirm="Reset pointing to the config defaults? Axis signs and the sync offset go back to stock.">Reset Pointing to Defaults</.btn>
       </.card>
 
       <.card title="Mount As It Stands">
-        <.hint>What the orb draws. Tilt is the latitude knob on the mount (30° on the bench); heading is where the tripod's north leg points, degrees east of true north. Defaults: site latitude, 0.</.hint>
+        <.hint>What the Orb draws before an alignment. Tilt is the latitude knob on the mount; heading is where the tripod's north leg points, degrees east of true north. Defaults: site latitude, 0.</.hint>
         <form phx-change="mount_geom" class="horizon" aria-label="mount geometry">
-          <label>tilt °<input name="tilt" type="text" inputmode="decimal" autocomplete="off" value={@mount_tilt} class="field" /></label>
-          <label>heading °<input name="heading" type="text" inputmode="decimal" autocomplete="off" value={@mount_heading} class="field" /></label>
+          <label>Tilt °<input name="tilt" type="text" inputmode="decimal" autocomplete="off" value={@mount_tilt} class="field" /></label>
+          <label>Heading °<input name="heading" type="text" inputmode="decimal" autocomplete="off" value={@mount_heading} class="field" /></label>
         </form>
       </.card>
-
-      <.row>
-        <.btn navigate={~p"/devices"}>Devices</.btn>
-        <.btn navigate={~p"/sky/#{@id}"}>Sky · Horizon</.btn>
-      </.row>
 
       <.notice notice={@notice} />
     </.page>

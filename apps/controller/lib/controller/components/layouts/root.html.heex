@@ -6,11 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="theme-color" content="#07080c" />
+    <%!-- dark from the first frame: no white flash, and form fields drawn dark, even on a phone set to light --%>
+    <meta name="color-scheme" content="dark" />
+    <%!-- installable: Add to Home Screen opens it full screen, no Safari bars;
+         pages already pad for the notch and home bar (env(safe-area-inset-*)).
+         No service worker: browsers allow one only on https, and a box is http --%>
+    <link rel="manifest" href={~p"/manifest.webmanifest"} />
+    <link rel="apple-touch-icon" href={~p"/images/apple-touch-icon.png"} />
+    <meta name="apple-mobile-web-app-title" content="Observatory" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <.live_title default="Observatory" suffix=" · Observatory">{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <link phx-track-static rel="stylesheet" href={~p"/assets/css/bench.css"} />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/controls.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/tokens.css"} />
     <script defer phx-track-static src={~p"/vendor/phoenix/phoenix.min.js"}></script>
     <script defer phx-track-static src={~p"/vendor/phoenix_html/phoenix_html.js"}></script>
@@ -20,6 +29,10 @@
   <body>
     <%!-- the one thing before the page: a skip link to the content, past the header and any nav (WCAG 2.4.1) --%>
     <a href="#content" class="skip">Skip to content</a>
+    <%!-- A live page that has lost its server (the box rebooted, the Wi-Fi
+          dropped) must say so: its keys would otherwise look ready and do
+          nothing. Shown by CSS while the LiveView is not connected. --%>
+    <p class="conn-lost" role="status">Connection to this page lost. Reconnecting.</p>
     {@inner_content}
   </body>
 </html>

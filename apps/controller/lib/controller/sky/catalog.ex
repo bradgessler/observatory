@@ -10,7 +10,9 @@ defmodule Controller.Sky.Catalog do
   use GenServer
   require Logger
 
-  @dir :code.priv_dir(:controller) |> Path.join("sky")
+  # at runtime: a module attribute would bake in the build machine's path,
+  # which on a box points nowhere (so a box drew no stars and served no docs)
+  defp dir, do: :code.priv_dir(:controller) |> Path.join("sky")
 
   def start_link(_), do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
 
@@ -45,7 +47,10 @@ defmodule Controller.Sky.Catalog do
     :persistent_term.put({__MODULE__, :stars}, stars)
     :persistent_term.put({__MODULE__, :dsos}, dsos)
     :persistent_term.put({__MODULE__, :lines}, lines)
-    Logger.info("sky catalog: #{length(stars)} stars, #{length(dsos)} DSOs, #{length(lines)} constellation lines")
+
+    Logger.info(
+      "sky catalog: #{length(stars)} stars, #{length(dsos)} DSOs, #{length(lines)} constellation lines"
+    )
   end
 
   defp load_stars do
@@ -108,7 +113,16 @@ defmodule Controller.Sky.Catalog do
           [ra, dec] = f["geometry"]["coordinates"],
           not MapSet.member?(messier_cells, cell(ra360(ra), dec)) do
         id = f["id"] |> String.downcase() |> String.replace(~r/\s+/, "")
-        %{id: id, name: n["name"], desig: f["id"], ra_deg: ra360(ra), dec_deg: dec, mag: mag, kind: dso_kind(p["type"])}
+
+        %{
+          id: id,
+          name: n["name"],
+          desig: f["id"],
+          ra_deg: ra360(ra),
+          dec_deg: dec,
+          mag: mag,
+          kind: dso_kind(p["type"])
+        }
       end
 
     Enum.sort_by(messier ++ extras, & &1.mag)
@@ -129,7 +143,7 @@ defmodule Controller.Sky.Catalog do
   end
 
   defp read(file) do
-    path = Path.join(@dir, file)
+    path = Path.join(dir(), file)
 
     with true <- File.exists?(path),
          {:ok, bin} <- File.read(path),
@@ -159,7 +173,16 @@ defmodule Controller.Sky.Catalog do
   defp ra360(ra), do: ra * 1.0
 
   defp num(n) when is_number(n), do: n * 1.0
-  defp num(s) when is_binary(s), do: (case Float.parse(s), do: ({f, _} -> f; :error -> 99.0))
+
+  defp num(s) when is_binary(s),
+    do:
+      case(Float.parse(s),
+        do: (
+          {f, _} -> f
+          :error -> 99.0
+        )
+      )
+
   defp num(_), do: 99.0
 
   defp blank_to_nil(""), do: nil

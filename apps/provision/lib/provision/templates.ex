@@ -14,51 +14,54 @@ defmodule Provision.Templates do
   """
 
   @templates [
+    # `parts` is what the image actually runs, taken from `apps`: a role that
+    # says "Web UI" has to install the controller, or the box's address serves
+    # nothing.
     %{
       id: :observatory,
       name: "Observatory",
-      blurb: "A telescope you plug a phone into.",
-      parts: ["Mount", "Web", "Camera", "Pad"],
+      blurb: "Mount driver and web UI, with camera and game pad support.",
+      parts: ["Mount", "Web UI", "Camera", "Game pad"],
       apps: [:telescope, :mount, :controller, :watch, :video, :input],
       wants: :rpi4
     },
     %{
       id: :mount_only,
-      name: "Mount Only",
-      blurb: "Moves the telescope. Nothing else.",
-      parts: ["Mount", "Web"],
+      name: "Mount only",
+      blurb: "Mount driver only, no web UI. Driven from another node over Erlang distribution.",
+      parts: ["Mount"],
       apps: [:telescope, :mount],
       wants: :rpi0_2
     },
     %{
       id: :eyes,
-      name: "Eyes",
-      blurb: "Watches a telescope something else is driving.",
-      parts: ["Camera", "Web"],
+      name: "Camera only",
+      blurb: "Camera and video only, no web UI. For a scope another node drives.",
+      parts: ["Camera"],
       apps: [:telescope, :watch, :video],
       wants: :rpi4
     }
   ]
 
   @targets [
-    %{id: :rpi5, name: "Pi 5", note: "Fastest. Video without thinking about it."},
-    %{id: :rpi4, name: "Pi 4", note: "Enough for everything, including video."},
-    %{id: :rpi3, name: "Pi 3", note: "Stills yes, video no."},
-    %{id: :rpi3a, name: "Pi 3 Model A", note: "Smaller, one USB port."},
-    %{id: :rpi0_2, name: "Pi Zero 2 W", note: "Tiny. Mount only."}
+    %{id: :rpi5, name: "Raspberry Pi 5", note: "Cortex-A76, 4 to 8 GB. Handles video."},
+    %{id: :rpi4, name: "Raspberry Pi 4", note: "Cortex-A72, 2 to 8 GB. Handles video."},
+    %{id: :rpi3, name: "Raspberry Pi 3", note: "Cortex-A53, 1 GB. Stills, no video."},
+    %{id: :rpi3a, name: "Raspberry Pi 3 A+", note: "Cortex-A53, 512 MB, one USB port."},
+    %{id: :rpi0_2, name: "Raspberry Pi Zero 2 W", note: "Cortex-A53, 512 MB. Mount only."}
   ]
 
   @flavours [
     %{
       id: :dev,
-      name: "Development",
-      blurb: "A shell over SSH, and firmware pushed over the network.",
-      warn: "Anyone with your SSH key can open a shell on it."
+      name: "SSH on",
+      blurb: "Authorizes your keys from ~/.ssh. Firmware updates over the network with mix upload.",
+      warn: "Anyone holding one of those private keys gets a shell on the box."
     },
     %{
       id: :prod,
-      name: "Production",
-      blurb: "No shell, no firmware over the network.",
+      name: "SSH off",
+      blurb: "No SSH, no network firmware updates. Update by re-stamping the SD card.",
       warn: nil
     }
   ]
@@ -101,8 +104,10 @@ defmodule Provision.Templates do
       "OBS_APPS" => Enum.map_join(template.apps, ",", &to_string/1),
       "OBS_FLAVOUR" => to_string(flavour.id),
       "NERVES_HOSTNAME" => hostname,
-      # every box brings up its own access point when it cannot reach a network
-      "OBS_AP_SSID" => opts[:ap_ssid] || "#{hostname}-setup",
+      # Every box is its own Wi-Fi network wherever there is no home network to
+      # join, named after the box, so the name on the phone's Wi-Fi list is the
+      # name in its address. The firmware reads both of these.
+      "OBS_AP_SSID" => opts[:ap_ssid] || hostname,
       "OBS_AP_PSK" => opts[:ap_psk] || ""
     }
 
@@ -122,13 +127,15 @@ defmodule Provision.Templates do
     flavour = flavour(opts[:flavour] || :prod) || hd(@flavours)
     wifi = opts[:wifi] || %{}
 
+    own = opts[:ap_ssid] || opts[:hostname] || "observatory"
+
     network =
       case wifi do
         %{ssid: ssid} when is_binary(ssid) and ssid != "" ->
-          "Joins #{ssid}, or its own network if that is not there"
+          "Wi-Fi client on #{ssid}; access point #{own} when #{ssid} is out of range"
 
         _ ->
-          "Brings up #{opts[:ap_ssid] || "#{opts[:hostname] || "observatory"}-setup"} for you to join"
+          "Access point #{own}"
       end
 
     %{

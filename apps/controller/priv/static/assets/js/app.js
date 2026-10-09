@@ -4,8 +4,20 @@
 //   SkyZoom   pinch-to-zoom is a gesture; the map itself is server-rendered SVG
 //   SkyPhoto  reads pixels from a photo on the phone (candidate to move server-side)
 //   Geo       the browser only gives location to JS
-//   Tilt      the orientation sensor is only readable in the browser (dead-man + vector)
+//   Clock     the phone's own clock, time zone and daylight saving are only known to
+//             the browser; sent once, so the server can say what a hand controller
+//             wants and set a box's clock that has no internet time
 //   Hls       video playback; loads hls.js lazily where <video> can't play HLS itself
+//   Terminal  a shell's output is a byte stream of cursor moves, redraws and colour,
+//             and its input is raw keys (Ctrl-C, a password that must not echo). Only
+//             a terminal emulator draws that; xterm.js is vendored and loaded on first use
+//   Awake     the screen wake lock is a browser API: a phone at the eyepiece
+//             shouldn't go dark while a hand is on the pad, and only the page
+//             can ask the phone for that
+//   ⌘K       Search opens itself (a popover) on ⌘K, Ctrl-K or "/": a page can't stop
+//             the browser's own ⌘K/Ctrl-K (focus the address bar) without
+//             preventDefault, and "/" has to be ignored while typing in a field,
+//             which only the browser knows. Not a hook: a listener on the window
 // Arrow keys use phx-window-keydown/keyup, not a hook.
 
 // No bundler: phoenix.min.js and phoenix_live_view.min.js are loaded from
@@ -13,8 +25,63 @@
 
 const Hooks = {};
 
+// Terminal: the shell lives on the server, in a real pseudo-terminal; this only
+// draws it and hands over keys. Bytes arrive base64-encoded, because a terminal
+// stream is not always valid UTF-8 and JSON has to be. Keys go up as "keys",
+// the one parameter the server's log is told never to print.
+Hooks.Terminal = {
+  mounted() {
+    const base = "/assets/vendor/xterm/";
+    const load = (tag, attrs) =>
+      new Promise((ok, no) => {
+        const el = Object.assign(document.createElement(tag), attrs);
+        el.onload = ok;
+        el.onerror = no;
+        document.head.appendChild(el);
+      });
 
+    const ready = window.Terminal
+      ? Promise.resolve()
+      : Promise.all([
+          load("link", { rel: "stylesheet", href: base + "xterm.css" }),
+          load("script", { src: base + "xterm.js" }),
+        ]);
 
+    ready.then(() => {
+      // One shell, one size, for every viewer: 120 columns, whatever the
+      // window. Sized to the window, it came out 36 wide on a phone and 66 on
+      // this page, and fwup's 76-column progress line wrapped, so each \r
+      // redrew only the wrapped tail and left a line behind per percent. A
+      // narrow screen scrolls sideways instead; the percentage is at the left.
+      const term = new window.Terminal({
+        cols: 120,
+        rows: 30,
+        cursorBlink: true,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: 13,
+        theme: { background: "#000000" },
+      });
+      term.open(this.el);
+      this.term = term;
+
+      this.handleEvent("term_output", ({ data }) => {
+        term.write(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+      });
+
+      // Keys always go up and the server decides whether to take them: who may
+      // type can change while the page is open, and the browser is not the
+      // place that decision is enforced.
+      term.onData((keys) => this.pushEvent("term_input", { keys }));
+      if (this.el.dataset.canType === "true") term.focus();
+
+      this.pushEvent("term_open", { cols: term.cols, rows: term.rows });
+    });
+  },
+
+  destroyed() {
+    if (this.term) this.term.dispose();
+  },
+};
 
 // Sky photo: trace where the sky stops in each column (bright sky above,
 // dark trees/houses below) right here in the browser, then hand the boundary
@@ -89,12 +156,17 @@ Hooks.Stick = {
     }
     const lockX = pad.dataset.lock === "x";          // a strip: horizontal pull only
     const axis = pad.dataset.axis || null;           // which mount axis a strip drives
-    const R = () => (lockX ? pad.getBoundingClientRect().width / 2 - 28 : pad.getBoundingClientRect().width / 2);
-    let origin = null, vec = { x: 0, y: 0, mag: 0 }, timer = null, active = null;
-    const show = (dx, dy) => { knob.style.transform = `translate(${dx}px, ${dy}px)`; knob.classList.toggle("live", !!origin); };
+    // data-origin="touch": zero is where the thumb lands, not the pad's centre
+    // (an eye at the eyepiece can't see where the centre is); data-reach is
+    // the pull in px for full speed, data-dead the still zone as a share of it
+    const fromTouch = pad.dataset.origin === "touch";
+    const reach = Number(pad.dataset.reach) || 0, deadShare = Number(pad.dataset.dead) || 0.12;
+    const R = () => reach || (lockX ? pad.getBoundingClientRect().width / 2 - 28 : pad.getBoundingClientRect().width / 2);
+    let origin = null, at = { x: 0, y: 0 }, vec = { x: 0, y: 0, mag: 0 }, timer = null, active = null;
+    const show = (dx, dy) => { knob.style.transform = `translate(${at.x + dx}px, ${at.y + dy}px)`; knob.classList.toggle("live", !!origin); };
     const send = () => this.pushEvent("stick", vec);
     const update = (cx, cy) => {
-      const r = R(), dead = r * 0.12;
+      const r = R(), dead = r * deadShare;
       let dx = cx - origin.x, dy = lockX ? 0 : cy - origin.y;
       const d = Math.hypot(dx, dy);
       if (d > r) { dx *= r / d; dy *= r / d; }
@@ -110,7 +182,9 @@ Hooks.Stick = {
       active = e.pointerId;
       pad.setPointerCapture(active);
       const rect = pad.getBoundingClientRect();
-      origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      const centre = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      origin = fromTouch ? { x: e.clientX, y: e.clientY } : centre;
+      at = { x: origin.x - centre.x, y: origin.y - centre.y };
       update(e.clientX, e.clientY);
       send();
       timer = setInterval(send, 250);
@@ -122,6 +196,7 @@ Hooks.Stick = {
     const end = (e) => {
       if (active === null || (e && e.pointerId !== undefined && e.pointerId !== active)) return;
       clearInterval(timer); timer = null; active = null; origin = null;
+      at = { x: 0, y: 0 };
       show(0, 0);
       this.pushEvent("stick_end", {});
     };
@@ -144,13 +219,16 @@ Hooks.Stick = {
 Hooks.SkyZoom = {
   mounted() {
     const svg = this.el;
-    const base = [-104, -104, 208, 208];
+    // the chart's own frame, from the server (each projection has its own shape)
+    const parse = () => (svg.dataset.base || svg.getAttribute("viewBox")).trim().split(/\s+/).map(Number);
+    let base = parse();
     let vb = [...base];
     const pts = new Map();
     let pinch = null, moved = false;
     const apply = () => svg.setAttribute("viewBox", vb.join(" "));
     const clamp = () => {
-      vb[2] = vb[3] = Math.min(base[2], Math.max(16, vb[2]));
+      vb[2] = Math.min(base[2], Math.max(base[2] / 13, vb[2]));
+      vb[3] = vb[2] * base[3] / base[2];
       vb[0] = Math.max(base[0], Math.min(base[0] + base[2] - vb[2], vb[0]));
       vb[1] = Math.max(base[1], Math.min(base[1] + base[3] - vb[3], vb[1]));
     };
@@ -160,9 +238,9 @@ Hooks.SkyZoom = {
     };
     const zoomAt = (cx, cy, f) => {
       const [sx, sy] = toSvg(cx, cy);
-      const w = Math.min(base[2], Math.max(16, vb[2] * f));
+      const w = Math.min(base[2], Math.max(base[2] / 13, vb[2] * f));
       const s = w / vb[2];
-      vb = [sx - (sx - vb[0]) * s, sy - (sy - vb[1]) * s, w, w];
+      vb = [sx - (sx - vb[0]) * s, sy - (sy - vb[1]) * s, w, w * base[3] / base[2]];
       clamp(); apply();
     };
     const pinchState = () => {
@@ -202,86 +280,16 @@ Hooks.SkyZoom = {
     svg.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
     svg.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1.15 : 0.87); }, { passive: false });
     svg.addEventListener("dblclick", (e) => { e.preventDefault(); vb = [...base]; apply(); });
-    // keep our zoom across LiveView patches
-    this.apply = apply;
+    // keep our zoom across LiveView patches; a different chart (another projection) starts unzoomed
+    this.rebase = () => {
+      const b = parse();
+      if (b.join(" ") !== base.join(" ")) { base = b; vb = [...base]; }
+      apply();
+    };
   },
-  updated() { this.apply && this.apply(); },
+  updated() { this.rebase && this.rebase(); },
 };
 
-
-// Tilt: hold the button (dead-man), tilt the phone. The orientation at
-// press-down is "still"; the vector from there sets direction and speed.
-// Null zone 5°, full speed at 30°. Sent every 250 ms while held; tilt_end on
-// release, page hide, or losing the sensor. iOS wants a permission prompt
-// from inside a user gesture, and only over HTTPS.
-Hooks.Tilt = {
-  mounted() {
-    const el = this.el, dot = el.querySelector("[data-dot]");
-    const DEAD = 5, FULL = 30;
-    let base = null, cur = null, timer = null, id = null, listening = false;
-    const state = (s) => this.pushEvent("sensor", { state: s });
-    const onOrient = (e) => { if (e.beta === null || e.beta === undefined) return; cur = { b: e.beta, g: e.gamma }; };
-    const listen = () => { if (listening) return; listening = true; window.addEventListener("deviceorientation", onOrient); };
-    const vec = () => {
-      if (!base || !cur) return { x: 0, y: 0, mag: 0 };
-      // tilt top of phone away = up (toward pole); tilt right = west
-      const dy = -(cur.b - base.b), dx = cur.g - base.g;
-      const d = Math.hypot(dx, dy);
-      const mag = d <= DEAD ? 0 : Math.min(1, (d - DEAD) / (FULL - DEAD));
-      return { x: d > 0 ? dx / d : 0, y: d > 0 ? dy / d : 0, mag };
-    };
-    const send = () => {
-      const v = vec();
-      if (dot) dot.style.transform = `translate(${v.x * v.mag * 40}px, ${-v.y * v.mag * 40}px)`;
-      this.pushEvent("tilt", v);
-    };
-    const ready = async () => {
-      if (!window.isSecureContext) { state("insecure"); return false; }
-      if (!("DeviceOrientationEvent" in window)) { state("none"); return false; }
-      if (typeof DeviceOrientationEvent.requestPermission === "function") {
-        try { if ((await DeviceOrientationEvent.requestPermission()) !== "granted") { state("denied"); return false; } }
-        catch (_) { state("denied"); return false; }
-      }
-      listen();
-      state("ok");
-      return true;
-    };
-    let down = false;
-    const start = async (e) => {
-      if (timer) return;
-      e.preventDefault();
-      id = e.pointerId;
-      down = true;
-      if (!(await ready())) return;
-      // the permission prompt lifts the finger: never arm with nobody holding on
-      if (!down) return;
-      el.classList.add("pressed");
-      base = cur; // may be null for a beat; vec() treats that as still
-      const arm = () => { if (!base) base = cur; send(); };
-      timer = setInterval(arm, 250);
-    };
-    const stop = (e) => {
-      if (e && e.pointerId !== undefined && e.pointerId !== id) return;
-      down = false;
-      if (!timer) return;
-      clearInterval(timer); timer = null; base = null;
-      el.classList.remove("pressed");
-      if (dot) dot.style.transform = "";
-      this.pushEvent("tilt_end", {});
-    };
-    el.addEventListener("pointerdown", start);
-    el.addEventListener("pointerup", stop);
-    el.addEventListener("pointercancel", stop);
-    el.addEventListener("pointerleave", stop);
-    el.addEventListener("contextmenu", (e) => e.preventDefault());
-    window.addEventListener("blur", () => stop());
-    document.addEventListener("visibilitychange", () => document.hidden && stop());
-    if (!window.isSecureContext) state("insecure");
-    else if (!("DeviceOrientationEvent" in window)) state("none");
-    this.end = () => { stop(); if (listening) window.removeEventListener("deviceorientation", onOrient); };
-  },
-  destroyed() { this.end && this.end(); },
-};
 
 // HLS playback. Safari plays it natively in <video>; every other browser
 // needs hls.js, which is the one library we ship — loaded only when a
@@ -356,9 +364,70 @@ Hooks.Hls = {
 };
 
 // "Use my location": ask the browser once, hand lat/lon to the server.
+// Clock: once, on connect. The standard offset is the one of January and July
+// that is further behind UTC, so daylight saving reads right in either hemisphere.
+// Awake: a button that keeps this phone's screen on (and says so) until it is
+// tapped again or the page goes away. The phone drops the lock whenever the
+// page is hidden; it is taken again when the page comes back. A phone that
+// can't do it says so on the button, and nothing else changes.
+Hooks.Awake = {
+  mounted() {
+    this.on = false;
+    this.lock = null;
+    this.label = this.el.textContent.trim();
+    if (!("wakeLock" in navigator)) {
+      this.el.disabled = true;
+      this.el.textContent = "Screen Lock Not Supported Here";
+      return;
+    }
+    this.take = async () => {
+      try {
+        this.lock = await navigator.wakeLock.request("screen");
+      } catch (e) {
+        this.on = false;
+        this.show();
+      }
+    };
+    this.show = () => {
+      this.el.setAttribute("aria-pressed", String(this.on));
+      this.el.textContent = this.on ? "Screen Stays On" : this.label;
+    };
+    this.el.addEventListener("click", async () => {
+      this.on = !this.on;
+      if (this.on) await this.take();
+      else if (this.lock) { this.lock.release(); this.lock = null; }
+      this.show();
+    });
+    this.visible = () => { if (this.on && document.visibilityState === "visible") this.take(); };
+    document.addEventListener("visibilitychange", this.visible);
+  },
+  // LiveView re-renders the button: keep what it says
+  updated() { if (this.show) this.show(); },
+  destroyed() {
+    if (this.visible) document.removeEventListener("visibilitychange", this.visible);
+    if (this.lock) this.lock.release();
+  },
+};
+
+Hooks.Clock = {
+  mounted() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const jan = new Date(year, 0, 1).getTimezoneOffset();
+    const jul = new Date(year, 6, 1).getTimezoneOffset();
+    let tz = "";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {}
+    this.pushEvent("clock", { now_ms: Date.now(), tz: tz, offset_min: -now.getTimezoneOffset(), std_offset_min: -Math.max(jan, jul) });
+  },
+};
+
 Hooks.Geo = {
   mounted() {
+    // the server guessed from the address whether this page is https; the browser knows (a tunnel can hide it)
+    if (String(window.isSecureContext) !== this.el.dataset.secure) this.pushEvent("secure_context", { secure: window.isSecureContext });
     this.el.addEventListener("click", () => {
+      // browsers give location only to https pages; a box serves http
+      if (!window.isSecureContext) { this.pushEvent("site_error", { reason: "insecure" }); return; }
       if (!navigator.geolocation) { this.pushEvent("site_error", { reason: "no geolocation in this browser" }); return; }
       this.el.disabled = true;
       navigator.geolocation.getCurrentPosition(
@@ -373,9 +442,43 @@ Hooks.Geo = {
 
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
-  hooks: Hooks,
-  params: { _csrf_token: csrfToken },
-});
-liveSocket.connect();
-window.liveSocket = liveSocket;
+// On a weak link (a phone at the edge of the box's Wi-Fi) one of the scripts
+// loaded before this one can fail to arrive, and then nothing on the page
+// works while it looks fine. Seen in the VM: phoenix.min.js dropped, every key
+// dead, no sign why. Reload once; if the second try fails too, say so.
+if (!window.Phoenix || !window.LiveView) {
+  let retried = false;
+  try { retried = sessionStorage.getItem("obs-reloaded") === "1"; sessionStorage.setItem("obs-reloaded", "1"); } catch (_) {}
+
+  if (!retried) {
+    location.reload();
+  } else {
+    const p = Object.assign(document.createElement("p"), { className: "notice", textContent: "The page did not finish loading. Reload to try again." });
+    p.setAttribute("role", "status");
+    document.body.appendChild(p);
+  }
+} else {
+  try { sessionStorage.removeItem("obs-reloaded"); } catch (_) {}
+
+  const liveSocket = new LiveView.LiveSocket("/live", Phoenix.Socket, {
+    hooks: Hooks,
+    params: { _csrf_token: csrfToken },
+  });
+  liveSocket.connect();
+  window.liveSocket = liveSocket;
+
+  // ⌘K (Ctrl-K, or "/" when not typing): open Search, fresh. The popover does
+  // the rest (focus, Escape, a tap outside); see Controller.Spotlight.
+  window.addEventListener("keydown", (e) => {
+    const box = document.getElementById("spotlight");
+    if (!box || !box.showPopover) return;
+    const t = e.target;
+    const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    const chord = (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k";
+    if (!chord && !(e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey)) return;
+    e.preventDefault();
+    if (box.matches(":popover-open")) { box.hidePopover(); return; }
+    liveSocket.execJS(box, '[["push",{"event":"reset","target":"#spotlight"}]]');
+    box.showPopover();
+  });
+}

@@ -1,21 +1,28 @@
 defmodule Controller.StartLive do
   @moduledoc """
-  The front door is a flow, not a menu: plug in → zero the axes → star 1, 2, 3
-  until the alignment locks → look at things. The page shows the step you are
+  The front door is a flow, not a menu: plug in → set home → star 1, 2, 3
+  until the alignment is good → look at things. The page shows the step you are
   on and nothing from later steps; when the stars agree it turns into the
-  control surface — tonight's targets with Go, what the tube is holding, the
-  ways to centre, STOP. Everything else (the bench, the camera, the plumbing)
-  is one link at the bottom.
+  control surface — tonight's targets with Go To, what the mount is tracking,
+  the ways to center, STOP. Everything else (the controls, the cameras, the
+  system pages) is in the sidebar, Home and Search, not repeated here.
 
   The steps are read from the same state every other page uses: the mount's
-  snapshot (connected, zeroed), the star alignment (`Controller.Sky.Lineup`),
+  snapshot (connected, home set), the star alignment (`Controller.Sky.Lineup`),
   the tracker. Nothing here is remembered per browser, so two phones show
   the same step.
+
+  A camera alignment needs no home: with a camera on the telescope, or an
+  alignment already made without one, Set Home is optional and the page goes
+  straight to the stars. On such a mount the alignment step is done only
+  once someone says which side the counterweight is on, because Go To waits
+  for that (#113): the question sits right under Align with the Camera.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
-  alias Controller.Settings
+  alias Controller.{AutoAlign, Settings}
+  alias Controller.Components.Counterweight
   alias Controller.Sky.{Lineup, Pointing, Tracker}
 
   # locked = three stars that agree well enough to land things in an eyepiece
@@ -29,6 +36,7 @@ defmodule Controller.StartLive do
       Settings.subscribe()
       Telescope.subscribe("tracker")
       Telescope.subscribe("input")
+      AutoAlign.subscribe()
       :timer.send_interval(10_000, :tick)
     end
 
@@ -63,6 +71,10 @@ defmodule Controller.StartLive do
     if id == socket.assigns.selected, do: {:noreply, assign(socket, tracker: status)}, else: {:noreply, socket}
   end
 
+  def handle_info({:auto_align, id, run}, socket) do
+    if id == socket.assigns.selected, do: {:noreply, assign(socket, run: run)}, else: {:noreply, socket}
+  end
+
   def handle_info({:mapper, status}, socket), do: {:noreply, assign(socket, mapper: status)}
   def handle_info({:input, _, _}, socket), do: {:noreply, socket}
   def handle_info({:input_gone, _}, socket), do: {:noreply, compute(socket)}
@@ -79,7 +91,7 @@ defmodule Controller.StartLive do
         if MapSet.member?(acc, id), do: acc, else: (Mount.subscribe(ref); MapSet.put(acc, id))
       end)
 
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
     snap = if ref = refs[selected], do: safe(fn -> Mount.snapshot(ref) end)
     assign(socket, refs: refs, subscribed: subscribed, selected: selected, snap: if(is_map(snap), do: snap))
   end
@@ -90,13 +102,20 @@ defmodule Controller.StartLive do
     snap = socket.assigns.snap
     status = id && Lineup.status(id)
     locked? = status != nil and status.n >= 3 and @lock_goal in status.good_for
+    camera = AutoAlign.camera()
+    # home never set, and which side the counterweight is on only guessed: Go To waits for it
+    guessed? = status != nil and status.counterweight == :guessed
 
     step =
       cond do
         is_nil(snap) or not snap.connected -> :plug
-        not snap.homed -> :zero
-        not locked? -> :stars
-        true -> :look
+        snap.homed and not locked? -> :stars
+        snap.homed -> :look
+        # never zeroed: an alignment needs no home, but it is not done until the side is told
+        locked? and not guessed? -> :look
+        # the camera (or an alignment made without home) skips Set Home
+        locked? or camera != nil -> :stars
+        true -> :zero
       end
 
     now = DateTime.utc_now()
@@ -109,10 +128,16 @@ defmodule Controller.StartLive do
 
     assign(socket,
       step: step,
-      page_title: "Start · " <> title(step, id),
+      page_title: start_title(id) <> " · " <> (steps(status) |> List.keyfind(step, 0) |> elem(1)),
       status: status,
+      # past Set Home without it: the camera does without, so the strip says it's optional
+      home_optional: step in [:stars, :look] and not snap.homed,
+      # for the counterweight question (`Lineup.counterweight/2`, drawn from the live snapshot)
+      cw_model: id && Lineup.model(id),
       targets: targets,
       tracker: id && Tracker.status(id),
+      run: id && AutoAlign.status(id),
+      camera: camera,
       pads: safe(fn -> Input.devices() end) || [],
       mapper: safe(fn -> Input.status() end) || %{armed: false, target: nil, off_reason: nil},
       now: now,
@@ -126,7 +151,7 @@ defmodule Controller.StartLive do
   def handle_event("stop", _, socket) do
     if id = socket.assigns.selected, do: Tracker.stop(id)
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.stop(ref) end)
-    {:noreply, socket |> compute() |> notice("stopped")}
+    {:noreply, socket |> compute() |> notice("Stopped")}
   end
 
   def handle_event("go", %{"id" => oid}, socket) do
@@ -137,39 +162,99 @@ defmodule Controller.StartLive do
     text =
       case obj && (if moving?(socket.assigns.snap, socket.assigns.tracker), do: {:error, :moving}, else: Pointing.slew(ref, socket.assigns.snap, obj, ctx, track: true)) do
         {:error, :moving} -> "Still moving: let go, or wait for it to land"
-        {:ok, _, _} -> "Heading to #{obj.name}"
+        {:ok, _, _} -> "Going to #{obj.name}"
         {:error, :limit} -> "#{obj.name} is outside the soft limits from here"
         {:error, :not_connected} -> "No mount"
-        {:error, e} -> inspect(e)
+        # the page goes back to the question (`compute/1`), right under the camera card
+        {:error, :counterweight_unknown} -> Pointing.refusal_words(:counterweight_unknown, obj.name)
+        # a flip asks first, on the object's own page
+        {:error, {:flip, _} = e} -> Pointing.refusal_words(e, obj.name)
+        {:error, e} -> Controller.Words.error(e)
         nil -> "Not on the list any more"
       end
 
-    {:noreply, notice(socket, text)}
+    {:noreply, socket |> compute() |> notice(text)}
+  end
+
+  # Which side the counterweight is on, from someone looking at the mount: Go To waited for it
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {_told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> compute() |> notice(said)}
+  end
+
+  # optional before a camera alignment: it arms the soft limits, and Align by Stars needs it
+  def handle_event("home", _, socket) do
+    id = socket.assigns.selected
+
+    text =
+      case socket.assigns.refs[id] do
+        nil ->
+          "No mount"
+
+        ref ->
+          Tracker.stop(id)
+
+          case safe(fn -> Mount.set_home(ref) end) do
+            :ok -> "Home set · soft limits armed"
+            {:error, e} -> Controller.Words.error(e)
+            nil -> Controller.Words.error(:unreachable)
+          end
+      end
+
+    {:noreply, socket |> rescan() |> compute() |> notice(text)}
   end
 
   # the target is centred in the eyepiece right now: that is one more alignment
-  # star, so the model tightens as the night goes on
+  # point, so the model tightens as the night goes on (zeroed or not, as on an object's page)
   def handle_event("centred", _, socket) do
     case {socket.assigns.snap, socket.assigns.tracker} do
-      {%{homed: true} = snap, %{target: %{ra_deg: ra, dec_deg: dec, name: name}}} ->
+      {%{connected: true} = snap, %{target: %{ra_deg: ra, dec_deg: dec, name: name}}} ->
         st = Lineup.add(snap, %{name: name, ra_deg: ra, dec_deg: dec})
         {:noreply, socket |> compute() |> notice("#{name} added · #{st.n} stars · agree to #{fmt(st.rms_arcmin)}′")}
 
       _ ->
-        {:noreply, notice(socket, "Nothing being held")}
+        {:noreply, notice(socket, "Nothing being tracked")}
     end
   end
 
   def handle_event("release", _, socket) do
     Tracker.stop(socket.assigns.selected)
-    {:noreply, socket |> compute() |> notice("released")}
+    {:noreply, socket |> compute() |> notice("Stopped tracking")}
+  end
+
+  # one tap: the camera on the telescope finds where it points (`Controller.AutoAlign`). Still
+  # looking at the pole from home, it first points up high, where the pictures can tell the axes apart.
+  def handle_event("camera_align", _, socket) do
+    id = socket.assigns.selected
+
+    text =
+      case id && AutoAlign.start(id, overhead: at_pole?(socket.assigns.snap)) do
+        :ok -> nil
+        {:error, :no_camera} -> "No camera on the telescope: turn the Sony on, in PC Remote"
+        {:error, :no_mount} -> "No mount"
+        {:error, :running} -> "Already aligning"
+        {:error, e} -> Controller.Words.error(e)
+        nil -> "No mount"
+      end
+
+    {:noreply, socket |> compute() |> then(&if(text, do: notice(&1, text), else: &1))}
+  end
+
+  def handle_event("camera_align_continue", _, socket) do
+    AutoAlign.continue(socket.assigns.selected)
+    {:noreply, compute(socket)}
+  end
+
+  def handle_event("camera_align_stop", _, socket) do
+    AutoAlign.stop(socket.assigns.selected)
+    {:noreply, compute(socket)}
   end
 
   def handle_event("pad", %{"on" => on}, socket) do
     on? = on == "true"
     if on? and socket.assigns.selected, do: safe(fn -> Input.target(socket.assigns.selected) end)
     safe(fn -> Input.arm(on?) end)
-    {:noreply, socket |> compute() |> notice(if on?, do: "the pad moves #{socket.assigns.selected}", else: "pad: watch only")}
+    {:noreply, socket |> compute() |> notice(if on?, do: "The game controller moves #{socket.assigns.selected}", else: "Game controller: watch only")}
   end
 
   def handle_event("night", _, socket) do
@@ -187,59 +272,96 @@ defmodule Controller.StartLive do
     ~H"""
     <.page id="start" night={@night} class="start">
       <:header>
-        <span class="home-brand">Observatory</span>
-        <.title>{title(@step, @selected)}</.title>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected && short(@selected))} />
+        <.title>Status</.title>
+        <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
+        <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions>
+          <.help href={~p"/docs/start"} label="the start flow" />
           <.stop />
-          <button class="ghost" phx-click="night" aria-label="night mode" aria-pressed={to_string(@night)}>◐</button>
         </.actions>
       </:header>
 
       <ol class="flow-steps" aria-label="setup steps">
-        <li :for={{key, label} <- steps(@status)} class={state(key, @step)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step) == "done"} role="img" aria-label="done"> ✓</span></li>
+        <li :for={{key, label} <- steps(@status)} class={state(key, @step, @home_optional)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step, @home_optional) == "done"} role="img" aria-label="done"> ✓</span><span :if={key == :zero and @home_optional}> (optional)</span></li>
       </ol>
 
       <%!-- the scope's live state, one line, on every step that has a scope --%>
       <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
 
+      <%!-- an alignment on a mount with no home: Go To picks its side of the pier by where the
+            counterweight is, and until someone says, that is a guess (the question itself is
+            right under Align with the Camera on the Stars step) --%>
+      <Counterweight.line :if={@step != :stars} from={@status && @status.counterweight} mount={@selected} />
+
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
         <.hint>Mount powered, EQDIR cable in this machine. This page moves on by itself.</.hint>
-        <.kv :if={@snap} label="mount" value={"#{@selected} · not answering"} />
-        <.row><.btn navigate={~p"/devices"}>What's Plugged in ›</.btn></.row>
+        <.kv :if={@snap} label="Mount" value={"#{@selected} · not answering"} />
+        <.row><.btn navigate={~p"/devices"}>Devices ›</.btn></.row>
       </.card>
 
-      <%!-- steps 2 and 3 are the star-align page, nested --%>
-      <div :if={@step in [:zero, :stars]} class="flow-nested">
+      <%!-- the quickest way: the camera on the telescope, one tap --%>
+      <.card :if={@step == :stars} title="Align with the Camera">
+        <p :if={!@run && @camera} class="dim">Takes four pictures a little apart and plate solves them{if @snap && !@snap.homed, do: ", from wherever the telescope points: no home needed", else: ""}. About three minutes. Watch the cables the first time it moves.</p>
+        <p :if={!@run && !@camera} class="dim">Put the Sony on the telescope and turn it on in PC Remote. Focused first: Stills Camera › star size.</p>
+        <p :if={@run} class={["find-line", @run.done && !@run.ok && "tone-caution"]} role="status">
+          <span :if={@run.done && @run.ok} aria-hidden="true">✓ </span>{@run.words}<span :if={!@run.done}> · {@run.solved} of {@run.enough} placed</span>
+        </p>
+        <.row>
+          <.btn :if={!aligning?(@run)} variant="primary" phx-click="camera_align" disabled={!@camera}>Align with the Camera</.btn>
+          <.btn :if={@run && @run[:phase] == :waiting} variant="primary" phx-click="camera_align_continue">Continue</.btn>
+          <.btn :if={aligning?(@run)} phx-click="camera_align_stop">Stop Aligning</.btn>
+          <.btn variant="ghost" navigate={~p"/cameras/stills"}>Stills Camera ›</.btn>
+        </.row>
+      </.card>
+
+      <%!-- a mount with no home, aligned: Go To waits for which side the counterweight is on, so the
+            question comes right after the alignment that needs it (nothing once told) --%>
+      <Counterweight.card :if={@step in [:stars, :look]} cw={Counterweight.asking(@cw_model, @snap)} />
+
+      <%!-- the two ways to add alignment points, side by side: centring stars (here, below) or photos --%>
+      <.items :if={@step == :stars} label="ways to add alignment points" class="align-ways">
+        <.link_item navigate={~p"/controls/align/#{@selected}"} label="Align by Stars" detail={if @snap && @snap.homed, do: "Center a few stars in the eyepiece, one at a time: the steps are below", else: "Center a few stars in the eyepiece, one at a time, from home set by eye"} />
+        <.link_item navigate={~p"/align/photo/#{@selected}"} label="Align by Phone Photo" detail="Your phone held to the eyepiece, plate solved: also says which bolt to turn" />
+      </.items>
+
+      <%!-- no home yet and none needed for the camera: offered, not asked for. Only before any
+            alignment points, because setting home starts an alignment over --%>
+      <.card :if={@step == :stars and @snap && !@snap.homed and @status && @status.n == 0} title="Set Home, If You Like">
+        <.hint>Counterweight straight down, tube along the polar axis, by eye. It arms the soft limits, and Align by Stars needs it; the camera and phone photos don't. <.link href={~p"/docs/setup#home-position"}>What's home?</.link></.hint>
+        <.btn phx-click="home" data-confirm="Set home here? Both axes read 0° from now on.">Set Home Here</.btn>
+      </.card>
+
+      <%!-- steps 2 and 3 are Align by Stars, nested (it starts with Set Home, so not where the camera does without) --%>
+      <div :if={@step == :zero or (@step == :stars and @snap.homed)} class="flow-nested">
         <%= live_render(@socket, Controller.LineupLive, id: "start-align-#{@selected}", session: %{"id" => @selected, "nested" => true}) %>
       </div>
 
       <%!-- step 4: locked — control mode --%>
       <%= if @step == :look do %>
-        <.card class="lineup-status ok">
-          <div class="state-line">
-            <strong>Locked · {@status.n} stars · agree to {fmt(@status.rms_arcmin)}′</strong>
-            <span class="dim">{@status.axis_words} · good for {Enum.join(@status.good_for, " · ")}</span>
-          </div>
-          <.row>
-            <.btn class="btn-ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
-            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
-          </.row>
-        </.card>
+        <%!-- how well: the toolbar says; here, tighten it or see how it steers --%>
+        <.hint :if={@status.axis_words}>{@status.axis_words}</.hint>
+        <.row>
+          <%!-- Align by Stars starts with Set Home, which would start an alignment made without one over --%>
+          <.btn :if={@snap.homed} variant="ghost" navigate={~p"/controls/align/#{@selected}"}>Add a Star ›</.btn>
+          <.btn variant="ghost" navigate={~p"/align/photo/#{@selected}"}>Add by Phone Photo ›</.btn>
+          <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>How It's Steered ›</.btn>
+        </.row>
 
         <.card title="On Target" :if={@tracker}>
           <div class="state-line">
             <strong>{@tracker.name}{cond do @tracker.paused == :goto -> " · slewing"; @tracker.paused -> " · paused while you drive"; true -> "" end}</strong>
-            <span class="dim">Holding · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
+            <span class="dim">Tracking · RA {fmt(@tracker.ra_rate)}× · Dec {fmt(@tracker.dec_rate)}× · {if @tracker.error_arcmin, do: "#{fmt(@tracker.error_arcmin)}′ off", else: "settling"}</span>
           </div>
           <.row>
-            <.btn variant="primary" navigate={~p"/controls/eyepiece/#{@selected}"}>Centre It ›</.btn>
-            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred">That's Centred</.btn>
-            <.btn phx-click="release">Stop Holding</.btn>
+            <.btn variant="primary" navigate={~p"/controls/eyepiece/#{@selected}"}>Center It ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:ra_deg]} phx-click="centred" aria-label={"Centered: #{@tracker.name} is in the middle of the eyepiece"}>Centered</.btn>
+            <.btn phx-click="release">Stop Tracking</.btn>
           </.row>
           <.row>
-            <.btn :if={@tracker[:target] && @tracker.target[:id]} class="btn-ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected]}"}>About {@tracker.name} ›</.btn>
-            <.btn class="btn-ghost" navigate={~p"/setup/#{@selected}"}>Corrections ›</.btn>
+            <.btn :if={@tracker[:target] && @tracker.target[:id]} variant="ghost" navigate={~p"/object/#{@tracker.target.id}?#{[mount: @selected, from: "start"]}"}>About {@tracker.name} ›</.btn>
+            <.btn variant="ghost" navigate={~p"/setup/#{@selected}"}>Corrections ›</.btn>
           </.row>
         </.card>
 
@@ -250,26 +372,21 @@ defmodule Controller.StartLive do
         <.card title="Look At">
           <.items :if={@targets != []} label="tonight's targets">
             <.item :for={t <- @targets} as="li" label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
-              <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go to #{t.name}"}>Go</.btn>
+              <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go To #{t.name}"}>Go To</.btn>
             </.item>
           </.items>
           <.hint :if={@targets == []}>Nothing up right now.</.hint>
+          <%!-- the rest of this list; every other page is in the sidebar, Home and Search --%>
           <.row>
-            <.btn navigate={~p"/sky/#{@selected}"}>Whole Sky ›</.btn>
-            <.btn navigate={~p"/sky/#{@selected}?tab=targets"}>Tonight's List ›</.btn>
+            <.btn navigate={~p"/tonight/#{@selected}"}>Tonight's List ›</.btn>
           </.row>
         </.card>
 
-        <.card title="Drive It">
-          <.row>
-            <.btn navigate={~p"/controls/nudge/#{@selected}"}>Nudge</.btn>
-            <.btn navigate={~p"/controls/dpad/#{@selected}"}>Keypad</.btn>
-            <.btn navigate={~p"/controls/tilt/#{@selected}"}>Tilt</.btn>
-            <.btn navigate={~p"/controls/orb/#{@selected}"}>Orb</.btn>
-          </.row>
-          <%!-- a plugged-in pad shows itself here, with the one switch that matters --%>
-          <.item :if={@pads != []} label="Pad" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
-            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Pad Moves Scope</.btn>
+        <%!-- a plugged-in pad shows itself here, with the one switch that matters; the
+              ways to move the scope are in the sidebar's Controls, not repeated here --%>
+        <.card :if={@pads != []} title="Drive It">
+          <.item label="Game controller" detail={Enum.map_join(@pads, ", ", & &1.parser) <> " · " <> pad_words(@mapper, @selected)}>
+            <.btn :if={!pad_on?(@mapper, @selected)} variant="primary" phx-click="pad" phx-value-on="true">Moves the Mount</.btn>
             <.btn :if={pad_on?(@mapper, @selected)} phx-click="pad" phx-value-on="false">Watch Only</.btn>
           </.item>
         </.card>
@@ -280,9 +397,7 @@ defmodule Controller.StartLive do
       </.hint>
 
       <p class="flow-more">
-        <.link navigate={~p"/"}>Home ›</.link>
-        · <.link href={~p"/docs/start"}>How This Works</.link>
-        · <.link navigate={~p"/events"}>Events</.link>
+        <.link href={~p"/docs/start"}>How This Works</.link>
       </p>
 
       <.notice notice={@notice} />
@@ -292,11 +407,14 @@ defmodule Controller.StartLive do
 
   defp steps(status) do
     n = if status, do: min(status.n, 3), else: 0
-    [{:plug, "Plug in"}, {:zero, "Zero"}, {:stars, "Stars #{n}/3"}, {:look, "Look"}]
+    [{:plug, "Plug In"}, {:zero, "Set Home"}, {:stars, "Stars #{n}/3"}, {:look, "Look"}]
   end
 
   @order [:plug, :zero, :stars, :look]
-  defp state(key, step) do
+  # Set Home passed by without it (the camera needs none): not done, and not in the way
+  defp state(:zero, _step, true), do: "later"
+
+  defp state(key, step, _home_optional) do
     i = Enum.find_index(@order, &(&1 == key))
     j = Enum.find_index(@order, &(&1 == step))
 
@@ -307,10 +425,9 @@ defmodule Controller.StartLive do
     end
   end
 
-  defp title(:plug, _), do: "Setup"
-  defp title(:zero, id), do: "#{short(id)} · Setup"
-  defp title(:stars, id), do: "#{short(id)} · Star Align"
-  defp title(:look, id), do: "#{short(id)} · Locked"
+  # the nav calls this page Start; the step strip under the title says which step
+  defp start_title(nil), do: "Alignment"
+  defp start_title(id), do: Controller.Words.title(short(id), "Alignment")
 
   # a serial port's name is long and mostly noise in a header: keep the tail that tells cables apart
   defp short("cu.usbserial-" <> tail), do: tail
@@ -325,18 +442,26 @@ defmodule Controller.StartLive do
 
   defp moving?(_, _), do: false
 
+  defp aligning?(%{done: false}), do: true
+  defp aligning?(_), do: false
+
+  # the tube along the polar axis, as Set Home leaves it: Dec still near its zero. Never zeroed, a
+  # Dec of zero is only where the mount was switched on, which says nothing about where it points
+  defp at_pole?(%{homed: true, axes: %{dec: %{degrees: d}}}) when is_number(d), do: abs(d) < 10
+  defp at_pole?(_), do: false
+
   defp pad_on?(m, id), do: Map.get(m, :armed, false) and Map.get(m, :target) == id
 
   defp pad_words(m, id) do
     cond do
-      pad_on?(m, id) -> "Moves the scope"
+      pad_on?(m, id) -> "Moves the mount"
       Map.get(m, :off_reason) -> m.off_reason
       Map.get(m, :ignoring) -> "Held, but off"
       true -> "Watch only"
     end
   end
 
-  defp fmt(nil), do: "—"
+  defp fmt(nil), do: Controller.Words.none()
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
 
   defp safe(fun) do

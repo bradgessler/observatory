@@ -1,9 +1,13 @@
 defmodule Firmware.Distribution do
   @moduledoc """
-  Starts Erlang distribution as `telescope@telescope.local` once the box has an
-  address, so a laptop on the same network (Wi-Fi, ethernet, or the USB cable)
-  can `Node.connect(:"telescope@telescope.local")` and call `Mount` directly.
-  Retries quietly until networking is up.
+  Starts Erlang distribution as `telescope@<hostname>.local` once the box has
+  an address, so a computer on the same network (Wi-Fi, ethernet, or the USB
+  cable) can `Node.connect(:"telescope@observatory.local")` and call `Mount`
+  directly. Retries quietly until networking is up.
+
+  Distribution registers with `epmd`, which nothing on a Nerves box starts by
+  itself; without it every attempt logs `register/listen error: econnrefused`
+  (every 2 s, all night, onto the SD card). So it is started first.
   """
   use GenServer
   require Logger
@@ -14,6 +18,7 @@ defmodule Firmware.Distribution do
 
   @impl true
   def init(_) do
+    _ = System.cmd("epmd", ["-daemon"], stderr_to_stdout: true)
     send(self(), :try)
     {:ok, %{}}
   end
@@ -24,10 +29,14 @@ defmodule Firmware.Distribution do
       {:noreply, state}
     else
       name = Application.get_env(:firmware, :node_name, "telescope")
-      node = :"#{name}@#{name}.local"
+      host = Application.get_env(:firmware, :name, name)
+      node = :"#{name}@#{host}.local"
 
       case :net_kernel.start([node, :longnames]) do
         {:ok, _} ->
+          # started at runtime, so the release's cookie never applied: without
+          # this the node gets a random one and no Mac can join it
+          Node.set_cookie(Application.get_env(:firmware, :cookie, :observatory))
           Logger.info("distribution up as #{node}")
 
         {:error, reason} ->

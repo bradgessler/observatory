@@ -99,6 +99,29 @@ defmodule Controller.Sky.ModelTest do
       end
     end
 
+    # The first field night: never zeroed, clutches locked wherever it was, so
+    # the encoders count from power-on and the offsets are anything at all.
+    for {label, truth} <- [
+          {"never zeroed (offsets 63°, 130°)", %{axis_alt: 36.0, axis_az: 4.0, off_ra: -63.0, off_dec: 130.6}},
+          {"never zeroed, other side (offsets 170°, -95°)", %{axis_alt: 39.5, axis_az: 356.0, off_ra: 170.0, off_dec: -95.0}}
+        ] do
+      @truth truth
+      test "three photos align a mount #{label} and a goto to the Moon lands" do
+        truth = @truth
+        samples = Enum.map(["Altair", "Vega", "Arcturus"], &centre(truth, &1))
+        {:ok, p, q} = Model.fit(samples, @signs, Model.ideal(@lat))
+        assert q.rms_arcmin < 0.1, "rms #{q.rms_arcmin}′"
+
+        # the Moon that night, 20 minutes later
+        later = DateTime.add(@now, 20 * 60, :second)
+        {alt, az} = Astro.alt_az(355.9, 0.79, @lat, lst(later))
+        {r, d} = Model.encoders(p, @signs, alt, az)
+        {alt_true, az_true} = Model.altaz(truth, @signs, r, d)
+        miss = Astro.separation(Astro.altaz_vec(alt, az), Astro.altaz_vec(alt_true, az_true)) * 60
+        assert miss < 1.0, "missed the Moon by #{miss}′"
+      end
+    end
+
     test "two stars is enough for a fix, three tells you how good it is" do
       truth = %{axis_alt: 45.0, axis_az: 20.0, off_ra: 5.0, off_dec: -3.0}
       {:ok, p2, _} = Model.fit(Enum.map(["Vega", "Arcturus"], &centre(truth, &1)), @signs, Model.ideal(@lat))

@@ -23,7 +23,8 @@ defmodule Provision.VM do
       Provision.VM.stop(vm)
   """
 
-  @banner ~r/Nerves CLI help|Toolshed.* imported|iex\(\d+\)>/
+  # the prompt is iex(1)> until distribution is up, then iex(name@host)1>
+  @banner ~r/Nerves CLI help|Toolshed.* imported|iex\([^)]*\)\d*>/
   @default_ssh 4422
   @default_web 4444
 
@@ -65,14 +66,18 @@ defmodule Provision.VM do
   def boot(opts \\ []) do
     ssh = opts[:ssh_port] || @default_ssh
     web = opts[:web_port] || @default_web
-    wait = opts[:timeout] || 90_000
+    # A new image boots twice: the first boot formats the empty data partition
+    # and reboots. qemu on a Mac emulates the CPU in software, so two boots on a
+    # busy machine can take well over a minute and a half.
+    wait = opts[:timeout] || 180_000
 
     with {:ok, img} <- image(opts) do
       args = [
         "-m", to_string(opts[:memory] || 1024),
         "-smp", to_string(opts[:cpus] || 2),
         "-drive", "file=#{img},format=raw,if=virtio",
-        "-netdev", "user,id=n0,hostfwd=tcp::#{ssh}-:22,hostfwd=tcp::#{web}-:4000",
+        # the box serves its page on 80, as it does to a phone in the field
+        "-netdev", "user,id=n0,hostfwd=tcp::#{ssh}-:22,hostfwd=tcp::#{web}-:80",
         "-device", "virtio-net-pci,netdev=n0",
         # stdio is the serial console and nothing else: with the monitor
         # multiplexed onto it, a port with no terminal can wedge at boot
@@ -151,8 +156,14 @@ defmodule Provision.VM do
 
       receive do
         {^port, {:data, chunk}} ->
+          # match across the chunk boundary too: the banner can arrive in pieces
+          seam = case vm.console do
+            [prev | _] -> binary_part(prev, max(byte_size(prev) - 200, 0), min(byte_size(prev), 200)) <> chunk
+            [] -> chunk
+          end
+
           vm = %{vm | console: [chunk | vm.console]}
-          if Regex.match?(@banner, chunk), do: {:ok, vm}, else: collect(vm, deadline)
+          if Regex.match?(@banner, seam), do: {:ok, vm}, else: collect(vm, deadline)
 
         {^port, {:exit_status, code}} ->
           {:error, "QEMU stopped before the image booted (#{code}).\n#{console(vm)}", vm}
@@ -169,7 +180,12 @@ defmodule Provision.VM do
   a question, rather than a person reading a console and deciding.
   """
   def eval(vm, code, opts \\ []) do
-    args = [
+    # The VM's own key (see firmware/config/target.exs), and only that key: a
+    # passphrase on yours would make BatchMode fail whenever the agent is empty.
+    key = Path.join(System.user_home!(), ".observatory/vm_ed25519")
+    identity = if File.exists?(key), do: ["-i", key, "-o", "IdentitiesOnly=yes"], else: []
+
+    args = identity ++ [
       "-p", to_string(vm.ssh_port),
       "-o", "StrictHostKeyChecking=no",
       "-o", "UserKnownHostsFile=/dev/null",

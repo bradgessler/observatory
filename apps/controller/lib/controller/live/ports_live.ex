@@ -27,6 +27,11 @@ defmodule Controller.PortsLive do
   def handle_info({:settings, _, _}, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("stop", _, socket) do
+    Controller.Stop.all()
+    {:noreply, socket}
+  end
+
   def handle_event("connect", %{"port" => port}, socket) do
     Mount.connect_port(port)
     {:noreply, socket |> assign(notice: "Connecting #{Path.basename(port)}") |> refresh()}
@@ -46,7 +51,7 @@ defmodule Controller.PortsLive do
       <:header>
         <.back navigate={~p"/devices"} label="Devices" />
         <.title>Serial Ports</.title>
-        <.actions><.help href={~p"/docs/devices"} label="devices" /></.actions>
+        <.actions><.help href={~p"/docs/devices"} label="devices" /><.stop /></.actions>
       </:header>
 
       <.card title="On This Machine">
@@ -69,7 +74,7 @@ defmodule Controller.PortsLive do
           </li>
         </ul>
         <.hint :if={@ports == []}>The OS lists no serial ports. The cable isn't plugged into this machine, or the hub isn't passing it through.</.hint>
-        <.hint>Connect tries the Sky-Watcher protocol on that port. A port that isn't a telescope just won't answer.</.hint>
+        <.hint>Connect tries the Sky-Watcher protocol on that port. A port that isn't a mount just won't answer.</.hint>
       </.card>
 
       <.notice notice={@notice} />

@@ -20,7 +20,7 @@ defmodule Controller.EyepieceTest do
   test "before zeroing there is nothing to look at", %{conn: conn, id: id} do
     {:ok, _view, html} = live(conn, "/controls/eyepiece/#{id}")
     assert html =~ "Nothing to Look At Yet"
-    assert html =~ "Zero the axes first"
+    assert html =~ "Set home first"
   end
 
   test "once zeroed it draws the field, and says it is the simulator's truth", %{conn: conn, id: id} do

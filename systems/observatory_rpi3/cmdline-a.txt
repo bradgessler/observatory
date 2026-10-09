@@ -1,0 +1,13 @@
+# NOTES:
+# 1. serial0 is magically replaced to the right thing by the RPi bootloader.
+#    /dev/serial0 won't exist unless you make it, so don't expected it in
+#    userland.
+# 2. If not using HDMI, remove console=tty1 and consoleblank=0
+# 3. quiet skips printing kernel messages to the output and significantly
+#    shortens boot time
+# 4. dwc_otg.fiq_fsm_mask=0xE: the Pi 3's USB controller handles full-speed
+#    bulk transfers behind the hub (the FTDI cable to the mount) in the plain
+#    interrupt handler instead of its FIQ state machine, which dropped the whole
+#    hub while the telescope camera streamed (#106). The default is 0xF; bit 0
+#    is that bulk path. The camera's high-speed isochronous path (bit 2) stays.
+console=tty1 console=serial0,115200 fbcon=scrollback:1024k root=/dev/mmcblk0p5 rootwait consoleblank=0 quiet dwc_otg.fiq_fsm_mask=0xE

@@ -52,16 +52,149 @@ defmodule Controller.Sky.Lineup do
     stale = samples(id) != [] and home_at != nil and entry(id)["home_at"] != home_at
 
     if stale do
-      Telescope.Events.emit(:lineup, :reset, %{id: id, why: "axes re-zeroed"})
+      Telescope.Events.emit(:lineup, :reset, %{id: id, why: "home set again"})
       put_samples(id, [])
     end
 
     put_samples(id, samples(id) ++ [sample], home_at)
-    Telescope.Events.emit(:lineup, :star, %{id: id, name: obj.name, theta_ra: sample["theta_ra"], theta_dec: sample["theta_dec"]})
+
+    Telescope.Events.emit(:lineup, :star, %{
+      id: id,
+      name: obj.name,
+      theta_ra: sample["theta_ra"],
+      theta_dec: sample["theta_dec"]
+    })
+
+    refit(id)
+  end
+
+  @doc """
+  Replace this mount's samples with `samples` (the stored shape: "name", "at",
+  "theta_ra", "theta_dec", "ra_deg", "dec_deg"), counted from the zero at
+  `home_at`, and refit from scratch. How Align by Photo hands over its
+  solved photos: the same model, the same GoTo.
+  """
+  def replace(id, samples, home_at) do
+    old = entry(id)
+    # the counterweight's side was told for this mount as it stands: it outlives the samples,
+    # and so does the model they were fitted to until the refit below replaces it
+    keep = if stale?(id, old), do: %{}, else: Map.take(old, ["cw", "cw_told", "model"])
+
+    Settings.put(
+      @key,
+      Map.put(Settings.get(@key, %{}), id, Map.merge(keep, %{"samples" => samples, "home_at" => home_at}))
+    )
+
     refit(id)
   end
 
   defp entry(id), do: Settings.get(@key, %{}) |> Map.get(id, %{})
+
+  # -- the counterweight ----------------------------------------------------------------------
+
+  # the bar this near level (or upright) and the question cannot be answered by eye
+  @cw_unsure_deg 10.0
+
+  @doc """
+  Say where the counterweight is, because the sky cannot. A telescope on
+  either side of the mount sees the same stars, so photos and centred stars
+  only ever guess it (`Model.cw_down/3`: "most of them were taken with it
+  hanging low"), and the guess is a coin toss when they were all taken with
+  the counterweight bar near level. Got wrong, Go To asks for a meridian flip
+  on the safe side of the sky and goes happily to the unsafe one. Told once,
+  it is kept with this mount's alignment until the mount is switched on again.
+
+  `where` is how the mount stands right now (`snap`, its snapshot):
+
+    * `:below` or `:above`: the counterweight is lower, or higher, than the
+      telescope tube. With the bar within #{trunc(@cw_unsure_deg)}° of level nobody can say:
+      `{:error, :level}`, ask for the side instead.
+    * `:east` or `:west`: the side of the mount the telescope tube is on (in
+      the north: stand behind the mount looking up the polar axis, east is on
+      your right). With the bar near upright: `{:error, :upright}`, ask
+      below or above instead.
+    * `:guess`: forget what was told.
+
+  Returns `{:ok, 1 | -1 | nil}` (the sign `Model.counterweight/3` uses), or
+  `{:error, :not_lined_up}` when there is no model to hang it on.
+  """
+  def set_counterweight(id, snap, where)
+
+  def set_counterweight(id, _snap, :guess) do
+    put_entry(id, &Map.drop(&1, ["cw", "cw_told"]))
+    {:ok, nil}
+  end
+
+  def set_counterweight(id, %{axes: %{ra: %{degrees: theta}}}, where) when where in [:below, :above, :east, :west] do
+    case model(id) do
+      nil ->
+        {:error, :not_lined_up}
+
+      m ->
+        h = (m.signs.ha_sign * theta + m.off_ra) * :math.pi() / 180
+        # the bar's height with the sign taken as +1, and which way a turn west moves it
+        level = :math.asin(:math.sin(h)) * 180 / :math.pi()
+        upright = 90.0 - abs(level)
+
+        cw =
+          cond do
+            where in [:below, :above] and abs(level) < @cw_unsure_deg -> {:error, :level}
+            where in [:east, :west] and upright < @cw_unsure_deg -> {:error, :upright}
+            where == :below -> if(level > 0, do: -1, else: 1)
+            where == :above -> if(level > 0, do: 1, else: -1)
+            # tube on the east, counterweight on the west: turning west lowers it
+            where == :east -> if(:math.cos(h) > 0, do: -1, else: 1)
+            where == :west -> if(:math.cos(h) > 0, do: 1, else: -1)
+          end
+
+        with c when is_integer(c) <- cw do
+          put_entry(id, &Map.merge(&1, %{"cw" => c, "cw_told" => Atom.to_string(where)}))
+          {:ok, c}
+        end
+    end
+  end
+
+  def set_counterweight(_id, _snap, _where), do: {:error, :not_lined_up}
+
+  @doc """
+  The counterweight as a page says it, for the mount as it stands (`snap`)
+  under its alignment (`model/1`):
+
+      %{from: :told | :guessed, now: :below | :above | :level}
+
+  `from` is whether anyone has said (`set_counterweight/3`); `now` is where
+  the model has it at this moment, by the side it was told or guessed, and
+  `:level` with the bar within #{trunc(@cw_unsure_deg)}° of level, where nobody can answer by eye.
+
+  nil when nothing rests on it: no alignment in force, or home is set. Home
+  is where the counterweight hangs straight down, so with home set Go To and
+  the soft limits go by that, and there is nothing to ask.
+  """
+  def counterweight(%{signs: sg} = m, %{homed: false, axes: %{ra: %{degrees: theta}}}) when is_number(theta) do
+    height = Model.counterweight(m, sg, theta)
+
+    now =
+      cond do
+        abs(height) < @cw_unsure_deg -> :level
+        height < 0 -> :below
+        true -> :above
+      end
+
+    %{from: if(m[:cw_told], do: :told, else: :guessed), now: now}
+  end
+
+  def counterweight(_model, _snap), do: nil
+
+  @doc "The same for mount `id` on this machine, as it stands right now."
+  def counterweight(id) when is_binary(id), do: counterweight(model(id), safe_snapshot(id))
+
+  defp told_cw(%{"cw" => c}) when c in [1, -1], do: c
+  defp told_cw(_), do: nil
+
+  defp put_entry(id, fun) do
+    all = Settings.get(@key, %{})
+    Settings.put(@key, Map.put(all, id, fun.(Map.get(all, id, %{}))))
+  end
 
   @doc "Forget one sample by index; refits."
   def drop(id, index) do
@@ -88,34 +221,76 @@ defmodule Controller.Sky.Lineup do
 
     case e["model"] do
       %{"axis_alt" => a, "axis_az" => z, "off_ra" => r, "off_dec" => d} ->
-        if stale?(id, e),
-          do: nil,
-          else: %{axis_alt: a / 1, axis_az: z / 1, off_ra: r / 1, off_dec: d / 1, signs: signs_of(e)}
+        if stale?(id, e) do
+          nil
+        else
+          m = %{
+            axis_alt: a / 1,
+            axis_az: z / 1,
+            off_ra: r / 1,
+            off_dec: d / 1,
+            signs: signs_of(e)
+          }
+
+          # which way the counterweight hangs: as told (`set_counterweight/3`), else
+          # guessed from where the points were taken. `cw_told` says which, for
+          # whoever has to decide how far to trust it (the hold's limit, the pages)
+          thetas = for s <- Map.get(e, "samples", []), is_number(s["theta_ra"]), do: s["theta_ra"]
+          told = told_cw(e)
+          Map.merge(m, %{cw: told || Model.cw_down(m, m.signs, thetas), cw_told: told != nil})
+        end
 
       _ ->
         nil
     end
   end
 
-  @doc "Were the axes zeroed again after these stars were taken?"
+  @doc """
+  Do these stars still hold? Zeroed: not if the axes were zeroed again since.
+  Never zeroed: the counts run from wherever the mount was switched on, so
+  they hold until it is switched on again (not a Pi reboot: the mount keeps
+  its counts through that).
+  """
   def stale?(id, e \\ nil) do
     e = e || entry(id)
 
     case {e["home_at"], e["model"], safe_snapshot(id)} do
       {_, nil, _} -> false
       {_, _, nil} -> false
-      # not zeroed at all (a restart, a power cycle): the stars counted from a zero that is gone
-      {_, _, %{homed: false}} -> true
+      # never zeroed: stale only once the mount has been switched on since the first star
+      {_, _, %{homed: false} = snap} -> switched_on_since?(id, e, snap)
       {nil, _, _} -> false
       {at, _, %{homed_at: now_at}} when is_integer(now_at) -> at != now_at
       _ -> false
     end
   end
 
+  defp switched_on_since?(id, e, snap) do
+    first =
+      e
+      |> Map.get("samples", [])
+      |> Enum.flat_map(fn s ->
+        with at when is_binary(at) <- s["at"],
+             {:ok, t, _} <- DateTime.from_iso8601(at),
+             do: [DateTime.to_unix(t, :millisecond)],
+             else: (_ -> [])
+      end)
+      |> Enum.min(fn -> nil end)
+
+    first != nil and
+      Enum.any?(
+        [Map.get(snap, :power_on_at), Controller.MountPower.last_on(id)],
+        &(is_integer(&1) and &1 > first)
+      )
+  end
+
   defp signs_of(e) do
     case e["signs"] do
-      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] -> %{ha_sign: h, dec_sign: d}
-      _ -> Pointing.pointing()
+      %{"ha_sign" => h, "dec_sign" => d} when h in [-1, 1] and d in [-1, 1] ->
+        %{ha_sign: h, dec_sign: d}
+
+      _ ->
+        Pointing.pointing()
     end
   end
 
@@ -145,6 +320,9 @@ defmodule Controller.Sky.Lineup do
       # one or two stars fit exactly whatever they are; only three or more can be judged
       good_for: if(rms && n >= 3, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
       signs_corrected?: Map.get(entry, "signs_corrected", false),
+      # :told, or :guessed (from where the points were taken), on a mount whose home was never
+      # set; nil with home set, where nothing rests on it (`counterweight/2`)
+      counterweight: (cw = counterweight(m, safe_snapshot(id))) && cw.from,
       solved?: m != nil
     }
   end
@@ -176,8 +354,18 @@ defmodule Controller.Sky.Lineup do
     # once a sign was corrected during this star alignment, keep saying so
     corrected_before = old["signs_corrected"] == true
 
+    # the model these samples had before the newest one: the fit starts from it (`Model.fit/4`)
+    near =
+      case old["model"] do
+        %{"axis_alt" => a, "axis_az" => z, "off_ra" => r, "off_dec" => d} when is_number(a) and is_number(z) and is_number(r) and is_number(d) ->
+          %{axis_alt: a / 1, axis_az: z / 1, off_ra: r / 1, off_dec: d / 1}
+
+        _ ->
+          nil
+      end
+
     entry =
-      case fit_with_signs(fit_samples, signs, start) do
+      case fit_with_signs(fit_samples, signs, start, near) do
         {:ok, p, q} ->
           used = q[:signs_corrected] || signs
 
@@ -185,7 +373,12 @@ defmodule Controller.Sky.Lineup do
             "samples" => samples,
             "home_at" => old["home_at"],
             "signs" => %{"ha_sign" => used.ha_sign, "dec_sign" => used.dec_sign},
-            "model" => %{"axis_alt" => p.axis_alt, "axis_az" => p.axis_az, "off_ra" => p.off_ra, "off_dec" => p.off_dec},
+            "model" => %{
+              "axis_alt" => p.axis_alt,
+              "axis_az" => p.axis_az,
+              "off_ra" => p.off_ra,
+              "off_dec" => p.off_dec
+            },
             "rms_arcmin" => q.rms_arcmin,
             "worst_arcmin" => q.worst_arcmin,
             "residuals_arcmin" => q.residuals_arcmin,
@@ -197,7 +390,7 @@ defmodule Controller.Sky.Lineup do
           %{"samples" => samples, "home_at" => old["home_at"]}
       end
 
-    Settings.put(@key, Map.put(all, id, entry))
+    Settings.put(@key, Map.put(all, id, Map.merge(Map.take(old, ["cw", "cw_told"]), entry)))
     status(id)
   end
 
@@ -209,8 +402,8 @@ defmodule Controller.Sky.Lineup do
   # it comes out as an RA offset near 180°, which means the model thinks the
   # counterweight is up when it is down and would pick the wrong side of the
   # pier for every goto. Flip it and refit. Either way the modes chip says so.
-  defp fit_with_signs(fit_samples, signs, start) do
-    case fit_with_ra_sign(fit_samples, signs, start) do
+  defp fit_with_signs(fit_samples, signs, start, near) do
+    case fit_with_ra_sign(fit_samples, signs, start, near) do
       {:ok, p, q, sg} when abs(p.off_ra) > 90 and abs(p.off_ra) < 270 ->
         flipped = %{sg | dec_sign: -sg.dec_sign}
 
@@ -219,7 +412,11 @@ defmodule Controller.Sky.Lineup do
             p2 = %{p2 | off_ra: Astro.norm180(p2.off_ra)}
 
             if q2.rms_arcmin <= q.rms_arcmin + 0.5 and abs(p2.off_ra) <= 90 do
-              Settings.put("pointing", %{"ha_sign" => flipped.ha_sign, "dec_sign" => flipped.dec_sign})
+              Settings.put("pointing", %{
+                "ha_sign" => flipped.ha_sign,
+                "dec_sign" => flipped.dec_sign
+              })
+
               {:ok, p2, Map.put(q2, :signs_corrected, flipped)}
             else
               {:ok, p, if(sg == signs, do: q, else: Map.put(q, :signs_corrected, sg))}
@@ -237,10 +434,14 @@ defmodule Controller.Sky.Lineup do
     end
   end
 
-  defp fit_with_ra_sign(fit_samples, signs, start) do
-    case Model.fit(fit_samples, signs, start) do
+  defp fit_with_ra_sign(fit_samples, signs, start, near) do
+    case Model.fit(fit_samples, signs, start, near: near) do
       {:ok, _p, %{rms_arcmin: rms}} = first when length(fit_samples) >= 3 and rms > 30.0 ->
-        others = for h <- [1, -1], d <- [1, -1], %{ha_sign: h, dec_sign: d} != signs, do: %{ha_sign: h, dec_sign: d}
+        others =
+          for h <- [1, -1],
+              d <- [1, -1],
+              %{ha_sign: h, dec_sign: d} != signs,
+              do: %{ha_sign: h, dec_sign: d}
 
         best =
           others
@@ -252,7 +453,9 @@ defmodule Controller.Sky.Lineup do
             # three stars with one mis-named can look like a flipped axis:
             # the model uses the better signs either way, the global setting
             # only changes once a fourth star agrees
-            if length(fit_samples) >= 4, do: Settings.put("pointing", %{"ha_sign" => sg.ha_sign, "dec_sign" => sg.dec_sign})
+            if length(fit_samples) >= 4,
+              do: Settings.put("pointing", %{"ha_sign" => sg.ha_sign, "dec_sign" => sg.dec_sign})
+
             {:ok, p, q, sg}
 
           _ ->
@@ -298,10 +501,22 @@ defmodule Controller.Sky.Lineup do
     |> Enum.map(fn s ->
       {alt, az} = Astro.alt_az(s.ra_deg, s.dec_deg, site.lat, lst)
       v = Astro.altaz_vec(alt, az)
-      spread = if done_vecs == [], do: 90.0, else: Enum.min(Enum.map(done_vecs, &Astro.separation(v, &1)))
+
+      spread =
+        if done_vecs == [],
+          do: 90.0,
+          else: Enum.min(Enum.map(done_vecs, &Astro.separation(v, &1)))
+
       # mid-altitude stars are easy to reach and free of refraction; very high ones are awkward at a GEM
       alt_score = 1.0 - abs(alt - 50) / 50
-      Map.merge(s, %{alt: alt, az: az, spread: spread, score: min(spread, 90) / 90 * 0.7 + alt_score * 0.3 - s.mag * 0.05, where: where_words(alt, az)})
+
+      Map.merge(s, %{
+        alt: alt,
+        az: az,
+        spread: spread,
+        score: min(spread, 90) / 90 * 0.7 + alt_score * 0.3 - s.mag * 0.05,
+        where: where_words(alt, az)
+      })
     end)
     # above 20° and clear of the tree line by a margin — a star behind the
     # oaks is no use for lining up
@@ -328,7 +543,13 @@ defmodule Controller.Sky.Lineup do
       |> Enum.filter(&(&1.kind == :star and &1.mag <= 2.5))
       |> Enum.map(fn s ->
         {alt, az} = Astro.alt_az(s.ra_deg, s.dec_deg, site.lat, lst)
-        Map.merge(s, %{alt: alt, az: az, away_deg: Astro.separation(v0, Astro.altaz_vec(alt, az)), where: where_words(alt, az)})
+
+        Map.merge(s, %{
+          alt: alt,
+          az: az,
+          away_deg: Astro.separation(v0, Astro.altaz_vec(alt, az)),
+          where: where_words(alt, az)
+        })
       end)
       |> Enum.filter(&(&1.alt > 5))
       |> Enum.sort_by(& &1.away_deg)
@@ -357,6 +578,7 @@ defmodule Controller.Sky.Lineup do
   end
 
   defp axis_words(m, lat) do
+    m = Model.canonical(m)
     off = Model.axis_error(m, lat)
     ideal = Model.ideal(lat)
     daz = Astro.norm180(m.axis_az - ideal.axis_az)
@@ -364,8 +586,14 @@ defmodule Controller.Sky.Lineup do
 
     side =
       [
-        if(abs(daz) >= 0.5, do: "#{:erlang.float_to_binary(abs(daz), decimals: 1)}° #{if daz > 0, do: "east", else: "west"} of north"),
-        if(abs(dalt) >= 0.5, do: "#{:erlang.float_to_binary(abs(dalt), decimals: 1)}° too #{if dalt > 0, do: "steep", else: "shallow"}")
+        if(abs(daz) >= 0.5,
+          do:
+            "#{:erlang.float_to_binary(abs(daz), decimals: 1)}° #{if daz > 0, do: "east", else: "west"} of north"
+        ),
+        if(abs(dalt) >= 0.5,
+          do:
+            "#{:erlang.float_to_binary(abs(dalt), decimals: 1)}° too #{if dalt > 0, do: "steep", else: "shallow"}"
+        )
       ]
       |> Enum.reject(&is_nil/1)
       |> Enum.join(", ")

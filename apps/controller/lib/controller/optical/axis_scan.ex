@@ -29,7 +29,7 @@ defmodule Controller.Optical.AxisScan do
   @factor 3
   @settle_ms 1_500
   @topic "optical"
-  @stopped_words "STOP was pressed — scan abandoned; the mount stays where it is"
+  @stopped_words "STOP was pressed: scan abandoned; the mount stays where it is"
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -192,10 +192,10 @@ defmodule Controller.Optical.AxisScan do
 
     cond do
       not match?(%{connected: true, axes: %{ra: %{}, dec: %{}}}, snap) -> {:error, "the mount is not connected"}
-      snap.homed != true -> {:error, "set home first — the soft limits that keep a scan safe are only armed once the mount knows where it is"}
-      snap.tracking != :off -> {:error, "the mount is tracking — stop tracking first"}
-      Controller.Sky.Tracker.active?(id) -> {:error, "the tracker is following an object — stop it first"}
-      snap.axes.ra.running or snap.axes.dec.running -> {:error, "the mount is moving — stop it first"}
+      snap.homed != true -> {:error, "Set home first: the soft limits that keep a scan safe are only armed once the mount knows where it is"}
+      snap.tracking != :off -> {:error, "The mount is tracking: stop tracking first"}
+      Controller.Sky.Tracker.active?(id) -> {:error, "The mount is tracking an object: stop tracking first"}
+      snap.axes.ra.running or snap.axes.dec.running -> {:error, "The mount is moving: stop it first"}
       true -> {:ok, %{ra: snap.axes.ra.degrees / 1, dec: snap.axes.dec.degrees / 1}}
     end
   end
@@ -366,7 +366,7 @@ defmodule Controller.Optical.AxisScan do
   # every still the same bytes means the camera has frozen; say so instead of fitting noise
   defp frames_alive(frames) do
     hashes = Enum.map(frames, fn {f, _} -> :erlang.phash2(f.pixels) end)
-    if length(Enum.uniq(hashes)) <= 1, do: {:error, "the camera is frozen — every picture is identical; stop and restart the video, or replug the camera"}, else: :ok
+    if length(Enum.uniq(hashes)) <= 1, do: {:error, "The camera is frozen: every still is identical; stop and restart the video, or replug the camera"}, else: :ok
   end
 
   # -- moving, and undoing it -----------------------------------------------------------
@@ -631,7 +631,7 @@ defmodule Controller.Optical.AxisScan do
         {:ok, %{vectors: vectors, dropped: length(raw) - length(vectors), fit: fit, line: Pivot.axis_line(vectors), frame_after: after_name, words: Pivot.words(fit)}}
 
       {:error, :limit} ->
-        {:error, "#{axis}: soft limit — move the mount away from a limit and try again"}
+        {:error, "#{axis}: soft limit. Move the mount away from a limit and try again"}
 
       {:error, :stopped} ->
         {:error, @stopped_words}

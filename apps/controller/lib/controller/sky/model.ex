@@ -29,7 +29,13 @@ defmodule Controller.Sky.Model do
   @type signs :: %{ha_sign: integer, dec_sign: integer}
 
   @doc "The ideal set-up at this latitude: axis on the pole, no offsets."
-  def ideal(lat), do: %{axis_alt: lat / 1, axis_az: if(lat >= 0, do: 0.0, else: 180.0), off_ra: 0.0, off_dec: 0.0}
+  def ideal(lat),
+    do: %{
+      axis_alt: lat / 1,
+      axis_az: if(lat >= 0, do: 0.0, else: 180.0),
+      off_ra: 0.0,
+      off_dec: 0.0
+    }
 
   # -- forward: encoders → sky -----------------------------------------------------
 
@@ -44,7 +50,8 @@ defmodule Controller.Sky.Model do
   end
 
   @doc "Alt/az in degrees for encoder angles."
-  def altaz(params, signs, theta_ra, theta_dec), do: params |> tube_vec(signs, theta_ra, theta_dec) |> Astro.vec_altaz()
+  def altaz(params, signs, theta_ra, theta_dec),
+    do: params |> tube_vec(signs, theta_ra, theta_dec) |> Astro.vec_altaz()
 
   @doc "RA/Dec in degrees for encoder angles, seen from `lat` at sidereal time `lst`."
   def radec(params, signs, theta_ra, theta_dec, lat, lst) do
@@ -74,7 +81,8 @@ defmodule Controller.Sky.Model do
       end
 
     for {hh, dd} <- [{h, d}, {h + 180, -d}] do
-      {Astro.norm180((hh - params.off_ra) / signs.ha_sign), (dd - params.off_dec) / signs.dec_sign}
+      {Astro.norm180((hh - params.off_ra) / signs.ha_sign),
+       (dd - params.off_dec) / signs.dec_sign}
     end
   end
 
@@ -90,17 +98,26 @@ defmodule Controller.Sky.Model do
   # nobody asked for. The nearest solution wins; the soft limits end it.
   def encoders(params, signs, alt, az, {:stay, near}) do
     solutions(params, signs, alt, az)
-    |> Enum.min_by(fn {r, d} -> abs(Astro.norm180(r - elem(near, 0))) + abs(d - elem(near, 1)) end)
+    |> Enum.min_by(fn {r, d} ->
+      abs(Astro.norm180(r - elem(near, 0))) + abs(d - elem(near, 1))
+    end)
   end
 
   def encoders(params, signs, alt, az, near) do
     [a, b] = solutions(params, signs, alt, az)
 
     cond do
-      abs(elem(a, 0)) <= 90 and abs(elem(b, 0)) > 90 -> a
-      abs(elem(b, 0)) <= 90 and abs(elem(a, 0)) > 90 -> b
-      near != nil -> Enum.min_by([a, b], fn {r, d} -> abs(r - elem(near, 0)) + abs(d - elem(near, 1)) end)
-      true -> Enum.min_by([a, b], fn {r, _} -> abs(r) end)
+      abs(elem(a, 0)) <= 90 and abs(elem(b, 0)) > 90 ->
+        a
+
+      abs(elem(b, 0)) <= 90 and abs(elem(a, 0)) > 90 ->
+        b
+
+      near != nil ->
+        Enum.min_by([a, b], fn {r, d} -> abs(r - elem(near, 0)) + abs(d - elem(near, 1)) end)
+
+      true ->
+        Enum.min_by([a, b], fn {r, _} -> abs(r) end)
     end
   end
 
@@ -110,6 +127,47 @@ defmodule Controller.Sky.Model do
     encoders(params, signs, alt, az, near)
   end
 
+  # -- the counterweight ----------------------------------------------------------
+
+  @doc """
+  How high the counterweight sits for RA encoder `theta_ra`, in degrees of RA
+  turn above level: negative is below (normal), 0 level, 90 straight up.
+
+  The counterweight shaft *is* the Dec axis. With the tube on the meridian
+  (H = 0 or 180) the shaft lies level; at H = ±90 it hangs straight down or
+  points straight up. Which of those two is down is not in the pointing: the
+  two poses that reach a star see exactly the same sky. `params.cw` says
+  which, read from the alignment points by `cw_down/3`.
+  """
+  def counterweight(params, signs, theta_ra) do
+    h = (signs.ha_sign * theta_ra + params.off_ra) * @deg
+    Map.get(params, :cw, 1) * :math.asin(:math.sin(h)) / @deg
+  end
+
+  @doc """
+  Which way the counterweight hangs, from where the alignment points were
+  taken (`thetas`: their RA encoders): a person centring a star at the
+  eyepiece had it below level, so the sign that puts most of them below is
+  the one. 1 when they can't say.
+  """
+  def cw_down(params, signs, thetas) do
+    lean = thetas |> Enum.map(&counterweight(Map.put(params, :cw, 1), signs, &1)) |> Enum.sum()
+    if lean > 0, do: -1, else: 1
+  end
+
+  @doc """
+  The same polar axis written the usual way: a fit can land "over the
+  zenith" (altitude above 90 at the opposite azimuth), which is the same
+  line in the sky and the same model, but reads as nonsense.
+  """
+  def canonical(%{axis_alt: alt, axis_az: az} = params) when alt > 90,
+    do: %{params | axis_alt: 180 - alt, axis_az: Astro.norm360(az + 180)}
+
+  def canonical(%{axis_alt: alt, axis_az: az} = params) when alt < -90,
+    do: %{params | axis_alt: -180 - alt, axis_az: Astro.norm360(az + 180)}
+
+  def canonical(%{axis_az: az} = params), do: %{params | axis_az: Astro.norm360(az)}
+
   # -- fit: samples → parameters ---------------------------------------------------
 
   @doc """
@@ -117,21 +175,93 @@ defmodule Controller.Sky.Model do
   tube was centred on something whose alt/az at that moment is known). With one
   sample only the offsets move (axis stays at `start`); with two or more all
   four parameters are free. Returns `{:ok, params, %{rms_arcmin, worst_arcmin, residuals_arcmin}}`.
+
+  `near:` is a fit that was already right for most of these samples (the one
+  before the newest sample was added). One descent from it is tried first
+  and kept when the samples agree with it; only when they do not is the
+  whole sky of starting points searched again. Refitting after every photo
+  then costs a few milliseconds instead of seconds, which matters on a Pi
+  that is also steering the mount (a night of plates used to make the plate
+  queue deaf for longer with each one).
   """
-  def fit(samples, signs, start) when is_list(samples) and samples != [] do
-    free = if length(samples) == 1, do: [:off_ra, :off_dec], else: [:axis_alt, :axis_az, :off_ra, :off_dec]
+  def fit(samples, signs, start, opts \\ [])
+
+  def fit(samples, signs, start, opts) when is_list(samples) and samples != [] do
+    case warm(samples, signs, opts[:near]) do
+      {:ok, _, _} = ok -> ok
+      nil -> search(samples, signs, start)
+    end
+  end
+
+  def fit([], _signs, _start, _opts), do: {:error, :no_samples}
+
+  # samples within this of a known fit, after one descent from it, are the same geometry
+  @warm_arcmin 10.0
+  # the search for the right geometry looks at no more samples than this: the
+  # rest only refine it
+  @search_n 6
+
+  # Three samples or more: two can be met exactly by the wrong geometry, so
+  # a pair is always searched.
+  defp warm(samples, signs, %{axis_alt: _, axis_az: _, off_ra: _, off_dec: _} = near) when length(samples) >= 3 do
+    free = [:axis_alt, :axis_az, :off_ra, :off_dec]
+    {params, _} = lm(samples, signs, Map.take(near, free), free)
+    params = canonical(params)
+    q = quality(params, signs, samples)
+    if q.rms_arcmin <= @warm_arcmin, do: {:ok, params, q}
+  end
+
+  defp warm(_samples, _signs, _near), do: nil
+
+  defp quality(params, signs, samples) do
+    res = Enum.map(samples, &(residual_deg(params, signs, &1) * 60))
+    rms = :math.sqrt(Enum.sum(Enum.map(res, &(&1 * &1))) / length(res))
+    %{rms_arcmin: rms, worst_arcmin: Enum.max(res), residuals_arcmin: res}
+  end
+
+  # The samples that pin the geometry down best: the ones furthest apart on
+  # the two axes. Many samples from one patch of sky say the same thing many
+  # times; the search needs each thing said once.
+  defp spread(samples, n) when length(samples) <= n, do: samples
+
+  defp spread([first | rest], n) do
+    Enum.reduce(2..n, {[first], rest}, fn _, {picked, left} ->
+      far = Enum.max_by(left, fn s -> picked |> Enum.map(&axis_gap(&1, s)) |> Enum.min() end)
+      {[far | picked], List.delete(left, far)}
+    end)
+    |> elem(0)
+  end
+
+  defp axis_gap(a, b), do: abs(a.theta_ra - b.theta_ra) + abs(a.theta_dec - b.theta_dec)
+
+  defp search(all, signs, start) do
+    samples = spread(all, @search_n)
+
+    free =
+      if length(samples) == 1,
+        do: [:off_ra, :off_dec],
+        else: [:axis_alt, :axis_az, :off_ra, :off_dec]
 
     # a badly-placed mount can sit in the wrong basin from the ideal start:
     # try a ring of axis headings and keep the best
     starts =
       if length(samples) >= 2,
-        do: for(az <- [start.axis_az, 45, 90, 135, 180, 225, 270, 315], alt <- Enum.uniq([start.axis_alt, 30.0, 60.0]), do: %{start | axis_az: az / 1, axis_alt: alt / 1}),
+        do:
+          for(
+            az <- [start.axis_az, 45, 90, 135, 180, 225, 270, 315],
+            alt <- Enum.uniq([start.axis_alt, 30.0, 60.0]),
+            do: %{start | axis_az: az / 1, axis_alt: alt / 1}
+          ),
         else: [start]
 
     # two stars can be satisfied exactly by more than one geometry, and a
     # couple of arcminutes of centring noise makes the wrong one "win" on
     # cost alone; among fits within centring noise of the best, take the one
     # nearest the ideal set-up
+    # An unzeroed mount counts from wherever it powered up, so its offsets
+    # can be anything: find each start's offsets on a coarse 10° sweep
+    # first (cheap: a few thousand evaluations), then refine from there.
+    starts = Enum.flat_map(starts, &[&1, sweep_offsets(samples, signs, &1)])
     fits = Enum.map(starts, &lm(samples, signs, &1, free))
     best = fits |> Enum.map(&elem(&1, 1)) |> Enum.min()
     tol = length(samples) * @noise_rad * @noise_rad
@@ -141,12 +271,17 @@ defmodule Controller.Sky.Model do
       |> Enum.filter(fn {_, cost} -> cost <= best + tol end)
       |> Enum.min_by(fn {p, _} -> axis_distance(p, start) end)
 
-    res = Enum.map(samples, &(residual_deg(params, signs, &1) * 60))
-    rms = :math.sqrt(Enum.sum(Enum.map(res, &(&1 * &1))) / length(res))
-    {:ok, params, %{rms_arcmin: rms, worst_arcmin: Enum.max(res), residuals_arcmin: res}}
+    # the geometry is found; every sample has its say in the numbers
+    {params, _} = if length(all) > length(samples), do: lm(all, signs, params, free), else: {params, nil}
+    params = if length(all) > length(samples), do: canonical(params), else: params
+    {:ok, params, quality(params, signs, all)}
   end
 
-  def fit([], _signs, _start), do: {:error, :no_samples}
+  # the offsets (to 10°) that best fit the samples with this start's axis
+  defp sweep_offsets(samples, signs, start) do
+    for(ra <- 0..350//10, dec <- -180..170//10, do: %{start | off_ra: ra / 1, off_dec: dec / 1})
+    |> Enum.min_by(fn p -> Enum.reduce(samples, 0.0, &(&2 + residual_deg(p, signs, &1))) end)
+  end
 
   @doc "Angular error in degrees between the model's tube direction and a sample's true direction."
   def residual_deg(params, signs, %{theta_ra: r, theta_dec: d, alt: alt, az: az}) do
@@ -157,7 +292,12 @@ defmodule Controller.Sky.Model do
   def axis_error(params, lat), do: axis_distance(params, ideal(lat))
 
   @doc "Angle in degrees between two models' polar axes."
-  def axis_distance(a, b), do: Astro.separation(Astro.altaz_vec(a.axis_alt, a.axis_az), Astro.altaz_vec(b.axis_alt, b.axis_az))
+  def axis_distance(a, b),
+    do:
+      Astro.separation(
+        Astro.altaz_vec(a.axis_alt, a.axis_az),
+        Astro.altaz_vec(b.axis_alt, b.axis_az)
+      )
 
   # Levenberg–Marquardt on the residual vector (three ENU components per
   # sample), numeric Jacobian. Tiny problem; simplicity over speed.
@@ -175,8 +315,18 @@ defmodule Controller.Sky.Model do
     j = jacobian(f, x, r)
     n = length(x)
     jtj = for a <- 0..(n - 1), do: for(b <- 0..(n - 1), do: col_dot(j, a, b))
-    jtr = for a <- 0..(n - 1), do: Enum.zip(Enum.map(j, &Enum.at(&1, a)), r) |> Enum.map(fn {ja, ri} -> ja * ri end) |> Enum.sum()
-    damped = jtj |> Enum.with_index() |> Enum.map(fn {row, i} -> List.update_at(row, i, &(&1 * (1 + lambda) + 1.0e-12)) end)
+
+    jtr =
+      for a <- 0..(n - 1),
+          do:
+            Enum.zip(Enum.map(j, &Enum.at(&1, a)), r)
+            |> Enum.map(fn {ja, ri} -> ja * ri end)
+            |> Enum.sum()
+
+    damped =
+      jtj
+      |> Enum.with_index()
+      |> Enum.map(fn {row, i} -> List.update_at(row, i, &(&1 * (1 + lambda) + 1.0e-12)) end)
 
     case solve(damped, Enum.map(jtr, &(-&1))) do
       nil ->
@@ -207,12 +357,21 @@ defmodule Controller.Sky.Model do
 
   defp jacobian(f, x, r0) do
     h = 1.0e-4
-    cols = Enum.with_index(x) |> Enum.map(fn {_, i} -> f.(List.update_at(x, i, &(&1 + h))) |> Enum.zip(r0) |> Enum.map(fn {a, b} -> (a - b) / h end) end)
+
+    cols =
+      Enum.with_index(x)
+      |> Enum.map(fn {_, i} ->
+        f.(List.update_at(x, i, &(&1 + h)))
+        |> Enum.zip(r0)
+        |> Enum.map(fn {a, b} -> (a - b) / h end)
+      end)
+
     # rows = residual index, cols = parameter
     Enum.zip(cols) |> Enum.map(&Tuple.to_list/1)
   end
 
-  defp col_dot(j, a, b), do: Enum.reduce(j, 0.0, fn row, acc -> acc + Enum.at(row, a) * Enum.at(row, b) end)
+  defp col_dot(j, a, b),
+    do: Enum.reduce(j, 0.0, fn row, acc -> acc + Enum.at(row, a) * Enum.at(row, b) end)
 
   # Gauss–Jordan with partial pivoting; nil when singular.
   defp solve(a, b) do
@@ -221,7 +380,12 @@ defmodule Controller.Sky.Model do
 
     result =
       Enum.reduce_while(0..(n - 1), m, fn i, m ->
-        {pivot_row, pivot_idx} = m |> Enum.drop(i) |> Enum.with_index(i) |> Enum.max_by(fn {row, _} -> abs(Enum.at(row, i)) end)
+        {pivot_row, pivot_idx} =
+          m
+          |> Enum.drop(i)
+          |> Enum.with_index(i)
+          |> Enum.max_by(fn {row, _} -> abs(Enum.at(row, i)) end)
+
         p = Enum.at(pivot_row, i)
 
         if abs(p) < 1.0e-14 do
@@ -234,7 +398,13 @@ defmodule Controller.Sky.Model do
             m
             |> Enum.with_index()
             |> Enum.map(fn {row, k} ->
-              if k == i, do: prow, else: (fct = Enum.at(row, i); Enum.zip(row, prow) |> Enum.map(fn {x, y} -> x - fct * y end))
+              if k == i,
+                do: prow,
+                else:
+                  (
+                    fct = Enum.at(row, i)
+                    Enum.zip(row, prow) |> Enum.map(fn {x, y} -> x - fct * y end)
+                  )
             end)
 
           {:cont, m}
@@ -244,7 +414,8 @@ defmodule Controller.Sky.Model do
     result && Enum.map(result, &List.last/1)
   end
 
-  defp put(params, free, x), do: Enum.zip(free, x) |> Enum.reduce(params, fn {k, v}, acc -> Map.put(acc, k, v / 1) end)
+  defp put(params, free, x),
+    do: Enum.zip(free, x) |> Enum.reduce(params, fn {k, v}, acc -> Map.put(acc, k, v / 1) end)
 
   # -- geometry --------------------------------------------------------------------
 

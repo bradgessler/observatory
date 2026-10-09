@@ -22,6 +22,17 @@ defmodule Mount.Discovery do
   @doc "Stop a driver started by hand (auto-detected ones come back on the next scan)."
   def remove_port(port), do: GenServer.call(__MODULE__, {:remove_port, port})
 
+  @doc """
+  Run a simulated mount beside whatever is plugged in (`true`), or stop it.
+  For a box whose mount is switched off: the pages keep working against a
+  simulator (id `"sim-eq"`) until the real one answers. Not kept across a
+  restart.
+  """
+  def simulator(on?) when is_boolean(on?), do: GenServer.call(__MODULE__, {:simulator, on?})
+
+  @doc "Is a simulator running because someone asked for one?"
+  def simulator?, do: GenServer.call(__MODULE__, :simulator?)
+
   @doc "Everything the OS lists as a serial port, with what we make of it."
   def ports do
     running = running_ports()
@@ -53,7 +64,7 @@ defmodule Mount.Discovery do
   @impl true
   def init(_opts) do
     send(self(), :scan)
-    {:ok, %{running: %{}, manual: [], last_scan: nil}}
+    {:ok, %{running: %{}, manual: [], last_scan: nil, sim: false}}
   end
 
   @impl true
@@ -76,12 +87,15 @@ defmodule Mount.Discovery do
     {:reply, :ok, state}
   end
 
+  def handle_call({:simulator, on?}, _from, state), do: {:reply, :ok, do_scan(%{state | sim: on?})}
+  def handle_call(:simulator?, _from, state), do: {:reply, state.sim, state}
+
   def handle_call(:status, _from, state) do
     {:reply, %{last_scan: state.last_scan, manual: state.manual, running: Map.keys(state.running)}, state}
   end
 
   defp do_scan(state) do
-    wanted = Map.new(desired(state.manual), &{&1[:id], &1})
+    wanted = Map.new(desired(state.manual, state.sim), &{&1[:id], &1})
 
     for {id, pid} <- state.running, not Map.has_key?(wanted, id) do
       Logger.info("mount #{id}: gone")
@@ -113,7 +127,7 @@ defmodule Mount.Discovery do
 
   defp auto?, do: Application.get_env(:mount, :mounts, :auto) == :auto
 
-  defp desired(manual) do
+  defp desired(manual, sim?) do
     configured =
       case Application.get_env(:mount, :mounts, :auto) do
         :auto -> Enum.map(Mount.Transport.Serial.detect(), &serial/1)
@@ -123,7 +137,11 @@ defmodule Mount.Discovery do
     by_hand = Enum.map(manual, &serial/1)
     all = Enum.uniq_by(configured ++ by_hand, & &1[:id])
 
-    if all == [] and Application.get_env(:mount, :simulate_when_empty, false), do: [sim()], else: all
+    cond do
+      sim? -> Enum.uniq_by(all ++ [sim()], & &1[:id])
+      all == [] and Application.get_env(:mount, :simulate_when_empty, false) -> [sim()]
+      true -> all
+    end
   end
 
   defp running_ports do

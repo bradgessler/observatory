@@ -1,6 +1,6 @@
-# Watch
+# Observatory camera
 
-A camera pointed at the mount, read by the server, shown to anyone.
+A camera pointed at the mount, read by the server, shown to anyone: the **Observatory Camera** under Cameras. (The camera in the focuser, which sees what the telescope sees, is the [Telescope Camera](/docs/scope-camera).)
 
 ## Why it exists
 
@@ -11,15 +11,15 @@ twenty minutes of frames and say what happened.
 ## Stills and video
 
 * **Stills** are the default: a frame every few seconds while anyone is
-  looking, kept for the last 240 frames / 20 minutes / 256 MB under
-  `~/.observatory/watch/frames`. *Recent Frames* shows them; `/watch/frames/<name>`
-  serves them.
-* **Play** starts live video: FFmpeg on the server encodes H.264 into HLS,
+  looking (timed stills), kept for the last 240 frames / 20 minutes / 256 MB
+  under `~/.observatory/watch/frames`. Its *Frames* page shows them;
+  `/watch/frames/<name>` serves them.
+* **Play** starts video: FFmpeg on the server encodes H.264 into HLS,
   which Safari plays natively and other browsers play through hls.js. One
   encoder, however many viewers. The caption says how far behind reality the
   picture is and the frame rate you are actually getting.
 * *Auto* size is 720p — every camera does it and a small machine encodes it
-  easily. Bigger sizes are a choice on the *Camera* page; a size the camera
+  easily. Bigger sizes are a choice on its *Settings* page; a size the camera
   won't deliver falls back one step by itself.
 
 ## Two lessons, kept here so they aren't relearned
@@ -35,7 +35,7 @@ twenty minutes of frames and say what happened.
 
 Not every telescope has a camera watching it, and a still can go cold. When
 there is nothing fresh to look at, the frame shows the mount **drawn from its
-own encoders** instead of a black box: the same picture as the Scope page,
+own encoders** instead of a black box: the same drawing as the Scope page,
 turning as the mount turns. The caption says so, and how old the camera's last
-picture was. With a camera present you can pin either one: Auto, Picture or
+still was. With a camera present you can pin either one: Auto, Camera or
 Drawing.

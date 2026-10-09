@@ -22,7 +22,7 @@ defmodule Controller.InputLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Game Controller", night: Settings.get("night", false), nested: session["nested"] == true, refs: %{}, selected: params["mount"] || session["mount"], snap: nil, notice: nil, start: nil)
+     |> assign(page_title: "Game Controller", night: Settings.get("night", false), nested: session["nested"] == true, refs: %{}, selected: params["mount"] || session["mount"] || session["telescope"], snap: nil, notice: nil, start: nil)
      |> load()
      |> rescan()}
   end
@@ -68,7 +68,7 @@ defmodule Controller.InputLive do
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
     snap = if ref = refs[selected], do: safe(fn -> Mount.snapshot(ref) end) |> ok_or_nil()
     assign(socket, refs: refs, selected: selected, snap: snap)
   end
@@ -80,7 +80,7 @@ defmodule Controller.InputLive do
     on? = params["on"] == "true"
     if on? and socket.assigns.selected, do: Input.target(socket.assigns.selected)
     Input.arm(on?)
-    {:noreply, socket |> assign(notice: if(on?, do: "the pad now moves #{socket.assigns.selected}", else: "watch only")) |> load()}
+    {:noreply, socket |> assign(notice: if(on?, do: "The game controller now moves #{socket.assigns.selected}", else: "Watch only")) |> load()}
   end
 
   def handle_event("scan", _, socket) do
@@ -93,7 +93,7 @@ defmodule Controller.InputLive do
     Input.arm(false)
     Controller.Sky.Tracker.stop_all()
     if ref = socket.assigns.refs[socket.assigns.selected], do: safe(fn -> Mount.emergency_stop(ref) end)
-    {:noreply, socket |> assign(notice: "Stopped · pad is watch only") |> load()}
+    {:noreply, socket |> assign(notice: "Stopped · the game controller is watch only") |> load()}
   end
 
   def handle_event("dismiss", _, socket), do: {:noreply, assign(socket, notice: nil)}
@@ -116,34 +116,36 @@ defmodule Controller.InputLive do
     ~H"""
     <.page id="input" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
+        <.back navigate={~p"/"} label="Home" section="Controls" />
         <.title>Game Controller</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @mapper.target})}</.status>
         <.actions>
+          <.help href={~p"/docs/game-controller"} label="the game controller" />
           <.stop click="estop" />
-          <.btn phx-click="scan" aria-label="Scan for game controllers">Scan</.btn>
         </.actions>
       </:header>
 
-      <.card title="Pad">
+      <.card title="What It Moves">
         <:aside>
           <.badge on={@mapper.action != :idle} warn={@mapper.action == :stop}>{@mapper.action_text}</.badge>
         </:aside>
         <%!-- two explicit states, not a toggle: you always see which one you're in --%>
-        <.seg label="what the pad does">
+        <.seg label="what the game controller does">
           <:opt on={!@mapper.armed} click="arm" value={%{on: "false"}}>Watch Only</:opt>
-          <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Pad Moves Scope</:opt>
+          <:opt on={@mapper.armed} live click="arm" value={%{on: "true"}} disabled={@devices == []}>Moves the Mount</:opt>
         </.seg>
         <.hint :if={@mapper.off_reason}><strong>{@mapper.off_reason}</strong></.hint>
-        <.hint :if={Map.get(@mapper, :ignoring)}><strong>Pad is off: tap Pad moves scope</strong></.hint>
-        <.kv label="Mount" value={@mapper.target || "none"} />
-        <.kv :if={@snap && @snap.axes[:ra]} label="position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
-        <.kv :if={@start && @snap && @snap.axes[:ra]} label="moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
-        <.hint>Hold the trigger (button {@mapper.map.trigger}), tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/devices"}>More About the Pad ›</.link></.hint>
+        <.hint :if={Map.get(@mapper, :ignoring)}><strong>It is off: tap Moves the Mount</strong></.hint>
+        <.kv label="Mount" value={@mapper.target || "None"} />
+        <.kv :if={@snap && @snap.axes[:ra]} label="Position" value={"RA #{fmt1(@snap.axes.ra.degrees)}° · Dec #{fmt1(@snap.axes.dec.degrees)}°"} />
+        <.kv :if={@start && @snap && @snap.axes[:ra]} label="Moved" value={"ΔRA #{fmt1(@snap.axes.ra.degrees - elem(@start, 0))}° · ΔDec #{fmt1(@snap.axes.dec.degrees - elem(@start, 1))}°"} />
+        <.hint>Hold the trigger (button {@mapper.map.trigger}) and tilt the ball. Button {@mapper.map.stop} is STOP. <.link href={~p"/docs/game-controller#the-trigger-is-a-dead-mans-switch"}>Why the trigger?</.link></.hint>
       </.card>
 
-      <.card :for={d <- @devices} title={d.parser}>
-        <:aside><.badge on>{d.reports} reports</.badge><.badge :if={d.node != :nonode@nohost} dim>{d.node}</.badge></:aside>
-        <.hint :if={d.reports == 0}>Touch the stick or a button and it shows up here.</.hint>
+      <.card :for={d <- @devices} title={device_name(d)}>
+        <:aside><.badge on>{d.reports} reports</.badge><.badge :if={d.node != :nonode@nohost} dim>{Controller.Words.host(d.node)}</.badge></:aside>
+        <.hint :if={d.reports == 0}>Touch the ball, a stick or a button and it shows up here.</.hint>
         <div class="axes" role="list" aria-label="axes">
           <div :for={{v, i} <- Enum.with_index(d.state.axes)} class="axis-bar" role="listitem">
             <span class="axis-i">{axis_name(i)}</span>
@@ -156,15 +158,28 @@ defmodule Controller.InputLive do
         </div>
       </.card>
 
-      <.card :if={@devices == []} title="No game controller open">
-        <.hint>Plug one into <strong>This machine</strong> (the one running the server). Joysticks and gamepads are opened automatically within 3 s.</.hint>
+      <.card :if={@devices == []} title="No Game Controller Open">
+        <.hint>Plug one into <strong>this machine</strong> (the one running the server). Game controllers and joysticks are opened automatically within 3 s.</.hint>
         <.kv :for={s <- @seen.devices} label={"#{Integer.to_string(s.vendor_id, 16)}:#{Integer.to_string(s.product_id, 16)}"} value={"#{s.product} · usage #{s.usage_page}/#{s.usage}#{if s.reading, do: " · reading", else: ""}"} />
       </.card>
+
+      <%!-- a page action, so it's on the page: the toolbar is for getting around, help and STOP --%>
+      <.row><.btn variant="ghost" phx-click="scan" aria-label="Scan for game controllers">Scan Now</.btn></.row>
 
       <.notice notice={@notice} />
     </.page>
     """
   end
+
+  # a pad we know by its parser's name; any other HID device by what it calls itself
+  defp device_name(%{parser: "unknown HID device"} = d) do
+    case d[:device] do
+      %{product: p} when is_binary(p) and p != "" -> p
+      _ -> "Unknown HID Device"
+    end
+  end
+
+  defp device_name(d), do: d.parser
 
   defp axis_name(0), do: "X"
   defp axis_name(1), do: "Y"
@@ -179,5 +194,5 @@ defmodule Controller.InputLive do
 
   defp fmt1(x), do: :erlang.float_to_binary(x * 1.0, decimals: 1)
   defp fmt2(x) when is_number(x), do: :erlang.float_to_binary(x * 1.0, decimals: 2)
-  defp fmt2(_), do: "—"
+  defp fmt2(_), do: Controller.Words.none()
 end

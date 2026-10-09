@@ -40,6 +40,14 @@ it. No bundler: LiveView's JS is served from deps.
 spacing, one radius, black ground for OLED, red night mode, no tap flash, no
 expansion panels (secondary things get a page and a back link).
 
+**Every page is listed once, in `Controller.Nav`.** Title, address, one
+line, help and icon, in one place; the sidebar, a phone's Home and Search
+(⌘K, or the search key on a phone) all draw from it through
+`Controller.Components.Menu` and `Controller.Search`. A page has one
+address, never a hand-made list of other pages or a second shell around it
+(the old Bench was both), and every page has STOP (`Controller.Stop.all/0`
+when it isn't about one mount).
+
 **Modes are loud.** Anything persistent that changes where the scope goes
 (sync offset, flipped axis sign, reversed tracking, auto-track off, site
 override) is reported by `Controller.Modes.active/0` and shown on every page.
@@ -64,6 +72,12 @@ about location it cannot have.
 
 **Copy lives in docs.** Explanations go in `priv/docs/*.md` (rendered at
 `/docs/:slug`); the UI carries one-line hints and a `?` link.
+
+**Call things what they are.** The user configures their own network gear
+(think UniFi): technical, but executed well. Label by the standard term
+(Hostname, SSID, Access point, Password, SD card, Board, SSH) and prefill the
+real default beside it; never a friendly paraphrase like "Its Name" or "The
+Door", and never a blank field that secretly means something.
 
 **WCAG 2.1 AA is the floor, in every theme.** It is good design and it is
 how you read a phone at an eyepiece. Concretely: text 4.5:1 against the

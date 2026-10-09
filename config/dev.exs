@@ -60,3 +60,37 @@ config :controller, dev_routes: true
 
 # No cable plugged in? Run a simulated EQ6-R so the rest of the stack still works.
 config :mount, simulate_when_empty: true
+
+# This Mac keeps to itself unless told to join the observatory cluster:
+#
+#     OBSERVATORY_CLUSTER=1 mix phx.server
+#
+# With it, this Mac is a node: a box's mount on the network can be connected
+# from the Devices page and driven from any page here, its frames are copied
+# here and its plates solved here. A box that was connected before
+# (~/.observatory/boxes.txt) is joined again by itself, and other Macs started
+# the same way are found by LAN gossip. The cookie is the cluster's shared
+# secret; a box uses the same (firmware OBSERVATORY_COOKIE).
+#
+# Without it there is no distribution, no gossip and no looking for boxes. It
+# used to be always on: a dev server started for something else joined the
+# telescope box in use that night (it was in boxes.txt), and its simulated
+# camera showed on the box as live frames of stars.
+if System.get_env("OBSERVATORY_CLUSTER") == "1" do
+  config :telescope,
+    distribution: [name: "observatory", cookie: String.to_atom(System.get_env("OBSERVATORY_COOKIE", "observatory"))],
+    boxes_file: Path.join(System.user_home!(), ".observatory/boxes.txt")
+else
+  # :none, not []: an empty list merges into config.exs's [lan: ...] and changes nothing
+  config :libcluster, topologies: :none
+end
+
+# No telescope camera plugged into the Mac: use the simulated one on the
+# simulated mount (Controller.ScopeCamera.Sim)
+config :controller, :scope_camera, sim: true
+
+# The Mac is the mothership: it copies kept frames off every box (Controller.Frames)
+config :controller, :frames, pull: true
+
+# No Sony on this Mac: a simulated a6000 (Camera.Transport.Sim) so the Stills Camera page works
+config :camera, simulate: true

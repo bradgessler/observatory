@@ -10,10 +10,13 @@ defmodule Controller.SurfacesTest do
     %{id: id}
   end
 
-  test "every bench surface renders nested", %{conn: conn, id: id} do
-    for surface <- ~w(strips align scope eyepiece dpad nudge orb tilt position gamepad watch sky) do
-      {:ok, _view, html} = live(conn, "/bench/#{surface}?mount=#{id}")
-      assert html =~ "bench-stage", surface
+  test "every page in the sidebar renders at its own address, with STOP", %{conn: conn, id: id} do
+    # an extension's page (Stamp a Box) is its own app's to test; the axes page needs the watch camera
+    theirs = for {_group, {_, path, _, _, _}} <- Enum.flat_map(Controller.Extensions.all(), &Map.get(&1, :home, [])), do: path
+
+    for %{path: path} <- Controller.Nav.pages(), path not in ["/controls/watch/axes" | theirs] do
+      {:ok, _view, html} = live(conn, path <> "?" <> URI.encode_query(mount: id))
+      assert html =~ "STOP", path
     end
   end
 
@@ -32,30 +35,10 @@ defmodule Controller.SurfacesTest do
     Mount.goto_relative(id, :ra, 3.0)
     Process.sleep(300)
     {:ok, view, html} = live(conn, "/controls/position/#{id}")
-    assert html =~ "Degrees From Zero"
+    assert html =~ "Degrees From Home"
     render_click(view, "home", %{})
     Process.sleep(1_500)
     assert abs(Mount.snapshot(id).axes.ra.degrees) < 0.6
-  end
-
-  test "tilt: a held vector moves an axis, letting go stops it", %{conn: conn, id: id} do
-    {:ok, view, html} = live(conn, "/controls/tilt/#{id}")
-    assert html =~ "hold"
-    render_hook(view, "sensor", %{"state" => "ok"})
-    render_hook(view, "tilt", %{"x" => 1, "y" => 0, "mag" => 0.5})
-    assert Mount.snapshot(id).axes.ra.running
-    render_hook(view, "tilt", %{"x" => 0, "y" => 0, "mag" => 0})
-    refute Mount.snapshot(id).axes.ra.running
-    render_hook(view, "tilt", %{"x" => 0, "y" => 1, "mag" => 1})
-    assert Mount.snapshot(id).axes.dec.running
-    render_hook(view, "tilt_end", %{})
-    refute Mount.snapshot(id).axes.dec.running
-  end
-
-  test "tilt explains itself when the sensor is unavailable", %{conn: conn, id: id} do
-    {:ok, view, _} = live(conn, "/controls/tilt/#{id}")
-    assert render_hook(view, "sensor", %{"state" => "insecure"}) =~ "HTTPS"
-    assert render_hook(view, "sensor", %{"state" => "denied"}) =~ "said no"
   end
 
   test "video: playlist and segments are served by whitelisted name only", %{conn: conn} do
@@ -73,23 +56,24 @@ defmodule Controller.SurfacesTest do
   end
 
   test "watch page: play sits on the frame, video only appears once a playlist exists", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/controls/watch")
-    assert html =~ "play live video"
+    {:ok, _view, html} = live(conn, "/cameras/observatory")
+    # Play only where there's a camera tool to play from; without one the mount is drawn instead
+    if Watch.status()[:tool], do: assert(html =~ "play video"), else: assert(html =~ "no camera")
     refute html =~ ">Live<"
     refute html =~ ">1K<"
     refute html =~ "video-feed"
     assert html =~ "watch-cap"
-    assert html =~ "Recent Frames"
+    assert html =~ ~s(href="/cameras/observatory/frames")
   end
 
   test "recent frames page renders without frames", %{conn: conn} do
     Watch.History.clear()
-    {:ok, _view, html} = live(conn, "/controls/watch/frames")
+    {:ok, _view, html} = live(conn, "/cameras/observatory/frames")
     assert html =~ "Nothing kept yet"
   end
 
   test "watch can draw the mount instead of a camera picture", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/controls/watch")
+    {:ok, view, _html} = live(conn, "/cameras/observatory")
     # the drawing stands in on demand, whatever the camera is doing
     drawn = render_click(view, "show", %{"s" => "drawing"})
     assert drawn =~ "Drawn from the encoders"
@@ -98,22 +82,22 @@ defmodule Controller.SurfacesTest do
   end
 
   test "camera page carries the technical detail, not the watch page", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/controls/watch/camera")
+    {:ok, _view, html} = live(conn, "/cameras/observatory/settings")
     assert html =~ "Timed Stills"
     assert html =~ "Encoder"
     assert html =~ "30 fps"
-    {:ok, _view, watch} = live(conn, "/controls/watch")
+    {:ok, _view, watch} = live(conn, "/cameras/observatory")
     refute watch =~ "video-log"
   end
 
   test "line up: asks for home, then names a star; that's it records a sample", %{conn: conn, id: id} do
     Controller.Sky.Lineup.clear(id)
     {:ok, view, html} = live(conn, "/controls/align/#{id}")
-    assert html =~ "First: Zero the Axes"
+    assert html =~ "First: Set Home"
     render_click(view, "home", %{})
     html = render(view)
     assert html =~ "Star 1"
-    assert html =~ "On It"
+    assert html =~ "Centered"
     [cand | _] = Controller.Sky.Lineup.candidates(id, Controller.Sky.Pointing.context(DateTime.utc_now(), id))
     html = render_click(view, "centred", %{"id" => cand.id})
     assert html =~ "1 star"
@@ -138,7 +122,7 @@ defmodule Controller.SurfacesTest do
     {:ok, view, _} = live(conn, "/controls/align/#{id}")
     render_click(view, "home", %{})
     html = render_click(view, "hold", %{})
-    assert html =~ "holding"
+    assert html =~ "Tracking "
     Process.sleep(300)
     assert Controller.Sky.Tracker.status(id) != nil
     render_click(view, "release", %{})
@@ -147,7 +131,7 @@ defmodule Controller.SurfacesTest do
   end
 
   test "optical axes page renders idle and refuses a scan without a camera or with one running", %{conn: conn, id: id} do
-    {:ok, view, html} = live(conn, "/controls/watch/axes/#{id}")
+    {:ok, _view, html} = live(conn, "/controls/watch/axes/#{id}")
     assert html =~ "Quick Look"
     assert html =~ "Find the Axes"
     assert html =~ ~r/idle/i

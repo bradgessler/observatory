@@ -1,7 +1,7 @@
 defmodule Controller.DpadLive do
   @moduledoc """
   The plain keypad: four arrows, a rate row, STOP. Press-and-hold moves the
-  named mount axis at the chosen rate; release stops. Kept on the bench as
+  named mount axis at the chosen rate; release stops. Kept in Controls as
   the baseline everything else is measured against.
   """
   use Controller, :live_view
@@ -27,7 +27,7 @@ defmodule Controller.DpadLive do
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        refs: %{},
-       selected: params["id"] || session["id"],
+       selected: params["id"] || session["id"] || session["telescope"],
        snap: nil,
        rate: 64,
        held: [],
@@ -52,7 +52,7 @@ defmodule Controller.DpadLive do
   defp rescan(socket) do
     refs = Map.new(Mount.list(), &{&1.id, &1})
     for {id, ref} <- refs, not Map.has_key?(socket.assigns.refs, id), do: Mount.subscribe(ref)
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
 
     snap =
       if ref = refs[selected] do
@@ -63,7 +63,7 @@ defmodule Controller.DpadLive do
         end
       end
 
-    assign(socket, refs: refs, selected: selected, snap: snap, page_title: "#{selected || "no mount"} · Plain Keypad")
+    assign(socket, refs: refs, selected: selected, snap: snap, page_title: Controller.Words.title(selected, "Plain Keypad"))
   end
 
   # -- events -------------------------------------------------------------------------
@@ -121,7 +121,7 @@ defmodule Controller.DpadLive do
           case fun.(ref) do
             :ok -> socket
             {:error, :limit} -> assign(socket, notice: "Soft limit")
-            {:error, e} -> assign(socket, notice: inspect(e))
+            {:error, e} -> assign(socket, notice: Controller.Words.error(e))
           end
         catch
           :exit, _ -> assign(socket, notice: "Mount unreachable")
@@ -138,22 +138,24 @@ defmodule Controller.DpadLive do
     ~H"""
     <.page id="dpad" night={@night} class={@nested && "nested"} phx-window-keydown="keydown" phx-window-keyup="keyup">
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{@selected} · Plain Keypad</.title>
-        <.actions><.stop click="estop" /><.help href={~p"/docs/keypad"} label="the keypad" /></.actions>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
+        <.title>Plain Keypad</.title>
+        <%!-- the Controls section's status: what the mount is doing and where it points --%>
+        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @selected})}</.status>
+        <.actions><.help href={~p"/docs/keypad"} label="the keypad" /><.stop click="estop" /></.actions>
       </:header>
 
       <%!-- hold to move, release to stop: the dead-man is the point (2.5.2); arrow keys are the same controls --%>
       <section class="dpad" role="group" aria-label="hold to move" aria-describedby="dpad-how">
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▲</span><small>N · toward pole</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-up" phx-hook="Stick" data-dir="up" aria-label="move north, toward the pole" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▲</span><small>N · toward pole</small></button>
         <span></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">◀</span><small>E</small></button>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-left" phx-hook="Stick" data-dir="left" aria-label="move east" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">◀</span><small>E</small></button>
         <%!-- release stops; the always-visible STOP lives in the header --%>
         <span class="dpad-centre" aria-live="off"><b>{@rate}×</b></span>
-        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">▶</span><small>W</small></button>
+        <button class={["arrow", :ra in @held && "live"]} id="dp-right" phx-hook="Stick" data-dir="right" aria-label="move west" aria-pressed={to_string(:ra in @held)}><span aria-hidden="true">▶</span><small>W</small></button>
         <span></span>
-        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▼</span><small>S · away</small></button>
+        <button class={["arrow", :dec in @held && "live"]} id="dp-down" phx-hook="Stick" data-dir="down" aria-label="move south, away from the pole" aria-pressed={to_string(:dec in @held)}><span aria-hidden="true">▼</span><small>S · away</small></button>
         <span></span>
       </section>
 
@@ -161,7 +163,7 @@ defmodule Controller.DpadLive do
         <:opt :for={r <- @rates} on={r == @rate} click="rate" value={%{rate: r}}>{r}×</:opt>
       </.rates>
 
-      <.hint id="dpad-how">Hold an arrow; it moves at the chosen rate until you let go. E/W turn the polar axis, N/S the Dec axis. On a keyboard the arrow keys do the same; space or Escape stops.</.hint>
+      <.hint id="dpad-how">Hold an arrow; it moves at the chosen rate until you let go. E/W turn the RA axis, N/S the Dec axis. On a keyboard the arrow keys do the same; space or Escape stops.</.hint>
 
       <.notice notice={@notice} />
     </.page>

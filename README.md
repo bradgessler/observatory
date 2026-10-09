@@ -26,6 +26,33 @@ hack/            day-one Python probes that proved the protocol; kept as a recor
 `apps/` is a Mix umbrella for host-side work; `firmware/` is a separate Nerves
 project that pulls the apps in as path dependencies.
 
+### Running it on a laptop
+
+```sh
+brew bundle        # fwup, hidapi, ffmpeg and the rest — see Brewfile
+mix archive.install hex nerves_bootstrap   # only to build images
+mix deps.get
+mix phx.server     # http://localhost:4000
+```
+
+The mount appears when the EQDIR cable is plugged in; a simulator runs when it
+isn't. Every host tool is optional: a missing one disables its feature and says
+what to install, and nothing else notices.
+
+Started like that, a laptop keeps to itself, even next to a box on the same
+network: it is not a node of the cluster and does not look for boxes. To put a
+box's mount and cameras on the laptop's pages, have its frames copied here and
+its plates solved here, start it as a node:
+
+```sh
+OBSERVATORY_CLUSTER=1 mix phx.server
+```
+
+then **Connect** the box on Devices. A box connected once is joined again
+whenever the laptop is started this way (`~/.observatory/boxes.txt`). A
+simulated mount or camera is listed only on the machine that runs it, so a
+laptop's stand-ins never show on a box.
+
 ### Hardware
 
 * Sky-Watcher EQ6-R (also EQ6-R Pro).
@@ -167,3 +194,9 @@ and the real mount appears alongside it; pull it and it goes away.
   documented in `Mount.Protocol`. Measured on an EQ6-R: 9,216,000 steps/rev,
   timer 53,694 Hz, high-speed ratio 32, firmware `020B05`; full goto speed
   ≈3.4°/s; commanded sidereal rate within 0.001% of true.
+
+## Copyright
+
+The observations (everything under `observations/`) and the images in
+`posts/images/` are Brad Gessler's own work, all rights reserved, whatever
+licence the code carries. See [COPYRIGHT.md](COPYRIGHT.md).

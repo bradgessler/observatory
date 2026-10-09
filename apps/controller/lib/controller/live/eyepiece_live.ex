@@ -15,6 +15,7 @@ defmodule Controller.EyepieceLive do
   import Controller.Components.UI
 
   alias Controller.Settings
+  alias Controller.Components.Counterweight
   alias Controller.Sim.Truth
   alias Controller.Sky.{Astro, Catalog, Ephemeris, Lineup, Pointing, Tracker}
 
@@ -42,7 +43,7 @@ defmodule Controller.EyepieceLive do
        page_title: "Eyepiece",
        night: Settings.get("night", false),
        nested: session["nested"] == true,
-       selected: params["id"] || session["id"],
+       selected: params["id"] || session["id"] || session["telescope"],
        refs: %{},
        subscribed: MapSet.new(),
        snap: nil,
@@ -50,6 +51,8 @@ defmodule Controller.EyepieceLive do
        fov: Settings.get("eyepiece_fov_deg", 5.0) / 1,
        step: 5.0 / 60,
        notice: nil,
+       # the counterweight question, asked because a Go To waited for it (#113)
+       cw_ask: false,
        fovs: @fovs,
        steps: @steps,
        r_field: @r
@@ -83,9 +86,9 @@ defmodule Controller.EyepieceLive do
         if MapSet.member?(acc, id), do: acc, else: (Mount.subscribe(ref); MapSet.put(acc, id))
       end)
 
-    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Enum.sort() |> List.first()
+    selected = if socket.assigns.selected in Map.keys(refs), do: socket.assigns.selected, else: refs |> Map.keys() |> Mount.default()
     snap = if ref = refs[selected], do: safe(fn -> Mount.snapshot(ref) end)
-    assign(socket, refs: refs, subscribed: subscribed, selected: selected, snap: if(is_map(snap), do: snap))
+    assign(socket, refs: refs, subscribed: subscribed, selected: selected, snap: if(is_map(snap), do: snap), page_title: Controller.Words.title(selected, "Eyepiece"))
   end
 
   defp compute(%{assigns: %{selected: nil}} = socket),
@@ -123,7 +126,7 @@ defmodule Controller.EyepieceLive do
   defp objects_near(%{ra_deg: ra0, dec_deg: dec0}, fov, now) do
     r = fov / 2 * 1.25
 
-    (Catalog.stars(6.5) ++ Catalog.dsos() ++ Ephemeris.objects(now))
+    (Catalog.stars(6.5) ++ Catalog.dsos() ++ Ephemeris.objects(now, Pointing.site()))
     |> Enum.filter(&(Astro.separation_radec(&1.ra_deg, &1.dec_deg, ra0, dec0) < r))
     |> Enum.map(fn o ->
       {x, y} = gnomonic(o.ra_deg, o.dec_deg, ra0, dec0, fov)
@@ -205,7 +208,7 @@ defmodule Controller.EyepieceLive do
         {:noreply, socket}
 
       _ ->
-        {:noreply, notice(socket, "Zero the axes first")}
+        {:noreply, notice(socket, Controller.Words.error(:not_homed))}
     end
   end
 
@@ -215,7 +218,7 @@ defmodule Controller.EyepieceLive do
 
     cond do
       is_nil(star) or is_nil(snap) -> {:noreply, notice(socket, "No star suggested")}
-      not snap.homed -> {:noreply, notice(socket, "Zero the axes first")}
+      not snap.homed -> {:noreply, notice(socket, Controller.Words.error(:not_homed))}
       true ->
         st = Lineup.add(snap, star)
         {:noreply, socket |> compute() |> notice("#{star.name} · #{st.n} star#{if st.n == 1, do: "", else: "s"}")}
@@ -226,15 +229,21 @@ defmodule Controller.EyepieceLive do
     star = socket.assigns.next_star
     ref = socket.assigns.refs[socket.assigns.selected]
 
-    text =
+    {text, cw_ask} =
       case star && Pointing.slew(ref, socket.assigns.snap, star, socket.assigns.ctx, track: true) do
-        {:ok, _, _} -> "Slewing to #{star.name}"
-        {:error, :not_homed} -> "Zero the axes first"
-        {:error, e} -> inspect(e)
-        nil -> "No star suggested"
+        {:ok, _, _} -> {"Going to #{star.name}", false}
+        # which side the counterweight is on, only guessed: the question goes right under the Go To
+        {:error, e} -> {Pointing.refusal_words(e, star.name), e == :counterweight_unknown}
+        nil -> {"No star suggested", false}
       end
 
-    {:noreply, notice(socket, text)}
+    {:noreply, socket |> assign(cw_ask: cw_ask) |> notice(text)}
+  end
+
+  # The one answer Go To waited for, from someone looking at the mount
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> assign(cw_ask: not told?) |> compute() |> notice(said)}
   end
 
   def handle_event("stop", _, socket) do
@@ -299,12 +308,12 @@ defmodule Controller.EyepieceLive do
     ~H"""
     <.page id="eyepiece" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" />
-        <.title>{@selected} · Eyepiece</.title>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Mount", @selected)} />
+        <.title>Eyepiece</.title>
         <.actions>
-          <.stop />
+          
           <.help href={~p"/docs/eyepiece"} label="the eyepiece" />
-        </.actions>
+          <.stop /></.actions>
       </:header>
 
       <Controller.Components.Status.status :if={@snap && !@nested} snap={@snap} id={@selected} compact />
@@ -354,14 +363,14 @@ defmodule Controller.EyepieceLive do
       <.card :if={!@centre} title="Nothing to Look At Yet">
         <.hint>
           {if @snap && !@snap.homed,
-            do: "Zero the axes first: until then the encoders do not say which way the tube is turned.",
+            do: "Set home first: until then the encoders do not say which way the tube is turned.",
             else: "No mount is answering."}
         </.hint>
         <.row :if={@selected}><.btn navigate={~p"/setup/#{@selected}"}>Setup ›</.btn></.row>
       </.card>
 
       <%!-- centring: the same arrows as Nudge, next to the field --%>
-      <.card :if={@centre} title="Centre It">
+      <.card :if={@centre} title="Center It">
         <div class="dpad dpad-eyepiece">
           <span></span>
           <.btn class="arrow" phx-click="nudge" phx-value-dir="up" aria-label="nudge north"><span aria-hidden="true">▲</span><small>N</small></.btn>
@@ -383,10 +392,13 @@ defmodule Controller.EyepieceLive do
             <strong>Star {star_number(@selected)}: {@next_star.name}</strong>
             <span class="dim">{Lineup.where_words(@next_star.alt, @next_star.az)}</span>
           </div>
-          <.btn phx-click="slew">Slew Near It</.btn>
-          <.btn variant="primary" phx-click="centred">On It</.btn>
+          <.btn phx-click="slew" aria-label={"Go To #{@next_star.name}"}>Go To</.btn>
+          <.btn variant="primary" phx-click="centred" aria-label={"Centered: #{@next_star.name} is in the middle of the eyepiece"}>Centered</.btn>
         </div>
       </.card>
+
+      <%!-- Go To waited for which side the counterweight is on: the question, right under it --%>
+      <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@ctx.model, @snap)} />
 
       <.notice :if={!@nested} notice={@notice} />
     </.page>
@@ -401,7 +413,7 @@ defmodule Controller.EyepieceLive do
   defp star_number(id), do: length(Lineup.samples(id)) + 1
 
   defp centre_words(%{ra_deg: ra, dec_deg: dec}, nil), do: "Pointing at RA #{fmt(ra)}°, Dec #{fmt(dec)}°"
-  defp centre_words(_, %{name: name}), do: "Holding #{name}"
+  defp centre_words(_, %{name: name}), do: "Tracking #{name}"
 
   defp source_words(%{source: :truth}), do: "What the simulated tube really sees"
   defp source_words(_), do: "Where the software believes the tube points"
@@ -411,7 +423,7 @@ defmodule Controller.EyepieceLive do
   end
 
   defp fmt(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
-  defp fmt(_), do: "—"
+  defp fmt(_), do: Controller.Words.none()
 
   defp safe(fun) do
     try do

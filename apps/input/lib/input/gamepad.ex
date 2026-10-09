@@ -8,7 +8,15 @@ defmodule Input.Gamepad do
 
     * hold the **trigger** (button index `trigger`) and tilt the ball → RA from X,
       Dec from Y; tilt sets speed on a log scale, dead zone, up to `max_rate`
-    * **hat / D-pad** → fine nudges at `fine_rate` (no trigger needed)
+    * **hat / D-pad** → fine nudges at `fine_rate` (no trigger needed; it
+      springs back to centre, so letting go is the stop). With `hat:
+      :eyepiece` it moves the view as it looks in the eyepiece instead of the
+      axes as they are: `view_down`/`view_right` say which axis and sign move
+      the view down and right (the Center page's map), a tap crawls at
+      `fine_slow`, a hold past `fine_ramp_ms` goes at `fine_rate` and past
+      `fine_top_ms` at `fine_top`, and RA
+      carries on from `track_units` so the view moves against the sky
+    * **centered** button (nil: none) → "it's on the crosshair"
     * button `stop` → STOP
 
   Everything is a parameter so a different pad is a different map, not code.
@@ -29,7 +37,19 @@ defmodule Input.Gamepad do
     # where the ball rested when the trigger was squeezed; the mapper sets it on each press
     center: [0.0, 0.0],
     bands: [2.0, 8.0, 32.0, 200.0, 800.0],
-    fine_rate: 8.0
+    fine_rate: 8.0,
+    hat: :axes,
+    view_down: {:ra, 1},
+    view_right: {:dec, -1},
+    fine_slow: 2.0,
+    fine_ramp_ms: 1_500,
+    # held on past this, a big object's worth of sky: across the Pleiades in seconds
+    fine_top: 32.0,
+    fine_top_ms: 4_000,
+    # what RA already runs at (× sidereal): the mapper sets it when the hat goes down
+    track_units: 0.0,
+    hat_held_ms: 0,
+    centered: nil
   }
 
   def defaults, do: @defaults
@@ -67,12 +87,32 @@ defmodule Input.Gamepad do
 
       state[:hat] != nil ->
         {hx, hy} = state.hat
-        {:nudge, [{:ra, hx * m.fine_rate}, {:dec, hy * m.fine_rate}] |> Enum.reject(fn {_, r} -> r == 0 end)}
+        {:nudge, hat_rates(m.hat, hx, hy, m)}
 
       true ->
         :idle
     end
   end
+
+  defp hat_rates(:eyepiece, hx, hy, m) do
+    rate =
+      cond do
+        m.hat_held_ms >= m.fine_top_ms -> m.fine_top
+        m.hat_held_ms >= m.fine_ramp_ms -> m.fine_rate
+        true -> m.fine_slow
+      end
+    {ax_r, s_r} = m.view_right
+    {ax_d, s_d} = m.view_down
+    # y is up on the hat; the map says what moves the view down
+    rel = Enum.reduce([{ax_r, hx * s_r * rate}, {ax_d, -hy * s_d * rate}], %{}, fn {a, r}, acc -> Map.update(acc, a, r, &(&1 + r)) end)
+
+    for axis <- [:ra, :dec], r = Map.get(rel, axis, 0.0), r != 0 do
+      {axis, if(axis == :ra, do: m.track_units + r, else: r / 1)}
+    end
+  end
+
+  defp hat_rates(_axes, hx, hy, m),
+    do: [{:ra, hx * m.fine_rate}, {:dec, hy * m.fine_rate}] |> Enum.reject(fn {_, r} -> r == 0 end)
 
   @doc "Human line for the UI: what the pad is asking for."
   def describe(:idle), do: "idle · hold the trigger and tilt"

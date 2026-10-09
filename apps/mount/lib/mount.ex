@@ -18,7 +18,14 @@ defmodule Mount do
   @type ref :: String.t() | %{id: String.t(), node: node}
   @type axis :: :ra | :dec
 
-  @doc "Every mount on every connected node."
+  @doc """
+  Every mount on every connected node, except other machines' simulators.
+
+  A simulator exists for the machine running it (a Mac with no cable). Listed
+  on a box joined to that Mac, it became the box's default and the box's own
+  keypad drove the Mac's simulator while the real telescope sat still. So a
+  simulator is only ever listed where it runs.
+  """
   def list do
     Telescope.nodes()
     |> Enum.flat_map(fn n ->
@@ -28,7 +35,12 @@ defmodule Mount do
         _, _ -> []
       end
     end)
+    |> Enum.filter(&listed?(&1, node()))
   end
+
+  @doc false
+  # the rule itself is Telescope.listed?/3, the same for every device
+  def listed?(%{node: n} = ref, here), do: Telescope.listed?(n, simulated?(ref), here)
 
   @doc false
   def local_list do
@@ -43,6 +55,17 @@ defmodule Mount do
   def simulated?(id) when is_binary(id), do: String.starts_with?(id, "sim")
   def simulated?(%{id: id}), do: simulated?(id)
   def simulated?(_), do: false
+
+  @doc """
+  The mount a page drives when none was asked for: a real telescope before a
+  simulator (a Mac with no cable runs one, and a box's scope joined over the
+  network must win over it), then by id. Takes ids or refs; `nil` for none.
+  """
+  def default(mounts) do
+    mounts
+    |> Enum.sort_by(&{simulated?(&1), id_of(&1)})
+    |> List.first()
+  end
 
   @doc """
   Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it
@@ -77,7 +100,14 @@ defmodule Mount do
     call(ref, :emergency_stop) |> logged(true, :emergency_stop, %{id: id_of(ref)})
   end
 
-  @doc "Move an axis by `degrees` at full goto speed (mount-managed ramps)."
+  @doc """
+  Move an axis by `degrees` at full goto speed (mount-managed ramps). Takes
+  the axis over from a held slew: its dead-man is cancelled and the axis
+  stopped first. `:ok` means the axis was seen on its way. `{:error, :limit}`
+  is a soft limit; `{:error, :motor_running}` an axis that would not stop
+  for it; `{:error, :goto_not_started}` a goto the mount acknowledged and
+  did not start. After an error the axis is stopped (or told to).
+  """
   def goto_relative(ref, axis, degrees) do
     call(ref, {:goto_relative, axis, degrees / 1}) |> logged(true, :goto, %{id: id_of(ref), axis: axis, degrees: degrees / 1})
   end

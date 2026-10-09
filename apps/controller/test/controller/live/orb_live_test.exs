@@ -22,7 +22,7 @@ defmodule Controller.OrbLiveTest do
       assert has_element?(view, "#orb-ax-scope")
       assert html =~ "pole"
       assert html =~ "tube"
-      assert html =~ "RA · polar axis"
+      assert html =~ "RA axis"
       assert html =~ "Dec axis"
       assert html =~ "STOP"
       refute html =~ "eyepiece mode"

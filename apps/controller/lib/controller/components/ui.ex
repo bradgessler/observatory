@@ -51,12 +51,44 @@ defmodule Controller.Components.UI do
   defp wrap(%{nested: true} = assigns), do: ~H"<div {@rest}>{render_slot(@inner_block)}</div>"
   defp wrap(assigns), do: ~H"<main {@rest}>{render_slot(@inner_block)}</main>"
 
-  attr :navigate, :string, required: true
+  @doc """
+  The start of a page's toolbar: the leading key and the overline above the
+  title. On a page under another (a camera's Settings), the key is ‹ back to
+  it and the overline is its name (`label`). On a page in the sidebar
+  (`navigate={~p"/"}`), the key is ⌂ Home on a phone (on a wide screen the
+  sidebar is home, and the key isn't drawn) and the overline is the page's
+  section in the sidebar (`section`, "Cameras"). See the toolbar rules in
+  `app.css`: one shape on every page, the title left-aligned under the
+  overline, so nothing moves as you go from page to page.
+
+      <:header>
+        <.back navigate={~p"/"} label="Home" section="Cameras" />
+        <.title>Telescope Camera</.title>
+        <.actions><.stop /></.actions>
+      </:header>
+  """
+  attr :navigate, :string, default: nil
+  attr :patch, :string, default: nil, doc: "going back inside one LiveView: patch, so the choices made so far survive"
   attr :label, :string, required: true
+  attr :section, :string, default: nil, doc: "the overline on a sidebar page: its section"
 
   def back(assigns) do
+    home? = assigns.navigate == "/" and is_nil(assigns.patch)
+    # "Controls · ttyUSB0": the section in small capitals, the device's own name as it is spelled
+    {sec, id} =
+      case String.split(assigns.section || "", " · ", parts: 2) do
+        [sec, id] -> {sec, id}
+        [sec] -> {sec, nil}
+      end
+
+    assigns = assign(assigns, home?: home?, sec: sec, id: id)
+
     ~H"""
-    <.link navigate={@navigate} class="back">‹ {@label}</.link>
+    <.link navigate={@navigate} patch={@patch} class={["tb-lead", @home? && "tb-home"]} aria-label={if @home?, do: "Home", else: "Back to #{@label}"}>
+      <Controller.Components.Icons.icon name={if @home?, do: "house", else: "back"} />
+    </.link>
+    <span :if={@home?} class="tb-over"><span class="tb-sec">{@sec}</span><span :if={@id} class="tb-id"><span class="tb-dot"> · </span>{@id}</span></span>
+    <.link :if={!@home?} navigate={@navigate} patch={@patch} class="tb-over" tabindex="-1" aria-hidden="true">{@label}</.link>
     """
   end
 
@@ -68,11 +100,75 @@ defmodule Controller.Components.UI do
     """
   end
 
+  @doc """
+  A section's status in the toolbar, between the title and the keys: what
+  every page of that section shares and wants in view (the Sky's time and
+  location, how well the telescope is aligned, where the mount points). Beside
+  the title on a wide screen; its own row under it on a phone.
+
+      <:header>
+        <.back navigate={~p"/"} label="Home" section="Sky" />
+        <.title>Sky Map</.title>
+        <.status label="Sky"><SkyStatus.bar ... /></.status>
+        <.actions>...</.actions>
+      </:header>
+  """
+  attr :label, :string, required: true, doc: "what it's the status of, for a screen reader"
   slot :inner_block, required: true
 
+  def status(assigns) do
+    ~H"""
+    <div class="tb-status" role="group" aria-label={@label}>{render_slot(@inner_block)}</div>
+    """
+  end
+
+  attr :search, :boolean, default: true, doc: "false on the Search page itself"
+  slot :inner_block, required: true
+
+  @doc """
+  The header's keys, on the right. On a phone the first is Search (the
+  sidebar has it on a wide screen); a header's `?` makes way for it there,
+  and Search lists this page's help first.
+  """
   def actions(assigns) do
     ~H"""
-    <span class="actions">{render_slot(@inner_block)}</span>
+    <span class="actions">
+      <.search_key :if={@search} />
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  @doc """
+  The key that asks this phone where it is (the `Geo` hook), for the
+  Location page. Browsers share a location only with an https page (or one
+  opened on the machine itself), and the box serves http: there the key is
+  greyed out and one line above it says why and what to do instead, rather
+  than letting a tap fail. `secure` comes from the address (`Controller.Nav`),
+  and the hook corrects it from the browser's own answer.
+  """
+  attr :id, :string, required: true
+  attr :secure, :boolean, default: false
+
+  def phone_location(assigns) do
+    ~H"""
+    <div class="phone-location">
+      <p :if={!@secure} class="hint" role="status">
+        Phones share their location only with https pages, and this one is http, so this can't work here. Type the latitude and longitude below: the iPhone Compass app shows them.
+      </p>
+      <button id={@id} type="button" class="btn btn-primary" phx-hook="Geo" data-secure={to_string(@secure)} disabled={!@secure}>
+        Use This Phone's Location
+      </button>
+    </div>
+    """
+  end
+
+  @doc "The key that opens Search (`Controller.Spotlight`), for a header; shown on a phone, where there's no sidebar."
+  def search_key(assigns) do
+    ~H"""
+    <button type="button" class="search-key" popovertarget="spotlight" phx-click={Phoenix.LiveView.JS.push("reset", target: "#spotlight")} aria-label="Search">
+      <Controller.Components.Icons.icon name="search" />
+    </button>
     """
   end
 
@@ -88,6 +184,32 @@ defmodule Controller.Components.UI do
   end
 
   # -- containers -------------------------------------------------------------------
+
+  @doc """
+  A page with something to look at and things to do with it: on a wide
+  screen the thing to look at (`main`: a picture, the sky, the mount) takes
+  the room and grows with the window, and what you do with it (`side`) sits
+  in a column beside it, in view while you look; on a phone, one column,
+  `main` first. So a wide screen never shows a phone's column with empty
+  space either side.
+
+      <.split>
+        <:main><img src={...} /></:main>
+        <:side><.btn>Live View</.btn></:side>
+      </.split>
+  """
+  attr :class, :any, default: nil
+  slot :main, required: true
+  slot :side, required: true
+
+  def split(assigns) do
+    ~H"""
+    <div class={["split", @class]}>
+      <div class="split-main">{render_slot(@main)}</div>
+      <div class="split-side">{render_slot(@side)}</div>
+    </div>
+    """
+  end
 
   attr :title, :string, default: nil
   attr :class, :string, default: nil
@@ -281,6 +403,62 @@ defmodule Controller.Components.UI do
     </.dynamic_tag>
     """
   end
+
+  @doc """
+  A row that opens another screen: the name over its detail, what it
+  currently says on the right, and a chevron. Inside `<.items>`.
+
+      <.items label="Wi-Fi">
+        <.link_item patch={~p"/network/wifi"} label="Wi-Fi Networks" detail="2 saved" />
+      </.items>
+  """
+  attr :label, :string, required: true
+  attr :detail, :string, default: nil
+  attr :navigate, :string, default: nil
+  attr :patch, :string, default: nil
+  attr :rest, :global
+  slot :aside, doc: "what the row currently says, on the right: a signal meter, a count"
+
+  def link_item(assigns) do
+    ~H"""
+    <li class="item-row">
+      <.link navigate={@navigate} patch={@patch} class="item item-link" {@rest}>
+        <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{sentence(@detail)}</span></div>
+        <span :if={@aside != []} class="item-aside">{render_slot(@aside)}</span>
+        <span class="item-chevron" aria-hidden="true">›</span>
+      </.link>
+    </li>
+    """
+  end
+
+  @doc """
+  Received signal, as four bars and the number: the bars for a glance, the
+  percentage (and dBm, when known) for reading. The bars are drawn for eyes;
+  the words carry it for a screen reader.
+
+      <.signal percent={72} dbm={-58} />
+  """
+  attr :percent, :integer, required: true
+  attr :dbm, :integer, default: nil
+
+  def signal(assigns) do
+    assigns = assign(assigns, lit: bars(assigns.percent))
+
+    ~H"""
+    <span class="signal">
+      <span class="signal-bars" aria-hidden="true">
+        <i :for={n <- 1..4} class={n <= @lit && "lit"}></i>
+      </span>
+      <span class="signal-words">{@percent}%<span :if={@dbm} class="dim"> {@dbm} dBm</span></span>
+    </span>
+    """
+  end
+
+  defp bars(p) when p >= 75, do: 4
+  defp bars(p) when p >= 50, do: 3
+  defp bars(p) when p >= 25, do: 2
+  defp bars(p) when p > 0, do: 1
+  defp bars(_), do: 0
 
   @doc """
   A choice made by tapping the choice itself.

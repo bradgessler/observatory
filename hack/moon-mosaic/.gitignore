@@ -1,0 +1,7 @@
+venv/
+features/
+local*/
+*.npz
+*.csv
+*.json
+exif.txt

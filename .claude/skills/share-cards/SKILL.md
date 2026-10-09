@@ -35,6 +35,7 @@ that OpenGraph+ swaps in for the page's body. It is all in
 | a picture, wider than tall | the picture edge to edge, a dark fade, title, subtitle and up to three short facts at the foot (at the head when the foot is the busy part: `CARD_TEXT` in annotate.py) |
 | a picture, tall or square | the picture whole on the right, the words on the left |
 | a tiny subject (Saturn) | a crop at the picture's own pixels (`CARD` in annotate.py), never an enlargement |
+| a picture narrower than the card (the 600 to 800 px planetary nebulae of 8 October) | the picture whole on the right at no more than its own pixels, the words on the left (`native/4`) |
 | a night, Observations, the home page | title and a line of words beside six of the pictures |
 | a post | date and title beside its hero picture, shown whole (most heroes are phone screenshots, small and tall) |
 

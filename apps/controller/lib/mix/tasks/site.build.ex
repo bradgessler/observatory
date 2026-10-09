@@ -166,9 +166,14 @@ defmodule Mix.Tasks.Site.Build do
       date: parse_date(meta["date"], slug),
       hero: hero,
       hero_alt: hero_alt,
-      html: render(body)
+      html: body |> render() |> from_root()
     }
   end
+
+  # A post links to a night as the repository lays it out, from posts/ up to
+  # observations/ (so the link works on GitHub too); on the site the post sits
+  # at the root, beside observations/.
+  defp from_root(html), do: String.replace(html, ~s(href="../observations/), ~s(href="observations/))
 
   @doc """
   A post's markdown as HTML. The posts are ours, so raw HTML passes (an
@@ -542,7 +547,10 @@ defmodule Mix.Tasks.Site.Build do
         {"images/#{stem}.jpg", ""}
       end
 
-    ~s(<figure class="plate #{class}"><a href="images/#{stem}.jpg"><img src="#{src}"#{srcset} width="#{o["width"]}" height="#{o["height"]}" alt="#{esc(alt)}" /></a></figure>)
+    # a phone pans a labelled picture at 46rem; one narrower than that pans at its own width, never above its pixels
+    own = if o["width"] < 736, do: ~s( style="width:#{o["width"]}px"), else: ""
+
+    ~s(<figure class="plate #{class}"><a href="images/#{stem}.jpg"><img src="#{src}"#{srcset} width="#{o["width"]}" height="#{o["height"]}"#{own} alt="#{esc(alt)}" /></a></figure>)
   end
 
   defp web_size(night, slug) do
@@ -598,19 +606,26 @@ defmodule Mix.Tasks.Site.Build do
     facts = o["facts"] |> Enum.filter(fn [_, v] -> String.length(v) <= 36 end) |> Enum.take(3)
 
     body =
-      if o["height"] > o["width"] * 0.9 do
-        # a tall or square picture stands whole on the right, the words beside it
-        beside(card_words(o, facts, "column", "1.6vw"), src)
-      else
-        # the words go where the picture is quiet: its foot, or its head when the foot is the busy part
-        {edge, fade, mark_edge} = if o["card_text"] == "top", do: {"top:3.4vw", "to bottom", "bottom:3vw"}, else: {"bottom:3.4vw", "to top", "top:3vw"}
+      cond do
+        # a picture narrower than the card (a small nebula at the sensor's own scale) is shown whole at no more than its
+        # own pixels, never stretched to fill the card
+        is_nil(o["card"]) and o["width"] < 1200 ->
+          native(card_words(o, facts, "column", "1.6vw"), src, o["width"], o["height"])
 
-        """
-        <img src="#{src}" alt="" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" />
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(#{fade},rgba(0,0,0,.9) 0%,rgba(0,0,0,.6) 30%,rgba(0,0,0,0) 62%);"></div>
-        <div style="position:absolute;left:4vw;right:4vw;#{edge};">#{card_words(o, facts, "row", "3.6vw")}</div>
-        <div style="position:absolute;right:4vw;#{mark_edge};font-size:1.5vw;color:#e2e2de;text-shadow:0 0 .8vw #000,0 0 .3vw #000;">#{@card_mark}</div>
-        """
+        # a tall or square picture stands whole on the right, the words beside it
+        o["height"] > o["width"] * 0.9 ->
+          beside(card_words(o, facts, "column", "1.6vw"), src)
+
+        true ->
+          # the words go where the picture is quiet: its foot, or its head when the foot is the busy part
+          {edge, fade, mark_edge} = if o["card_text"] == "top", do: {"top:3.4vw", "to bottom", "bottom:3vw"}, else: {"bottom:3.4vw", "to top", "top:3vw"}
+
+          """
+          <img src="#{src}" alt="" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" />
+          <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(#{fade},rgba(0,0,0,.9) 0%,rgba(0,0,0,.6) 30%,rgba(0,0,0,0) 62%);"></div>
+          <div style="position:absolute;left:4vw;right:4vw;#{edge};">#{card_words(o, facts, "row", "3.6vw")}</div>
+          <div style="position:absolute;right:4vw;#{mark_edge};font-size:1.5vw;color:#e2e2de;text-shadow:0 0 .8vw #000,0 0 .3vw #000;">#{@card_mark}</div>
+          """
       end
 
     card(body)
@@ -639,6 +654,23 @@ defmodule Mix.Tasks.Site.Build do
         #{words}
       </div>
       <img src="#{src}" alt="" style="height:100%;width:auto;max-width:52%;object-fit:cover;display:block;" />
+    </div>
+    """
+  end
+
+  # Words on the left, a picture smaller than the card on the right, whole and
+  # at no more than its own pixels (width and height are its own; the max-
+  # sizes only ever shrink it), centred on the card's black.
+  defp native(words, src, w, h) do
+    """
+    <div style="display:flex;width:100%;height:100%;">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;padding:4vw;box-sizing:border-box;">
+        <div style="margin-bottom:auto;font-size:1.5vw;color:#b8b8b4;">#{@card_mark}</div>
+        #{words}
+      </div>
+      <div style="width:56%;flex:none;display:flex;align-items:center;justify-content:center;">
+        <img src="#{src}" alt="" width="#{w}" height="#{h}" style="display:block;width:auto;height:auto;max-width:100%;max-height:100%;" />
+      </div>
     </div>
     """
   end
@@ -877,7 +909,8 @@ defmodule Mix.Tasks.Site.Build do
     @media (min-width:64rem) { ul.sky { grid-template-columns:repeat(3,1fr); } ul.sky li:first-child { grid-column:span 2; grid-row:span 2; } }
     ul.sky a { display:block; color:inherit; text-decoration:none; }
     ul.sky .frame { display:block; aspect-ratio:3/2; }
-    ul.sky img { width:100%; height:100%; object-fit:contain; display:block; transition:filter .12s ease; }
+    /* every picture whole, and a small one at its own size: scale-down shrinks to fit but never enlarges */
+    ul.sky img { width:100%; height:100%; object-fit:scale-down; display:block; transition:filter .12s ease; }
     ul.sky a:hover img { filter:brightness(1.15); }
     ul.sky strong { display:block; margin-top:.9rem; font-weight:600; }
     ul.sky .detail { color:var(--dim); font-size:.9rem; }

@@ -232,6 +232,30 @@ defmodule Mix.Tasks.Site.BuildTest do
       assert home =~ ~s(<img src="observations/2026-10-03/images/orion-nebula-thumb.jpg")
     end
 
+    test "a picture smaller than the page is never drawn above its own pixels: not on a phone, not in the grid, not on its card", %{tmp_dir: dir, night: night} do
+      json = night |> Path.join("objects.json") |> File.read!() |> Jason.decode!()
+      small = %{"slug" => "m76", "title" => "The Little Dumbbell Nebula", "subtitle" => "Messier 76", "what" => "A dying star.", "facts" => [["Distance", "2,500 light-years"]],
+                "how" => "5.5 minutes", "specs" => [], "width" => 640, "height" => 480, "thumb" => [640, 480], "frames" => false}
+      File.write!(Path.join(night, "objects.json"), Jason.encode!(%{json | "objects" => json["objects"] ++ [small]}))
+      for f <- ~w(m76.jpg m76-thumb.jpg m76-labels.jpg), do: File.write!(Path.join([night, "images", f]), "")
+
+      build(dir, ["--ogplus", "https://test.ogplus.net"])
+      html = page(dir, "2026-10-03/m76.html")
+      # a phone pans the labelled picture at its own width, not at 46rem
+      assert html =~ ~s(<img src="images/m76-labels.jpg" width="640" height="480" style="width:640px")
+      refute page(dir, "2026-10-03/orion-nebula.html") =~ ~s(style="width:)
+
+      # its card shows it whole at its own size beside the words, not stretched across the card
+      [_, card] = Regex.run(~r{<template id="ogplus">(.*?)</template>}s, html)
+      assert card =~ ~s(<img src="images/m76.jpg" alt="" width="640" height="480" style="display:block;width:auto;height:auto;max-width:100%;max-height:100%;")
+      assert card =~ "The Little Dumbbell Nebula"
+      refute card =~ "object-fit:cover"
+      refute card =~ "class="
+
+      # the night's grid shrinks a picture to fit its tile but never enlarges one
+      assert File.read!(Path.join(dir, "_site/style.css")) =~ "ul.sky img { width:100%; height:100%; object-fit:scale-down;"
+    end
+
     test "without OpenGraph+, a picture's page shares with the picture itself", %{tmp_dir: dir} do
       build(dir, ["--ogplus", ""])
       html = page(dir, "2026-10-03/orion-nebula.html")
@@ -262,6 +286,14 @@ defmodule Mix.Tasks.Site.BuildTest do
         if old, do: Application.put_env(:controller, :site, old), else: Application.delete_env(:controller, :site)
       end
     end
+  end
+
+  test "a post's link to a night, written from posts/ as the repository lays it out, works from the site's root", %{tmp_dir: dir} do
+    File.write!(Path.join(dir, "posts/2026-10-08-night.md"), "---\ntitle: \"A night\"\ndate: 2026-10-08\n---\n\nThe pictures have [their own page](../observations/2026-10-03/).\n")
+    build(dir, ["--ogplus", ""])
+    html = File.read!(Path.join(dir, "_site/2026-10-08-night.html"))
+    assert html =~ ~s(<a href="observations/2026-10-03/">their own page</a>)
+    refute html =~ "../observations"
   end
 
   test "every image is a figure with its caption, and tables scroll on a phone" do

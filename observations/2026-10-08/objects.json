@@ -1,0 +1,484 @@
+{
+ "credit": "© 2026 Brad Gessler  ·  Celestron 8SE (8 inch, 2,082 mm) and Sony a6000 on an EQ6-R  ·  San Francisco Bay Area  ·  night of 8 October 2026",
+ "made_with": "Capture and mount: Observatory (Elixir on a Raspberry Pi 3).  Stacking: numpy, SciPy, OpenCV, rawpy.  Plate solving: astrometry.net.  Stacked from the camera's RAW frames. Nothing generated.",
+ "objects": [
+  {
+   "slug": "andromeda-core",
+   "title": "The core of the Andromeda Galaxy",
+   "subtitle": "Messier 31",
+   "what": "The centre of the nearest big galaxy to our own, with the dark lanes of dust in its spiral arms. The glow is the light of billions of stars, too far away to see one by one.",
+   "facts": [
+    [
+     "Distance",
+     "2.5 million light-years"
+    ],
+    [
+     "This picture spans",
+     "28,000 light-years"
+    ],
+    [
+     "The light left",
+     "2.5 million years ago, when our ancestors were first making stone tools"
+    ],
+    [
+     "At its centre",
+     "A black hole of over 100 million Suns"
+    ]
+   ],
+   "made": "30 of 33 frames of 15 s, under a clear sky",
+   "how": "7.5 minutes of light on one field, under a clear sky",
+   "specs": [
+    [
+     "Exposures",
+     "30 x 15 s at ISO 3200: 7.5 minutes"
+    ],
+    [
+     "Frames",
+     "33 taken, 30 kept. 2 were centring frames just after the slew, 1 smeared by the mount. Clear: the weights all between 0.97 and 1.04"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell. Stars 4.5 arcsec wide (half-flux), 4.3 FWHM"
+    ],
+    [
+     "Field",
+     "38.3 x 25.6 arcmin: one sensor frame, in the camera's orientation (north to the left). M32 is 4.4 arcmin off the right edge"
+    ],
+    [
+     "When",
+     "8 October 2026, late evening, over 17 minutes. 75 to 79 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "0.6 degrees over the run, corrected in registration"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken. The flat is built from the open sky round M76, shot 25 to 55 minutes earlier with nothing moved but the mount; it agrees with the 3 October flat to 1 percent in green and blue. 50 dust shadows divided out"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean, one constant per frame. Noise 5.6 times lower than one frame (5.5 expected)"
+    ],
+    [
+     "Zero level",
+     "The galaxy fills the frame, so the true sky cannot be measured: the darkest part of the field, 19.7 arcmin from the nucleus, is set to zero. Good to a few DN of a 99 DN sky"
+    ],
+    [
+     "Finish",
+     "The camera's as-shot white balance, no colour matrix. Arcsinh stretch with the nucleus unclipped (250 of 255). Gamma 1.2, S-curve 0.45, saturation x 1.2. Faint glow made neutral, dark parts smoothed (bilateral, 2.5 px)"
+    ],
+    [
+     "Not used",
+     "A deconvolved version, kept apart: stars 7 percent smaller, but a dark moat round every star and 34 percent more grain. The dust lanes are limited by noise, not blur"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,083 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without leveling, 13.4 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model"
+    ]
+   ],
+   "width": 2962,
+   "height": 1982,
+   "thumb": [
+    900,
+    602
+   ],
+   "arcsec_per_px": 0.77633,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "ring-nebula",
+   "title": "The Ring Nebula",
+   "subtitle": "Messier 57, a planetary nebula in Lyra",
+   "what": "A dying star has puffed off its outer layers, and the hot core left behind makes them glow: oxygen blue-green, hydrogen and nitrogen red at the edge. It is more barrel than ring, and we look down its length. The Sun will do the same in about 5 billion years.",
+   "facts": [
+    [
+     "Distance",
+     "About 2,600 light-years"
+    ],
+    [
+     "This picture spans",
+     "7 light-years"
+    ],
+    [
+     "The light left",
+     "Around 570 BC, about when Pythagoras was born"
+    ],
+    [
+     "The ring is",
+     "About a light-year across: over 60,000 times the distance from the Earth to the Sun"
+    ]
+   ],
+   "made": "18 frames of 15 s; a patch of thin cloud took 15 more",
+   "how": "4.5 minutes of light on one field; a patch of thin cloud took 15 of the 33 frames",
+   "specs": [
+    [
+     "Exposures",
+     "18 x 15 s at ISO 3200: 4.5 minutes"
+    ],
+    [
+     "Frames",
+     "33 taken, 18 kept. 15 lost to a patch of thin cloud over 8 minutes (stars near the nebula dimmed to 21 to 43 percent). The 18 kept, at 51 to 100 percent, are weighted by transparency squared: worth 9.5 clear frames"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 5.9 arcsec wide (half-flux): seeing 5.5 to 6.5 this low"
+    ],
+    [
+     "Field",
+     "9.3 x 6.2 arcmin, cropped round the catalogue position from one sensor frame and turned a quarter turn (no resampling)"
+    ],
+    [
+     "When",
+     "8 October 2026, late evening, over 19 minutes. 35 to 39 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "1.2 degrees over the run, and 74 arcsec of drift; corrected in registration (second-order fit on 50 or more stars)"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken: hot pixels found from the run itself (31,000 to 36,000 per colour plane) and repaired; vignetting and dust not corrected"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean, one sky constant per colour per frame. Noise 2.9 times lower than one frame (3.1 expected from the weights)"
+    ],
+    [
+     "Sky",
+     "In the picture only: one plane per colour fitted to the sky more than 2.6 arcmin from the nebula, taking off a light-pollution ramp of 13 to 16 DN across the picture. The stack keeps only the constants"
+    ],
+    [
+     "Colour",
+     "The camera's own daylight white balance and colour matrix. Red and blue moved 0.3 and 0.45 px onto green inside the one resampling (the air is a prism this low)"
+    ],
+    [
+     "Finish",
+     "Arcsinh stretch on brightness, colour from a 3.5 px blur. Black at the 60th percentile, S-curve 0.15, no saturation boost. Dark sky neutral and smoothed (median 5 px, bilateral 4 px)"
+    ],
+    [
+     "Not shown",
+     "The faint outer halo (to 1.9 arcmin) and the galaxy IC 1296, 4 arcmin away: both detected in the stack, both under the quiet sky. A Wiener-restored version was made and kept apart (stars 30 percent smaller, sky 40 percent noisier)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,081.7 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without leveling, 13.4 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model"
+    ]
+   ],
+   "width": 720,
+   "height": 480,
+   "thumb": [
+    720,
+    480
+   ],
+   "arcsec_per_px": 0.77618,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "crystal-ball",
+   "title": "The Crystal Ball Nebula",
+   "subtitle": "NGC 1514, a planetary nebula in Taurus",
+   "what": "Two stars at the centre, one of them dying, wrapped in the shell of gas it threw off. In 1790 it changed William Herschel's mind: a star inside a glow showed him that not every faint smudge in the sky is a crowd of stars too far away to see apart.",
+   "facts": [
+    [
+     "Distance",
+     "Roughly 1,500 light-years (not well known)"
+    ],
+    [
+     "This picture spans",
+     "3.4 light-years"
+    ],
+    [
+     "The light left",
+     "Around the year 500, soon after the fall of Rome"
+    ],
+    [
+     "The shell is",
+     "About a light-year across, and too faint to see in any one photo"
+    ]
+   ],
+   "made": "14 of 25 frames of 15 s",
+   "how": "3.5 minutes of light; the mount smeared most of the rest",
+   "specs": [
+    [
+     "Exposures",
+     "14 x 15 s at ISO 3200: 3.5 minutes"
+    ],
+    [
+     "Frames",
+     "25 taken on target, 14 kept. 3 were centring frames; 8 smeared in one direction while the mount's hold settled and in single frames after (stars 6.1 to 9.7 arcsec, stretched 1.6 to 2.9 to 1). The sky was clear"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 4.9 arcsec wide (half-flux)"
+    ],
+    [
+     "Field",
+     "7.8 x 5.2 arcmin, cropped round the central star from one sensor frame and turned by quarter turns only"
+    ],
+    [
+     "When",
+     "9 October 2026, after midnight, over 10 minutes. 48 to 50 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "0.5 degrees over the run, corrected in registration (second-order fit on 50 or more stars)"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken: hot pixels found from the run itself (21,000 to 23,000 per colour plane) and repaired; vignetting and dust not corrected"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean, one sky constant per colour per frame. Noise 3.6 times lower than one frame (3.7 expected)"
+    ],
+    [
+     "Sky",
+     "In the picture only: one plane per colour fitted to the sky more than 101 arcsec from the star, taking off a ramp of 7 to 10 DN across the picture"
+    ],
+    [
+     "What is real",
+     "The shell repeats in two independent half stacks (13.5 and 13.6 DN, shapes correlated 0.87). The star's own glare is 8 percent of the shell's light. Texture inside the shell is noise"
+    ],
+    [
+     "Finish",
+     "The camera's daylight white balance and colour matrix. Arcsinh stretch on brightness, colour from an 8 px blur where faint, the star's clipped core white. Black at the 40th percentile, gamma 0.9, saturation x 1.4. Dark sky smoothed (median 5 px, bilateral 4 px)"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,081 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without leveling, 13.4 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model"
+    ]
+   ],
+   "width": 600,
+   "height": 400,
+   "thumb": [
+    600,
+    400
+   ],
+   "arcsec_per_px": 0.7763,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "triangulum-galaxy",
+   "title": "The Triangulum Galaxy",
+   "subtitle": "Messier 33, a spiral galaxy in Triangulum",
+   "what": "The third-largest galaxy in our small group of neighbours, after Andromeda and our own Milky Way: a loose spiral of some 40 billion stars. The bright knot at lower left, NGC 604, is a cloud where new stars are being born, 1,500 light-years across.",
+   "facts": [
+    [
+     "Distance",
+     "About 2.7 million light-years"
+    ],
+    [
+     "This picture spans",
+     "30,000 light-years; the whole galaxy is about twice that"
+    ],
+    [
+     "The light left",
+     "2.7 million years ago, as the ice ages began"
+    ],
+    [
+     "Honest note",
+     "The disc is grey on purpose: these frames cannot measure its faint colour"
+    ]
+   ],
+   "made": "21 of 24 frames of 15 s",
+   "how": "5.25 minutes of light on one field, under a clear sky",
+   "specs": [
+    [
+     "Exposures",
+     "21 x 15 s at ISO 3200: 5.25 minutes"
+    ],
+    [
+     "Frames",
+     "24 taken, 21 kept. 3 smeared by the mount, every star stretched the same way: one taken during a nudge, two that drifted. One 2 s centring frame left out. Clear: every kept frame within 2 percent of the run's star brightness"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell. Stars 3.9 arcsec wide (half-flux), the sharpest of the night"
+    ],
+    [
+     "Field",
+     "38.4 x 25.6 arcmin: one sensor frame, in the camera's orientation (north up and to the left)"
+    ],
+    [
+     "When",
+     "8 to 9 October 2026, around midnight, over 15 minutes. 69 to 72 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "0.5 degrees over the run, corrected in registration"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken. The flat is built from the night's own open-sky frames of M57 and NGC 1514, at the same exposure: vignetting (corners at 69 percent) and 10 dust shadows divided out. Hot pixels from the run itself"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean. One constant per colour per frame, set where the galaxy is faintest; no surface fitted, the galaxy fills the frame. Noise 4.4 times lower than one frame (4.6 expected)"
+    ],
+    [
+     "Colour",
+     "Shown only where the light can carry it, 0.5 percent of the picture: the core, star clusters, the brightest star-forming clouds and the stars. The faint disc is grey because its colour here would be set by the flat, not measured"
+    ],
+    [
+     "Finish",
+     "The camera's daylight white balance and colour matrix. Brightness smoothed 1 px (2 px where dark), arcsinh stretch, saturation x 1.1. Black just above the faintest part of the galaxy"
+    ],
+    [
+     "Not used",
+     "Wiener and Richardson-Lucy restoration: every setting that made the stars smaller dug a dark moat round the bright ones"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,083.5 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without leveling, 13.4 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model"
+    ]
+   ],
+   "width": 2970,
+   "height": 1980,
+   "thumb": [
+    900,
+    600
+   ],
+   "arcsec_per_px": 0.77615,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "little-dumbbell",
+   "title": "The Little Dumbbell Nebula",
+   "subtitle": "Messier 76, a planetary nebula in Perseus",
+   "what": "Another dying star's cast-off layers, seen from the side: a bright bar of glowing gas with a faint lobe on either side. It was once taken for two clouds, so it has two catalogue numbers, NGC 650 and NGC 651.",
+   "facts": [
+    [
+     "Distance",
+     "Roughly 2,500 light-years (not well known)"
+    ],
+    [
+     "This picture spans",
+     "6 light-years"
+    ],
+    [
+     "The light left",
+     "Around 470 BC, when Socrates was born"
+    ],
+    [
+     "The bright part is",
+     "About 2 light-years across"
+    ]
+   ],
+   "made": "22 of 26 frames of 15 s",
+   "how": "5.5 minutes of light on one field, under a clear sky",
+   "specs": [
+    [
+     "Exposures",
+     "22 x 15 s at ISO 3200: 5.5 minutes"
+    ],
+    [
+     "Frames",
+     "26 taken, 22 kept. 3 dropped because the tube moved during the exposure (stars stretched 1.47 to 1.55 to 1, all the same way); 1 was taken as the mount set off for the next target. None lost to cloud"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 4.1 arcsec wide (half-flux)"
+    ],
+    [
+     "Field",
+     "8.3 x 6.2 arcmin, north up, centred on the catalogue position; every frame resampled once, straight onto this grid"
+    ],
+    [
+     "When",
+     "8 October 2026, late evening, over 14 minutes. 57 to 59 degrees up, no Moon"
+    ],
+    [
+     "Field rotation",
+     "0.9 degrees over the run, corrected in registration. The field jumped twice by 150 to 165 px as the pointing model re-centred it"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken: hot pixels found from the run itself (21,000 to 23,000 per colour plane) and repaired"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean, one sky constant per colour per frame. Noise 4.5 times lower than one frame (4.7 expected)"
+    ],
+    [
+     "Sky",
+     "In the picture only: the vignetting dome, about 3.5 DN across the picture, measured over the whole frame outside 4.3 arcmin of the nebula and subtracted. The stack keeps the constants alone"
+    ],
+    [
+     "Finish",
+     "The camera's as-shot white balance, no colour matrix: the oxygen light comes out cyan-blue. Arcsinh stretch, black at the 64th percentile, gamma 0.9, S-curve 0.25, saturation x 1.1. Dark sky neutral and smoothed (median 5 px, bilateral 6 px)"
+    ],
+    [
+     "What is real",
+     "The bar and both lobes repeat in two independent half stacks (lobes at 14 and 11 sigma), and so does the pink at the ends of the bar. The faint outer loops beyond 75 arcsec do not, so they are not shown"
+    ],
+    [
+     "Not used",
+     "Wiener deconvolution at two strengths: smaller stars, but 1.4 to 2.2 times the sky noise and a dark ring round every star"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,081.4 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without leveling, 13.4 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model"
+    ]
+   ],
+   "width": 640,
+   "height": 480,
+   "thumb": [
+    640,
+    480
+   ],
+   "arcsec_per_px": 0.7764,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  }
+ ]
+}

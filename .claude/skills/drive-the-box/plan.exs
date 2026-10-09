@@ -2,11 +2,18 @@
 # Wi-Fi drop on the Mac's side cannot stop it halfway. Each step: Go To and Centre (flip allowed), then N good pictures
 # at ISO/SHUTTER, then the next. It stops (does not move on) when the hold ends under it, and writes its progress to
 # /root/.observatory/plan.json and the log. Stop it with: send(:plan_runner, :stop).
-# PLAN="m76:28,m57:30,m27:30,m31:30" ISO=3200 SHUTTER=15; FIRST_SKIP_CENTRE=1 when the first target is already centred.
+# PLAN="m76:28,m57:30,sol-saturn:40:800:1/40,sol-saturn:10:3200:10" ISO=3200 SHUTTER=15 (a step's own ISO and
+# shutter after its count; a step on the same target as the one before is not centred again; planets by their
+# ephemeris id; NAME@RA/DEC in J2000 degrees for anything the catalogue lacks); FIRST_SKIP_CENTRE=1 when the first target is already centred.
 plan =
   (System.get_env("PLAN") || "m57:30")
   |> String.split(",", trim: true)
-  |> Enum.map(fn s -> [t, n] = String.split(s, ":"); {t, String.to_integer(n)} end)
+  |> Enum.map(fn s ->
+    case String.split(s, ":") do
+      [t, n] -> {t, String.to_integer(n), nil, nil}
+      [t, n, i, sh] -> {t, String.to_integer(n), String.to_integer(i), sh}
+    end
+  end)
 
 iso = String.to_integer(System.get_env("ISO") || "3200")
 shutter = System.get_env("SHUTTER") || "15"
@@ -39,7 +46,36 @@ runner = fn ->
     wait.(wait, 600)
   end
 
-  shoot = fn name, n ->
+  # the camera finishing a picture answers every finder :busy (8 Oct: the Dumbbell's centring gave up on it)
+  idle = fn idle, k -> if StillCamera.status().busy and k > 0, do: (Process.sleep(1000); idle.(idle, k - 1)), else: :ok end
+
+  # NAME@RA/DEC (J2000 degrees) for anything the catalogue doesn't carry
+  find = fn tid ->
+    case String.split(tid, "@") do
+      [name, coords] ->
+        [ra, dec] = coords |> String.split("/") |> Enum.map(&elem(Float.parse(&1), 0))
+        %{id: name, name: name, ra_deg: ra, dec_deg: dec}
+
+      _ -> nil
+    end ||
+    Enum.find(Catalog.dsos(), &(&1.id == tid)) ||
+      Enum.find(Controller.Sky.Ephemeris.objects(DateTime.utc_now(), Controller.Sky.Pointing.site()), &(&1.id == tid))
+  end
+
+  # The hold takes up what is left after a Go To or a nudge over ~20 s, faster than tracking: pictures taken then are
+  # smeared (8 Oct, the Crystal Ball's first frames at 12.7"). Wait until it has been steady for a few seconds.
+  steady = fn steady, ok, k ->
+    t = Tracker.status(id)
+    good = is_map(t) and t.paused == false and is_number(t.error_arcmin) and t.error_arcmin < 0.15
+    cond do
+      ok >= 4 -> :steady
+      k <= 0 -> :timeout
+      true -> Process.sleep(1000); steady.(steady, if(good, do: ok + 1, else: 0), k - 1)
+    end
+  end
+
+  shoot = fn name, n, iso, shutter ->
+    say.("#{name}: waiting for the hold to settle: #{inspect(steady.(steady, 0, 60))}")
     StillCamera.set(iso: iso, shutter: shutter)
     start = StillCamera.status().good
     StillCamera.continuous(true)
@@ -60,14 +96,16 @@ runner = fn ->
     r
   end
 
-  Enum.reduce_while(Enum.with_index(plan), :ok, fn {{tid, n}, i}, _ ->
-    obj = Enum.find(Catalog.dsos(), &(&1.id == tid))
-    say.("#{obj.name}: #{if i == 0 and skip_first, do: "already centred", else: "Go To and Centre"}")
-    st = if i == 0 and skip_first, do: %{ok: true}, else: centre.(obj)
+  Enum.reduce_while(Enum.with_index(plan), :ok, fn {{tid, n, step_iso, step_shutter}, i}, _ ->
+    obj = find.(tid)
+    again = i > 0 and elem(Enum.at(plan, i - 1), 0) == tid
+    say.("#{obj.name}: #{cond do i == 0 and skip_first -> "already centred"; again -> "same target"; true -> "Go To and Centre" end}")
+    idle.(idle, 90)
+    st = if (i == 0 and skip_first) or again, do: %{ok: true}, else: centre.(obj)
     progress.(%{target: obj.name, phase: :centred, centre: st && Map.take(st, [:ok, :tries, :off_arcmin, :words])})
 
     if st && st.ok do
-      r = shoot.(obj.name, n)
+      r = shoot.(obj.name, n, step_iso || iso, step_shutter || shutter)
       say.("#{obj.name}: #{inspect(r)}")
       progress.(%{target: obj.name, phase: :shot, result: inspect(r)})
       if r == :done, do: {:cont, :ok}, else: {:halt, r}

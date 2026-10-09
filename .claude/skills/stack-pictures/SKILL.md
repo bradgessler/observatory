@@ -140,3 +140,32 @@ afterwards: focus first (star size on the Stills page; 8.5 arcsec became
 5.0), flats at dusk or dawn, darks with the cap on, short frames for bright
 cores, exposures capped by the drift (20 s at 0.1 arcsec per second), and
 three times the frames you want when cloud is about.
+
+## What the night of 8 October 2026 added
+
+Six targets, one agent each, all reproducible bit for bit from `hack/stacks/2026-10-08/<target>/run_all.sh`
+(the M57 and NGC 1514 pipelines are the best templates now).
+
+- **Select by star shape, not only size.** Frames taken while the hold took up a Go To's last error, and a
+  periodic wobble later, smear every star the same way: drop frames with common-direction ellipticity above
+  0.2, star size above ~6.5", or within 10 s of a move. Two consecutive sharp frames between smeared ones are fine.
+- **Transparency where the object is,** not over the whole frame, when something (a tree, a roof) is partly in
+  the way: fit a plane through the star-flux ratios. A rising object behind an obstruction looks like a
+  brightening sky in green and blue with red flat; cloud makes the sky darker.
+- **A flat from the night's own open-sky frames** (another target's run, same optics and settings) when there
+  were no twilight flats: multiplicative, per colour, dust shadows found against two skies and divided out.
+  It matched the 3 October flat to 1%.
+- **Atmospheric dispersion:** measure red and blue against green on the stack's stars (0.2 to 0.6 px at
+  30-40 degrees) and take it out in the one resampling.
+- **Register on the RAW green planes with a lower threshold (4.5 sigma)** when the sky is bright; a 2nd-order
+  fit beside rotation+shift halves residuals on a long run.
+- **Sky:** one constant per colour per frame in the stack, always. A sky plane or vignetting model fitted far
+  from the object is allowed in the picture only, and said in the recipe.
+- **Finishing:** read the 16-bit stretched image at full depth (`finish16.py` beside each night's scripts);
+  keep the stretch floor below zero (a hard zero leaves exact-black specks the finish tool treats as no data);
+  luminance from a light blur, colour from a heavier one faded to grey in the sky, when red and blue are 2-3x
+  noisier than green. Colour only where the signal carries it; say so (M33's disk was left grey).
+- **Deconvolution** was tried on five targets and delivered on none as the main picture: rings around stars
+  and drowned faint parts every time at this depth. Keep it as a labelled extra only when it doesn't ring.
+- **Prove the faint thing** with half stacks (odd and even frames) and blank-sky placements of the same
+  aperture; the Crystal Ball's shell passed, the Crab's filaments did not.

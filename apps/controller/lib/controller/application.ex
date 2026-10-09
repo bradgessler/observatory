@@ -19,6 +19,8 @@ defmodule Controller.Application do
       # one viewer's own conveniences (the time they set the sky to): Controller.Viewer
       Controller.Viewer,
       Controller.Sky.Tracker,
+      # Go To and Centre: go, plate solve a picture, nudge by what it says
+      Controller.Sky.Centre,
       Controller.Sky.Moves,
       # the pad's (or the Center page's) Centered becomes an alignment point on the held target
       Controller.CenterPoints,

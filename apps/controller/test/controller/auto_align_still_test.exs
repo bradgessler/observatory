@@ -12,6 +12,7 @@ defmodule Controller.AutoAlignStillTest do
   use ExUnit.Case, async: false
 
   alias Controller.{AutoAlign, Plates, StillCamera}
+  alias Controller.Sky.Centre
   alias Controller.Sim.Truth
   alias Controller.Sky.{Astro, Lineup, Pointing, Stars, Tracker}
 
@@ -34,7 +35,7 @@ defmodule Controller.AutoAlignStillTest do
     id = "sim-aa-still-#{System.unique_integer([:positive])}"
 
     StillCamera.subscribe()
-    start_supervised!({Camera.Server, id: cam, transport: {Camera.Transport.Sim, []}})
+    start_supervised!({Camera.Server, id: cam, transport: {Camera.Transport.Sim, []}}, id: :sim_camera)
     assert_receive {:still_camera, %{camera: %{id: ^cam, state: :ready}}}, 5_000
     # a picture from a test before may still be coming down
     Enum.find(1..300, fn _ -> not StillCamera.status().busy or (Process.sleep(50) && false) end)
@@ -103,6 +104,43 @@ defmodule Controller.AutoAlignStillTest do
     assert name == target.name
     held = off_centre(id, target, ctx.())
     assert abs(held - landed) * 60 < 0.5, "held #{Float.round(held * 60, 2)}′ off after 20 s (landed #{Float.round(landed * 60, 2)}′)"
+  end
+
+  test "Go To and Centre: the picture says how far off it landed, a nudge puts it in the middle, the hold keeps it", %{id: id} do
+    :ok = AutoAlign.start(id, overhead: true)
+    assert_receive {:auto_align, ^id, %{done: true, ok: true}}, 240_000
+
+    # the tube shifts against the encoders after the alignment (an SCT's mirror, a clutch): Go To now
+    # lands about 20 arcminutes off, outside a 25 mm eyepiece's field at 2032 mm
+    t = Truth.get(id)
+    Truth.put(id, %{t | off_ra: t.off_ra + 0.3, off_dec: t.off_dec - 0.2})
+    ctx = fn -> Pointing.context(DateTime.utc_now(), id) end
+    target = far_star(Truth.looking_at(Mount.snapshot(id), ctx.()), ctx.())
+
+    Centre.subscribe()
+    :ok = Centre.start(id, target)
+    assert_receive {:centre, ^id, %{done: true} = run}, 150_000
+    assert run.ok, run.words
+    assert run.tries >= 2, "it should have had to nudge: #{run.words}"
+    assert run.words =~ "centred"
+    centred = off_centre(id, target, ctx.()) * 60
+    assert centred < 2.0, "#{target.name} is #{Float.round(centred, 2)}′ from the middle"
+
+    # and the model's hold keeps the centred place, not the model's own idea of the target
+    Process.sleep(10_000)
+    assert %{name: name} = Tracker.status(id)
+    assert name == target.name
+    held = off_centre(id, target, ctx.()) * 60
+    assert held < 2.5, "held #{Float.round(held, 2)}′ off after 10 s (centred at #{Float.round(centred, 2)}′)"
+  end
+
+  test "Go To and Centre with no camera says so and moves nothing", %{id: id} do
+    Process.sleep(200)
+    stop_supervised!(:sim_camera)
+    Enum.find(1..80, fn _ -> StillCamera.status().camera == nil or (Process.sleep(100) && false) end)
+    star = Enum.find(Stars.all(), &(&1.name == "Vega"))
+    assert Centre.start(id, star) == {:error, :no_camera}
+    refute Mount.snapshot(id).axes.ra.goto_pending
   end
 
   test "with no camera on the telescope it says so and moves nothing", %{id: id} do

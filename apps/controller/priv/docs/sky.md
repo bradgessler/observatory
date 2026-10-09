@@ -65,9 +65,11 @@ counterweight is the limit:
 
 Which way the counterweight hangs is a guess from where the alignment points
 were taken (you probably had it below level), until you say. The sky cannot
-tell the two sides of the mount apart, so
-[Setup asks](/docs/setup#counterweight), and until it is told an object's
-page says *Counterweight side: guessed* above Go To.
+tell the two sides of the mount apart, and twice the guess was upside down,
+so until it is told Go To and tracking wait. An object's page says
+*Counterweight side: guessed* above Go To, and a Go To asks the question
+right under its key: is the counterweight below or above level right now?
+[Why it asks](/docs/setup#counterweight).
 
 ## Tonight
 
@@ -80,8 +82,8 @@ galaxies. The first five are a tour; the rest are there if the crowd wants
 more.
 
 Each row shows how high it is (the line in the quarter circle, with your
-trees shaded), until when it's clear, and, once aligned, what Go To and
-tracking will do: "Tracks to 01:40, then flip".
+trees shaded) and until when it's clear. What Go To and tracking will do
+for one of them is on its page (Look, Go To, Track), not on every row.
 
 The plot beside the list (above it on a phone) is the night for the first
 five: altitude against time, dusk to dawn, each line numbered as the list

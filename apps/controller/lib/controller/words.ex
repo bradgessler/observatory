@@ -48,6 +48,7 @@ defmodule Controller.Words do
   def error(r) when r in [:no_solution, :solve_failed], do: "No match for the stars in this photo"
   def error(r) when r in [:moving, :motor_running], do: "Still moving"
   def error(:goto_not_started), do: "The mount didn't start the move, try again"
+  def error(:counterweight_unknown), do: "Which side the counterweight is on is only a guess: say whether it is below or above level"
 
   # the mount's own replies (Mount.Protocol)
   def error(:no_response), do: "No answer from the mount"

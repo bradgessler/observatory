@@ -1,6 +1,8 @@
-# Align by Photo
+# Align by Phone Photo
 
-Hold your phone to the eyepiece and take a photo. The machine finds the
+Hold your phone to the eyepiece and take a photo. (With a camera on the
+telescope instead, [Align with the Camera](/docs/start#with-a-camera-align-with-the-camera)
+does all of this in one tap.) The machine finds the
 stars in it and matches them to a star catalog (a [plate solve](/docs/glossary#plate-solve)),
 so it knows exactly where the tube was pointing, and pairs that with where the
 motors were the moment you chose the photo.
@@ -33,8 +35,9 @@ alignment stars to name.
 7. **Say where the counterweight is**, if home is not set. A
    **Counterweight** card appears: tap **Below Level** or **Above Level**
    for the mount as it stands. Both sides of the mount see the same sky, so
-   no photo can say which side the counterweight is on, and Go To picks its
-   side of the pier by it. [Why it asks](/docs/setup#counterweight).
+   no photo can say which side the counterweight is on; Go To picks its
+   side of the pier by it, and waits until you say.
+   [Why it asks](/docs/setup#counterweight).
 
 ## What the numbers mean
 

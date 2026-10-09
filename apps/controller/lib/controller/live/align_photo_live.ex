@@ -1,6 +1,6 @@
 defmodule Controller.AlignPhotoLive do
   @moduledoc """
-  Align by Photo: hold the phone to the eyepiece, take a picture, move on,
+  Align by Phone Photo: hold the phone to the eyepiece, take a picture, move on,
   take another. Each photo becomes a plate (`Controller.Plates`): the mount's
   encoders are read the moment the photo is chosen, the photo solves in the
   background, and every solved plate refits how the mount really sits. Two
@@ -115,7 +115,7 @@ defmodule Controller.AlignPhotoLive do
       end
 
     socket
-    |> assign(refs: refs, selected: selected, snap: snap || socket.assigns.snap, model: model(selected), page_title: Controller.Words.title(selected, "Align by Photo"))
+    |> assign(refs: refs, selected: selected, snap: snap || socket.assigns.snap, model: model(selected), page_title: Controller.Words.title(selected, "Align by Phone Photo"))
     |> watch(selected)
   end
 
@@ -309,10 +309,10 @@ defmodule Controller.AlignPhotoLive do
     <.page id="align-photo" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Align by Photo</.title>
+        <.title>Align by Phone Photo</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
-        <.actions><.help href={~p"/docs/align-photo"} label="align by photo" /><.stop click="estop" /></.actions>
+        <.actions><.help href={~p"/docs/align-photo"} label="align by phone photo" /><.stop click="estop" /></.actions>
       </:header>
 
       <.card :if={is_nil(@snap)} title="No Mount">

@@ -114,14 +114,15 @@ defmodule Controller.Modes do
 
   # A mount with no home picks its side of the pier for every Go To, and where a hold has to
   # stop, by which side its counterweight is on. Both sides see the same sky, so an alignment
-  # only guesses it: until someone looking at the mount says, every page says it is a guess.
+  # only guesses it: until someone looking at the mount says, Go To and tracking wait (#113),
+  # and every page says why.
   defp counterweight_mode do
     Settings.get("lineup", %{})
     |> Map.keys()
     |> Enum.find(&match?(%{from: :guessed}, Controller.Sky.Lineup.counterweight(&1)))
     |> case do
       nil -> nil
-      id -> {"Counterweight side guessed", "#{id}: Go To picks its side of the pier by it. Tell it on Setup"}
+      id -> {"Counterweight side guessed", "#{id}: Go To and tracking wait until it is told. Tell it on Setup"}
     end
   end
 

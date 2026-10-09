@@ -15,6 +15,7 @@ defmodule Controller.EyepieceLive do
   import Controller.Components.UI
 
   alias Controller.Settings
+  alias Controller.Components.Counterweight
   alias Controller.Sim.Truth
   alias Controller.Sky.{Astro, Catalog, Ephemeris, Lineup, Pointing, Tracker}
 
@@ -50,6 +51,8 @@ defmodule Controller.EyepieceLive do
        fov: Settings.get("eyepiece_fov_deg", 5.0) / 1,
        step: 5.0 / 60,
        notice: nil,
+       # the counterweight question, asked because a Go To waited for it (#113)
+       cw_ask: false,
        fovs: @fovs,
        steps: @steps,
        r_field: @r
@@ -226,14 +229,21 @@ defmodule Controller.EyepieceLive do
     star = socket.assigns.next_star
     ref = socket.assigns.refs[socket.assigns.selected]
 
-    text =
+    {text, cw_ask} =
       case star && Pointing.slew(ref, socket.assigns.snap, star, socket.assigns.ctx, track: true) do
-        {:ok, _, _} -> "Going to #{star.name}"
-        {:error, e} -> Pointing.refusal_words(e, star.name)
-        nil -> "No star suggested"
+        {:ok, _, _} -> {"Going to #{star.name}", false}
+        # which side the counterweight is on, only guessed: the question goes right under the Go To
+        {:error, e} -> {Pointing.refusal_words(e, star.name), e == :counterweight_unknown}
+        nil -> {"No star suggested", false}
       end
 
-    {:noreply, notice(socket, text)}
+    {:noreply, socket |> assign(cw_ask: cw_ask) |> notice(text)}
+  end
+
+  # The one answer Go To waited for, from someone looking at the mount
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> assign(cw_ask: not told?) |> compute() |> notice(said)}
   end
 
   def handle_event("stop", _, socket) do
@@ -386,6 +396,9 @@ defmodule Controller.EyepieceLive do
           <.btn variant="primary" phx-click="centred" aria-label={"Centered: #{@next_star.name} is in the middle of the eyepiece"}>Centered</.btn>
         </div>
       </.card>
+
+      <%!-- Go To waited for which side the counterweight is on: the question, right under it --%>
+      <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@ctx.model, @snap)} />
 
       <.notice :if={!@nested} notice={@notice} />
     </.page>

@@ -267,7 +267,9 @@ defmodule Controller.ScopeCameraTest do
       :ok = AutoAlign.start(id, plan: [{0, 0}, {10, 0}, {10, 8}, {0, 8}], settle_ms: 800)
 
       assert_receive {:auto_align, ^id, %{done: true, ok: true, words: words}}, 90_000
-      assert words =~ "Found it: 4 frames agree"
+      # never zeroed: no picture can say which side the counterweight is on, so the last words ask (#113)
+      assert words =~ "Aligned: 4 frames agree"
+      assert words =~ "Is the counterweight bar below or above level right now?"
 
       st = Lineup.status(id)
       assert st.n == 4

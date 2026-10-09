@@ -14,6 +14,7 @@ defmodule Controller.SkyLive do
   alias Controller.Components.{SkyChart, SkyStatus}
 
   alias Controller.Settings
+  alias Controller.Components.Counterweight
 
   alias Controller.Sky.{
     Astro,
@@ -21,7 +22,6 @@ defmodule Controller.SkyLive do
     Ephemeris,
     Lineup,
     Pointing,
-    Reach,
     Scene,
     Tracker
   }
@@ -68,6 +68,8 @@ defmodule Controller.SkyLive do
        selected: params["id"],
        target: nil,
        notice: nil,
+       # the counterweight question, asked because a Go To waited for it (#113)
+       cw_ask: false,
        page_title: if(socket.assigns[:live_action] == :tonight, do: "Tonight", else: "Sky Map"),
        # the viewer's offset from UTC, from their browser (the Clock hook); nil until it says
        utc_offset_min: nil,
@@ -319,10 +321,9 @@ defmodule Controller.SkyLive do
 
   # The viewer's clock: only its offset is used here, for local time. (The
   # Location page is the one that may set the box's clock from it.) Everything
-  # that carries a time in words is said again in it: a Tonight row's "tracks to"
-  # as well, or it reads "13:40 UTC" under an "Until dawn, 06:40" until the next tick.
+  # that carries a time in words is said again in it at once, not at the next tick.
   def handle_event("clock", %{"offset_min" => off}, socket) when is_integer(off),
-    do: {:noreply, socket |> assign(utc_offset_min: off) |> reaches() |> night_path() |> sun()}
+    do: {:noreply, socket |> assign(utc_offset_min: off) |> night_path() |> sun()}
 
   def handle_event("clock", _, socket), do: {:noreply, socket}
 
@@ -341,16 +342,23 @@ defmodule Controller.SkyLive do
   def handle_event("goto", _, %{assigns: %{target: t, snap: snap}} = socket) when not is_nil(t) do
     ref = socket.assigns.refs[socket.assigns.selected]
 
-    notice =
+    {notice, cw_ask} =
       case Pointing.slew(ref, snap, t, ctx(socket.assigns), track: socket.assigns.auto_track) do
-        {:ok, d_ra, d_dec} -> "Going to #{t.name} (RA #{fmt1(d_ra)}°, Dec #{fmt1(d_dec)}°)"
-        {:error, e} -> Pointing.refusal_words(e, t.name)
+        {:ok, d_ra, d_dec} -> {"Going to #{t.name} (RA #{fmt1(d_ra)}°, Dec #{fmt1(d_dec)}°)", false}
+        # which side the counterweight is on, only guessed: the question goes right under Go To
+        {:error, e} -> {Pointing.refusal_words(e, t.name), e == :counterweight_unknown}
       end
 
-    {:noreply, assign(socket, notice: notice)}
+    {:noreply, assign(socket, notice: notice, cw_ask: cw_ask)}
   end
 
   def handle_event("goto", _, socket), do: {:noreply, socket}
+
+  # The one answer Go To waited for, from someone looking at the mount
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+    {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
+    {:noreply, socket |> assign(cw_ask: not told?, notice: said) |> compute()}
+  end
 
   def handle_event("stop", _, socket) do
     Controller.Sky.Tracker.stop(socket.assigns.selected)
@@ -440,6 +448,8 @@ defmodule Controller.SkyLive do
       dsos: dsos,
       modes: Controller.Modes.active(),
       lineup: socket.assigns.selected && Lineup.status(socket.assigns.selected),
+      # for the counterweight question, when a Go To waits for it
+      cw_model: socket.assigns.selected && Lineup.model(socket.assigns.selected),
       lim: limiting_mag(aperture),
       moon: moon_state(now, site, lst),
       # ranked against the real horizon until a tree line is given
@@ -451,7 +461,7 @@ defmodule Controller.SkyLive do
           aperture
         )
     )
-    |> reaches()
+    |> locked()
     |> night_path()
     |> sun()
   end
@@ -466,41 +476,13 @@ defmodule Controller.SkyLive do
 
   defp night_path(socket), do: assign(socket, path: nil)
 
-  # Tonight, with a mount to drive: what Go To and the hold will do for each
-  # row (Reach, the same answers as an object's page). Without a lock every
-  # row would say so; the page says it once instead.
-  defp reaches(
-         %{assigns: %{live_action: :tonight, snap: %{connected: true} = snap, selected: id}} =
-           socket
-       ) do
-    ctx = Pointing.context(socket.assigns.now, id)
+  # Tonight, with a mount to drive: whether Go To can place anything at all. Without a lock
+  # every row would say so; the page says it once instead. What Go To and the hold will do
+  # for one target is on its own page (Reach), not on every row of the list.
+  defp locked(%{assigns: %{live_action: :tonight, snap: %{connected: true} = snap, selected: id}} = socket),
+    do: assign(socket, locked: snap.homed or Pointing.lined_up?(Pointing.context(socket.assigns.now, id)))
 
-    if snap.homed or Pointing.lined_up?(ctx) do
-      off = socket.assigns.utc_offset_min
-
-      opts = [
-        horizon: socket.assigns.horizon,
-        trees?: socket.assigns.trees,
-        field: Settings.get("eyepiece_field_arcmin", 72),
-        lock: socket.assigns.lineup,
-        tracker: Tracker.status(id),
-        ended: Tracker.ended(id),
-        clock: &hm(&1, off)
-      ]
-
-      reach =
-        for o <- socket.assigns.targets,
-            o.up,
-            into: %{},
-            do: {o.id, Reach.of(o, snap, ctx, opts).summary}
-
-      assign(socket, reach: reach, locked: true)
-    else
-      assign(socket, reach: %{}, locked: false)
-    end
-  end
-
-  defp reaches(socket), do: assign(socket, reach: %{}, locked: nil)
+  defp locked(socket), do: assign(socket, locked: nil)
 
   # What's worth looking at from this spot, with this scope, over the next two hours.
   # Public: the agent/sky-tour layer (#8, #40) calls this same function.
@@ -796,7 +778,7 @@ defmodule Controller.SkyLive do
                     navigate={~p"/object/#{o.id}?#{[mount: @selected, from: "tonight"]}"}
                     class={["target", "pick-narrow", i <= 5 && "top"]}
                   >
-                    <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} reach={@reach[o.id]} />
+                    <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} />
                   </.link>
                   <button
                     type="button"
@@ -805,7 +787,7 @@ defmodule Controller.SkyLive do
                     phx-value-id={o.id}
                     aria-current={@target && @target.id == o.id && "true"}
                   >
-                    <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} reach={@reach[o.id]} />
+                    <.target_body o={o} i={i} at={@at} utc_offset_min={@utc_offset_min} trees={@trees} horizon={@horizon} />
                     <span class="pick-arrow" aria-hidden="true">›</span>
                   </button>
                 </li>
@@ -895,8 +877,7 @@ defmodule Controller.SkyLive do
   # One row of the Tonight list. Every row has the same columns, in this order, so each lines up
   # down the whole list (the row is a grid of fixed tracks, app.css): its number (or kind), the
   # name over its detail, how long it's up, and how high, drawn, last: at the row's far edge.
-  # What Go To and the hold will do is words at the end of the detail line, never a column of its
-  # own, so a row that has them is laid out exactly as one that hasn't.
+  # What Go To and the hold will do for it is on its own page, not here: on a list row it was noise.
   defp target_body(assigns) do
     ~H"""
     <span class="k" aria-hidden="true">{if @i <= 5, do: "#{@i}", else: glyph(@o.kind)}</span>
@@ -904,7 +885,6 @@ defmodule Controller.SkyLive do
       <strong>{@o.name}</strong>
       <span class="d">
         <span>{fmt0(@o.alt)}° up · {compass(@o.az)} · {@o.words}<span :if={trees_class(@o.alt, tree_at(@trees, @horizon, @o.az)) == "near"}> · just over the trees</span></span>
-        <span :if={r = @reach} class={["reach-short", "tone-#{r.tone}"]}><span aria-hidden="true">{r.mark} </span>{r.text}</span>
       </span>
     </span>
     <span class={["when", sets_soon?(@o, @at) && "soon"]}>{window_words(@o, @at, @utc_offset_min)}</span>
@@ -926,7 +906,7 @@ defmodule Controller.SkyLive do
 
   # what the picked object's panel needs from the page
   defp pick_assigns(assigns) do
-    Map.take(assigns, [:target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected])
+    Map.take(assigns, [:target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
   end
 
   # the picked object: what it is, when it's up, and on Tonight its path across the sky
@@ -957,6 +937,8 @@ defmodule Controller.SkyLive do
         <button class="go" phx-click="goto" disabled={!@snap || !@snap.connected} aria-label={"Go To #{@target.name}"}>Go To</button>
         <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected, from: if(@live_action == :tonight, do: "tonight", else: nil)]}"} class="btn" aria-label={"Details about #{@target.name}"}>Details ›</.link>
       </div>
+      <%!-- Go To waited for which side the counterweight is on: the question, right here (#113) --%>
+      <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@cw_model, @snap)} />
     </section>
     """
   end

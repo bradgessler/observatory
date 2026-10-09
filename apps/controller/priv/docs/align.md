@@ -33,7 +33,7 @@ alignment.
   planets; under 2′ for real exposures.
 * **polar axis 31° from the pole (12° east of north, 4° too steep)**: how the
   mount is actually sitting. If you want to polar-align, that is what to fix
-  ([Align by Photo](/docs/align-photo) says which bolt and how far).
+  ([Align by Phone Photo](/docs/align-photo) says which bolt and how far).
 * **off by N′** next to a star: how far that one star sits from the fit. One
   big number among small ones means that centering was sloppy; forget it with
   ✕ and do it again.

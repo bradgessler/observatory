@@ -140,6 +140,10 @@ defmodule Controller.HomeLive do
         {:error, {:flip, _}} ->
           {:noreply, push_navigate(socket, to: ~p"/object/#{t.id || "none"}?#{[mount: id]}")}
 
+        # which side the counterweight is on, only guessed: its page asks, under its Go To (#113)
+        {:error, :counterweight_unknown} ->
+          {:noreply, push_navigate(socket, to: ~p"/object/#{t.id || "none"}?#{[mount: id, ask: "counterweight"]}")}
+
         {:error, e} ->
           {:noreply, assign(socket, notice: Controller.Sky.Pointing.refusal_words(e, obj.name))}
       end

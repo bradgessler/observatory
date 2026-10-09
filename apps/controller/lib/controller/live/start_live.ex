@@ -15,7 +15,7 @@ defmodule Controller.StartLive do
   use Controller, :live_view
   import Controller.Components.UI
 
-  alias Controller.Settings
+  alias Controller.{AutoAlign, Settings}
   alias Controller.Sky.{Lineup, Pointing, Tracker}
 
   # locked = three stars that agree well enough to land things in an eyepiece
@@ -29,6 +29,7 @@ defmodule Controller.StartLive do
       Settings.subscribe()
       Telescope.subscribe("tracker")
       Telescope.subscribe("input")
+      AutoAlign.subscribe()
       :timer.send_interval(10_000, :tick)
     end
 
@@ -61,6 +62,10 @@ defmodule Controller.StartLive do
 
   def handle_info({:tracker, id, status}, socket) do
     if id == socket.assigns.selected, do: {:noreply, assign(socket, tracker: status)}, else: {:noreply, socket}
+  end
+
+  def handle_info({:auto_align, id, run}, socket) do
+    if id == socket.assigns.selected, do: {:noreply, assign(socket, run: run)}, else: {:noreply, socket}
   end
 
   def handle_info({:mapper, status}, socket), do: {:noreply, assign(socket, mapper: status)}
@@ -113,6 +118,8 @@ defmodule Controller.StartLive do
       status: status,
       targets: targets,
       tracker: id && Tracker.status(id),
+      run: id && AutoAlign.status(id),
+      camera: AutoAlign.camera(),
       pads: safe(fn -> Input.devices() end) || [],
       mapper: safe(fn -> Input.status() end) || %{armed: false, target: nil, off_reason: nil},
       now: now,
@@ -165,6 +172,34 @@ defmodule Controller.StartLive do
     {:noreply, socket |> compute() |> notice("Stopped tracking")}
   end
 
+  # one tap: the camera on the telescope finds where it points (`Controller.AutoAlign`). Still
+  # looking at the pole from home, it first points up high, where the pictures can tell the axes apart.
+  def handle_event("camera_align", _, socket) do
+    id = socket.assigns.selected
+
+    text =
+      case id && AutoAlign.start(id, overhead: at_pole?(socket.assigns.snap)) do
+        :ok -> nil
+        {:error, :no_camera} -> "No camera on the telescope: turn the Sony on, in PC Remote"
+        {:error, :no_mount} -> "No mount"
+        {:error, :running} -> "Already aligning"
+        {:error, e} -> Controller.Words.error(e)
+        nil -> "No mount"
+      end
+
+    {:noreply, socket |> compute() |> then(&if(text, do: notice(&1, text), else: &1))}
+  end
+
+  def handle_event("camera_align_continue", _, socket) do
+    AutoAlign.continue(socket.assigns.selected)
+    {:noreply, compute(socket)}
+  end
+
+  def handle_event("camera_align_stop", _, socket) do
+    AutoAlign.stop(socket.assigns.selected)
+    {:noreply, compute(socket)}
+  end
+
   def handle_event("pad", %{"on" => on}, socket) do
     on? = on == "true"
     if on? and socket.assigns.selected, do: safe(fn -> Input.target(socket.assigns.selected) end)
@@ -213,6 +248,21 @@ defmodule Controller.StartLive do
         <.hint>Mount powered, EQDIR cable in this machine. This page moves on by itself.</.hint>
         <.kv :if={@snap} label="Mount" value={"#{@selected} · not answering"} />
         <.row><.btn navigate={~p"/devices"}>Devices ›</.btn></.row>
+      </.card>
+
+      <%!-- the quickest way: the camera on the telescope, one tap --%>
+      <.card :if={@step == :stars} title="Align with the Camera">
+        <p :if={!@run && @camera} class="dim">Takes four pictures a little apart and plate solves them. About three minutes. Watch the cables the first time it moves.</p>
+        <p :if={!@run && !@camera} class="dim">Put the Sony on the telescope and turn it on in PC Remote. Focused first: Stills Camera › star size.</p>
+        <p :if={@run} class={["find-line", @run.done && !@run.ok && "tone-caution"]} role="status">
+          <span :if={@run.done && @run.ok} aria-hidden="true">✓ </span>{@run.words}<span :if={!@run.done}> · {@run.solved} of {@run.enough} placed</span>
+        </p>
+        <.row>
+          <.btn :if={!aligning?(@run)} variant="primary" phx-click="camera_align" disabled={!@camera}>Align with the Camera</.btn>
+          <.btn :if={@run && @run[:phase] == :waiting} variant="primary" phx-click="camera_align_continue">Continue</.btn>
+          <.btn :if={aligning?(@run)} phx-click="camera_align_stop">Stop Aligning</.btn>
+          <.btn variant="ghost" navigate={~p"/cameras/stills"}>Stills Camera ›</.btn>
+        </.row>
       </.card>
 
       <%!-- the two ways to add alignment points, side by side: centring stars (here, below) or photos --%>
@@ -325,6 +375,13 @@ defmodule Controller.StartLive do
   end
 
   defp moving?(_, _), do: false
+
+  defp aligning?(%{done: false}), do: true
+  defp aligning?(_), do: false
+
+  # the tube along the polar axis, as Set Home leaves it: Dec still near its zero
+  defp at_pole?(%{axes: %{dec: %{degrees: d}}}) when is_number(d), do: abs(d) < 10
+  defp at_pole?(_), do: false
 
   defp pad_on?(m, id), do: Map.get(m, :armed, false) and Map.get(m, :target) == id
 

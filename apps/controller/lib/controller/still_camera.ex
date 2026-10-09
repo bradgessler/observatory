@@ -179,7 +179,8 @@ defmodule Controller.StillCamera do
   ra_deg:, dec_deg:, seq:}}`, the model's aim as it stands (`nil` where the model can't say).
 
   The other options are the solver's, as `solving/2` takes them (`scale:`, `min_stars:`,
-  `nsigma:`), and `shoot/1`'s. The picture is kept like any other, at whatever the camera is set
+  `nsigma:`), `mount:` (the mount whose plates it joins, when not the one Lock On holds or this
+  box's own), and `shoot/1`'s. The picture is kept like any other, at whatever the camera is set
   to: set a finder exposure first (`set(iso: 6400, shutter: "2")`). Pictures after it are solved
   or not as `solving/2` left it.
   """
@@ -483,7 +484,8 @@ defmodule Controller.StillCamera do
   # them (`Sidecar`), then the grey copy measured. The mount is watched while the shutter is open.
   defp take(id, seq, dir, solve, ctx) do
     started = System.monotonic_time(:millisecond)
-    mount_id = mount_id()
+    # the mount a caller named (Auto Align, for the mount it is aligning), else the usual one
+    mount_id = ctx.opts[:mount] || mount_id()
     watch = Sidecar.watch(mount_id)
     result = Camera.capture(id)
     samples = Sidecar.stop(watch)

@@ -27,10 +27,13 @@ pier it picks, and that side is a guess until you say where the
 counterweight is. Status links to the question, and
 [Setup](/docs/setup#counterweight) explains why it asks.
 
-There are two ways to add points: **Align by Stars** (center a few stars in
-the eyepiece, one at a time) and **Align by Photo** (photos through the
-eyepiece, plate solved, which also says which bolt to turn for the polar
-axis). Both feed the same alignment.
+There are three ways to add points. The quickest is **Align with the
+Camera**: with a camera on the telescope (the Sony in PC Remote, or the
+telescope camera), one tap and the box does it alone. The others are
+**Align by Stars** (center a few stars in the eyepiece, one at a time) and
+**Align by Photo** (photos through the eyepiece, plate solved, which also
+says which bolt to turn for the polar axis). All three feed the same
+alignment.
 
 ## 1. Plug in
 
@@ -49,6 +52,30 @@ the sky; the stars do that next. Setting home again later starts the star
 alignment over, on purpose: the old stars counted from the old home.
 
 ## 3. Stars
+
+### With a camera: Align with the Camera
+
+Tap **Align with the Camera**. Straight after Set Home the tube looks along
+the polar axis, where turning RA only spins the view, so it first swings the
+tube up toward overhead on the Dec axis alone, the counterweight still down.
+Watch the cables on that first move, and press STOP if it heads for the
+ground (an axis sign is flipped). Then it takes four pictures a few degrees
+apart, plate solves each on the box, and fits how the mount really sits: a
+polar axis 25° off the pole is fine. About three minutes. The pictures are
+finder pictures, set to ISO 6400 and 2 seconds, which is what solved on real
+sky; the camera is left at that afterwards.
+
+A frame that doesn't solve (a tree, a roof, cloud, soft focus) is skipped
+and the mount moves on. Three in a row and it hands the mount to you: move
+to clear sky and tap **Continue**. If every frame says too few stars, the
+sky is not dark yet or the focus is off: the Stills Camera page's star size
+is the number to focus by.
+
+Once aligned, the camera can come off and an eyepiece go in. The alignment
+belongs to the mount, not the camera, as long as the tripod and the clutches
+are not touched.
+
+### By eye: Align by Stars
 
 You do not need Polaris or a level tripod. The page names a bright star and
 says where to look. Tap **Go To** (the first one is a guess from the ideal

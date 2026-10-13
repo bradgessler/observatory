@@ -159,6 +159,43 @@ defmodule Controller.StillCameraTest do
     assert_receive {:still_camera, %{busy: false, why: nil, last: %{seq: seq}}} when seq > before, 15_000
   end
 
+  # 13 October: after a flash the page said "No picture yet" over a card full of pictures
+  @tag timeout: 60_000
+  test "a restart comes back with the last pictures, and their numbers carry on", %{conn: conn} do
+    last = picture()
+    pid = Process.whereis(StillCamera)
+    ref = Process.monitor(pid)
+    Process.exit(pid, :kill)
+    assert_receive {:DOWN, ^ref, :process, _, _}, 2_000
+    assert Enum.find(1..100, fn _ -> (p = Process.whereis(StillCamera)) && p != pid || (Process.sleep(50) && false) end)
+
+    seq = last.seq
+    # (the status read here until the new process speaks is the old one's last word)
+    assert Enum.find(1..100, fn _ -> match?(%{last: %{seq: ^seq, restored: true}}, StillCamera.status()) || (Process.sleep(50) && false) end), "the last picture did not come back"
+    assert %{last: %{seq: ^seq, restored: true, w: 960}, recent: [%{seq: ^seq} | _]} = StillCamera.status()
+    assert <<137, "PNG", _::binary>> = StillCamera.png()
+
+    # the camera is found again (a few seconds), and the page opens on the pictures from before
+    assert Enum.find(1..200, fn _ -> match?(%{camera: %{state: :ready}}, StillCamera.status()) || (Process.sleep(50) && false) end)
+    {:ok, _view, html} = live(conn, ~p"/cameras/stills")
+    refute html =~ "No picture yet"
+    assert html =~ "Picture #{seq}"
+
+    # and the next picture is the next number
+    assert picture().seq == seq + 1
+  end
+
+  test "a camera on the cable that answers nothing: the page says so and what to do, and Take Picture is off", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/cameras/stills")
+    status = StillCamera.status()
+    send(view.pid, {:still_camera, %{status | camera: %{id: status.camera.id, state: :failed, error: :timeout}, last: nil, recent: []}})
+    html = render(view)
+    assert html =~ "The camera is not answering (it was asked and said nothing)."
+    assert html =~ "switch the camera off and on"
+    assert has_element?(view, ~s(button[phx-click="shoot"][disabled]))
+    assert html =~ "The camera is not ready"
+  end
+
   # 13 October: "if you change the exposure, that should be a control on that screen. A dropdown."
   @tag timeout: 60_000
   test "ISO and shutter speed are dropdowns on the camera's own screen", %{conn: conn} do

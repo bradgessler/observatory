@@ -322,7 +322,11 @@ defmodule Controller.StillCameraLive do
         alt={"Latest picture: #{caption(@last)}"}
       />
       <div :if={!@old && !(@last && @last[:w])} class="scope-frame-empty">
-        <p class="dim">{if @cam.busy, do: "The first picture is on its way", else: "No picture yet. Tap Take Picture."}</p>
+        <p class="dim">{cond do
+          @cam.busy -> "The first picture is on its way"
+          not ready?(@cam) -> "The camera is not ready"
+          true -> "No picture yet. Tap Take Picture."
+        end}</p>
       </div>
       <p :if={!@old && @last} class="shot-line dim">
         <span>Taken {Pictures.age_words(@last, @now_ms)}</span><span :if={caption(@last) != ""}> · </span><span role="status">{caption(@last)}</span>
@@ -339,7 +343,6 @@ defmodule Controller.StillCameraLive do
           <.help href={~p"/docs/still-camera#focusing"} label="focusing" />
         </span>
       </div>
-      <p :if={@focus && @cam[:free_mb]} class={["dim", @cam.room_for < 20 && "tone-caution"]}>{card_line(@cam)}</p>
     </section>
     """
   end
@@ -372,7 +375,7 @@ defmodule Controller.StillCameraLive do
   defp camera(assigns) do
     ~H"""
     <div class="focus-keys">
-      <.btn variant="primary" phx-click="shoot" disabled={@cam.busy}>
+      <.btn variant="primary" phx-click="shoot" disabled={@cam.busy or not ready?(@cam)}>
         {if @cam.busy, do: "Taking…", else: "Take Picture"}
       </.btn>
       <.btn on={@cam.shooting} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
@@ -429,6 +432,14 @@ defmodule Controller.StillCameraLive do
           </button>
         </li>
       </ol>
+    </section>
+
+    <%!-- the camera itself: its battery, its card, what is on it --%>
+    <section class="cam-facts" aria-labelledby="cam-facts-h">
+      <h2 id="cam-facts-h" class="now-h">Camera</h2>
+      <.kv :if={battery(@cam)} label="Battery" value={"#{battery(@cam)}%"} />
+      <.kv :if={@cam[:free_mb]} label="SD card" value={card_line(@cam)} />
+      <.kv :if={@cam[:card]} label="On the card" value={on_card_words(@cam.card)} />
     </section>
 
     <.items label="more">
@@ -547,8 +558,22 @@ defmodule Controller.StillCameraLive do
     end
   end
 
+  # A camera that is on the cable and answers nothing: say so, and what to do with one's hands.
+  # (13 October: a reboot caught the Sony in the middle of sending a picture, and it answered
+  # nothing afterwards; the page said "No picture yet. Tap Take Picture".)
+  defp trouble(%{camera: %{state: :failed} = c}) do
+    ["The camera is not answering#{failed_words(c[:error])}. Unplug its USB cable, switch the camera off and on (and look at its battery), then plug the cable back in. The box picks it up by itself."]
+  end
+
   defp trouble(%{seen: seen}),
     do: seen |> Enum.filter(&(&1[:says] && &1[:mode] != :ptp)) |> Enum.map(& &1.says)
+
+  defp failed_words(:timeout), do: " (it was asked and said nothing)"
+  defp failed_words(nil), do: ""
+  defp failed_words(other), do: " (#{Controller.Words.error(other)})"
+
+  defp ready?(%{camera: %{state: :ready}}), do: true
+  defp ready?(_), do: false
 
   # what is in the picture: its files, how bright the sky is, what was found
   defp caption(r) do
@@ -653,10 +678,19 @@ defmodule Controller.StillCameraLive do
 
   defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
 
-  defp card_line(%{free_mb: mb, room_for: n}) do
-    free = if mb >= 1000, do: "#{Float.round(mb / 1000, 1)} GB", else: "#{mb} MB"
-    "SD card: #{free} free, room for #{if n == 1, do: "1 picture", else: "about #{n} pictures"}"
+  defp card_line(%{free_mb: mb, room_for: n} = cam) do
+    total = get_in(cam, [:card, :total_mb])
+    "#{size_words(mb)} free#{if total, do: " of #{size_words(total)}", else: ""}, room for #{if n == 1, do: "1 picture", else: "about #{n} pictures"}"
   end
+
+  defp on_card_words(%{pictures: n, pictures_mb: mb}), do: "#{n} #{if n == 1, do: "picture", else: "pictures"}, #{size_words(mb)}"
+  defp on_card_words(_), do: "?"
+
+  defp size_words(mb) when mb >= 1000, do: "#{Float.round(mb / 1000, 1)} GB"
+  defp size_words(mb), do: "#{mb} MB"
+
+  defp battery(%{camera: %{settings: %{battery: b}}}) when is_number(b), do: round(b)
+  defp battery(_), do: nil
 
   defp bright_words(%{fraction: f, edge: true}),
     do: "bright target, #{pct(f)} of the picture, cut by the edge"

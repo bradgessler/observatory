@@ -2140,4 +2140,6 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .object .card > .exposure-advice { margin: var(--s2) 0; padding-top: 0; }
 .exposure-advice strong { font-variant-numeric: tabular-nums; }
 .exposure-advice .setting-text span { line-height: 1.45; }
+/* the camera's own facts: battery, card, what is on it */
+.cam-facts { display: grid; gap: 2px; margin: 0 0 var(--s3); }
 

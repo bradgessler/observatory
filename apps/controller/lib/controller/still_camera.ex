@@ -208,6 +208,16 @@ defmodule Controller.StillCamera do
   end
 
   @doc """
+  Start no new picture for the next `ms` milliseconds (the one in flight finishes). For an
+  upgrade: a reboot in the middle of a download left the Sony answering nothing until it was
+  switched off and on (13 October 2026). Kept in memory only, so the reboot it is for forgets
+  it, and a run of pictures picks itself up afterwards.
+  """
+  def pause(ms, opts \\ []) when is_integer(ms) and ms >= 0 do
+    GenServer.cast(server(opts[:on]), {:pause, ms})
+  end
+
+  @doc """
   Take pictures one after another (`interval_ms` between them, 0 for back to back), or stop.
   `opts` are `shoot/1`'s, for every picture of the run.
   """
@@ -385,6 +395,8 @@ defmodule Controller.StillCamera do
     safe(fn -> Camera.subscribe() end)
     send(self(), :look)
     was = safe(fn -> Settings.get("still_camera") end) || %{}
+    # the roll of the last pictures, as it was before a restart (a reboot, a flash, a crash)
+    roll = roll_load()
 
     {:ok,
      announce(%{
@@ -395,13 +407,18 @@ defmodule Controller.StillCamera do
        # a :shoot_next is on its way: so the look loop can start one when none is (after a restart, a lost message)
        armed: false,
        # the last few pictures, newest first (`status().recent`): the roll a page shows
-       recent: [],
+       recent: roll.recent,
        # since when a run has been waiting for the clock to be set (monotonic ms), or nil
        clock_wait: nil,
+       # no new picture before this (monotonic ms): `pause/2`, for an upgrade
+       paused_until: nil,
        task: nil,
        shot: nil,
-       seq: 0,
-       last: nil,
+       # the pictures' numbers carry on where they left off, and the last one is still the last one
+       seq: roll.seq,
+       last: roll.last,
+       # what is on the card: how many pictures and how big, looked at every half minute
+       card: card(),
        failures: 0,
        why: nil,
        free: free_bytes(),
@@ -464,10 +481,86 @@ defmodule Controller.StillCamera do
   def handle_call({:finder, _opts}, _from, s), do: {:reply, {:error, :no_camera}, s}
 
   @impl true
+  def handle_cast({:pause, ms}, s) do
+    {:noreply, announce(%{s | paused_until: System.monotonic_time(:millisecond) + ms, why: "paused for an upgrade: no new picture until the box is back"})}
+  end
+
   def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
 
   # how many of the last pictures the roll keeps
   @roll 8
+
+  # -- the roll on the card: the last pictures' grey copies, so a restart shows them again ------
+  #
+  # A flash is an outage of half a minute, and the page came back saying "No picture yet" over a
+  # card full of pictures. The roll (eight small PNGs and a list) is kept beside the pictures and
+  # read back when this process starts. Nothing here may ever cost a picture: every step is
+  # allowed to fail.
+
+  defp roll_dir, do: Path.join(dir(), ".roll")
+
+  defp roll_save(recent, dropped, record) do
+    safe(fn ->
+      File.mkdir_p!(roll_dir())
+      if png = record[:png], do: File.write!(Path.join(roll_dir(), "#{record.seq}.png"), png)
+      for %{seq: seq} <- dropped, do: File.rm(Path.join(roll_dir(), "#{seq}.png"))
+
+      # the newest carries what a page says under the latest picture
+      [newest | rest] = recent
+      shown = Map.merge(newest, Map.take(record, [:names, :background, :star_size, :bytes]))
+      File.write!(Path.join(roll_dir(), "roll.json"), Jason.encode!(Enum.map([shown | rest], &roll_out/1)))
+    end)
+  end
+
+  defp roll_out(r), do: r |> Map.update(:at, nil, &(&1 && DateTime.to_iso8601(&1))) |> Map.update(:star_size, nil, &(&1 && Map.take(&1, [:arcsec, :px, :n])))
+
+  defp roll_load do
+    safe(fn ->
+      recent =
+        for r <- Path.join(roll_dir(), "roll.json") |> File.read!() |> Jason.decode!(),
+            seq = r["seq"],
+            is_integer(seq),
+            {:ok, png} <- [File.read(Path.join(roll_dir(), "#{seq}.png"))] do
+          :persistent_term.put({__MODULE__, :png, seq}, png)
+          {:ok, at, _} = DateTime.from_iso8601(r["at"])
+          size = r["star_size"] && %{arcsec: r["star_size"]["arcsec"], px: r["star_size"]["px"], n: r["star_size"]["n"]}
+          %{seq: seq, at: at, iso: roll_iso(r["iso"]), shutter: r["shutter"], stars: r["stars"], w: r["w"], names: r["names"], background: r["background"], star_size: size, bytes: r["bytes"]}
+        end
+
+      case recent do
+        [newest | _] ->
+          :persistent_term.put({__MODULE__, :png}, :persistent_term.get({__MODULE__, :png, newest.seq}))
+          # `restored`: this is the picture from before the restart, not one this process took
+          %{recent: Enum.map(recent, &Map.take(&1, [:seq, :at, :iso, :shutter, :stars, :w])), seq: newest.seq, last: Map.put(newest, :restored, true)}
+
+        [] ->
+          nil
+      end
+    end) || %{recent: [], seq: 0, last: nil}
+  end
+
+  defp roll_iso("auto"), do: :auto
+  defp roll_iso(v), do: v
+
+  # how big the card is, and what of it is pictures (the RAWs and JPEGs under `dir/0`)
+  defp card do
+    safe(fn ->
+      files = for night <- File.ls!(dir()), not String.starts_with?(night, "."), f <- File.ls!(Path.join(dir(), night)), String.ends_with?(f, [".ARW", ".JPG"]), do: Path.join([dir(), night, f])
+      raws = Enum.count(files, &String.ends_with?(&1, ".ARW"))
+      bytes = files |> Enum.map(fn f -> case File.stat(f) do {:ok, st} -> st.size; _ -> 0 end end) |> Enum.sum()
+      %{total_mb: total_mb(), pictures: if(raws > 0, do: raws, else: length(files)), pictures_mb: div(bytes, 1_000_000)}
+    end)
+  end
+
+  defp total_mb do
+    case System.cmd("df", ["-k", dir()], stderr_to_stdout: true) do
+      {out, 0} ->
+        with [_, line | _] <- String.split(out, "\n"), [_fs, blocks | _] <- String.split(line), {kb, ""} <- Integer.parse(blocks), do: div(kb, 1000), else: (_ -> nil)
+
+      _ ->
+        nil
+    end
+  end
 
   # a run waits this long for the clock to be set, then takes its pictures anyway
   @clock_wait_ms 90_000
@@ -476,7 +569,7 @@ defmodule Controller.StillCamera do
   def handle_info(:look, s) do
     Process.send_after(self(), :look, @look_ms)
     # the card's room, every half minute: other things write to it too
-    s = if rem(s.looks, 10) == 0 and s.task == nil, do: %{s | free: free_bytes()}, else: s
+    s = if rem(s.looks, 10) == 0 and s.task == nil, do: %{s | free: free_bytes(), card: card()}, else: s
     s = look(%{s | looks: s.looks + 1})
     # shooting continuously with nothing in flight and nothing on its way: start one (the camera
     # just came back, or the box did)
@@ -547,6 +640,10 @@ defmodule Controller.StillCamera do
       not s.continuous ->
         {:noreply, s}
 
+      # paused for an upgrade (`pause/2`): nothing new is started; looked at again shortly
+      is_integer(s.paused_until) and now < s.paused_until ->
+        {:noreply, arm(s, 2_000)}
+
       # A picture's time is what its plate is solved and fitted by, and a box just booted runs on the
       # time it last saved until the network's arrives (12 October: stamped 3.5 minutes slow). A run
       # waits for the clock, a bounded time, and says so; then it carries on, and the sidecar says
@@ -557,7 +654,7 @@ defmodule Controller.StillCamera do
         {:noreply, if(s.why == why, do: s, else: announce(%{s | why: why}))}
 
       true ->
-        s = if is_binary(s.why) and s.why =~ "waiting for network time", do: %{s | why: nil}, else: s
+        s = if is_binary(s.why) and (s.why =~ "waiting for network time" or s.why =~ "paused for an upgrade"), do: %{s | why: nil, paused_until: nil}, else: s
         {:noreply, start_shot(s)}
     end
   end
@@ -1018,6 +1115,7 @@ defmodule Controller.StillCamera do
     {recent, dropped} = Enum.split(roll, @roll)
     for %{seq: seq} <- dropped, do: :persistent_term.erase({__MODULE__, :png, seq})
     s = %{s | recent: recent}
+    roll_save(recent, dropped, record)
     # the field's stars come back with the picture and stay here: the next picture is held against them
     s = %{s | field: Map.get(record, :field, s.field)}
     # the star size of the picture before rides along: a page says which way a focus turn went
@@ -1152,6 +1250,8 @@ defmodule Controller.StillCamera do
       solving: s.solving,
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
+      # the card in numbers: `%{total_mb, pictures, pictures_mb}` (how big it is, and what of it is pictures)
+      card: s[:card],
       room_for: if(is_integer(s.free), do: max(div(s.free - floor_bytes(), pair_bytes(s)), 0)),
       # the machine the camera is plugged into, so another can tell whose status it hears (listed?/2)
       node: node()

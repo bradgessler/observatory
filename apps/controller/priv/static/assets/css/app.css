@@ -2306,3 +2306,12 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .pic-facts > div:first-child { border-top: 0; }
 .pic-facts dt { color: var(--dim); font-size: var(--fs-2); }
 .pic-facts dd { margin: 0; font-size: var(--fs-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* a page under another keeps its back key and its parent's name in the shared row: the key first,
+   the parent's name over the title, the telescope on the right as everywhere */
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys"; grid-template-rows: 16px 26px; column-gap: var(--s2); row-gap: 0; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .tb-over { display: block; align-self: end; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .tb-lead { align-self: center; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .page-title { align-self: start; }
+}

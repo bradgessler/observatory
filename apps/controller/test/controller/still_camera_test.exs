@@ -58,7 +58,8 @@ defmodule Controller.StillCameraTest do
     # the next picture's ISO and shutter speed are set right here, and so is solving; the two panels are a tap away
     assert has_element?(view, ~s(form[phx-change="exposure"] select[name="iso"]))
     assert has_element?(view, ~s(form[phx-change="exposure"] select[name="shutter"]))
-    assert has_element?(view, ~s(button[role="switch"][phx-click="solving"]), "Plate solve every picture")
+    assert has_element?(view, ~s(button[role="switch"][phx-click="solving"]), "Plate solve each picture")
+    assert has_element?(view, ~s(button[role="switch"][phx-click="continuous"]), "Keep taking pictures")
     refute html =~ "Lock On the Bright Target"
     for screen <- ~w(lock solving), do: assert(has_element?(view, ~s(a[href="/cameras/stills/#{screen}"])))
 
@@ -271,10 +272,10 @@ defmodule Controller.StillCameraTest do
 
     # the page that was open hears of it, and one opened now reads it
     html = render(view)
-    assert html =~ "For Saturn: ISO 800 · 1/60 s"
+    assert html =~ "Suggested for Saturn: ISO 800 · 1/60 s"
     assert html =~ "From the surface brightness of Saturn, 6.8 mag per square arcsecond, at f/10."
     {:ok, _other, html} = live(conn, ~p"/cameras/stills?#{[id: id]}")
-    assert html =~ "For Saturn: ISO 800 · 1/60 s"
+    assert html =~ "Suggested for Saturn: ISO 800 · 1/60 s"
 
     # it is advice until the key is pressed: the camera is as it was
     refute match?(%{iso: 800, shutter: "1/60"}, StillCamera.status().camera.settings)
@@ -282,7 +283,7 @@ defmodule Controller.StillCameraTest do
     assert_receive {:still_camera, %{camera: %{settings: %{iso: 800, shutter: "1/60"}}}}, 20_000
     html = render(view)
     # set: said in words with a mark, and the key is gone
-    assert html =~ "Set ✓"
+    assert html =~ "set ✓"
     refute has_element?(view, "button", "Use It")
     assert html =~ "ISO 800 · 1/60 s · "
 

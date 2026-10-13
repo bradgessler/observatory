@@ -75,7 +75,8 @@ defmodule Controller.Layouts do
         </div>
         <%!-- how well the telescope you're driving is aligned: the same on every page, and it
               changes with the switcher --%>
-        <AlignmentStatus.chip :if={@telescope} summary={@alignments[@telescope.id]} href={~p"/alignment/#{@telescope.id}"} />
+        <%!-- (on a phone there is no room for it in the bar: the Status page has it) --%>
+        <AlignmentStatus.chip :if={@telescope && !@now} summary={@alignments[@telescope.id]} href={~p"/alignment/#{@telescope.id}"} />
 
         <%!-- a field-shaped key, so it reads as search; ⌘K opens the same thing --%>
         <button :if={@search != []} type="button" class="side-search" popovertarget="spotlight" phx-click={JS.push("reset", target: "#spotlight")}>
@@ -115,6 +116,8 @@ defmodule Controller.Layouts do
             <strong role="status">{@now.words}</strong>
             <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
             <span class="now-id">{@now.id}</span>
+            <%!-- how well it is aligned sits with where it points: the same fact from two ends --%>
+            <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={16} />{@alignments[@now.id].words}</span>
             <span :if={@now.where} class="now-where"><span :if={@now[:note]} class="now-note">{@now.note}</span><span class="now-pos">{@now.where}</span><span :if={@now[:up]} class="now-up">{@now.up}</span></span>
           </.link>
           <%!-- STOP is here whenever there is something to stop: a slew, a move, a hold --%>

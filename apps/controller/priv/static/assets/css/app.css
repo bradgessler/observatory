@@ -2143,3 +2143,41 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 /* the camera's own facts: battery, card, what is on it */
 .cam-facts { display: grid; gap: 2px; margin: 0 0 var(--s3); }
 
+/* ---- one toolbar (13 October: "you kind of have two toolbars going on") ----
+   On a wide screen a page whose header is its title and its keys shares one row with the bar:
+   the title and Docs on the left, the telescope (what it is doing, how well it is aligned, where
+   it points, STOP) on the right. A header that carries a status of its own (the sky's time and
+   place) keeps its row under the bar. */
+.scope-now .now-al { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; color: var(--dim); }
+.scope-now .now-al .al-glyph { flex: none; }
+@media (max-width: 959px) { .scope-now .now-al { display: none; } }
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now { width: fit-content; max-width: 72%; margin: 0 0 -53px auto; background: transparent; border-bottom: 0; min-height: 52px; --now-h: 52px; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now.now-slewing,
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now.now-moving { background: color-mix(in srgb, var(--amber) 16%, var(--bg)); border-radius: 0 0 0 var(--r); }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header { top: 0; min-height: 52px; grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "title keys ." "title keys ."; grid-template-rows: auto; align-items: center; padding-top: 4px; padding-bottom: 4px; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header > .actions { justify-self: start; }
+  .shell-main:has(> .scope-now .now-stop):not(:has(.tb-status)) .page-header { top: 0; }
+}
+
+/* ---- the camera page: a row of controls over the picture, the pictures beside it ---- */
+.cam-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s2); }
+.cam-controls > .cam-take { flex: none; min-height: 44px; padding-left: var(--s4); padding-right: var(--s4); }
+.cam-controls > .switch-row { width: auto; flex: 0 1 auto; gap: var(--s3); }
+.cam-controls > .next-shot-form { flex: 0 1 320px; min-width: 240px; }
+.cam-note { display: flex; align-items: center; gap: var(--s2); min-height: 44px; margin: 0; font-size: var(--fs-2); color: var(--dim); }
+.cam-suggest { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.cam-suggest .btn { min-height: 44px; padding: 0 var(--s2); }
+@media (max-width: 599px) {
+  .cam-controls > .cam-take, .cam-controls > .switch-row, .cam-controls > .next-shot-form { flex: 1 1 100%; width: 100%; }
+}
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-what { flex: 0 1 auto; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-where { flex: 0 1 auto; }
+}
+/* the line under the picture reads as one line of text; only the looked-at picture's line has a key in it */
+.shot-line { display: block; min-height: 40px; }
+.shot-line.is-old { display: flex; }
+.roll-solve { color: var(--on); }
+.roll-solve.is-not { color: var(--dim); }
+

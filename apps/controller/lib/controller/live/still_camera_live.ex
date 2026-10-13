@@ -257,7 +257,9 @@ defmodule Controller.StillCameraLive do
 
       <p :for={line <- trouble(@cam)} class="hint tone-caution" role="status">{line}</p>
 
-      <%!-- the picture takes the room; beside it (on a phone, below) everything about taking the next one --%>
+      <%!-- One row over the picture: take one, keep taking them, and what the next one is taken at.
+            Under it the picture, with the pictures already taken beside it (on a phone, below). --%>
+      <.controls :if={@cam.camera && @live_action == :index} cam={@cam} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} suggest={@suggest} />
       <.split :if={@cam.camera}>
         <:main>
           <.shot cam={@cam} now_ms={@now_ms} focus={@live_action == :index} picked={@picked} />
@@ -268,7 +270,6 @@ defmodule Controller.StillCameraLive do
             <h2>{screen_title(@live_action)}</h2>
             <.link patch={~p"/cameras/stills"} class="btn panel-close" aria-label={"Close #{screen_title(@live_action)}"}><span aria-hidden="true">✕ </span>Close</.link>
           </div>
-          <p :if={StillCamera.remote?(@cam)} class="hint" role="status">This camera is on {host(@cam)}. Pictures and exposure work from here.</p>
           <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} picked={@picked} bar={@bar} now_ms={@now_ms} suggest={@suggest} />
           <%!-- the lock and the solver's queue live on the machine the camera is on: from another, a way there --%>
           <.elsewhere :if={@live_action in [:lock, :solving] and StillCamera.remote?(@cam)} cam={@cam} action={@live_action} />
@@ -311,7 +312,7 @@ defmodule Controller.StillCameraLive do
     <section class="scope-frame" aria-label={if @old, do: "picture #{@old.seq}", else: "latest picture"}>
       <%!-- one of the roll's pictures, looked at again: it stays until Latest, or until it leaves the roll --%>
       <img :if={@old} src={StillCamera.src_of(@cam, @old.seq)} alt={"Picture #{@old.seq}: #{roll_words(@old)}"} />
-      <p :if={@old} class="shot-line">
+      <p :if={@old} class="shot-line is-old">
         <span>Picture {@old.seq} · taken {Pictures.age_words(@old, @now_ms)} · {roll_words(@old)}</span>
         <button type="button" class="btn shot-latest" phx-click="latest">Latest</button>
       </p>
@@ -359,35 +360,26 @@ defmodule Controller.StillCameraLive do
     |> Enum.join(" · ")
   end
 
-  # The camera's column: a picture now or one after another; the next picture's settings, changed
-  # right here; the picture in flight; the roll of the last few; and the two panels a tap away.
+  # The row over the picture. Left to right: the two things you do (take one; keep taking them),
+  # then what the next picture is taken at (ISO, shutter speed), then whether each is plate solved.
+  # Under the row, one line that keeps its height: why nothing is being taken, or a dial turning,
+  # or a starting exposure for what the mount tracks, with the key that sets it.
   attr :cam, :map, required: true
-  attr :lock, :map, required: true
   attr :settings, :map, required: true
   attr :isos, :list, required: true
   attr :shutters, :list, required: true
   attr :turning, :boolean, default: false
-  attr :picked, :integer, default: nil
-  attr :bar, :map, default: nil
-  attr :now_ms, :integer, required: true
   attr :suggest, :map, default: nil
 
-  defp camera(assigns) do
+  defp controls(assigns) do
     ~H"""
-    <div class="focus-keys">
-      <.btn variant="primary" phx-click="shoot" disabled={@cam.busy or not ready?(@cam)}>
-        {if @cam.busy, do: "Taking…", else: "Take Picture"}
-      </.btn>
-      <.btn on={@cam.shooting} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
-        {if @cam.shooting, do: "Shooting On", else: "Shoot Continuously"}
-      </.btn>
-    </div>
-    <p :if={@cam.why} class="hint tone-caution" role="status">{@cam.why}</p>
-
-    <%!-- the next picture: its ISO and shutter speed are set here, and the one after this takes them --%>
-    <section class="next-shot" aria-labelledby="next-shot-h">
-      <h2 id="next-shot-h" class="now-h">Next Picture</h2>
-      <form phx-change="exposure" class="next-shot-form">
+    <div class="cam-controls" role="group" aria-label="taking pictures">
+      <.btn variant="primary" class="cam-take" phx-click="shoot" disabled={@cam.busy or not ready?(@cam)}>Take Picture</.btn>
+      <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam.shooting == true)} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
+        <span>Keep taking pictures</span>
+        <span class="switch-state"><span class="switch-word">{if @cam.shooting, do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
+      </button>
+      <form phx-change="exposure" class="next-shot-form" aria-label="the next picture's exposure">
         <label>
           <span>ISO</span>
           <select name="iso" class="field">
@@ -401,25 +393,47 @@ defmodule Controller.StillCameraLive do
           </select>
         </label>
       </form>
-      <p class="dim next-shot-note" role="status">{@settings[:quality] || "?"}{if @turning, do: " · turning the dial…", else: ""}</p>
-      <%!-- the mount is tracking something: a starting exposure for it over its reason, and the one key that sets it (#117) --%>
-      <.setting :if={@suggest} label={"For #{@suggest.name}: #{Exposure.words(@suggest.advice)}"} value={@suggest.advice.why}>
-        <.btn :if={!in_use?(@settings, @suggest)} phx-click="use_exposure" disabled={@turning} aria-label={"Use it: set #{Exposure.words(@suggest.advice)}"}>Use It</.btn>
-        <.badge :if={in_use?(@settings, @suggest)} on>Set ✓</.badge>
-      </.setting>
       <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
-        <span>Plate solve every picture</span>
+        <span>Plate solve each picture</span>
         <span class="switch-state"><span class="switch-word">{if @cam[:solving], do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
       </button>
-    </section>
+    </div>
+    <p class="cam-note" role="status">
+      <span :if={@cam.why} class="tone-caution">{@cam.why}</span>
+      <span :if={!@cam.why && @turning}>Turning the camera's dial…</span>
+      <%!-- the mount is tracking something: a starting exposure for it, and the one key that sets it (#117) --%>
+      <span :if={!@cam.why && !@turning && @suggest} class="cam-suggest" title={@suggest.advice.why}>
+        Suggested for {@suggest.name}: {Exposure.words(@suggest.advice)}
+        <.btn :if={!in_use?(@settings, @suggest)} phx-click="use_exposure" aria-label={"Use it: set #{Exposure.words(@suggest.advice)}"}>Use It</.btn>
+        <span :if={in_use?(@settings, @suggest)}>· set <span aria-hidden="true">✓</span></span>
+        <.link href={~p"/docs/still-camera#suggested-exposure"}>Why</.link>
+      </span>
+    </p>
+    """
+  end
 
+  # Beside the picture: the picture in flight, the roll of the last few, the camera's own facts,
+  # and the two panels a tap away.
+  attr :cam, :map, required: true
+  attr :lock, :map, required: true
+  attr :settings, :map, required: true
+  attr :isos, :list, required: true
+  attr :shutters, :list, required: true
+  attr :turning, :boolean, default: false
+  attr :picked, :integer, default: nil
+  attr :bar, :map, default: nil
+  attr :now_ms, :integer, required: true
+  attr :suggest, :map, default: nil
+
+  defp camera(assigns) do
+    ~H"""
     <%!-- the roll: the picture in flight on top, in a slot that keeps its size; then the last few, newest
           first. Tap one to look at it again. --%>
     <section class="roll" aria-labelledby="roll-h">
       <h2 id="roll-h" class="now-h">Pictures</h2>
       <div class="roll-now">
         <strong role="status">{if @cam.busy, do: Pictures.shot_words(@cam[:shot]), else: "Ready"}</strong>
-        <span class="dim">{if @cam.busy, do: flight_words(@cam[:shot]), else: "Next: " <> exposure_words(@settings)}</span>
+        <span class="dim">{if @cam.busy, do: flight_words(@cam[:shot], @settings), else: idle_words(@cam, @settings)}</span>
         <span class="shot-bar" aria-hidden="true">
           <i :if={@bar && @cam.busy && match?(%{stage: :exposing}, @cam[:shot])} id={"shot-bar-#{@bar.key}"} style={"animation-duration: #{@bar.ms}ms; animation-delay: -#{@bar.in_ms}ms"}></i>
         </span>
@@ -428,16 +442,18 @@ defmodule Controller.StillCameraLive do
         <li :for={r <- @cam[:recent] || []}>
           <button type="button" class={["roll-pic", @picked == r.seq && "picked"]} phx-click="pick" phx-value-seq={r.seq} aria-pressed={to_string(@picked == r.seq)} aria-label={"Look at picture #{r.seq}"}>
             <img src={StillCamera.src_of(@cam, r.seq)} alt="" loading="lazy" />
-            <span class="roll-text"><strong>Picture {r.seq}</strong><small>{roll_words(r)}</small></span>
+            <span class="roll-text"><strong>Picture {r.seq}</strong><small>{roll_words(r)}<span :if={solve_mark(@cam, r)} class={["roll-solve", solve_mark(@cam, r) != "solved" && "is-not"]}> · {solve_mark(@cam, r)}</span></small></span>
           </button>
         </li>
       </ol>
     </section>
 
     <%!-- the camera itself: its battery, its card, what is on it --%>
+    <p :if={StillCamera.remote?(@cam)} class="hint" role="status">This camera is on {host(@cam)}. Pictures and exposure work from here.</p>
     <section class="cam-facts" aria-labelledby="cam-facts-h">
       <h2 id="cam-facts-h" class="now-h">Camera</h2>
       <.kv :if={battery(@cam)} label="Battery" value={"#{battery(@cam)}%"} />
+      <.kv :if={@settings[:quality]} label="Format" value={to_string(@settings.quality)} />
       <.kv :if={@cam[:free_mb]} label="SD card" value={card_line(@cam)} />
       <.kv :if={@cam[:card]} label="On the card" value={on_card_words(@cam.card)} />
     </section>
@@ -454,9 +470,19 @@ defmodule Controller.StillCameraLive do
   defp shutter_options(shutters, now), do: if(is_nil(now) or now in shutters, do: shutters, else: shutters ++ [now])
 
   # what the picture in flight is being taken at, beside its stage
-  defp flight_words(%{stage: :exposing, exposure_ms: ms}) when is_number(ms), do: "#{shutter_words(ms)} exposure"
-  defp flight_words(%{stage: :downloading, file: n}) when is_integer(n), do: "file #{n}"
-  defp flight_words(_), do: " "
+  defp flight_words(%{stage: :exposing, exposure_ms: ms}, settings) when is_number(ms), do: "#{shutter_words(ms)} at ISO #{iso_words(settings[:iso])}"
+  defp flight_words(%{stage: :downloading, file: n}, settings) when is_integer(n), do: "file #{n} · #{exposure_words(settings)}"
+  defp flight_words(_, settings), do: exposure_words(settings)
+
+  # between pictures: the last one's plate solve while it runs, else what the next is taken at
+  defp idle_words(%{solve: %{state: st, seq: n}}, _settings) when st in [:queued, :solving], do: "Plate solving picture #{n}"
+  defp idle_words(_cam, settings), do: "Next: " <> exposure_words(settings)
+
+  # where a roll picture's plate solve stands (the camera follows the newest one's): a word, or nil
+  defp solve_mark(%{solve: %{seq: seq, state: :solved}}, %{seq: seq}), do: "solved"
+  defp solve_mark(%{solve: %{seq: seq, state: st}}, %{seq: seq}) when st in [:queued, :solving], do: "solving"
+  defp solve_mark(%{solve: %{seq: seq, state: :failed}}, %{seq: seq}), do: "not solved"
+  defp solve_mark(_, _), do: nil
 
   defp shutter_words(ms) when ms >= 1_000, do: "#{round(ms / 1000)} s"
   defp shutter_words(ms), do: "#{round(ms)} ms"

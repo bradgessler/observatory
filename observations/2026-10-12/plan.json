@@ -5,7 +5,7 @@
    "title": "The Triangulum Galaxy",
    "sub": "Messier 33, a spiral galaxy",
    "what": "The third largest galaxy of our local group, after Andromeda and the Milky Way, seen nearly face on.",
-   "state": "processing",
+   "state": "published",
    "note": "66 frames"
   },
   {
@@ -13,8 +13,8 @@
    "title": "Almach",
    "sub": "Gamma Andromedae, a gold and blue double star",
    "what": "Two stars that look like one to the eye. A telescope splits them into a gold star and a smaller blue one.",
-   "state": "processing",
-   "note": "13 frames"
+   "state": "published",
+   "note": "5 of 13 frames"
   },
   {
    "slug": "ngc-891",

@@ -1,0 +1,202 @@
+{
+ "credit": "© 2026 Brad Gessler  ·  Celestron 8SE (8 inch, f/10.3) and Sony a6000 on an EQ6-R  ·  San Francisco Bay Area  ·  night of 12 October 2026",
+ "made_with": "Capture and mount: Observatory (Elixir on a Raspberry Pi 3).  Stacking: numpy, OpenCV, rawpy.  Plate solving: astrometry.net.  Stacked from the camera's RAW frames. Nothing generated.",
+ "objects": [
+  {
+   "slug": "triangulum-galaxy",
+   "title": "The Triangulum Galaxy",
+   "subtitle": "Messier 33, a spiral galaxy in Triangulum",
+   "what": "The third-largest galaxy in our small group of neighbours, after Andromeda and our own Milky Way: a loose spiral of some 40 billion stars. The blue knot at the left, NGC 604, is a cloud where new stars are being born, 1,500 light-years across. From this far away, one pixel of the picture is 10 light-years wide: more than twice the way from the Sun to the nearest star.",
+   "facts": [
+    [
+     "Distance",
+     "About 2.7 million light-years"
+    ],
+    [
+     "This picture spans",
+     "29,000 light-years; the whole galaxy is about twice that"
+    ],
+    [
+     "The light left",
+     "2.7 million years ago, as the ice ages began"
+    ],
+    [
+     "Honest note",
+     "The disc is grey on purpose: these frames cannot measure its faint colour. White stars lean a little green"
+    ]
+   ],
+   "made": "66 of 104 frames of 15 s; 34 were trailed by a tracking fault that was fixed during the run",
+   "how": "16.5 minutes of light on one field, under a clear sky",
+   "specs": [
+    [
+     "Exposures",
+     "66 x 15 s at ISO 3200: 16.5 minutes"
+    ],
+    [
+     "Frames",
+     "104 taken, 66 kept. 34 frames were trailed by a tracking fault that was fixed during the run: the drive let go of both motors for about 5 s now and then, leaving each star a dot with a tail of 4 to 9 arcsec. 4 more had soft stars (4.4 to 4.7 arcsec). Clear: every untrailed frame within 5 percent of the run's star brightness"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 3.6 arcsec wide (half-flux), against 3.9 on 8 October"
+    ],
+    [
+     "Field",
+     "36.8 x 24.5 arcmin: the part of one sensor frame that at least 53 of the 66 frames cover, as the camera saw it (north 56 degrees anticlockwise of up). Not turned: a turn would resample the picture"
+    ],
+    [
+     "When",
+     "13 October 2026, after midnight, over 72 minutes. High in the sky, about 80 degrees up"
+    ],
+    [
+     "Field rotation",
+     "1.7 degrees over the run, because the polar axis is about 5 degrees off; corrected in registration (rotation and shift on 65 to 73 stars, 0.3 to 0.5 px rms)"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat frames were taken. Vignetting: the radial profile measured on 8 October from open sky, same telescope, camera and settings (corners at 69 percent); the galaxy fills tonight's frames, so it cannot be checked. Dust: 10 shadows found in tonight's own frames and divided out, each only where both halves of the run show it alike. Hot pixels from the run itself (5,700 to 6,500 per colour plane)"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, sigma-clipped weighted mean. One constant per colour per frame, set where the galaxy is faintest; no surface fitted. Noise 7.8 times lower than one frame (8.1 expected from the weights), and half that of 8 October's picture of this field, which had a third of the light (5.25 minutes)"
+    ],
+    [
+     "Zero level",
+     "The galaxy is bigger than the frame, so the true sky cannot be measured: zero is the galaxy's faintest part in this field. The black point was raised for a quiet sky, which leaves about 2 percent of the picture, the darkest sky, exactly black"
+    ],
+    [
+     "Colour",
+     "Shown only where the light can carry it, 0.4 percent of the picture: the stars, the core, the brightest star-forming clouds such as NGC 604. The disc is grey on purpose. White stars come out slightly green (red : green : blue about 0.91 : 1 : 0.94): the camera's daylight white balance and matrix, with no star-colour calibration"
+    ],
+    [
+     "Finish",
+     "The camera's daylight white balance and colour matrix. Brightness smoothed 1 px, arcsinh stretch. Black at the 14th percentile, gamma 0.9, S-curve 0.3, saturation x 1.25. Dark sky smoothed (bilateral, 3 px) and without colour"
+    ],
+    [
+     "Known flaws",
+     "Stars towards the corners have a short flare pointing away from the centre: the optics off axis, not the tracking. Two shallow dust shadows near the middle could not be confirmed tonight and were left alone"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,083.5 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without polar alignment, about 5 degrees off the pole; aligned from four plate-solved photos (about 1 arcminute), both axes driven from that model"
+    ]
+   ],
+   "width": 2844,
+   "height": 1892,
+   "thumb": [
+    900,
+    599
+   ],
+   "arcsec_per_px": 0.776162854644,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "almach",
+   "title": "Almach",
+   "subtitle": "Gamma Andromedae, a gold and blue double star in Andromeda",
+   "what": "To the eye it is one star in Andromeda. A telescope splits it in two: a gold giant and a small blue companion, a favourite for the contrast of their colours. The blue one is really three stars, too close together for this picture to separate. Everything here, both stars and the dark between them, would fit in half a light-year.",
+   "facts": [
+    [
+     "Distance",
+     "Roughly 350 light-years (not well known)"
+    ],
+    [
+     "The two stars are",
+     "At least 1,000 times as far apart as the Earth is from the Sun: six days for light to cross"
+    ],
+    [
+     "The light left",
+     "Around 1676, the year the speed of light was first measured"
+    ],
+    [
+     "Honest note",
+     "The colours are as the camera recorded them, with nothing added: the gold star is probably a little more orange than this, and the blue one a little bluer"
+    ]
+   ],
+   "made": "The sharpest 5 of 13 frames of 1/60 s",
+   "how": "The sharpest 5 of 13 frames, each a sixtieth of a second, at the sensor's own scale",
+   "specs": [
+    [
+     "Exposures",
+     "5 x 1/60 s at ISO 400: a twelfth of a second of light. The primary did not clip: the brightest pixel of any colour plane in any frame is 72 percent of the 14-bit ceiling"
+    ],
+    [
+     "Frames",
+     "13 taken, the sharpest 5 kept: the primary 3.03 to 3.46 arcsec wide (half-flux) in those, 3.65 to 4.31 in the 8 left out. A sixtieth of a second freezes the air, so a frame is sharp or it is not, and every frame added softens the star: all 13 give 3.70 arcsec against 3.32 for these 5"
+    ],
+    [
+     "Sampling",
+     "0.388 arcsec per pixel: the sensor's own pixels, never enlarged. The pair is 25 px across; the stars are 3.3 arcsec wide (half-flux)"
+    ],
+    [
+     "Field",
+     "4.1 x 4.1 arcmin: a 640 x 640 crop round the pair, north up and east left by one Lanczos turn of 56.2 degrees. No other star shows in a sixtieth of a second"
+    ],
+    [
+     "When",
+     "13 October 2026, after midnight, over 5 minutes. Nearly overhead"
+    ],
+    [
+     "The pair",
+     "9.55 arcsec apart (standard error 0.09) at position angle 62.3 degrees (0.3): two-star fits to each of the 13 frames. With the model's own error, 9.6 plus or minus 0.15 arcsec at 62 plus or minus 1 degrees. The primary is 9.0 times the companion in the camera's green (2.4 magnitudes)"
+    ],
+    [
+     "Calibration",
+     "No darks and no flat. Each frame's sky median taken off per colour plane, one hot pixel repaired. The pair sits at the middle of the sensor, where a flat would change it by well under a percent"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic). Shift only: each plane of each frame placed on its own centroid of the primary, at the true sensor position of every sample, as square drops of 1 px (drizzle). Each frame scaled to the run's median brightness first, since the star twinkles 8 percent from frame to frame"
+    ],
+    [
+     "Orientation",
+     "From a plate-solved 15 s frame of the same field, taken just before with the camera untouched: in a sixtieth of a second there are no other stars to solve on"
+    ],
+    [
+     "Colour",
+     "The camera's daylight white balance (red x 2.67, blue x 1.24) and its own colour matrix, no star-colour calibration, saturation x 1.0. Red over green and blue over green: primary 1.09 and 0.56, companion 0.72 and 1.02. The companion is the bluer star in 13 of 13 frames; the primary's red halo spills onto it, so it is bluer than shown"
+    ],
+    [
+     "Finish",
+     "Brightness smoothed 0.8 px, colour 1.5 px, arcsinh stretch. Black at the 60th percentile, white at the brightest channel of the brightest pixel, S-curve 0.15, no saturation added. Dark sky smoothed (bilateral, 2 px) and without colour"
+    ],
+    [
+     "Not resolved",
+     "The companion is itself a close pair, about half an arcsecond apart: far inside the 3.3 arcsec blur of the air on this night. A seeing-limited picture; nothing finer than 2 to 3 arcsec is shown"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,084 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down without polar alignment, about 5 degrees off the pole; aligned from four plate-solved photos (about 1 arcminute), both axes driven from that model"
+    ]
+   ],
+   "width": 640,
+   "height": 640,
+   "thumb": [
+    640,
+    640
+   ],
+   "arcsec_per_px": 0.3881364555475,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  }
+ ]
+}

@@ -26,6 +26,9 @@ runner = fn ->
   alias Controller.Sky.{Centre, Catalog, Tracker}
   require Logger
   Process.register(self(), :plan_runner)
+  # a run of pictures left going (13 October: the camera was still on M33) answers every centring picture :busy,
+  # and each target is then skipped as "not centred". The plan owns the camera from here.
+  StillCamera.continuous(false)
   id = "ttyUSB0"
   file = "/root/.observatory/plan.json"
   progress = fn map -> File.write(file, Jason.encode!(Map.put(map, :at, DateTime.utc_now()))) end

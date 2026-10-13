@@ -70,18 +70,23 @@ defmodule Controller.AlignWithCameraTest do
     Mount.stop(id)
   end
 
-  # 8 October: the Sony on and ready, and the Telescope Camera page said to plug a camera in
-  test "the Telescope Camera page with only the Sony on says where it is, not to plug one in", %{conn: conn} do
+  # 8 October: the Sony on and ready, and the Telescope Camera page said to plug a camera in.
+  # 12 October: a stills camera on the telescope is the telescope camera, not a page of its own.
+  test "Telescope Camera with only the Sony on is the Sony: its screens, not a line saying where it is", %{conn: conn} do
     no_camera!()
     {:ok, view, html} = live(conn, ~p"/cameras/telescope")
     assert html =~ "plug the telescope camera into the box"
 
+    # plugged in while the page is open: over to its pictures
     sony!()
-    html = render(view)
-    assert html =~ "No telescope camera."
-    assert html =~ "is ready on"
-    assert has_element?(view, ~s(a[href="/cameras/stills"]), "Stills Camera")
-    refute html =~ "plug the telescope camera into the box"
+    assert_redirect(view, "/cameras/stills", 5_000)
+
+    # and from then on Telescope Camera and Focus open there
+    assert {:error, {:live_redirect, %{to: "/cameras/stills"}}} = live(conn, ~p"/cameras/telescope")
+    assert {:error, {:live_redirect, %{to: "/cameras/stills"}}} = live(conn, ~p"/cameras/telescope/focus")
+
+    {:ok, _view, html} = live(conn, ~p"/cameras/stills")
+    assert html =~ ~s(<h1 class="page-title">Telescope Camera</h1>)
   end
 
   @tag :no_home
@@ -139,8 +144,11 @@ defmodule Controller.AlignWithCameraTest do
     assert html =~ "Is the counterweight below or above level right now?"
     assert has_element?(view, ~s(#counterweight [role="radio"]), "Below Level")
     refute has_element?(view, ~s(button[phx-click="go"]))
-    # the card sits right under the camera's
-    assert html |> String.split("Align with the Camera") |> List.last() |> String.split(~s(id="counterweight")) |> length() == 2
+    # the card sits right under the camera's (by the camera card's own key: the sidebar names the
+    # Align with the Camera page too)
+    [before, after_key] = String.split(html, ~s(phx-click="camera_align"), parts: 2)
+    refute before =~ ~s(id="counterweight")
+    assert after_key =~ ~s(id="counterweight")
 
     html = view |> element(~s(#counterweight [role="radio"]), "Below Level") |> render_click()
     assert html =~ "Told: the counterweight is below level right now"

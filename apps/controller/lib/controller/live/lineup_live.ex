@@ -74,7 +74,7 @@ defmodule Controller.LineupLive do
 
   # Everything the page says, recomputed on a slow tick: the status, the
   # suggested next star, the candidate list, and "you're probably on…".
-  defp compute(%{assigns: %{selected: nil}} = socket), do: assign(socket, status: nil, next: nil, candidates: [], guesses: [], samples: [], tracker: nil, site: Pointing.site(), now: DateTime.utc_now())
+  defp compute(%{assigns: %{selected: nil}} = socket), do: assign(socket, was: nil, status: nil, next: nil, candidates: [], guesses: [], samples: [], tracker: nil, site: Pointing.site(), now: DateTime.utc_now())
 
   defp compute(socket) do
     id = socket.assigns.selected
@@ -85,6 +85,8 @@ defmodule Controller.LineupLive do
       site: Pointing.site(),
       now: DateTime.utc_now(),
       status: Lineup.status(id),
+      # an alignment a reset replaced, while it can still be brought back
+      was: Lineup.restorable(id),
       next: List.first(candidates),
       candidates: candidates,
       guesses: if(socket.assigns.snap, do: Lineup.guess(socket.assigns.snap, ctx, 3), else: []),
@@ -141,7 +143,11 @@ defmodule Controller.LineupLive do
   def handle_event("clear", _, socket) do
     Tracker.stop(socket.assigns.selected)
     Lineup.clear(socket.assigns.selected)
-    {:noreply, socket |> compute() |> put_notice("Alignment cleared")}
+    {:noreply, socket |> compute() |> put_notice("Alignment cleared. Restore brings it back")}
+  end
+
+  def handle_event("restore_alignment", _, socket) do
+    {:noreply, socket |> put_notice(Controller.Components.AlignmentStatus.restore(socket.assigns.selected)) |> compute()}
   end
 
   # Track whatever the tube is on right now — centered by hand, no Go To needed.
@@ -224,6 +230,10 @@ defmodule Controller.LineupLive do
         Stars disagree by {fmt(@status.rms_arcmin / 60)}°. One isn't that star: forget the worst below.
       </p>
       <.hint :if={@status && @status.signs_corrected?}>Axis sign corrected (shown in Modes).</.hint>
+
+      <%!-- nothing is thrown away by a reset: the alignment it replaced, and the key that brings it back
+            (inside the Status page, that page draws it) --%>
+      <Controller.Components.AlignmentStatus.set_aside :if={!@nested} was={@was} now={@now} />
 
       <%!-- the two facts the maths needs, and where to change them; calm, never a nag --%>
       <.hint :if={@status} class="site-line">

@@ -98,7 +98,7 @@ defmodule Controller.AutoAlignStillTest do
     assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
     assert run.ok, run.words
     assert run.camera == :still
-    assert run.words =~ "Found it: 4 frames agree"
+    assert run.words =~ "Found it: 4 pictures agree"
 
     # the pictures were the stills camera's finders, on this mount's plates
     assert [_, _, _, _] = Enum.filter(Plates.view(id).plates, &(&1.state == :solved and &1[:finder] == true))
@@ -181,7 +181,7 @@ defmodule Controller.AutoAlignStillTest do
 
     assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
     assert run.ok, run.words
-    assert run.words =~ "Aligned: 4 frames agree"
+    assert run.words =~ "Aligned: 4 pictures agree"
     assert run.words =~ "Is the counterweight bar below or above level right now?"
     status = Lineup.status(id)
     assert status.n == 4 and "just look" in status.good_for

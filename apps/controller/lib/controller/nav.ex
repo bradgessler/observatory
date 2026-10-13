@@ -31,15 +31,20 @@ defmodule Controller.Nav do
   @doc "The sidebar: `[{group, what it's for, [page]}]`, in order."
   def groups do
     [
-      # In the order of a night: get the mount onto the sky, pick something, move
-      # to it, look; then the mount itself, and the machine underneath.
-      {"Alignment", "Getting a mount that was set down anyhow onto the sky: where it stands, and where it points",
+      # In the order of a night: the telescope itself (what it is doing, how ready it is, where it
+      # stands), getting it onto the sky, picking something, moving to it, looking; then the mount,
+      # and the machine underneath.
+      {"Telescope", "What the telescope is doing right now, how ready it is, and where it stands",
        [
+         page("Now", ~p"/controls/scope", "What the telescope is doing and seeing right now: its state, a slew's progress, the latest picture, where it points, its log", ~p"/docs/scope", "telescope"),
          page("Status", ~p"/alignment", "How well the telescope is aligned, and the steps from plugging in to looking", ~p"/docs/start", "play", also: ["/setup"]),
-         page("Location", ~p"/location", "Where the telescope stands: latitude and longitude for the sky and Go To, the time for a hand controller", ~p"/docs/location", "compass"),
+         page("Location", ~p"/location", "Where the telescope stands: latitude and longitude for the sky and Go To, the time for a hand controller", ~p"/docs/location", "compass")
+       ]},
+      {"Alignment", "Ways to tell a mount that was set down anyhow where it points: by pictures, or by eye",
+       [
+         page("Align with the Camera", ~p"/align/camera", "The camera on the telescope takes a few pictures and plate solves them, step by step: no star names, no eye at the eyepiece", ~p"/docs/align-camera", "camera"),
          page("Align by Stars", ~p"/controls/align", "Center a few stars in the eyepiece; each one is an alignment point", ~p"/docs/align", "star"),
-         page("Align by Phone Photo", ~p"/align/photo", "Your phone held to the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap"),
-         page("Optical Axes", ~p"/controls/watch/axes", "Experiment: turn each axis a little with the observatory camera watching, and find where it pivots", ~p"/docs/axes", "crosshair")
+         page("Align by Phone Photo", ~p"/align/photo", "Your phone held to the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap")
        ]},
       {"Sky", "What's up from here, and Go To",
        [
@@ -61,16 +66,15 @@ defmodule Controller.Nav do
       {"Cameras", "The camera in the telescope and the camera watching the observatory",
        [
          page("All Cameras", ~p"/cameras", "Every camera's latest picture, side by side", ~p"/docs/cameras", "cameras"),
-         page("Telescope Camera", ~p"/cameras/telescope", "The camera in the focuser: what the telescope sees, and Find Where It's Pointing", ~p"/docs/scope-camera", "camera"),
+         page("Telescope Camera", ~p"/cameras/telescope", "The camera on the telescope, video or stills: its latest picture and how long ago it was taken", ~p"/docs/scope-camera", "camera", also: ["/cameras/stills"]),
          page("Focus", ~p"/cameras/telescope/focus", "Turn the focuser slowly and watch it get sharper or blurrier", ~p"/docs/scope-camera", "focus"),
-         page("Stills Camera", ~p"/cameras/stills", "The Sony on the telescope: settings, pictures, and Lock On", ~p"/docs/still-camera", "camera"),
          page("Observatory Camera", ~p"/cameras/observatory", "The camera watching the mount: the latest still, and live video", ~p"/docs/watch", "video")
        ]},
-      {"Mount", "The mount as it stands, drawn live from its encoders",
+      {"Mount", "The mount's own geometry, live from its encoders",
        [
-         page("Scope", ~p"/controls/scope", "The mount in 3-D, posed from the encoders", ~p"/docs/scope", "telescope"),
          page("Orb", ~p"/controls/orb", "The mount's geometry as a 3-D gizmo, live, with strips to turn each axis", ~p"/docs/orb", "orbit"),
-         page("Eyepiece", ~p"/controls/eyepiece", "What the tube sees: the field, the target, the drift", ~p"/docs/eyepiece", "aperture")
+         page("Eyepiece", ~p"/controls/eyepiece", "What the tube sees: the field, the target, the drift", ~p"/docs/eyepiece", "aperture"),
+         page("Optical Axes", ~p"/controls/watch/axes", "Experiment: turn each axis a little with the observatory camera watching, and find where it pivots", ~p"/docs/axes", "crosshair")
        ]},
       {
         "System",
@@ -104,6 +108,10 @@ defmodule Controller.Nav do
     [
       under("Settings", ~p"/cameras/telescope/settings", "Exposure, gain, frames per picture, keeping frames, video", "Telescope Camera", "gear"),
       under("Frames", ~p"/cameras/telescope/frames", "The last pictures, each with what was known when it was taken", "Telescope Camera", "frames"),
+      # a stills camera on the telescope: its screens, each one job
+      under("Exposure", ~p"/cameras/stills/exposure", "A stills camera's ISO and shutter speed", "Telescope Camera", "gear"),
+      under("Lock On", ~p"/cameras/stills/lock", "Both motors steered from a stills camera's pictures, to hold the target still", "Telescope Camera", "crosshair"),
+      under("Plate Solving", ~p"/cameras/stills/solving", "Solve every picture from a stills camera, and watch each solve work", "Telescope Camera", "star"),
       under("Settings", ~p"/cameras/observatory/settings", "Which camera, timed stills, video size and frame rate", "Observatory Camera", "gear"),
       under("Frames", ~p"/cameras/observatory/frames", "The last twenty minutes of stills, for looking back at a slew", "Observatory Camera", "frames"),
       under("Serial Ports", ~p"/devices/ports", "Every serial port this machine sees, and what answered on it", "Devices", "plug"),
@@ -139,15 +147,29 @@ defmodule Controller.Nav do
     # every telescope's alignment, for the sidebar and the switcher, kept current by
     # Controller.Alignment.Watch; the page itself never sees these messages
     if Phoenix.LiveView.connected?(socket), do: Controller.Alignment.subscribe()
+    # and what each is doing right now (`Controller.ScopeNow`), for the bar at the top of every page
+    if Phoenix.LiveView.connected?(socket), do: Controller.ScopeNow.subscribe()
 
     socket =
       socket
       |> assign(:telescopes, telescopes)
       |> assign(:telescope, current(telescopes, session["telescope"]))
       |> assign(:alignments, Map.new(telescopes, &{&1.id, Controller.Alignment.get(&1.id)}))
+      |> assign(:scope_now, Controller.ScopeNow.all())
       |> attach_hook(:alignment, :handle_info, fn
         {:alignment, id, summary}, socket -> {:halt, Phoenix.Component.update(socket, :alignments, &Map.put(&1, id, summary))}
+        {:scope_now, id, nil}, socket -> {:halt, Phoenix.Component.update(socket, :scope_now, &Map.delete(&1, id))}
+        {:scope_now, id, now}, socket -> {:halt, Phoenix.Component.update(socket, :scope_now, &Map.put(&1, id, now))}
         _, socket -> {:cont, socket}
+      end)
+      # the bar's own STOP, the same on every page: the telescope this viewer is driving, whatever moves it
+      |> attach_hook(:scope_stop, :handle_event, fn
+        "scope_stop", _, socket ->
+          stop_scope(socket.assigns[:telescope])
+          {:halt, socket}
+
+        _, _, socket ->
+          {:cont, socket}
       end)
       |> attach_hook(:nav_path, :handle_params, fn params, uri, socket ->
         path = URI.parse(uri).path
@@ -168,6 +190,26 @@ defmodule Controller.Nav do
 
     {:cont, socket}
   end
+
+  # Everything that could be moving this telescope, stopped: the mount itself (on whichever
+  # machine it is plugged into; an alignment run and a hold there end on the driver's STOP), and
+  # what runs here.
+  defp stop_scope(%{id: id}) do
+    quiet = fn fun ->
+      try do
+        fun.()
+      catch
+        _, _ -> nil
+      end
+    end
+
+    if ref = Enum.find(quiet.(fn -> Mount.list() end) || [], &(&1.id == id)), do: quiet.(fn -> Mount.emergency_stop(ref) end)
+    quiet.(fn -> Controller.AutoAlign.stop(id) end)
+    quiet.(fn -> Controller.Sky.Tracker.stop(id) end)
+    quiet.(fn -> Controller.LockOn.release("STOP was pressed") end)
+  end
+
+  defp stop_scope(_), do: :ok
 
   @doc """
   Whether a browser at this address will share its location (and other

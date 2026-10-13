@@ -298,8 +298,9 @@ defmodule Controller.Sky.Tracker do
       Pointing.side_guessed?(snap, ctx) ->
         {:give_up, :counterweight_unknown, %{}}
 
-      # never zeroed: no soft limits, so the counterweight is the limit
-      not snap.homed and Pointing.hold_limit?(cw) ->
+      # never zeroed: no soft limits, so the counterweight is the limit. With its side unknown
+      # (nobody can look) the limit is how far from level the bar has been, whichever way up
+      not snap.homed and if(Pointing.side_unknown?(snap, ctx), do: Pointing.unknown_limit?(ctx, r1), else: Pointing.hold_limit?(cw)) ->
         {:give_up, :meridian, %{}}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->

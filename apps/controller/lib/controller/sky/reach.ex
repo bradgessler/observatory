@@ -138,11 +138,22 @@ defmodule Controller.Sky.Reach do
       Pointing.side_guessed?(snap, ctx) -> :side_unknown
       sky.alt <= 0 -> :down
       snap.homed -> {:zeroed, nil}
+      # nobody could say which side: Go To reaches what keeps the bar where it has been (`Pointing.side_unknown?/2`)
+      Pointing.side_unknown?(snap, ctx) -> cautious(Pointing.unknown_landing(obj, snap, ctx))
       true -> {:model, Pointing.landing(obj, snap, ctx)}
     end
   end
 
+  defp cautious(%{ok?: true} = plan), do: {:model, plan}
+  defp cautious(plan), do: {:too_far, plan}
+
   defp go_words(:no_mount, _obj, _opts), do: check(:off, "–", "No mount connected", nil)
+
+  defp go_words({:too_far, %{upright?: true}}, _obj, _opts),
+    do: check(:caution, "×", "Across the meridian from here. With the counterweight's side unknown Go To stays on this side: say below or above level to go there", nil)
+
+  defp go_words({:too_far, _plan}, _obj, _opts),
+    do: check(:caution, "×", "Past where the RA axis has stood tonight. With the counterweight's side unknown Go To goes no further: say below or above level to go there", nil)
 
   defp go_words(:no_lock, _obj, _opts),
     do: check(:caution, "×", "Not aligned: center any star or planet and tap Centered", nil)
@@ -195,6 +206,9 @@ defmodule Controller.Sky.Reach do
       go in [:no_mount, :no_lock, :side_unknown] ->
         go
 
+      match?({:too_far, _}, go) and not holding? ->
+        :too_far
+
       holding? ->
         {:until,
          hold_end(obj, snap, ctx, {snap.axes.ra.degrees, snap.axes.dec.degrees}, tree_at, sky.dark),
@@ -230,8 +244,8 @@ defmodule Controller.Sky.Reach do
         Astro.alt_az(obj.ra_deg, obj.dec_deg, ctx.site.lat, Astro.lst_deg(t, ctx.site.lon))
 
       cond do
-        # the hold's own rule (`Pointing.hold_limit?/1`)
-        not snap.homed and Pointing.hold_limit?(Pointing.counterweight(c, ra)) ->
+        # the hold's own rule (`Pointing.hold_limit?/1`; the bar's distance from level with its side unknown)
+        not snap.homed and if(Pointing.side_unknown?(snap, c), do: Pointing.unknown_limit?(c, ra), else: Pointing.hold_limit?(Pointing.counterweight(c, ra))) ->
           {:halt, {:meridian, t}}
 
         dark_now and Ephemeris.sun_alt(t, ctx.site) >= @dark ->
@@ -258,6 +272,7 @@ defmodule Controller.Sky.Reach do
   defp same?(_, _), do: false
 
   defp track_words(:no_mount, _obj, _clock), do: check(:off, "–", "No mount connected", nil)
+  defp track_words(:too_far, _obj, _clock), do: check(:off, "–", "Nothing to hold until Go To can reach it", nil)
 
   defp track_words(:no_lock, _obj, _clock),
     do: check(:caution, "×", "Needs an alignment first: tracking steers by it", nil)

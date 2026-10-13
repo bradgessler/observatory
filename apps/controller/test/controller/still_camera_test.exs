@@ -52,13 +52,104 @@ defmodule Controller.StillCameraTest do
   @tag timeout: 60_000
   test "the page shows the camera, takes a picture, and serves it", %{conn: conn} do
     {:ok, view, html} = live(conn, ~p"/cameras/stills")
-    assert html =~ "Stills Camera" and html =~ "Take Picture" and html =~ "Lock On"
-    assert html =~ ~s(aria-label="ISO")
+    # it is the telescope camera: one job on this screen, the rest a screen away
+    assert html =~ ~s(<h1 class="page-title">Telescope Camera</h1>) and html =~ "Take Picture"
+    refute html =~ "Stills Camera"
+    refute html =~ ~s(aria-label="ISO")
+    refute html =~ "Lock On the Bright Target"
+    for screen <- ~w(exposure lock solving), do: assert(has_element?(view, ~s(a[href="/cameras/stills/#{screen}"])))
 
     view |> element("button", "Take Picture") |> render_click()
     assert_receive {:still_camera, %{busy: false, last: %{w: 960}}}, 15_000
     assert render(view) =~ "bright target"
     assert conn |> get(~p"/cameras/stills/latest.png") |> response(200) =~ <<137, "PNG">>
+  end
+
+  # 12 October: "show me the latest still, and how long it's been since it was taken"
+  @tag timeout: 60_000
+  test "every screen shows the latest picture and how long ago it was taken", %{conn: conn} do
+    last = picture()
+    {:ok, view, html} = live(conn, ~p"/cameras/stills")
+    assert html =~ "Taken just now"
+
+    # the same picture three minutes on, as the page's clock comes round to it
+    status = StillCamera.status()
+    status = %{status | last: %{last | at: DateTime.add(DateTime.utc_now(), -200, :second)}}
+    send(view.pid, {:still_camera, status})
+    send(view.pid, :tick)
+    html = render(view)
+    # past a minute the clock time goes with the age
+    assert html =~ ~r/Taken 3 min ago, at \d\d:\d\d:\d\d UTC/
+    # the age counts up outside the live region: a screen reader hears the facts, not every second
+    refute html =~ ~r/role="status"[^>]*>\s*Taken/
+
+    # with the shutter open the last picture stays, and the page says what the camera is doing, stage by
+    # stage: the exposure against the shutter time, each file as it comes down
+    now = System.system_time(:millisecond)
+    send(view.pid, {:still_camera, %{status | busy: true, shot: %{stage: :exposing, exposure_ms: 30_000, since_ms: now - 4_000, seq: 9}}})
+    send(view.pid, :tick)
+    html = render(view)
+    assert html =~ "Taken 3 min ago"
+    assert html =~ ~r/Exposing<\/span><span> · [45] s of 30/
+    assert has_element?(view, ~s(.shot-now progress[max="30"]))
+    send(view.pid, {:still_camera, %{status | busy: true, shot: %{stage: :downloading, file: 2, name: "DSC00521.ARW", bytes: 24_300_000, since_ms: now, seq: 9}}})
+    assert render(view) =~ "Downloading DSC00521.ARW · 24.3 MB"
+    # a camera whose driver reports no stages still says a picture is being taken
+    send(view.pid, {:still_camera, %{status | busy: true, shot: nil}})
+    assert has_element?(view, ~s(.shot-now [role="status"]), "Taking a picture")
+
+    for screen <- ~w(exposure lock solving) do
+      {:ok, view, html} = live(conn, "/cameras/stills/#{screen}")
+      assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png"])), screen
+      assert html =~ "Taken ", screen
+      assert has_element?(view, ~s(a[href="/cameras/stills"][aria-label="Back to Telescope Camera"])), screen
+    end
+  end
+
+  # 12 October: "you know how long it's going to take: give us the play by play"
+  @tag timeout: 60_000
+  test "a picture reports its stages as it is taken: preparing, exposing, downloading each file, saving, measuring" do
+    StillCamera.shoot()
+    stages = collect_stages([])
+    assert [:preparing, :exposing | _] = stages
+    for stage <- [:downloading, :saving, :measuring], do: assert(stage in stages, "#{stage} missing from #{inspect(stages)}")
+    # in the order they happen, and gone once the picture is in
+    assert Enum.find_index(stages, &(&1 == :downloading)) < Enum.find_index(stages, &(&1 == :saving))
+    assert Enum.find_index(stages, &(&1 == :saving)) < Enum.find_index(stages, &(&1 == :measuring))
+    assert StillCamera.status().shot == nil
+  end
+
+  defp collect_stages(acc) do
+    receive do
+      {:still_camera, %{busy: true, shot: %{stage: stage}}} -> collect_stages(if List.last(acc) == stage, do: acc, else: acc ++ [stage])
+      {:still_camera, %{busy: false, last: %{}}} when acc != [] -> acc
+      {:still_camera, _} -> collect_stages(acc)
+    after
+      15_000 -> flunk("the picture never finished: #{inspect(acc)}")
+    end
+  end
+
+  @tag timeout: 60_000
+  test "Exposure is its own screen: ISO, shutter speed and a picture to check them by", %{conn: conn} do
+    {:ok, view, html} = live(conn, ~p"/cameras/stills/exposure")
+    assert html =~ ~s(<h1 class="page-title">Exposure</h1>)
+    assert html =~ ~s(aria-label="ISO") and html =~ ~s(aria-label="shutter speed, in seconds")
+    assert has_element?(view, "button", "Take Picture")
+    refute html =~ "Lock On the Bright Target"
+    refute html =~ "Solve Pictures"
+
+    view |> element(~s(button[role="radio"][phx-click="iso"]), "800") |> render_click()
+    assert_receive {:still_camera, %{camera: %{settings: %{iso: 800}}}}, 10_000
+    assert render(view) =~ "ISO 800"
+  end
+
+  @tag timeout: 60_000
+  test "All Cameras shows this camera's picture as the telescope camera's, with its age", %{conn: conn} do
+    picture()
+    {:ok, _view, html} = live(conn, ~p"/cameras")
+    assert html =~ ~r|<img[^>]*src="/cameras/stills/latest.png\?t=\d+"[^>]*alt="Telescope camera, the latest picture"|
+    assert html =~ "picture from just now"
+    refute html =~ "Not plugged in"
   end
 
   @tag timeout: 60_000
@@ -68,7 +159,7 @@ defmodule Controller.StillCameraTest do
     Mount.subscribe(id)
     assert_receive {:mount, %{connected: true}}, 2_000
 
-    {:ok, view, _} = live(conn, ~p"/cameras/stills?#{[id: id]}")
+    {:ok, view, _} = live(conn, ~p"/cameras/stills/lock?#{[id: id]}")
     view |> element("button", "Lock On the Bright Target") |> render_click()
     assert %{state: :calibrating, mount: ^id} = LockOn.status()
     assert StillCamera.status().shooting
@@ -715,9 +806,13 @@ defmodule Controller.StillCameraTest do
       assert %{"queued" => true, "plate" => ^n, "answer_in" => name} = side["plate_solve"]
       assert name == Path.basename(last.base) <> ".solve.json"
 
+      # the camera's screen says where the last solve stands; the switch and the queue are on Plate Solving
       {:ok, _view, html} = live(conn, ~p"/cameras/stills")
       assert html =~ ~r/Picture \d+: RA \d\dh \d\dm \d\ds, Dec \+\d\d° \d\d′ \d\d″ · 0\.66° × 0\.44° · 30 stars · 2\.5 s/
+      refute html =~ "Solving On"
+      {:ok, _view, html} = live(conn, ~p"/cameras/stills/solving")
       assert html =~ "Solving On"
+      assert html =~ ~r/Picture #{n}<\/strong><span class="dim">Solved · in \d+ s · 30 stars/
     end
 
     @tag timeout: 60_000

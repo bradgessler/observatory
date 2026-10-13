@@ -244,7 +244,7 @@ defmodule Controller.SiteLive do
     ~H"""
     <.page id="site" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" section="Alignment" />
+        <.back navigate={~p"/"} label="Home" section="Telescope" />
         <.title>Location</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@telescope && @telescope.id]} /></.status>

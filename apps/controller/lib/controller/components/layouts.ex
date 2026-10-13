@@ -23,7 +23,7 @@ defmodule Controller.Layouts do
   """
   def shell(assigns) do
     ~H"""
-    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]} alignments={assigns[:alignments] || %{}}>
+    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]} alignments={assigns[:alignments] || %{}} now={assigns[:telescope] && (assigns[:scope_now] || %{})[assigns[:telescope].id]}>
       {@inner_content}
       <:search><.live_component module={Controller.Spotlight} id="spotlight" here={assigns[:current_path]} /></:search>
     </.frame>
@@ -36,6 +36,7 @@ defmodule Controller.Layouts do
   attr :telescopes, :list, default: []
   attr :telescope, :map, default: nil
   attr :alignments, :map, default: %{}, doc: "each telescope's alignment (`Controller.Alignment`), by id"
+  attr :now, :map, default: nil, doc: "what the telescope being driven is doing right now (`Controller.ScopeNow`)"
   slot :inner_block, required: true
   slot :search, doc: "Search, on a LiveView page; a page without it (a doc) links to the search page instead"
 
@@ -101,7 +102,22 @@ defmodule Controller.Layouts do
           <span class="night-glyph" aria-hidden="true">◐</span><span>Night Mode</span><small>{if @night, do: "On", else: "Off"}</small>
         </button>
       </nav>
-      <div class="shell-main">{render_slot(@inner_block)}</div>
+      <div class="shell-main">
+        <%!-- What the telescope is doing, on every page, the same way: still, tracking, or SLEWING,
+              which is loud and comes with its own STOP. Only the words are a live region: a
+              position that counts would be read out every second. --%>
+        <div :if={@now} id="scope-now" class={["scope-now", "now-#{@now.state}"]}>
+          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" aria-label={"#{@now.id}: #{@now.words}. Open the telescope"}>
+            <span class="now-dot" aria-hidden="true"></span>
+            <strong role="status">{@now.words}</strong>
+            <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
+            <span class="now-id">{@now.id}</span>
+            <span :if={@now.where} class="now-where">{@now.where}</span>
+          </.link>
+          <button :if={@now.state in [:slewing, :moving]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
+        </div>
+        {render_slot(@inner_block)}
+      </div>
       {render_slot(@search)}
     </div>
     """

@@ -46,6 +46,16 @@ defmodule Controller.Sky.Solve.Local do
       blind one up to a minute
     * `blind_fallback:` (true) stars but no match near the hint: try once
       more without it, in whatever time is left
+    * `hinted_ms:` (20 000) the most a hinted search may take when a blind
+      one can follow it. A search that finds its match stops at once; one
+      whose hint is wrong runs to its limit, and with the whole deadline as
+      that limit nothing was left for the blind search that would have
+      found it (the night of 12 October: one picture solved blind in 12 s,
+      the next four timed out on a hint 30 degrees wrong)
+    * `progress:` `{pid, tag}`: the pipeline says where it is as it goes,
+      `{:solve_progress, tag, %{stage: :reading | :stars | :matching, ...}}`
+      (`stars:` once they are counted; `how: :hinted | :blind` and
+      `limit_ms:` while matching), for a page that shows a solve at work
     * `scale:` `{low_deg, high_deg}` across the image, default `{0.2, 3.0}`
       (a phone at a low-power eyepiece)
     * `downsample:` an integer, or `:auto` from the image size: 2 for a
@@ -89,6 +99,8 @@ defmodule Controller.Sky.Solve.Local do
   # used when there, never required
   @optional [:magick]
   @min_odds 1.0e18
+  # a hinted search that is going to find its match has found it long before this
+  @hinted_ms 20_000
 
   # -- the machine ------------------------------------------------------------------------
 
@@ -151,6 +163,8 @@ defmodule Controller.Sky.Solve.Local do
         sweeper = sweeper(self(), dir)
 
         try do
+          say(opts, %{stage: :reading})
+
           with {:ok, fits, dims} <- to_fits(image, format, dir, opts, deadline),
                {:ok, xy, stars} <- extract(fits, dims, dir, opts, deadline),
                {:ok, sol} <- match(xy, dims, stars, dir, opts, deadline) do
@@ -336,23 +350,45 @@ defmodule Controller.Sky.Solve.Local do
 
     with {:ok, out} <- step(:image2xy, args, dir, opts, deadline) do
       n = stars(out) || 0
+      say(opts, %{stage: :stars, stars: n})
       if n < (opt(opts, :min_stars) || @min_stars), do: {:error, :too_few_stars}, else: {:ok, xy, n}
     end
   end
 
-  # solve-field on the star list: hinted first, then blind if the hint may be what is wrong
+  # solve-field on the star list: hinted first, then blind if the hint may be what is wrong.
+  # A hinted search that fails does not fail fast: it runs to its limit. So when a blind search
+  # can follow, the hinted one gets a share of the time, never all of it.
   defp match(xy, dims, stars, dir, opts, deadline) do
     hint = hint(opts[:hint])
+    blind? = hint != nil and Keyword.get(opts, :blind_fallback, true) and stars >= @min_stars_for_blind
+    left = deadline - System.monotonic_time(:millisecond)
+    first_ms = if blind?, do: min(opt(opts, :hinted_ms) || @hinted_ms, div(left, 3)), else: left
+    say(opts, %{stage: :matching, how: if(hint, do: :hinted, else: :blind), stars: stars, limit_ms: max(first_ms, 0)})
 
-    case solve_field(xy, dims, dir, Keyword.put(opts, :hint, hint), deadline) do
-      {:error, :no_solution} when hint != nil and stars >= @min_stars_for_blind ->
-        if Keyword.get(opts, :blind_fallback, true) and deadline - System.monotonic_time(:millisecond) > 2_000,
-          do: solve_field(xy, dims, dir, Keyword.put(opts, :hint, nil), deadline),
-          else: {:error, :no_solution}
+    case solve_field(xy, dims, dir, Keyword.put(opts, :hint, hint), System.monotonic_time(:millisecond) + first_ms) do
+      {:error, why} when blind? and why in [:no_solution, :timeout] ->
+        left = deadline - System.monotonic_time(:millisecond)
+
+        if left > 2_000 do
+          say(opts, %{stage: :matching, how: :blind, stars: stars, limit_ms: left})
+          solve_field(xy, dims, dir, Keyword.put(opts, :hint, nil), deadline)
+        else
+          {:error, why}
+        end
 
       other ->
         other
     end
+  end
+
+  # Where the pipeline is, to whoever asked (`progress: {pid, tag}`). Never the solve's problem.
+  defp say(opts, info) do
+    case opts[:progress] do
+      {pid, tag} when is_pid(pid) -> send(pid, {:solve_progress, tag, info})
+      _ -> :ok
+    end
+  rescue
+    _ -> :ok
   end
 
   defp solve_field(xy, dims, dir, opts, deadline) do

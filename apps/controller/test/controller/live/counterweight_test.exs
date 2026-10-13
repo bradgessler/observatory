@@ -59,7 +59,7 @@ defmodule Controller.CounterweightTest do
     assert html =~ "Told: the counterweight is below level right now"
     # no longer a question: the fact, with the key it was told lit and marked
     refute html =~ @question
-    assert html =~ "Below level right now"
+    assert html =~ "Counterweight below level right now"
     assert has_element?(view, "#counterweight .badge.on", "told")
     assert has_element?(key(view, "Below Level ✓", ~s([aria-checked="true"])))
     assert has_element?(key(view, "Above Level", ~s([aria-checked="false"])))
@@ -78,7 +78,7 @@ defmodule Controller.CounterweightTest do
     view |> key("Above Level") |> render_click()
     assert Lineup.model(id).cw == -below
     assert has_element?(key(view, "Above Level ✓", ~s([aria-checked="true"])))
-    assert render(view) =~ "Above level right now"
+    assert render(view) =~ "Counterweight above level right now"
 
     # the page with the question is still one page: no id twice
     ids = Regex.scan(~r/ id="([^"]+)"/, render(view)) |> Enum.map(fn [_, i] -> i end)

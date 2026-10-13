@@ -47,24 +47,35 @@ defmodule Controller.ScopeCameraFocusLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      ScopeCamera.subscribe()
-      Settings.subscribe()
-      # focusing needs pictures coming
-      ScopeCamera.live(true, ScopeCamera.find()[:node] || node())
-    end
-
     cam = ScopeCamera.find()
 
-    {:ok,
-     assign(socket,
-       page_title: "Telescope Camera · Focus",
-       night: Settings.get("night", false),
-       cam: cam,
-       latest: latest(cam),
-       samples: [],
-       moved_at: nil
-     )}
+    # a stills camera on the telescope is focused by its star size, on its own screen
+    if Controller.StillCamera.on_telescope?(stills(), cam) do
+      {:ok, push_navigate(socket, to: ~p"/cameras/stills")}
+    else
+      if connected?(socket) do
+        ScopeCamera.subscribe()
+        Settings.subscribe()
+        # focusing needs pictures coming
+        ScopeCamera.live(true, cam[:node] || node())
+      end
+
+      {:ok,
+       assign(socket,
+         page_title: "Telescope Camera · Focus",
+         night: Settings.get("night", false),
+         cam: cam,
+         latest: latest(cam),
+         samples: [],
+         moved_at: nil
+       )}
+    end
+  end
+
+  defp stills do
+    Controller.StillCamera.find()
+  catch
+    :exit, _ -> nil
   end
 
   @impl true

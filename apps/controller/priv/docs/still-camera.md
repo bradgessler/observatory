@@ -6,6 +6,13 @@ box drives it the way Sony's own remote software does: it reads and sets ISO
 and shutter speed, presses the shutter, and takes each picture straight off
 the camera, RAW and JPEG, as the camera made it.
 
+With a stills camera on the telescope, **Telescope Camera** is this camera.
+Its page always shows the latest picture and how long ago it was taken (past
+a minute, the clock time too), because its frames come seconds or minutes
+apart rather than thirty a second. One job a screen: the picture and **Take
+Picture** on the camera's own screen; **Exposure**, **Lock On** and **Plate
+Solving** each a tap away, each with the latest picture on it.
+
 ## Plug it in so the box can drive it
 
 The camera has to be in **PC Remote** mode: **Menu → toolbox → USB
@@ -34,6 +41,18 @@ for the page to have something to show.
 **ISO** and **shutter speed** are set by turning the camera's own dials a
 notch at a time, the only way an a6000 takes them over USB, so a change takes
 a few seconds. The line above the keys says where they landed.
+
+While a picture is being taken the page says what the camera is doing,
+stage by stage: preparing, exposing (with a bar against the shutter time for
+an exposure of two seconds or more), the camera finishing the picture, each
+file coming down with its size, saving, and measuring the stars. The last
+picture stays on the screen until the new one is in.
+
+## Exposure
+
+**Exposure** is the screen for ISO and shutter speed, with the latest picture
+and **Take Picture** beside them: change one, take a picture, look. Shutter
+speed is in seconds. A longer shutter or a higher ISO shows more stars.
 
 ## Pictures that are kept but not counted
 

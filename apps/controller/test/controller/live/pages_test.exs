@@ -286,11 +286,17 @@ defmodule Controller.PagesTest do
         "/cameras", "/cameras/telescope", "/cameras/telescope/focus", "/cameras/telescope/settings", "/search",
         "/cameras/observatory", "/cameras/observatory/frames", "/cameras/observatory/settings", "/controls/watch/axes/#{id}",
         "/controls/dpad/#{id}", "/controls/nudge/#{id}", "/controls/position/#{id}", "/controls/align/#{id}", "/align/photo/#{id}",
-        "/controls/center/#{id}", "/setup/#{id}", "/docs/keypad"
+        "/controls/center/#{id}", "/setup/#{id}", "/docs/keypad",
+        "/align/camera/#{id}", "/cameras/stills", "/cameras/stills/exposure", "/cameras/stills/lock", "/cameras/stills/solving"
       ]
     end
 
-    defp pages(conn, id), do: for(path <- routes(id), do: {path, get(conn, path) |> html_response(200)})
+    defp pages(conn, id) do
+      # a simulated stills camera left by a test before this one takes a few seconds to go, and while
+      # it is there Telescope Camera is that camera's screens (a redirect, not a page)
+      assert Enum.find(1..100, fn _ -> Controller.StillCamera.status().camera == nil or (Process.sleep(100) && false) end), "a stills camera is still listed"
+      for(path <- routes(id), do: {path, get(conn, path) |> html_response(200)})
+    end
 
     test "every page: lang, one main, one h1, a skip link to one content anchor", %{conn: conn, id: id} do
       for {path, html} <- pages(conn, id) do
@@ -306,14 +312,17 @@ defmodule Controller.PagesTest do
     end
 
     test "every page has its own title", %{conn: conn, id: id} do
-      titles =
+      titled =
         for {path, html} <- pages(conn, id) do
           [_, title] = Regex.run(~r/<title[^>]*>([^<]*)<\/title>/, html)
           refute title == "Observatory", "#{path}: no page title set"
           assert title =~ " · Observatory", path
-          title
+          {path, title}
         end
 
+      # a page's other address (Nav's `also`: /cameras/stills is Telescope Camera) is the same page, with its title
+      also = Enum.flat_map(Controller.Nav.pages(), & &1.also)
+      titles = for {path, title} <- titled, path not in also, do: title
       assert titles == Enum.uniq(titles), "titles repeat: #{inspect(titles -- Enum.uniq(titles))}"
     end
 

@@ -93,6 +93,8 @@ defmodule Controller.Router do
     live "/controls/align", LineupLive, :index
     live "/controls/align/:id", LineupLive, :show
     # photos through the eyepiece, plate-solved: the polar axis and GoTo from them
+    live "/align/camera", AlignCameraLive, :index
+    live "/align/camera/:id", AlignCameraLive, :show
     live "/align/photo", AlignPhotoLive, :index
     live "/align/photo/:id", AlignPhotoLive, :show
     # every camera in one place: the telescope camera (in the focuser) and the
@@ -117,6 +119,9 @@ defmodule Controller.Router do
     get "/cameras/stills/files/:night", StillCameraController, :night
     get "/cameras/stills/files/:night/:name", StillCameraController, :file
     live "/cameras/stills", StillCameraLive, :index
+    live "/cameras/stills/exposure", StillCameraLive, :exposure
+    live "/cameras/stills/lock", StillCameraLive, :lock
+    live "/cameras/stills/solving", StillCameraLive, :solving
     live "/cameras/observatory", WatchLive, :index
     live "/cameras/observatory/frames", FramesLive, :index
     live "/cameras/observatory/settings", CameraLive, :index

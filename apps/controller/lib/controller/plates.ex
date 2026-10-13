@@ -47,6 +47,14 @@ defmodule Controller.Plates do
   added (`deadline:`, 30 s): not solved by then, it fails as "deadline",
   its solve is stopped, and the queue takes the next plate.
 
+  **A solve can be watched.** While a plate is solving, its entry in the view
+  carries `solving:`, where the solver is: `%{stage: :reading | :stars |
+  :matching, how: :hinted | :blind, stars:, since_ms:, stage_ms:, limit_ms:,
+  total_ms:}` (system milliseconds: when the solve began and when this stage
+  did; `limit_ms` is the most this stage may take, `total_ms` the most the
+  whole solve may). A page draws that as words and a bar instead of a number
+  counting up with nothing behind it.
+
   **The moment** a plate belongs to: when the mount is tracking, the tube
   stays on the same sky, so the capture's time; when it stands still, the
   shutter's (EXIF DateTimeOriginal with its offset), or the capture's when
@@ -302,6 +310,8 @@ defmodule Controller.Plates do
       fit_with: opts[:fit],
       fit_timeout: opts[:fit_timeout],
       running: %{},
+      # where each running solve is, as its solver last said: {mount, n} => %{stage, ...}. Not saved.
+      progress: %{},
       workers: opts[:workers] || Application.get_env(:controller, :plate_workers) || default_workers(),
       solve_timeout: opts[:solve_timeout] || Application.get_env(:controller, :plate_solve_timeout) || @solve_timeout
     }
@@ -464,6 +474,18 @@ defmodule Controller.Plates do
     {:noreply, %{state | running: running} |> finish(r, {:error, :crashed}) |> dispatch()}
   end
 
+  # A running solve saying where it is (`Solve.Local`'s `progress:`). Kept for the view, and
+  # shown at once: this is what a person waiting on a solve is looking at.
+  def handle_info({:solve_progress, {mount, sid, n}, %{} = info}, state) do
+    with %{id: ^sid} <- state.sessions[mount], %{state: :solving} <- find(state, mount, n) do
+      state = %{state | progress: Map.put(state.progress, {mount, n}, Map.put(info, :stage_ms, System.system_time(:millisecond)))}
+      broadcast(state, mount)
+      {:noreply, state}
+    else
+      _ -> {:noreply, state}
+    end
+  end
+
   # the solver's own deadline should have ended it; this one does
   def handle_info({:give_up, ref}, state) when is_map_key(state.running, ref) do
     {r, running} = Map.pop(state.running, ref)
@@ -570,7 +592,8 @@ defmodule Controller.Plates do
     session = state.sessions[mount]
     path = Store.image_path(session.id, plate.file)
     opts =
-      [hint: plate.hint, scale: plate[:scale] || scale(session), timeout: plate[:timeout] || state.solve_timeout, sky: %{at: plate.at, site: Pointing.site()}] ++
+      [hint: plate.hint, scale: plate[:scale] || scale(session), timeout: plate[:timeout] || state.solve_timeout, sky: %{at: plate.at, site: Pointing.site()},
+       progress: {self(), {mount, session.id, plate.n}}] ++
         if(plate[:min_stars], do: [min_stars: plate.min_stars], else: []) ++
         if(plate[:downsample], do: [downsample: plate.downsample], else: []) ++
         if(plate[:nsigma], do: [nsigma: plate.nsigma], else: [])
@@ -588,6 +611,7 @@ defmodule Controller.Plates do
 
     state
     |> Map.update!(:running, &Map.put(&1, task.ref, run))
+    |> Map.update!(:progress, &Map.delete(&1, {mount, plate.n}))
     |> update_plate(mount, plate.n, &%{&1 | state: :solving, started_ms: System.system_time(:millisecond), attempts: &1.attempts + 1})
     |> save_and_broadcast(mount)
   end
@@ -656,6 +680,12 @@ defmodule Controller.Plates do
 
     broadcast(state, mount)
     state
+  end
+
+  # where a running solve is, for the view: the solver's last word, and the clocks to draw it by
+  defp solving(state, mount, p) do
+    said = state.progress[{mount, p.n}] || %{stage: :reading, stage_ms: p.started_ms}
+    Map.merge(%{how: nil, stars: nil, limit_ms: nil}, said) |> Map.merge(%{since_ms: p.started_ms, total_ms: p[:timeout] || state.solve_timeout})
   end
 
   defp broadcast(state, mount), do: Telescope.broadcast("plates:" <> mount, {:plates, mount, view(state, mount)})
@@ -818,7 +848,8 @@ defmodule Controller.Plates do
         Enum.map(session.plates, fn p ->
           Map.merge(p, %{
             ahead: if(p.state == :queued, do: Enum.find_index(order, &(&1 == {mount, p.n}))),
-            residual_arcmin: residuals[p.n]
+            residual_arcmin: residuals[p.n],
+            solving: if(p.state == :solving, do: solving(state, mount, p))
           })
         end)
 

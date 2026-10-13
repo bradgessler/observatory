@@ -8,8 +8,9 @@ defmodule Controller.StillCameraController do
   """
   use Controller, :controller
 
-  def latest(conn, _params) do
-    case Controller.StillCamera.png() do
+  # `node`: the machine the camera is on, for a page on another machine of the cluster
+  def latest(conn, params) do
+    case Controller.StillCamera.png(Controller.ScopeCamera.node_named(params["node"])) do
       png when is_binary(png) ->
         conn
         |> put_resp_content_type("image/png")

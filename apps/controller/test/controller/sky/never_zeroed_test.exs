@@ -92,6 +92,28 @@ defmodule Controller.Sky.NeverZeroedTest do
     assert Lineup.set_counterweight(id, Mount.snapshot(id), :below) == {:error, :not_lined_up}
   end
 
+  # 12 October 2026: the side told on the 8th was still with the alignment four nights later,
+  # after the tripod had been carried in and out. A mount switched off and on while the box is
+  # off shows no sign of it once it has been moved, so nothing here can know. What it can know
+  # is that the answer is old.
+  test "a side told another night is not carried into a new alignment: it is asked again", %{id: id} do
+    KnownMount.align(id, -60.0, [-2.0, 3.0, 5.0, 8.0])
+    assert {:ok, _} = Lineup.set_counterweight(id, Mount.snapshot(id), :below)
+    assert Lineup.status(id).counterweight == :told
+    samples = Controller.Settings.get("lineup")[id]["samples"]
+
+    # the same night: a new alignment keeps what was told
+    Lineup.replace(id, samples, nil)
+    assert Lineup.status(id).counterweight == :told
+
+    # thirteen hours on: a new alignment starts from a guess
+    all = Controller.Settings.get("lineup")
+    old = DateTime.utc_now() |> DateTime.add(-13 * 3600, :second) |> DateTime.to_iso8601()
+    Controller.Settings.put("lineup", put_in(all, [id, "at"], old))
+    Lineup.replace(id, samples, nil)
+    assert Lineup.status(id).counterweight == :guessed
+  end
+
   # The night of 3 October (#113). The mount stood 60° east of the meridian, counterweight well
   # down, and every plate had been taken near the meridian, the bar within 10° of level. "Most of
   # them had it low" then says nothing, and the guess came out upside down.
@@ -164,6 +186,71 @@ defmodule Controller.Sky.NeverZeroedTest do
       assert Model.counterweight(truth, truth.signs, snap.axes.ra.degrees + d_ra) < 0
     after
       Mount.stop(id)
+    end
+
+    # 12 October: indoors, asked below or above for a Go To, with nobody at the mount to look. A
+    # key tapped at random is a guess recorded as a fact. "I don't know" is an answer: the mount
+    # goes on moving, only through turns of the RA axis it has already stood at, which are as
+    # safe as they were whichever side is the truth.
+    test "I don't know is an answer: Go To goes where the RA axis has stood and no further, whichever side is true", %{id: id, truth: truth, snap: snap} do
+      assert Lineup.set_counterweight(id, snap, :unknown) == {:ok, :unknown}
+      assert Lineup.status(id).counterweight == :unknown
+      ctx = Pointing.context(DateTime.utc_now(), id)
+      refute Pointing.side_guessed?(snap, ctx)
+      assert Pointing.side_unknown?(snap, ctx)
+
+      # it stands 60° from level and its plates were taken 2° to 8° the other way: that range, and a little
+      {lo, hi} = Pointing.unknown_range(ctx)
+      assert_in_delta lo, -65.0, 1.0
+      assert_in_delta hi, 13.0, 1.0
+      been = [-60.0, -2.0, 3.0, 5.0, 8.0]
+
+      # between where it stands and where the plates were taken: it goes, in the pose it is in
+      ref = Enum.find(Mount.list(), &(&1.id == id))
+      assert %{ok?: true, pose: :same} = Pointing.unknown_landing(KnownMount.at_ha(-40.0), snap, ctx)
+      assert {:ok, d_ra, _d_dec} = Pointing.slew(ref, snap, KnownMount.at_ha(-40.0), ctx, track: false)
+      Mount.stop(id)
+      landed = snap.axes.ra.degrees + d_ra
+
+      # and on either side of the pier the counterweight ends no higher than it has already been
+      for cw <- [1, -1] do
+        here = Model.counterweight(%{truth | cw: cw}, truth.signs, landed)
+        highest = been |> Enum.map(&(cw * &1)) |> Enum.max()
+        assert here <= highest + 5.5, "side #{cw}: the counterweight would end #{here}° from level, and has been no higher than #{highest}°"
+      end
+
+      # past the plates, toward the other side of the sky: refused, and the words say what to do
+      assert %{ok?: false, upright?: false} = Pointing.unknown_landing(KnownMount.at_ha(40.0), snap, ctx)
+      assert {:error, {:bar_unknown, _} = why} = Pointing.slew(ref, snap, KnownMount.at_ha(40.0), ctx, track: false)
+      assert Pointing.refusal_words(why, "M31") =~ "past where it has stood tonight"
+      assert Pointing.refusal_words(why, "M31") =~ "say below or above level"
+
+      # the hold ends at the same edge
+      to_axis = fn h -> (h - truth.off_ra) / truth.signs.ha_sign end
+      refute Pointing.unknown_limit?(ctx, to_axis.(-30.0))
+      assert Pointing.unknown_limit?(ctx, to_axis.(20.0))
+      assert Pointing.unknown_limit?(ctx, to_axis.(-75.0))
+
+      # a flip goes by the side: neither leg moves
+      assert Pointing.home_leg(ref, snap, ctx) == {:error, :counterweight_unknown}
+
+      # new pictures keep the answer, and someone who looks can still say
+      assert {:ok, _} = Lineup.set_counterweight(id, snap, :below)
+      assert Lineup.status(id).counterweight == :told
+      refute Pointing.side_unknown?(snap, Pointing.context(DateTime.utc_now(), id))
+    after
+      Mount.stop(id)
+    end
+
+    test "the Counterweight card offers I Don't Know, and says what the mount does about it", %{conn: conn, id: id} do
+      {:ok, view, html} = live(conn, "/setup/#{id}")
+      assert html =~ "I Don&#39;t Know" or html =~ "I Don't Know"
+      assert html =~ "never pick one"
+
+      html = view |> element(~s(#counterweight button[phx-value-where="unknown"])) |> render_click()
+      assert html =~ "Counterweight side unknown: Go To stays cautious"
+      assert has_element?(view, ~s(#counterweight button[phx-value-where="unknown"][aria-checked="true"]))
+      assert Lineup.status(id).counterweight == :unknown
     end
 
     # On a guess the hold's limit can be upside down: it would let the tube track on into the

@@ -13,7 +13,7 @@ defmodule Controller.SearchTest do
   describe "finding" do
     test "a word that starts a page's name finds it first" do
       assert hd(titles("foc")) == {"Focus", "Cameras"}
-      assert hd(titles("loca")) == {"Location", "Alignment"}
+      assert hd(titles("loca")) == {"Location", "Telescope"}
     end
 
     test "words match anywhere in the name or where it lives: \"cam set\" is a camera's Settings" do
@@ -40,8 +40,9 @@ defmodule Controller.SearchTest do
       [help, first | _] = Search.find("", here: "/cameras/telescope/settings")
       assert help.title == "Help: Telescope Camera"
       assert help.path == "/docs/scope-camera"
-      assert first.title == "Status"
-      assert hd(Search.find("")).title == "Status"
+      # the sidebar starts with the telescope itself: what it is doing right now
+      assert first.title == "Now"
+      assert hd(Search.find("")).title == "Now"
     end
   end
 
@@ -76,9 +77,9 @@ defmodule Controller.SearchTest do
       assert html =~ ~s(href="/cameras/observatory")
     end
 
-    test "the sidebar has one Cameras group: All Cameras, Telescope Camera, Focus, Stills Camera, Observatory Camera" do
+    test "the sidebar has one Cameras group: All Cameras, Telescope Camera, Focus, Observatory Camera" do
       {"Cameras", _, pages} = List.keyfind(Controller.Nav.groups(), "Cameras", 0)
-      assert Enum.map(pages, & &1.title) == ["All Cameras", "Telescope Camera", "Focus", "Stills Camera", "Observatory Camera"]
+      assert Enum.map(pages, & &1.title) == ["All Cameras", "Telescope Camera", "Focus", "Observatory Camera"]
       # a camera's settings mark the camera in the sidebar
       assert Controller.Nav.current("/cameras/observatory/settings") == "/cameras/observatory"
     end

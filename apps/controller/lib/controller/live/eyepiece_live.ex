@@ -241,7 +241,7 @@ defmodule Controller.EyepieceLive do
   end
 
   # The one answer Go To waited for, from someone looking at the mount
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
     {:noreply, socket |> assign(cw_ask: not told?) |> compute() |> notice(said)}
   end

@@ -79,7 +79,7 @@ defmodule Controller.SetupLive do
 
   # Which side the counterweight is on, said by someone looking at it: the answer is for the
   # mount as it stands this moment, and is kept with the alignment (`Lineup.set_counterweight/3`)
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     where = String.to_existing_atom(where)
     said = Counterweight.words(Lineup.set_counterweight(socket.assigns.id, socket.assigns.snap, where), where)
     {:noreply, socket |> assign(notice: said) |> load()}
@@ -235,7 +235,7 @@ defmodule Controller.SetupLive do
     ~H"""
     <.page id="setup" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", short(@id))} />
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Telescope", short(@id))} />
         <.title>Setup</.title>
         <.actions><.help href={~p"/docs/setup"} label="setup and modes" /><.stop /></.actions>
       </:header>

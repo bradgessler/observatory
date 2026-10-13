@@ -237,7 +237,7 @@ defmodule Controller.AlignPhotoLive do
 
   # Which side the counterweight is on: the one thing no photo can say, so it is asked here, where
   # a mount with no home gets its alignment. The answer is for the mount as it stands this moment.
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     where = String.to_existing_atom(where)
     said = Counterweight.words(Lineup.set_counterweight(socket.assigns.selected, socket.assigns.snap, where), where)
     {:noreply, socket |> assign(model: model(socket.assigns.selected)) |> put_notice(said)}

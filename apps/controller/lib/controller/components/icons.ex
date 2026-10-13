@@ -22,6 +22,52 @@ defmodule Controller.Components.Icons do
     """
   end
 
+  @doc """
+  What kind of thing an object in the sky is, drawn: a star, a planet, the
+  Moon, a galaxy, a star cluster, a nebula, a planetary nebula. In the same
+  hand as the navigation's icons. Unlike those it carries meaning of its
+  own (a list row does not say "galaxy" in words), so it has a name for a
+  screen reader and a tooltip.
+
+      <Icons.kind kind={:galaxy} />
+  """
+  attr :kind, :atom, required: true
+  attr :class, :string, default: "icon kind-icon"
+
+  def kind(assigns) do
+    ~H"""
+    <svg class={@class} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label={kind_name(@kind)} focusable="false">
+      <title>{kind_name(@kind)}</title>
+      {Phoenix.HTML.raw(path("kind-#{@kind}"))}
+    </svg>
+    """
+  end
+
+  @doc "A kind of object, in words."
+  def kind_name(:moon), do: "The Moon"
+  def kind_name(:planet), do: "Planet"
+  def kind_name(:star), do: "Star"
+  def kind_name(:cluster), do: "Star cluster"
+  def kind_name(:galaxy), do: "Galaxy"
+  def kind_name(:nebula), do: "Nebula"
+  def kind_name(:planetary), do: "Planetary nebula"
+  def kind_name(k), do: k |> to_string() |> String.capitalize()
+
+  # a four-pointed star: a point of light with its spikes
+  defp path("kind-star"), do: ~S|<path d="M12 3c.7 5 4 8.300 9 9-5 .7-8.300 4-9 9-.7-5-4-8.300-9-9 5-.7 8.300-4 9-9z"/>|
+  # a disc with a ring round it
+  defp path("kind-planet"), do: ~S|<circle cx="12" cy="12" r="4.5"/><path d="M7.800 13.700C4.800 15.300 2.800 16.800 3.200 17.600c.6 1.100 5.200-.2 10.300-3s8.700-5.900 8.100-7c-.4-.8-2.800-.4-6 .800"/>|
+  # a crescent
+  defp path("kind-moon"), do: ~S|<path d="M19.5 14.5A8 8 0 1 1 9.500 4.500a6.500 6.500 0 0 0 10 10z"/>|
+  # a core and two arms winding out of it
+  defp path("kind-galaxy"), do: ~S|<circle cx="12" cy="12" r="1.5"/><path d="M12 7.500c3 0 5.200 2 5.200 4.800 0 3.700-3.400 6.700-8.200 6.200"/><path d="M12 16.500c-3 0-5.200-2-5.200-4.800 0-3.700 3.400-6.700 8.200-6.200"/>|
+  # a handful of stars close together
+  defp path("kind-cluster"), do: ~S|<circle cx="12" cy="11.500" r="1.400"/><circle cx="7" cy="8" r="1"/><circle cx="16.500" cy="6.500" r="1"/><circle cx="6.500" cy="15.500" r="1"/><circle cx="17.500" cy="14" r="1.200"/><circle cx="12" cy="18.500" r="1"/><circle cx="11" cy="5" r=".7"/>|
+  # a cloud of gas with a star in it
+  defp path("kind-nebula"), do: ~S|<path d="M7.500 18a4 4 0 0 1-1-7.900 5.500 5.500 0 0 1 10.600-1.300A4.600 4.600 0 0 1 17 18z"/><circle cx="11.500" cy="13.500" r=".9"/>|
+  # a shell round the star that threw it off
+  defp path("kind-planetary"), do: ~S|<circle cx="12" cy="12" r="7.500"/><circle cx="12" cy="12" r="3.800"/><circle cx="12" cy="12" r=".8"/>|
+
   defp path("play"), do: ~S|<path d="M8 5.5v13l10.5-6.5z"/>|
   defp path("star"), do: ~S|<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>|
   defp path("snap"), do: ~S|<path d="M4 8h3l1.8-2.5h6.4L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><path d="M12 10.5v5M9.5 13h5"/>|
@@ -61,5 +107,6 @@ defmodule Controller.Components.Icons do
   defp path("search"), do: ~S|<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>|
   defp path("close"), do: ~S|<path d="M6 6l12 12M18 6L6 18"/>|
   defp path("help"), do: ~S|<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7"/><path d="M12 17h.01"/>|
+  defp path("kind-" <> _), do: path("kind-star")
   defp path(_), do: ~S|<circle cx="12" cy="12" r="2.5"/>|
 end

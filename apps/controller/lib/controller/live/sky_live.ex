@@ -355,7 +355,7 @@ defmodule Controller.SkyLive do
   def handle_event("goto", _, socket), do: {:noreply, socket}
 
   # The one answer Go To waited for, from someone looking at the mount
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
     {:noreply, socket |> assign(cw_ask: not told?, notice: said) |> compute()}
   end
@@ -875,12 +875,12 @@ defmodule Controller.SkyLive do
   defp tree_at(_, _, _), do: 0
 
   # One row of the Tonight list. Every row has the same columns, in this order, so each lines up
-  # down the whole list (the row is a grid of fixed tracks, app.css): its number (or kind), the
+  # down the whole list (the row is a grid of fixed tracks, app.css): its kind, drawn, the
   # name over its detail, how long it's up, and how high, drawn, last: at the row's far edge.
   # What Go To and the hold will do for it is on its own page, not here: on a list row it was noise.
   defp target_body(assigns) do
     ~H"""
-    <span class="k" aria-hidden="true">{if @i <= 5, do: "#{@i}", else: glyph(@o.kind)}</span>
+    <span class="k"><Controller.Components.Icons.kind kind={@o.kind} /></span>
     <span class="t">
       <strong>{@o.name}</strong>
       <span class="d">
@@ -895,7 +895,7 @@ defmodule Controller.SkyLive do
   # not up yet: the same columns, with nothing to draw in the last
   defp later_body(assigns) do
     ~H"""
-    <span class="k" aria-hidden="true">{glyph(@o.kind)}</span>
+    <span class="k"><Controller.Components.Icons.kind kind={@o.kind} /></span>
     <span class="t">
       <strong>{@o.name}</strong>
       <span class="d"><span>{compass(@o.az)} · {@o.words}</span></span>
@@ -906,7 +906,7 @@ defmodule Controller.SkyLive do
 
   # what the picked object's panel needs from the page
   defp pick_assigns(assigns) do
-    Map.take(assigns, [:target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
+    Map.take(assigns, [:scope, :target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
   end
 
   # the picked object: what it is, when it's up, and on Tonight its path across the sky
@@ -919,24 +919,42 @@ defmodule Controller.SkyLive do
     end
   end
 
+  # The first two sentences of what the object is (`Controller.Sky.Blurbs`), in the UI's plain
+  # punctuation; nil for something the catalog has no words for.
+  defp about(%{id: _, kind: _} = obj) do
+    case Controller.Sky.Blurbs.for(obj) do
+      "" -> nil
+      text -> text |> String.replace(" — ", ", ") |> String.replace("—", ", ") |> String.split(~r/(?<=[.!?])\s+/) |> Enum.take(2) |> Enum.join(" ")
+    end
+  end
+
+  defp about(_), do: nil
+
+  defp sky_map(nil, obj), do: ~p"/sky?#{[pick: obj.id]}"
+  defp sky_map(id, obj), do: ~p"/sky/#{id}?#{[pick: obj.id]}"
+
   defp pick_panel(assigns) do
     assigns = assign_new(assigns, :class, fn -> nil end)
 
     ~H"""
     <section class={["pick-panel", @class]} aria-labelledby="pick-name">
       <div class="pick-head">
-        <h2 id="pick-name">{@target.name}</h2>
+        <h2 id="pick-name"><Controller.Components.Icons.kind :if={@target[:kind]} kind={@target.kind} />{@target.name}</h2>
         <button type="button" class="ghost pick-close" phx-click="clear" aria-label={"Close #{@target.name}"}>
           <Controller.Components.Icons.icon name="close" />
         </button>
       </div>
       <p class="dim" role="status">{describe(@target, @stars ++ @dsos, @lim, @moon, @scene)}</p>
-      <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} />
+      <%!-- what it is, in a sentence or two, where there is room for it (a wide screen); the rest is on Details --%>
+      <p :if={about(@target)} class="pick-about">{about(@target)}</p>
+      <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} scope={assigns[:scope]} />
       <Controller.Components.Visibility.plot targets={[@target]} site={@site} at={@at} utc_offset_min={@utc_offset_min} horizon={if @trees, do: @horizon, else: nil} />
       <div class="row">
         <button class="go" phx-click="goto" disabled={!@snap || !@snap.connected} aria-label={"Go To #{@target.name}"}>Go To</button>
         <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected, from: if(@live_action == :tonight, do: "tonight", else: nil)]}"} class="btn" aria-label={"Details about #{@target.name}"}>Details ›</.link>
       </div>
+      <%!-- from the list to where it is in the sky: the Sky Map opens with it picked --%>
+      <.link :if={@live_action == :tonight} navigate={sky_map(@selected, @target)} class="btn pick-map" aria-label={"Show #{@target.name} on the Sky Map"}>Show on Sky Map ›</.link>
       <%!-- Go To waited for which side the counterweight is on: the question, right here (#113) --%>
       <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@cw_model, @snap)} />
     </section>
@@ -967,14 +985,6 @@ defmodule Controller.SkyLive do
         "below the horizon · mag #{t.mag}"
     end
   end
-
-  defp glyph(:moon), do: "☾"
-  defp glyph(:planet), do: "Pl"
-  defp glyph(:planetary), do: "Pn"
-  defp glyph(:galaxy), do: "Gal"
-  defp glyph(:nebula), do: "Neb"
-  defp glyph(:cluster), do: "Cl"
-  defp glyph(_), do: "★"
 
   # Until 23:40, Sets 20:10 (within the hour), All night, Rises 20:05: a time
   # in the viewer's zone rather than a sign to decode

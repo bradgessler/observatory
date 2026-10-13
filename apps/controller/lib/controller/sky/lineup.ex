@@ -11,12 +11,22 @@ defmodule Controller.Sky.Lineup do
       Lineup.next(mount_id, ctx)   # the star to do next, with why
       Lineup.guess(snap, ctx)      # "you're probably on …" from the current pointing
       Lineup.clear(mount_id)
+      Lineup.set_aside(mount_id)   # the alignments a reset replaced, newest first
+      Lineup.restore(mount_id)     # bring the last one back
+
+  Nothing is thrown away by a reset. Clearing, forgetting a point, or a new
+  alignment replacing the old one sets the old one aside (the last
+  five per mount, in Settings under "lineup_set_aside"), and `restore/2` puts
+  it back, setting aside what it replaces, so a restore can itself be undone.
   """
 
   alias Controller.Settings
   alias Controller.Sky.{Astro, Model, Pointing, Stars}
 
   @key "lineup"
+  # the alignments a reset replaced, newest first, per mount
+  @aside "lineup_set_aside"
+  @aside_keep 5
 
   # What the fit is good enough for, by rms. Same words as the docs.
   @goals [
@@ -53,6 +63,7 @@ defmodule Controller.Sky.Lineup do
 
     if stale do
       Telescope.Events.emit(:lineup, :reset, %{id: id, why: "home set again"})
+      keep_aside(id, entry(id), "home was set again")
       put_samples(id, [])
     end
 
@@ -77,8 +88,13 @@ defmodule Controller.Sky.Lineup do
   def replace(id, samples, home_at) do
     old = entry(id)
     # the counterweight's side was told for this mount as it stands: it outlives the samples,
-    # and so does the model they were fitted to until the refit below replaces it
-    keep = if stale?(id, old), do: %{}, else: Map.take(old, ["cw", "cw_told", "model"])
+    # and so does the model they were fitted to until the refit below replaces it. As it stands
+    # tonight: an answer from an alignment of another night is not carried into a new one. A
+    # mount switched off and on while the box was off shows no sign of it once it has been moved,
+    # and a wrong side told is worse than a side asked for again.
+    keep = if stale?(id, old) or another_night?(old), do: %{}, else: Map.take(old, ["cw", "cw_told", "cw_seen", "model"])
+    # a run adds its pictures one fit at a time: the same alignment growing is not a reset
+    unless grown?(old, samples), do: keep_aside(id, old, "a new alignment replaced it")
 
     Settings.put(
       @key,
@@ -113,16 +129,39 @@ defmodule Controller.Sky.Lineup do
       the north: stand behind the mount looking up the polar axis, east is on
       your right). With the bar near upright: `{:error, :upright}`, ask
       below or above instead.
+    * `:unknown`: nobody can look (the person is indoors). An answer, not a
+      guess: Go To and tracking carry on, cautiously, only through turns of
+      the RA axis the mount has already stood at with this alignment (where
+      its points were taken, and where it stands as this is said), which are
+      as safe as they were whichever side is the truth
+      (`Controller.Sky.Pointing.side_unknown?/2`).
     * `:guess`: forget what was told.
 
-  Returns `{:ok, 1 | -1 | nil}` (the sign `Model.counterweight/3` uses), or
-  `{:error, :not_lined_up}` when there is no model to hang it on.
+  Returns `{:ok, 1 | -1 | nil}` (the sign `Model.counterweight/3` uses),
+  `{:ok, :unknown}`, or `{:error, :not_lined_up}` when there is no model to
+  hang it on.
   """
   def set_counterweight(id, snap, where)
 
   def set_counterweight(id, _snap, :guess) do
-    put_entry(id, &Map.drop(&1, ["cw", "cw_told"]))
+    put_entry(id, &Map.drop(&1, ["cw", "cw_told", "cw_seen"]))
     {:ok, nil}
+  end
+
+  def set_counterweight(id, %{axes: %{ra: %{degrees: theta}}}, :unknown) do
+    case model(id) do
+      nil ->
+        {:error, :not_lined_up}
+
+      m ->
+        # where the bar has stood, as a turn from level with the sign left open (one side reads it
+        # as that far below, the other as that far above): at each alignment point and right now
+        thetas = [theta | for(s <- samples(id), is_number(s["theta_ra"]), do: s["theta_ra"])]
+        turns = Enum.map(thetas, &Model.counterweight(Map.put(m, :cw, 1), m.signs, &1))
+        seen = %{"lo" => Float.round(Enum.min(turns), 1), "hi" => Float.round(Enum.max(turns), 1)}
+        put_entry(id, &(&1 |> Map.delete("cw") |> Map.merge(%{"cw_told" => "unknown", "cw_seen" => seen})))
+        {:ok, :unknown}
+    end
   end
 
   def set_counterweight(id, %{axes: %{ra: %{degrees: theta}}}, where) when where in [:below, :above, :east, :west] do
@@ -160,9 +199,10 @@ defmodule Controller.Sky.Lineup do
   The counterweight as a page says it, for the mount as it stands (`snap`)
   under its alignment (`model/1`):
 
-      %{from: :told | :guessed, now: :below | :above | :level}
+      %{from: :told | :unknown | :guessed, now: :below | :above | :level}
 
-  `from` is whether anyone has said (`set_counterweight/3`); `now` is where
+  `from` is whether anyone has said (`set_counterweight/3`), `:unknown` when
+  what they said is that they cannot tell; `now` is where
   the model has it at this moment, by the side it was told or guessed, and
   `:level` with the bar within #{trunc(@cw_unsure_deg)}° of level, where nobody can answer by eye.
 
@@ -180,7 +220,14 @@ defmodule Controller.Sky.Lineup do
         true -> :above
       end
 
-    %{from: if(m[:cw_told], do: :told, else: :guessed), now: now}
+    from =
+      cond do
+        m[:cw_told] -> :told
+        is_tuple(m[:cw_unknown]) -> :unknown
+        true -> :guessed
+      end
+
+    %{from: from, now: now}
   end
 
   def counterweight(_model, _snap), do: nil
@@ -196,18 +243,119 @@ defmodule Controller.Sky.Lineup do
     Settings.put(@key, Map.put(all, id, fun.(Map.get(all, id, %{}))))
   end
 
-  @doc "Forget one sample by index; refits."
+  @doc "Forget one sample by index; refits. The alignment as it was is set aside (`restore/2`)."
   def drop(id, index) do
+    keep_aside(id, entry(id), "a point was forgotten")
     put_samples(id, List.delete_at(samples(id), index))
     refit(id)
   end
 
-  @doc "Forget everything for this mount."
+  @doc "Forget everything for this mount. What is forgotten is set aside, and `restore/2` brings it back."
   def clear(id) do
     all = Settings.get(@key, %{})
+    keep_aside(id, Map.get(all, id, %{}), "it was cleared")
     Settings.put(@key, Map.delete(all, id))
     :ok
   end
+
+  # -- set aside, and brought back -------------------------------------------------------------
+
+  @doc """
+  The alignments a reset replaced for this mount, newest first, each as
+  `%{index, n, rms_arcmin, made_at, set_aside_at, why, holds?}`. `holds?` is
+  whether it can still be brought back: not once the mount has been switched
+  off and on or home set again since (`stale?/2`: the encoder counts it was
+  made in are gone), and not an alignment of another night.
+  """
+  def set_aside(id) do
+    for {a, i} <- Enum.with_index(asides(id)) do
+      e = a["entry"] || %{}
+
+      %{
+        index: i,
+        n: length(Map.get(e, "samples", [])),
+        rms_arcmin: e["rms_arcmin"],
+        made_at: time(e["at"]),
+        set_aside_at: time(a["at"]),
+        why: a["why"],
+        holds?: holds?(id, e)
+      }
+    end
+  end
+
+  @doc "The newest alignment set aside that can still be brought back, or nil (`set_aside/1`)."
+  def restorable(id), do: Enum.find(set_aside(id), & &1.holds?)
+
+  @doc """
+  Bring back an alignment that was set aside (the newest that still holds, or
+  the one at `index` in `set_aside/1`). The alignment it replaces is set aside
+  in its turn, so restoring twice is back where you started. `{:ok, status}`,
+  or `{:error, :nothing}` with none set aside, `{:error, :stale}` when the
+  mount was switched off and on or home set again since it was made, or
+  `{:error, :another_night}`.
+  """
+  def restore(id, index \\ nil) do
+    list = asides(id)
+    index = index || Enum.find_index(list, &holds?(id, &1["entry"] || %{}))
+
+    case is_integer(index) && Enum.at(list, index) do
+      %{"entry" => e} ->
+        cond do
+          stale?(id, e) ->
+            {:error, :stale}
+
+          another_night?(e) ->
+            {:error, :another_night}
+
+          true ->
+            now = entry(id)
+            put_asides(id, List.delete_at(list, index))
+            keep_aside(id, now, "an earlier alignment was restored")
+            Settings.put(@key, Map.put(Settings.get(@key, %{}), id, e))
+            Telescope.Events.emit(:lineup, :restored, %{id: id, points: length(Map.get(e, "samples", [])), why: "an alignment that was set aside was brought back"})
+            {:ok, status(id)}
+        end
+
+      _ ->
+        {:error, :nothing}
+    end
+  end
+
+  defp holds?(id, e), do: Map.get(e, "samples", []) != [] and not stale?(id, e) and not another_night?(e)
+
+  defp asides(id), do: Settings.get(@aside, %{}) |> Map.get(id, [])
+  defp put_asides(id, list), do: Settings.put(@aside, Map.put(Settings.get(@aside, %{}), id, list))
+
+  # An alignment with points in it, on its way out: kept, newest first. One with no points is
+  # nothing to bring back, and the same alignment twice in a row is kept once.
+  defp keep_aside(id, %{"samples" => [_ | _]} = e, why) do
+    list = asides(id)
+
+    unless match?([%{"entry" => ^e} | _], list) do
+      put_asides(id, Enum.take([%{"entry" => e, "at" => DateTime.to_iso8601(DateTime.utc_now()), "why" => why} | list], @aside_keep))
+    end
+
+    :ok
+  end
+
+  defp keep_aside(_id, _entry, _why), do: :ok
+
+  # are the old points all still there in the new ones? Then it is the same alignment with more in it
+  defp grown?(old, samples) do
+    was = Map.get(old, "samples", [])
+    key = fn s -> {s["at"], s["theta_ra"], s["theta_dec"]} end
+    now = MapSet.new(samples, key)
+    was == [] or Enum.all?(was, &MapSet.member?(now, key.(&1)))
+  end
+
+  defp time(at) when is_binary(at) do
+    case DateTime.from_iso8601(at) do
+      {:ok, t, _} -> t
+      _ -> nil
+    end
+  end
+
+  defp time(_), do: nil
 
   def samples(id), do: Settings.get(@key, %{}) |> Map.get(id, %{}) |> Map.get("samples", [])
 
@@ -237,13 +385,33 @@ defmodule Controller.Sky.Lineup do
           # whoever has to decide how far to trust it (the hold's limit, the pages)
           thetas = for s <- Map.get(e, "samples", []), is_number(s["theta_ra"]), do: s["theta_ra"]
           told = told_cw(e)
-          Map.merge(m, %{cw: told || Model.cw_down(m, m.signs, thetas), cw_told: told != nil})
+          # `cw_unknown`: someone said they cannot tell (`set_counterweight(id, snap, :unknown)`),
+          # with the turns from level the bar has stood at; then nothing goes by the sign at all
+          unknown =
+            case e do
+              %{"cw_told" => "unknown", "cw_seen" => %{"lo" => lo, "hi" => hi}} when is_number(lo) and is_number(hi) -> {lo / 1, hi / 1}
+              _ -> nil
+            end
+
+          Map.merge(m, %{cw: told || Model.cw_down(m, m.signs, thetas), cw_told: told != nil, cw_unknown: unknown})
         end
 
       _ ->
         nil
     end
   end
+
+  # more than this old, an alignment is another night's
+  @night_h 12
+
+  defp another_night?(%{"at" => at}) when is_binary(at) do
+    case DateTime.from_iso8601(at) do
+      {:ok, t, _} -> DateTime.diff(DateTime.utc_now(), t, :hour) >= @night_h
+      _ -> false
+    end
+  end
+
+  defp another_night?(_), do: false
 
   @doc """
   Do these stars still hold? Zeroed: not if the axes were zeroed again since.
@@ -390,7 +558,7 @@ defmodule Controller.Sky.Lineup do
           %{"samples" => samples, "home_at" => old["home_at"]}
       end
 
-    Settings.put(@key, Map.put(all, id, Map.merge(Map.take(old, ["cw", "cw_told"]), entry)))
+    Settings.put(@key, Map.put(all, id, Map.merge(Map.take(old, ["cw", "cw_told", "cw_seen"]), entry)))
     status(id)
   end
 
@@ -493,7 +661,8 @@ defmodule Controller.Sky.Lineup do
     lst = Astro.lst_deg(now, site.lon)
     horizon = Settings.horizon()
     done = samples(id)
-    done_vecs = Enum.map(done, &Astro.altaz_vec(&1["alt"], &1["az"]))
+    # a sample handed over without where it stood in the sky has nothing to spread from: not a crash
+    done_vecs = for %{"alt" => alt, "az" => az} <- done, is_number(alt) and is_number(az), do: Astro.altaz_vec(alt, az)
     done_names = Enum.map(done, & &1["name"])
 
     Stars.all()

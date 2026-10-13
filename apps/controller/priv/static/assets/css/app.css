@@ -1444,6 +1444,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .focus-chart { display: block; width: 100%; height: 60px; margin: 8px 0; }
 .focus-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .find-line { margin: 0 0 8px; font-size: 14px; }
+/* a plate solve at work: time used of the time it has, beside the words that say what it is doing */
+.item progress { flex: none; width: 96px; height: 8px; accent-color: var(--accent); }
 /* Queues: how busy a step is, a bar and its number */
 .busy { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--key-edge); overflow: hidden; vertical-align: middle; }
 .busy > span { display: block; height: 100%; background: var(--accent); }
@@ -1561,13 +1563,24 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
    lit from over the camera's shoulder in every theme (night mode: all red).
    A hairline of the same colour closes the seams between neighbouring faces. */
 .scope-3d polygon { stroke-width: .35; stroke-linejoin: round; }
-.scope-3d .l0 { --lit: 24%; } .scope-3d .l1 { --lit: 34%; } .scope-3d .l2 { --lit: 45%; } .scope-3d .l3 { --lit: 56%; }
-.scope-3d .l4 { --lit: 67%; } .scope-3d .l5 { --lit: 78%; } .scope-3d .l6 { --lit: 89%; } .scope-3d .l7 { --lit: 100%; }
-.scope-3d .m-tube { fill: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-metal { fill: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-steel { fill: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-dark { fill: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-leg { fill: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); }
+/* The mount's faces: a material shaded in eight steps toward the theme's shade (tokens.css --mesh-*).
+   Written out as plain colours, one rule a material and step: the same thing as
+   color-mix(material step%, shade), which Safari drew as solid black on 13 October 2026. */
+.scope-3d .m-tube.l0 { fill: #393a3b; stroke: #393a3b; } .scope-3d .m-tube.l1 { fill: #515254; stroke: #515254; } .scope-3d .m-tube.l2 { fill: #6b6c6f; stroke: #6b6c6f; } .scope-3d .m-tube.l3 { fill: #85878a; stroke: #85878a; } .scope-3d .m-tube.l4 { fill: #9fa1a5; stroke: #9fa1a5; } .scope-3d .m-tube.l5 { fill: #babcc0; stroke: #babcc0; } .scope-3d .m-tube.l6 { fill: #d4d6db; stroke: #d4d6db; } .scope-3d .m-tube.l7 { fill: #eef1f6; stroke: #eef1f6; }
+.scope-3d .m-metal.l0 { fill: #282a2f; stroke: #282a2f; } .scope-3d .m-metal.l1 { fill: #393c42; stroke: #393c42; } .scope-3d .m-metal.l2 { fill: #4b4f57; stroke: #4b4f57; } .scope-3d .m-metal.l3 { fill: #5e636d; stroke: #5e636d; } .scope-3d .m-metal.l4 { fill: #707682; stroke: #707682; } .scope-3d .m-metal.l5 { fill: #828997; stroke: #828997; } .scope-3d .m-metal.l6 { fill: #959dad; stroke: #959dad; } .scope-3d .m-metal.l7 { fill: #a7b0c2; stroke: #a7b0c2; }
+.scope-3d .m-steel.l0 { fill: #333436; stroke: #333436; } .scope-3d .m-steel.l1 { fill: #484a4d; stroke: #484a4d; } .scope-3d .m-steel.l2 { fill: #5f6266; stroke: #5f6266; } .scope-3d .m-steel.l3 { fill: #777a7f; stroke: #777a7f; } .scope-3d .m-steel.l4 { fill: #8e9197; stroke: #8e9197; } .scope-3d .m-steel.l5 { fill: #a5a9b0; stroke: #a5a9b0; } .scope-3d .m-steel.l6 { fill: #bdc1c9; stroke: #bdc1c9; } .scope-3d .m-steel.l7 { fill: #d4d9e2; stroke: #d4d9e2; }
+.scope-3d .m-dark.l0 { fill: #121418; stroke: #121418; } .scope-3d .m-dark.l1 { fill: #191c22; stroke: #191c22; } .scope-3d .m-dark.l2 { fill: #21252d; stroke: #21252d; } .scope-3d .m-dark.l3 { fill: #292e37; stroke: #292e37; } .scope-3d .m-dark.l4 { fill: #323742; stroke: #323742; } .scope-3d .m-dark.l5 { fill: #3a404d; stroke: #3a404d; } .scope-3d .m-dark.l6 { fill: #424958; stroke: #424958; } .scope-3d .m-dark.l7 { fill: #4a5263; stroke: #4a5263; }
+.scope-3d .m-leg.l0 { fill: #222429; stroke: #222429; } .scope-3d .m-leg.l1 { fill: #31343a; stroke: #31343a; } .scope-3d .m-leg.l2 { fill: #40444c; stroke: #40444c; } .scope-3d .m-leg.l3 { fill: #50555f; stroke: #50555f; } .scope-3d .m-leg.l4 { fill: #606672; stroke: #606672; } .scope-3d .m-leg.l5 { fill: #707785; stroke: #707785; } .scope-3d .m-leg.l6 { fill: #7f8797; stroke: #7f8797; } .scope-3d .m-leg.l7 { fill: #8f98aa; stroke: #8f98aa; }
+:root.light .scope-3d .m-tube.l0 { fill: #696f7a; stroke: #696f7a; } :root.light .scope-3d .m-tube.l1 { fill: #7d828c; stroke: #7d828c; } :root.light .scope-3d .m-tube.l2 { fill: #93969f; stroke: #93969f; } :root.light .scope-3d .m-tube.l3 { fill: #a8abb2; stroke: #a8abb2; } :root.light .scope-3d .m-tube.l4 { fill: #bec0c5; stroke: #bec0c5; } :root.light .scope-3d .m-tube.l5 { fill: #d4d5d8; stroke: #d4d5d8; } :root.light .scope-3d .m-tube.l6 { fill: #e9eaec; stroke: #e9eaec; } :root.light .scope-3d .m-tube.l7 { fill: #ffffff; stroke: #ffffff; }
+:root.light .scope-3d .m-metal.l0 { fill: #4e5666; stroke: #4e5666; } :root.light .scope-3d .m-metal.l1 { fill: #565e6f; stroke: #565e6f; } :root.light .scope-3d .m-metal.l2 { fill: #5f6879; stroke: #5f6879; } :root.light .scope-3d .m-metal.l3 { fill: #687183; stroke: #687183; } :root.light .scope-3d .m-metal.l4 { fill: #727b8d; stroke: #727b8d; } :root.light .scope-3d .m-metal.l5 { fill: #7b8497; stroke: #7b8497; } :root.light .scope-3d .m-metal.l6 { fill: #848ea1; stroke: #848ea1; } :root.light .scope-3d .m-metal.l7 { fill: #8d97ab; stroke: #8d97ab; }
+:root.light .scope-3d .m-steel.l0 { fill: #585f6e; stroke: #585f6e; } :root.light .scope-3d .m-steel.l1 { fill: #656c7a; stroke: #656c7a; } :root.light .scope-3d .m-steel.l2 { fill: #737a88; stroke: #737a88; } :root.light .scope-3d .m-steel.l3 { fill: #818895; stroke: #818895; } :root.light .scope-3d .m-steel.l4 { fill: #8f96a3; stroke: #8f96a3; } :root.light .scope-3d .m-steel.l5 { fill: #9da4b1; stroke: #9da4b1; } :root.light .scope-3d .m-steel.l6 { fill: #abb2be; stroke: #abb2be; } :root.light .scope-3d .m-steel.l7 { fill: #b9c0cc; stroke: #b9c0cc; }
+:root.light .scope-3d .m-dark.l0 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l1 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l2 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l3 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l4 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l5 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l6 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l7 { fill: #3a4150; stroke: #3a4150; }
+:root.light .scope-3d .m-leg.l0 { fill: #495161; stroke: #495161; } :root.light .scope-3d .m-leg.l1 { fill: #505768; stroke: #505768; } :root.light .scope-3d .m-leg.l2 { fill: #575f70; stroke: #575f70; } :root.light .scope-3d .m-leg.l3 { fill: #5e6677; stroke: #5e6677; } :root.light .scope-3d .m-leg.l4 { fill: #656d7f; stroke: #656d7f; } :root.light .scope-3d .m-leg.l5 { fill: #6c7487; stroke: #6c7487; } :root.light .scope-3d .m-leg.l6 { fill: #737c8e; stroke: #737c8e; } :root.light .scope-3d .m-leg.l7 { fill: #7a8396; stroke: #7a8396; }
+.night .scope-3d .m-tube.l0 { fill: #3d1313; stroke: #3d1313; } .night .scope-3d .m-tube.l1 { fill: #571b1b; stroke: #571b1b; } .night .scope-3d .m-tube.l2 { fill: #732424; stroke: #732424; } .night .scope-3d .m-tube.l3 { fill: #8f2d2d; stroke: #8f2d2d; } .night .scope-3d .m-tube.l4 { fill: #ab3636; stroke: #ab3636; } .night .scope-3d .m-tube.l5 { fill: #c73e3e; stroke: #c73e3e; } .night .scope-3d .m-tube.l6 { fill: #e34747; stroke: #e34747; } .night .scope-3d .m-tube.l7 { fill: #ff5050; stroke: #ff5050; }
+.night .scope-3d .m-metal.l0 { fill: #2c0e0e; stroke: #2c0e0e; } .night .scope-3d .m-metal.l1 { fill: #3f1414; stroke: #3f1414; } .night .scope-3d .m-metal.l2 { fill: #531a1a; stroke: #531a1a; } .night .scope-3d .m-metal.l3 { fill: #672020; stroke: #672020; } .night .scope-3d .m-metal.l4 { fill: #7b2727; stroke: #7b2727; } .night .scope-3d .m-metal.l5 { fill: #902d2d; stroke: #902d2d; } .night .scope-3d .m-metal.l6 { fill: #a43434; stroke: #a43434; } .night .scope-3d .m-metal.l7 { fill: #b83a3a; stroke: #b83a3a; }
+.night .scope-3d .m-steel.l0 { fill: #341111; stroke: #341111; } .night .scope-3d .m-steel.l1 { fill: #491818; stroke: #491818; } .night .scope-3d .m-steel.l2 { fill: #612020; stroke: #612020; } .night .scope-3d .m-steel.l3 { fill: #792828; stroke: #792828; } .night .scope-3d .m-steel.l4 { fill: #913030; stroke: #913030; } .night .scope-3d .m-steel.l5 { fill: #a83838; stroke: #a83838; } .night .scope-3d .m-steel.l6 { fill: #c04040; stroke: #c04040; } .night .scope-3d .m-steel.l7 { fill: #d84848; stroke: #d84848; }
+.night .scope-3d .m-dark.l0 { fill: #160505; stroke: #160505; } .night .scope-3d .m-dark.l1 { fill: #1f0707; stroke: #1f0707; } .night .scope-3d .m-dark.l2 { fill: #280909; stroke: #280909; } .night .scope-3d .m-dark.l3 { fill: #320b0b; stroke: #320b0b; } .night .scope-3d .m-dark.l4 { fill: #3c0d0d; stroke: #3c0d0d; } .night .scope-3d .m-dark.l5 { fill: #461010; stroke: #461010; } .night .scope-3d .m-dark.l6 { fill: #501212; stroke: #501212; } .night .scope-3d .m-dark.l7 { fill: #5a1414; stroke: #5a1414; }
+.night .scope-3d .m-leg.l0 { fill: #250b0b; stroke: #250b0b; } .night .scope-3d .m-leg.l1 { fill: #341010; stroke: #341010; } .night .scope-3d .m-leg.l2 { fill: #451515; stroke: #451515; } .night .scope-3d .m-leg.l3 { fill: #561a1a; stroke: #561a1a; } .night .scope-3d .m-leg.l4 { fill: #671f1f; stroke: #671f1f; } .night .scope-3d .m-leg.l5 { fill: #782424; stroke: #782424; } .night .scope-3d .m-leg.l6 { fill: #892929; stroke: #892929; } .night .scope-3d .m-leg.l7 { fill: #9a2e2e; stroke: #9a2e2e; }
 .scope-3d .m-lens { fill: var(--mesh-lens); stroke: var(--mesh-lens); }
 .scope-3d .sc-ground { fill: var(--panel2); opacity: .8; }
 
@@ -1638,7 +1651,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 @media (max-width: 959px) {
   .page-header:has(> .tb-status) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys" "status status status"; grid-template-rows: 16px 22px auto; }
   .page-header:has(> .tb-status):not(:has(> .tb-lead)) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys" "status status"; }
-  .page-header:has(> .tb-status) > .tb-status { margin: var(--s1) 0 0; }
+  /* the leading key is 44 px in 38 px of rows: the status clears its foot, not just the title's */
+  .page-header:has(> .tb-status) > .tb-status { margin: var(--s2) 0 0; }
 }
 
 /* ---- the Sky pages: the toolbar, then when and where, the same on the Sky Map and Tonight ---- */
@@ -1970,3 +1984,79 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .ctl-where span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (prefers-reduced-motion: no-preference) { .ctl-slewing .ctl-lamp { animation: ctl-pulse 1s ease-in-out infinite; } }
 @keyframes ctl-pulse { 50% { opacity: .35; } }
+
+/* ---- Align with the Camera, and a picture in a card ---- */
+/* The strip, one line on any phone whatever the words: every step is its number, and the step you
+   are on is spelled out. Four words in four pills wrapped the longest ("Counterweight") and left
+   the row ragged. The labels of the others stay for a screen reader. */
+.flow-steps.flow-now li { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 var(--s1); white-space: nowrap; }
+.flow-steps.flow-now li::before { content: counter(step); }
+@media (max-width: 599px) {
+  .flow-steps.flow-now { display: flex; }
+  .flow-steps.flow-now li { flex: 0 0 48px; }
+  .flow-steps.flow-now li.now { flex: 1 1 auto; }
+  .flow-steps.flow-now li:not(.now) .flow-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* a picture inside a card: the card's own gap spaces it, and its caption sits close under it */
+.card > .scope-frame { margin: 0; display: grid; gap: var(--s1); }
+.card > .scope-frame p { margin: 0; }
+/* a card's count beside its title, in the title's weight of voice */
+.card-aside { font-size: var(--fs-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* what a run is doing now: room for two lines, so the key under it holds still while the words change */
+.align-now { margin: 0; font-size: var(--fs-3); line-height: 1.4; min-height: 2.8em; }
+/* the picture being taken: its stage in words, and the exposure as a bar the width of the picture */
+.shot-now { margin: 0; font-size: var(--fs-2); display: grid; gap: var(--s1); }
+.shot-now progress { width: 100%; height: 8px; accent-color: var(--accent); }
+/* the picked object's panel: what it is, in a sentence or two, on a wide screen (a phone has Details) */
+.pick-about { display: none; margin: 0; font-size: var(--fs-2); line-height: 1.45; }
+@media (min-width: 960px) { .pick-about { display: block; } }
+.pick-panel > .pick-map { min-height: 44px; display: grid; place-items: center; text-decoration: none; }
+/* what kind of thing an object is, drawn (Icons.kind/1): in a list row's badge, beside a name */
+.kind-icon { width: 18px; height: 18px; flex: none; }
+.targets .target .k .kind-icon { width: 16px; height: 16px; }
+.pick-head h2 .kind-icon, .object .kind .kind-icon { width: 20px; height: 20px; margin-right: var(--s1); vertical-align: -4px; color: var(--dim); }
+
+/* ---- what the telescope is doing, at the top of every page (Controller.ScopeNow) ----
+   A slim bar: a dot, the words, which telescope, where it points. Still and tracking are
+   quiet. Slewing is not: the bar takes the caution tone, the words pulse, and STOP is in it. */
+.scope-now { --now-h: 36px; position: sticky; top: 0; z-index: 21; display: flex; align-items: center; gap: var(--s2); min-height: var(--now-h); padding: env(safe-area-inset-top, 0px) var(--s3) 0; background: var(--bg); border-bottom: 1px solid var(--key-edge); font-size: var(--fs-2); }
+.scope-now .now-what { display: flex; align-items: center; gap: var(--s1); min-width: 0; flex: 1; min-height: var(--now-h); color: var(--dim); text-decoration: none; }
+/* the words are never the part that gives way: the position is */
+.scope-now strong { flex: none; color: var(--text); font-weight: 650; white-space: nowrap; }
+.scope-now .now-id, .scope-now .now-where { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.scope-now .now-where { flex: 1 1 0; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.scope-now .now-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--key-edge); }
+.scope-now.now-tracking .now-dot { background: var(--on); }
+.scope-now.now-offline strong { color: var(--dim); }
+.scope-now.now-slewing, .scope-now.now-moving { --now-h: 52px; background: color-mix(in srgb, var(--amber) 16%, var(--bg)); border-bottom-color: var(--amber); font-size: var(--fs-3); }
+.scope-now.now-slewing strong, .scope-now.now-moving strong { color: var(--amber); }
+.scope-now.now-slewing .now-dot, .scope-now.now-moving .now-dot { width: 10px; height: 10px; background: var(--amber); }
+.scope-now.now-slewing strong, .scope-now.now-slewing .now-dot { animation: now-pulse 1s ease-in-out infinite; }
+.scope-now .now-stop { flex: none; min-height: 44px; }
+@keyframes now-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .scope-now.now-slewing strong, .scope-now.now-slewing .now-dot { animation: none; } }
+/* the page's own header sits under the bar, and the bar has taken the notch's room */
+.shell-main:has(> .scope-now) .page-header { top: calc(36px + env(safe-area-inset-top, 0px)); padding-top: 10px; }
+.shell-main:has(> .scope-now.now-slewing) .page-header, .shell-main:has(> .scope-now.now-moving) .page-header { top: calc(52px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 599px) {
+  .scope-now .now-id { display: none; }
+  .scope-now.now-slewing .now-where, .scope-now.now-moving .now-where { display: none; }
+}
+/* while the bar has its own STOP (a slew, a move), it is the one STOP on the screen: the header's steps aside */
+.shell-main:has(> .scope-now .now-stop) .page-header .stop-mini { display: none; }
+
+/* the telescope in the night path's key, drawn as on the chart */
+.np-key-scope .scope { stroke: var(--warn); stroke-width: 1.4; fill: none; }
+
+/* ---- the telescope's page: what it is doing, seeing, where it points, the mount, its log ---- */
+.now-part, .now-doing { display: grid; gap: var(--s1); margin: 0 0 var(--s4); }
+.now-h { margin: 0; font-size: var(--fs-1); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.now-more { justify-self: start; min-height: 44px; display: inline-flex; align-items: center; font-size: var(--fs-2); }
+.now-part > .scope-frame, .now-part > .scope-sky { margin: 0; }
+.now-part > .scope-frame p { margin: var(--s1) 0 0; }
+.now-doing .state-line strong { font-size: var(--fs-4); }
+.now-doing.now-slewing .state-line strong { color: var(--amber); }
+.now-slew { display: grid; gap: var(--s1); font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+.now-slew progress { width: 100%; height: 8px; accent-color: var(--amber); }
+.scope-now .now-pct { flex: none; font-variant-numeric: tabular-nums; color: var(--amber); }
+

@@ -104,6 +104,7 @@ defmodule Controller.Components.Icons do
   defp path("queue"), do: ~S|<rect x="3.5" y="4" width="17" height="4" rx="1.5"/><rect x="3.5" y="10" width="17" height="4" rx="1.5"/><path d="M3.5 18h10"/>|
   defp path("layers"), do: ~S|<path d="M12 3.5l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16l9 4.5 9-4.5"/>|
   defp path("back"), do: ~S|<path d="M14.5 5.5L8 12l6.5 6.5"/>|
+  defp path("chevron"), do: ~S|<path d="M9.5 5.5L16 12l-6.5 6.5"/>|
   defp path("search"), do: ~S|<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>|
   defp path("close"), do: ~S|<path d="M6 6l12 12M18 6L6 18"/>|
   defp path("doc"), do: ~S|<path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/><path d="M9.800 12.500h4.400M9.800 16h4.400"/>|

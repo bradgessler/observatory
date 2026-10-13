@@ -98,6 +98,9 @@ defmodule Controller.Layouts do
           </li>
         </ul>
         <Controller.Components.Menu.menu variant="side" current={@current} />
+        <%!-- this page's help: out of the header (13 October: "not that important" up there), with the
+              other things that are the same on every page --%>
+        <.link :if={doc = page_doc(@current)} href={doc} class="side-link side-docs"><Icons.icon name="doc" /><span>Docs</span><small>This page</small></.link>
         <%!-- night mode, the same switch on every page --%>
         <button :if={@search != []} type="button" class="side-link side-night" phx-click="night" phx-target="#spotlight" aria-pressed={to_string(@night == true)}>
           <span class="night-glyph" aria-hidden="true">◐</span><span>Night Mode</span><small>{if @night, do: "On", else: "Off"}</small>
@@ -105,20 +108,18 @@ defmodule Controller.Layouts do
       </nav>
       <div class="shell-main">
         <%!-- What the telescope is doing, on every page, the same way: still, tracking, or SLEWING,
-              which is loud and comes with its own STOP. Only the words are a live region: a
-              position that counts would be read out every second. Where it points is said
-              here and on no page under it: on the sky, with how high and which way where
-              there is room; before an alignment, that it is not on the sky yet, and the
-              axes' own angles where there is room. --%>
+              which is loud and comes with its own STOP. It is one key: the essentials (what it
+              is doing, how well it is aligned) and nothing else, and it opens Now, where the
+              position, the axes and the log are (13 October: "you don't have to cram all the
+              detail in there... click on the thing and jump into it"). Only the words are a
+              live region. --%>
         <div :if={@now} id="scope-now" class={["scope-now", "now-#{@now.state}"]}>
-          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" aria-label={"#{@now.id}: #{@now.words}. #{@now[:note] && @now.note <> ". "}Open the telescope"}>
+          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" title={now_title(@now, @alignments[@now.id])} aria-label={"#{@now.id}: #{now_title(@now, @alignments[@now.id])}. Open Now"}>
             <span class="now-dot" aria-hidden="true"></span>
             <strong role="status">{@now.words}</strong>
             <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
-            <span class="now-id">{@now.id}</span>
-            <%!-- how well it is aligned sits with where it points: the same fact from two ends --%>
-            <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={16} />{@alignments[@now.id].words}</span>
-            <span :if={@now.where} class="now-where"><span :if={@now[:note]} class="now-note">{@now.note}</span><span class="now-pos">{@now.where}</span><span :if={@now[:up]} class="now-up">{@now.up}</span></span>
+            <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={16} /><span class="now-al-words">{@alignments[@now.id].words}</span></span>
+            <Icons.icon name="chevron" class="icon now-open" />
           </.link>
           <%!-- STOP is here whenever there is something to stop: a slew, a move, a hold --%>
           <button :if={@now.state in [:slewing, :moving, :tracking]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
@@ -128,6 +129,23 @@ defmodule Controller.Layouts do
       {render_slot(@search)}
     </div>
     """
+  end
+
+  # everything the bar's key stands for, for a pointer resting on it and for a screen reader
+  defp now_title(now, alignment) do
+    [now.words, alignment && alignment.words, now[:note], now[:where], now[:up]]
+    |> Enum.filter(&(is_binary(&1) and &1 != ""))
+    |> Enum.join(" · ")
+  end
+
+  # the help of the page being shown, from the one list of pages
+  defp page_doc(nil), do: nil
+
+  defp page_doc(path) do
+    case Enum.find(Controller.Nav.pages(), &(&1.path == path)) do
+      %{doc: doc} when is_binary(doc) and doc != "" -> doc
+      _ -> nil
+    end
   end
 
   defp telescope_name(nil), do: "No telescope"

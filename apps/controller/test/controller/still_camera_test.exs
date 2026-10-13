@@ -283,7 +283,7 @@ defmodule Controller.StillCameraTest do
     assert_receive {:still_camera, %{camera: %{settings: %{iso: 800, shutter: "1/60"}}}}, 20_000
     html = render(view)
     # set: said in words with a mark, and the key is gone
-    assert html =~ "set ✓"
+    assert html =~ ~r/· set <span aria-hidden="true">✓<\/span>/
     refute has_element?(view, "button", "Use It")
     assert html =~ "ISO 800 · 1/60 s · "
 

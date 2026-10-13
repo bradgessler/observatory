@@ -2181,3 +2181,25 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .roll-solve { color: var(--on); }
 .roll-solve.is-not { color: var(--dim); }
 
+
+/* ---- the bar is one key (13 October: "here's the essential information... click on the thing
+   and jump into it") ----
+   What the telescope is doing, how well it is aligned, and STOP when something can be stopped.
+   Where it points, the axes and the log are one click away, on Now. A page's Docs moved out of
+   its header to the foot of the sidebar; on a phone Search lists it first. */
+.scope-now .now-what { flex: 0 1 auto; gap: var(--s2); padding: 0 var(--s2); min-height: 44px; border-radius: var(--r); }
+.scope-now .now-what:hover { background: var(--key); }
+.scope-now .now-open { flex: none; width: 16px; height: 16px; color: var(--dim); }
+.scope-now .now-al-words { overflow: hidden; text-overflow: ellipsis; }
+.scope-now strong { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.scope-now { justify-content: space-between; }
+@media (max-width: 959px) { .scope-now .now-al { display: inline-flex; } .scope-now .now-al-words { display: none; } }
+.scope-now .now-al.al-none .now-al-words { display: inline; color: var(--amber); }
+.page-header .actions .help-icon, .hdr-actions .help { display: none; }
+.side-docs small { margin-left: auto; color: var(--dim); font-size: var(--fs-1); }
+.side-docs { margin-top: auto; }
+.side-docs + .side-night { margin-top: 0; }
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "title keys" "title keys"; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header > .actions { justify-self: start; }
+}

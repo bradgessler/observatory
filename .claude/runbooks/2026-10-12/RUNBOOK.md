@@ -28,6 +28,22 @@ Everything below is run from this folder:
 6. Times are UTC ("Z") on the box. Pacific time is UTC minus 7:
    12:25Z is 05:25 in the morning.
 
+## Brad is asleep
+
+Brad answered Step 0's question at 08:30Z (the tube is on the **west** side;
+it is set on the box) and said go for this plan. Then he went to bed. So:
+
+- **Do not ask Brad anything and do not wait for him.** Skip the question in
+  Step 0 and start at its check.
+- Wherever this runbook says "tell Brad", write the same words in the ledger
+  instead and put them in your final report.
+- Anything that needs a hand at the telescope (the camera hung, the mount
+  not connected, a stall, the plan stopping twice on the same target) means
+  the night is over: **park (Step 3) and go to Step 4.** A parked telescope
+  with a short night is a good outcome. A telescope left pointing east is not.
+- Your final report is read by the session that started you, then by Brad in
+  the morning.
+
 ## Step 0: one question for Brad, then the check
 
 The telescope is aligned (4 pictures, 1 arcminute) and is following M33 now.

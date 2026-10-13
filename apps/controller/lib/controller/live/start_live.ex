@@ -379,7 +379,7 @@ defmodule Controller.StartLive do
 
         <.card title="Look At">
           <.items :if={@targets != []} label="tonight's targets">
-            <.item :for={t <- @targets} as="li" label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
+            <.item :for={t <- @targets} as="li" kind={t[:kind]} label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
               <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go To #{t.name}"}>Go To</.btn>
             </.item>
           </.items>

@@ -2127,3 +2127,11 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
   .scope-now .now-up, .scope-now .now-note + .now-pos { display: none; }
 }
 
+/* ---- an object's kind, drawn, wherever it is listed (#150) ----
+   A UI.item row for an object in the sky: its kind in a column of its own before the name, the
+   badge Tonight's rows have. On a Recent chip it sits before the name, quieter than the name. */
+.item.item-kind { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+.item-k { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--sunk); color: var(--dim); }
+.item-k .kind-icon { width: 16px; height: 16px; }
+.recent .btn .kind-icon { color: var(--dim); }
+

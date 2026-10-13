@@ -117,7 +117,7 @@ making can't quietly send Go To the wrong way.
 ## Mount as it stands
 
 Before there is an alignment, the [Orb](/docs/orb) and the
-[Scope](/docs/scope) drawing need to know how the mount was set down: **Tilt**
+drawing on [Now](/docs/scope) need to know how the mount was set down: **Tilt**
 is the latitude knob, **Heading** where the tripod's north leg points, in
 degrees east of true north. Once stars or photos have measured the mount,
 the measurement wins.

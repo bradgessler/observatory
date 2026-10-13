@@ -765,7 +765,7 @@ defmodule Controller.SkyLive do
               <% recent = if @selected, do: Pointing.recent(@selected) |> Enum.filter(& &1["id"]), else: [] %>
               <nav :if={recent != []} class="recent" aria-label="Recent Go To targets">
                 <span class="dim">Recent</span>
-                <.link :for={r <- recent} navigate={~p"/object/#{r["id"]}?#{[mount: @selected, from: "tonight"]}"} class="btn">{r["name"]}</.link>
+                <.link :for={{r, kind} <- Enum.map(recent, &{&1, recent_kind(&1)})} navigate={~p"/object/#{r["id"]}?#{[mount: @selected, from: "tonight"]}"} class="btn"><Controller.Components.Icons.kind :if={kind} kind={kind} />{r["name"]}</.link>
               </nav>
               <p :if={@locked == false} class="lock-line tone-caution" role="status">
                 Not aligned yet, so Go To and tracking can't place anything. Open any bright star or planet, center it with the touchpad or the D-pad, and tap Centered. <.link href={~p"/docs/align"}>What's alignment?</.link>
@@ -874,10 +874,19 @@ defmodule Controller.SkyLive do
   defp tree_at(true, horizon, az), do: Settings.horizon_at(horizon, az)
   defp tree_at(_, _, _), do: 0
 
+  # What kind of thing a remembered Go To target is, for the icon on its chip. What is stored is
+  # only its id and name (`Pointing.recent/1`), so the catalogue says; a body of the solar system
+  # is not in the catalogue, and its id says which it is (`Ephemeris.objects/2`).
+  defp recent_kind(%{"id" => "sol-moon"}), do: :moon
+  defp recent_kind(%{"id" => "sol-" <> _}), do: :planet
+  defp recent_kind(%{"id" => id}), do: (obj = Catalog.object(id)) && obj[:kind]
+
   # One row of the Tonight list. Every row has the same columns, in this order, so each lines up
   # down the whole list (the row is a grid of fixed tracks, app.css): its kind, drawn, the
   # name over its detail, how long it's up, and how high, drawn, last: at the row's far edge.
   # What Go To and the hold will do for it is on its own page, not here: on a list row it was noise.
+  # Rank is the order and nothing more (#150): the list is an <ol> under "best first", and the five
+  # best keep a lit badge. A number beside the drawn kind would be a second badge in every row.
   defp target_body(assigns) do
     ~H"""
     <span class="k"><Controller.Components.Icons.kind kind={@o.kind} /></span>
@@ -919,12 +928,12 @@ defmodule Controller.SkyLive do
     end
   end
 
-  # The first two sentences of what the object is (`Controller.Sky.Blurbs`), in the UI's plain
-  # punctuation; nil for something the catalog has no words for.
+  # The first two sentences of what the object is (`Controller.Sky.Blurbs`, written in the UI's
+  # own punctuation); nil for something the catalog has no words for.
   defp about(%{id: _, kind: _} = obj) do
     case Controller.Sky.Blurbs.for(obj) do
       "" -> nil
-      text -> text |> String.replace(" — ", ", ") |> String.replace("—", ", ") |> String.split(~r/(?<=[.!?])\s+/) |> Enum.take(2) |> Enum.join(" ")
+      text -> text |> String.split(~r/(?<=[.!?])\s+/) |> Enum.take(2) |> Enum.join(" ")
     end
   end
 

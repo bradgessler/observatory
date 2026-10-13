@@ -169,3 +169,34 @@ Six targets, one agent each, all reproducible bit for bit from `hack/stacks/2026
   and drowned faint parts every time at this depth. Keep it as a labelled extra only when it doesn't ring.
 - **Prove the faint thing** with half stacks (odd and even frames) and blank-sky placements of the same
   aperture; the Crystal Ball's shell passed, the Crab's filaments did not.
+
+## What the night of 12 October 2026 added
+
+Ten targets, one agent each as the telescope left it, each done in 15 to 45 minutes and reproducible from
+`hack/stacks/2026-10-12/<target>/run_all.sh`. Templates now: `m78` (a faint object on open sky), `ngc1535` (a
+small bright one delivered as a tight crop), `almach` (a double star from 1/60 s frames), `m33` (an object bigger
+than the frame).
+
+- **Read RAWs in place at every step; keep no per-frame cache.** A target then needs about 0.6 GB of work space,
+  not 5 to 12, and two can run at once on a nearly full disk.
+- **Hand each agent the night's newest finished pipeline as its template and a time limit.** The first targets
+  took 45 to 65 minutes designing; the later ones 15 to 25 adapting.
+- **The flat is elliptical, not radial:** light falls off faster along the sensor's short side. A flat fitted from
+  one target's open sky (NGC 891) left about 1 percent, read about 1.5 percent high in the middle of the sensor
+  where that target hid the sky, and left dozens of dust shadows. So every run measured its own dust on its own
+  sky (each shadow seen in odd and even frames alone) and divided it out, and said what could not be judged under
+  the object. Real twilight flats were taken at the end of the night (13 frames, ISO 100, the Sun 3 to 0.5 degrees
+  down): use them.
+- **Cloud is found on the stars, frame by frame, against the clear plateau of the run,** not against the run's
+  median (which may itself be thin) and not from the box's transparency figure (it read 1.0 through thin cloud).
+  Dimmer stars under a brighter sky that recover in minutes are cloud; stars widening and dimming together for
+  good are dew.
+- **An unguided 15 s frame is smeared 1 to 2 arcsec along RA about one time in ten.** Common-direction
+  ellipticity above 0.2 finds them. A frame taken while the hold re-centred after a restart is found in its
+  sidecar (`settle.since_slew_s` near 0, mount start and end hundreds of arcseconds apart).
+- **Short frames of a bright star: more frames made it softer.** The sharpest 5 of 13 beat all 13 (Almach).
+- **A planetary nebula's blue-green is outside sRGB:** the camera matrix gives negative red, clipped at zero. Set
+  white on the brightest colour channel, not on luminance (`--white` in that target's `finish16.py`), or the disc
+  and its central star flatten.
+- **Prove structure by correlating band-passed odd and even stacks against blank-sky places** (the Crab: 9 to 16
+  sigma where 8 October's four frames gave 1.4). A colour that does not repeat is not drawn (its red filaments).

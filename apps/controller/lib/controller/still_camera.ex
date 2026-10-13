@@ -99,12 +99,106 @@ defmodule Controller.StillCamera do
         seen: [],
         shooting: false,
         busy: false,
+        shot: nil,
+        recent: [],
         last: nil,
         good: 0
       })
 
   @doc "The last picture's grey copy as a PNG (for the page), or nil."
   def png, do: :persistent_term.get({__MODULE__, :png}, nil)
+
+  @doc "The grey copy of one of the last few pictures (`status().recent`), by its number, on machine `node`; nil once it has left the roll."
+  def png(node, seq) when node == node(), do: :persistent_term.get({__MODULE__, :png, seq}, nil)
+
+  def png(node, seq) do
+    :erpc.call(node, __MODULE__, :png, [node, seq], 5_000)
+  catch
+    _, _ -> nil
+  end
+
+  @doc "The same from machine `node` (nil when it does not answer)."
+  def png(node) when node == node(), do: png()
+
+  def png(node) do
+    :erpc.call(node, __MODULE__, :png, [], 5_000)
+  catch
+    _, _ -> nil
+  end
+
+  @doc "Machine `node`'s status, with its `node` in it; one that says no camera when it does not answer."
+  def status(node) when node == node(), do: Map.put_new(status(), :node, node)
+
+  def status(node) do
+    node |> :erpc.call(__MODULE__, :status, [], 2_000) |> Map.put_new(:node, node)
+  catch
+    _, _ -> %{camera: nil, seen: [], shooting: false, busy: false, shot: nil, last: nil, good: 0, node: node}
+  end
+
+  @doc """
+  The stills camera a page should show, across the cluster: a real camera before a simulated
+  one, a simulated one before none, this machine's on a tie. So a Mac in the cluster shows the
+  camera on the box's telescope, not its own stand-in. Another machine's simulator is never the
+  answer (`listed?/2`). The same rule the telescope camera goes by (`Controller.ScopeCamera.find/0`).
+  """
+  def find, do: pick(status(node()), Enum.map(Node.list(), &status/1))
+
+  @doc false
+  # find/0 with the statuses in hand: this machine's, and the other machines'
+  def pick(local, others, here \\ node()) do
+    others
+    |> Enum.filter(&listed?(&1, here))
+    |> Enum.reduce(local, fn st, best -> if rank(st) > rank(best), do: st, else: best end)
+  end
+
+  @doc """
+  Of the status a page has and one just heard (statuses are broadcast across the cluster, so a
+  page on the Mac hears the box's and the Mac's own), the one to show: the same machine's news
+  always, another machine's only when its camera is better (`find/0`'s order), and never another
+  machine's simulator.
+  """
+  def prefer(old, new, here \\ node()) do
+    cond do
+      not listed?(new, here) -> old
+      is_nil(old) -> new
+      Map.get(old, :node, here) == Map.get(new, :node, here) or rank(new) > rank(old) -> new
+      true -> old
+    end
+  end
+
+  @doc "A real camera 2, a simulated one 1, none 0: which of two cameras a page shows."
+  def rank(%{camera: %{} = c}), do: if(Camera.simulated?(c), do: 1, else: 2)
+  def rank(_), do: 0
+
+  @doc "Is this status a camera on another machine? Its picture and its commands go there."
+  def remote?(status), do: Map.get(status || %{}, :node, node()) != node()
+
+  @doc "Where a page gets one of the roll's pictures, by its number."
+  def src_of(status, seq), do: picture_address(status, seq: seq)
+
+  @doc "Where a page gets a camera's latest picture (`seq` makes each new one a new address)."
+  def src(status, seq), do: picture_address(status, t: seq)
+
+  # Through this machine, whichever machine the camera is on. (Fetching a box's pictures straight
+  # from the box over HTTP was tried on 13 October 2026 and every picture came up broken on the
+  # terminal's page; it needs the page's image policy and the box's name to resolve in the
+  # browser first. #160.)
+  defp picture_address(status, query) do
+    "/cameras/stills/latest.png?" <> URI.encode_query(query ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
+  end
+
+  @doc false
+  def box_address(node) do
+    case String.split(to_string(node), "@", parts: 2) do
+      ["telescope", host] when host != "" -> "http://" <> host
+      _ -> nil
+    end
+  end
+
+  # the process that has the camera: this machine's, or the machine named with `on:`
+  defp server(nil), do: __MODULE__
+  defp server(node) when node == node(), do: __MODULE__
+  defp server(node), do: {__MODULE__, node}
 
   @doc """
   Take one picture now (ignored while one is being taken). Options, for this picture (those given
@@ -119,14 +213,30 @@ defmodule Controller.StillCamera do
       percent dimmer than in the clearest picture of the field while the sky is more than 1.1
       times as bright; the field's width is worked out from the focal length when not given).
   """
-  def shoot(opts \\ []), do: GenServer.cast(__MODULE__, {:shoot, opts})
+  def shoot(opts \\ []) do
+    # `on:` the machine the camera is on (`find/0`'s `node`), when it is not this one
+    {on, opts} = Keyword.pop(opts, :on)
+    GenServer.cast(server(on), {:shoot, opts})
+  end
+
+  @doc """
+  Start no new picture for the next `ms` milliseconds (the one in flight finishes). For an
+  upgrade: a reboot in the middle of a download left the Sony answering nothing until it was
+  switched off and on (13 October 2026). Kept in memory only, so the reboot it is for forgets
+  it, and a run of pictures picks itself up afterwards.
+  """
+  def pause(ms, opts \\ []) when is_integer(ms) and ms >= 0 do
+    GenServer.cast(server(opts[:on]), {:pause, ms})
+  end
 
   @doc """
   Take pictures one after another (`interval_ms` between them, 0 for back to back), or stop.
   `opts` are `shoot/1`'s, for every picture of the run.
   """
-  def continuous(on?, interval_ms \\ 0, opts \\ []),
-    do: GenServer.call(__MODULE__, {:continuous, on?, interval_ms, opts})
+  def continuous(on?, interval_ms \\ 0, opts \\ []) do
+    {on, opts} = Keyword.pop(opts, :on)
+    GenServer.call(server(on), {:continuous, on?, interval_ms, opts})
+  end
 
   @doc """
   Was the mount still settling when a shutter opened? `moved` is when the mount was last seen
@@ -160,7 +270,10 @@ defmodule Controller.StillCamera do
   the picture (worked out from the focal length in Settings when not given), `min_stars:` (8),
   `nsigma:` (10), `timeout:` in ms (60 000).
   """
-  def solving(on?, opts \\ []), do: GenServer.call(__MODULE__, {:solving, on?, opts})
+  def solving(on?, opts \\ []) do
+    {on, opts} = Keyword.pop(opts, :on)
+    GenServer.call(server(on), {:solving, on?, opts})
+  end
 
   @doc """
   A finder picture: one picture, plate solved ahead of everything in the queue, to check where the
@@ -177,6 +290,9 @@ defmodule Controller.StillCamera do
   `shoot_anyway: true` is for a caller that would rather start its series than stop: a picture
   that was taken and not solved, whatever the reason, answers `{:ok, %{from: :model, why: reason,
   ra_deg:, dec_deg:, seq:}}`, the model's aim as it stands (`nil` where the model can't say).
+
+  `hint: false` solves it blind, with no word on where the mount thinks it points: for when that
+  word is not to be trusted yet (the first pictures of an alignment).
 
   The other options are the solver's, as `solving/2` takes them (`scale:`, `min_stars:`,
   `nsigma:`), `mount:` (the mount whose plates it joins, when not the one Lock On holds or this
@@ -226,7 +342,7 @@ defmodule Controller.StillCamera do
   end
 
   @doc "Change the camera's settings: `iso:`, `shutter:` (see `Camera.Server.set/3`)."
-  def set(settings), do: GenServer.call(__MODULE__, {:set, settings}, 130_000)
+  def set(settings, on \\ nil), do: GenServer.call(server(on), {:set, settings}, 130_000)
 
   def subscribe, do: Telescope.subscribe(@topic)
 
@@ -236,6 +352,22 @@ defmodule Controller.StillCamera do
   the telescope camera go by). A status with no `node` is this machine's own.
   """
   def listed?(status, here \\ node()), do: Telescope.listed?(Map.get(status, :node, here), Camera.simulated?(status[:camera]), here)
+
+  @doc """
+  Is the stills camera the camera on the telescope? It is when there is one (ready or not: its
+  page says what it is waiting for; `find/0`, so on any machine of the cluster) and no video
+  camera as real as it is in the focuser (`Controller.ScopeCamera.find/0`). Telescope Camera and All Cameras show its pictures then: a
+  stills camera is a telescope camera whose frames come seconds or minutes apart.
+  """
+  def on_telescope?(status, scope) do
+    is_map(status) and is_map(status[:camera]) and listed?(status) and rank(status) > scope_rank(scope)
+  end
+
+  # a real stills camera is the telescope's before a simulated video camera is
+  defp scope_rank(%{camera: nil}), do: 0
+  defp scope_rank(%{sim: true}), do: 1
+  defp scope_rank(%{camera: _}), do: 2
+  defp scope_rank(_), do: 0
 
   @doc """
   Bytes free where pictures are kept, or nil when the system won't say. Pictures stop
@@ -275,6 +407,8 @@ defmodule Controller.StillCamera do
     safe(fn -> Camera.subscribe() end)
     send(self(), :look)
     was = safe(fn -> Settings.get("still_camera") end) || %{}
+    # the roll of the last pictures, as it was before a restart (a reboot, a flash, a crash)
+    roll = roll_load()
 
     {:ok,
      announce(%{
@@ -284,9 +418,19 @@ defmodule Controller.StillCamera do
        interval_ms: (is_integer(was["interval_ms"]) && was["interval_ms"]) || 0,
        # a :shoot_next is on its way: so the look loop can start one when none is (after a restart, a lost message)
        armed: false,
+       # the last few pictures, newest first (`status().recent`): the roll a page shows
+       recent: roll.recent,
+       # since when a run has been waiting for the clock to be set (monotonic ms), or nil
+       clock_wait: nil,
+       # no new picture before this (monotonic ms): `pause/2`, for an upgrade
+       paused_until: nil,
        task: nil,
-       seq: 0,
-       last: nil,
+       shot: nil,
+       # the pictures' numbers carry on where they left off, and the last one is still the last one
+       seq: roll.seq,
+       last: roll.last,
+       # what is on the card: how many pictures and how big, looked at every half minute
+       card: card(),
        failures: 0,
        why: nil,
        free: free_bytes(),
@@ -337,7 +481,7 @@ defmodule Controller.StillCamera do
 
   def handle_call({:finder, opts}, from, %{camera: %{state: :ready}} = s) do
     deadline = opts[:deadline] || Plates.finder_deadline()
-    solve = s.solve_opts |> Keyword.merge(Keyword.take(opts, [:scale, :min_stars, :nsigma])) |> Keyword.merge(finder: true, deadline: deadline)
+    solve = s.solve_opts |> Keyword.merge(Keyword.take(opts, [:scale, :min_stars, :nsigma, :hint])) |> Keyword.merge(finder: true, deadline: deadline)
 
     case start_shot(s, Keyword.merge(s.shot_opts, opts), solve) do
       %{task: %Task{}, seq: seq} = s -> {:noreply, %{s | finder: %{from: from, seq: seq, opts: opts, deadline: deadline}}}
@@ -349,13 +493,95 @@ defmodule Controller.StillCamera do
   def handle_call({:finder, _opts}, _from, s), do: {:reply, {:error, :no_camera}, s}
 
   @impl true
+  def handle_cast({:pause, ms}, s) do
+    {:noreply, announce(%{s | paused_until: System.monotonic_time(:millisecond) + ms, why: "paused for an upgrade: no new picture until the box is back"})}
+  end
+
   def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
+
+  # how many of the last pictures the roll keeps
+  @roll 8
+
+  # -- the roll on the card: the last pictures' grey copies, so a restart shows them again ------
+  #
+  # A flash is an outage of half a minute, and the page came back saying "No picture yet" over a
+  # card full of pictures. The roll (eight small PNGs and a list) is kept beside the pictures and
+  # read back when this process starts. Nothing here may ever cost a picture: every step is
+  # allowed to fail.
+
+  defp roll_dir, do: Path.join(dir(), ".roll")
+
+  defp roll_save(recent, dropped, record) do
+    safe(fn ->
+      File.mkdir_p!(roll_dir())
+      if png = record[:png], do: File.write!(Path.join(roll_dir(), "#{record.seq}.png"), png)
+      for %{seq: seq} <- dropped, do: File.rm(Path.join(roll_dir(), "#{seq}.png"))
+
+      # the newest carries what a page says under the latest picture
+      [newest | rest] = recent
+      shown = Map.merge(newest, Map.take(record, [:names, :background, :star_size, :bytes]))
+      File.write!(Path.join(roll_dir(), "roll.json"), Jason.encode!(Enum.map([shown | rest], &roll_out/1)))
+    end)
+  end
+
+  defp roll_out(r), do: r |> Map.update(:at, nil, &(&1 && DateTime.to_iso8601(&1))) |> Map.update(:star_size, nil, &(&1 && Map.take(&1, [:arcsec, :px, :n])))
+
+  defp roll_load do
+    safe(fn ->
+      recent =
+        for r <- Path.join(roll_dir(), "roll.json") |> File.read!() |> Jason.decode!(),
+            seq = r["seq"],
+            is_integer(seq),
+            {:ok, png} <- [File.read(Path.join(roll_dir(), "#{seq}.png"))] do
+          :persistent_term.put({__MODULE__, :png, seq}, png)
+          {:ok, at, _} = DateTime.from_iso8601(r["at"])
+          size = r["star_size"] && %{arcsec: r["star_size"]["arcsec"], px: r["star_size"]["px"], n: r["star_size"]["n"]}
+          %{seq: seq, at: at, iso: roll_iso(r["iso"]), shutter: r["shutter"], stars: r["stars"], w: r["w"], names: r["names"], background: r["background"], star_size: size, bytes: r["bytes"]}
+        end
+
+      case recent do
+        [newest | _] ->
+          :persistent_term.put({__MODULE__, :png}, :persistent_term.get({__MODULE__, :png, newest.seq}))
+          # `restored`: this is the picture from before the restart, not one this process took
+          %{recent: Enum.map(recent, &Map.take(&1, [:seq, :at, :iso, :shutter, :stars, :w])), seq: newest.seq, last: Map.put(newest, :restored, true)}
+
+        [] ->
+          nil
+      end
+    end) || %{recent: [], seq: 0, last: nil}
+  end
+
+  defp roll_iso("auto"), do: :auto
+  defp roll_iso(v), do: v
+
+  # how big the card is, and what of it is pictures (the RAWs and JPEGs under `dir/0`)
+  defp card do
+    safe(fn ->
+      files = for night <- File.ls!(dir()), not String.starts_with?(night, "."), f <- File.ls!(Path.join(dir(), night)), String.ends_with?(f, [".ARW", ".JPG"]), do: Path.join([dir(), night, f])
+      raws = Enum.count(files, &String.ends_with?(&1, ".ARW"))
+      bytes = files |> Enum.map(fn f -> case File.stat(f) do {:ok, st} -> st.size; _ -> 0 end end) |> Enum.sum()
+      %{total_mb: total_mb(), pictures: if(raws > 0, do: raws, else: length(files)), pictures_mb: div(bytes, 1_000_000)}
+    end)
+  end
+
+  defp total_mb do
+    case System.cmd("df", ["-k", dir()], stderr_to_stdout: true) do
+      {out, 0} ->
+        with [_, line | _] <- String.split(out, "\n"), [_fs, blocks | _] <- String.split(line), {kb, ""} <- Integer.parse(blocks), do: div(kb, 1000), else: (_ -> nil)
+
+      _ ->
+        nil
+    end
+  end
+
+  # a run waits this long for the clock to be set, then takes its pictures anyway
+  @clock_wait_ms 90_000
 
   @impl true
   def handle_info(:look, s) do
     Process.send_after(self(), :look, @look_ms)
     # the card's room, every half minute: other things write to it too
-    s = if rem(s.looks, 10) == 0 and s.task == nil, do: %{s | free: free_bytes()}, else: s
+    s = if rem(s.looks, 10) == 0 and s.task == nil, do: %{s | free: free_bytes(), card: card()}, else: s
     s = look(%{s | looks: s.looks + 1})
     # shooting continuously with nothing in flight and nothing on its way: start one (the camera
     # just came back, or the box did)
@@ -420,19 +646,52 @@ defmodule Controller.StillCamera do
 
   def handle_info(:shoot_next, s) do
     s = %{s | armed: false}
-    {:noreply, if(s.continuous, do: start_shot(s), else: s)}
+    now = System.monotonic_time(:millisecond)
+
+    cond do
+      not s.continuous ->
+        {:noreply, s}
+
+      # paused for an upgrade (`pause/2`): nothing new is started; looked at again shortly
+      is_integer(s.paused_until) and now < s.paused_until ->
+        {:noreply, arm(s, 2_000)}
+
+      # A picture's time is what its plate is solved and fitted by, and a box just booted runs on the
+      # time it last saved until the network's arrives (12 October: stamped 3.5 minutes slow). A run
+      # waits for the clock, a bounded time, and says so; then it carries on, and the sidecar says
+      # the clock was not set.
+      not clock_set?() and now - (s.clock_wait || now) < @clock_wait_ms ->
+        why = "waiting for network time before the next picture: the clock is not set yet"
+        s = arm(%{s | clock_wait: s.clock_wait || now}, 2_000)
+        {:noreply, if(s.why == why, do: s, else: announce(%{s | why: why}))}
+
+      true ->
+        s = if is_binary(s.why) and (s.why =~ "waiting for network time" or s.why =~ "paused for an upgrade"), do: %{s | why: nil, paused_until: nil}, else: s
+        {:noreply, start_shot(s)}
+    end
   end
 
   def handle_info({ref, result}, %{task: %Task{ref: ref}} = s) do
     Process.demonitor(ref, [:flush])
-    {:noreply, finished(%{s | task: nil}, result)}
+    {:noreply, finished(%{s | task: nil, shot: nil}, result)}
   end
 
   def handle_info({:DOWN, ref, :process, _, reason}, %{task: %Task{ref: ref}} = s) do
-    {:noreply, finished(%{s | task: nil}, {:error, {:crashed, reason}})}
+    {:noreply, finished(%{s | task: nil, shot: nil}, {:error, {:crashed, reason}})}
+  end
+
+  # Where the picture being taken has got to: the camera's own stages (`Camera.capture/2`), then
+  # this module's (saving its files, measuring it). Only for the shot in flight.
+  def handle_info({:camera_progress, seq, %{stage: _} = info}, %{task: %Task{}, seq: seq} = s) do
+    {:noreply, announce(%{s | shot: stage(seq, info)})}
   end
 
   def handle_info(_, s), do: {:noreply, s}
+
+  defp stage(seq, info), do: Map.merge(info, %{seq: seq, since_ms: System.system_time(:millisecond)})
+
+  defp tell(%{tell: {pid, seq}}, info), do: send(pid, {:camera_progress, seq, info})
+  defp tell(_, _), do: :ok
 
   defp look(s) do
     cams = safe(fn -> Camera.list() end) || []
@@ -470,8 +729,9 @@ defmodule Controller.StillCamera do
       # what this process knows that the picture's own task doesn't: when each mount last slewed
       # and how far, and the field's stars as the clearest picture so far showed them
       ctx = %{moved: s.moved, turned: s.turned, field: s.field, opts: opts || s.shot_opts}
-      task = Task.Supervisor.async_nolink(Controller.StillCamera.Tasks, fn -> take(id, seq, dir, solve, ctx) end)
-      announce(%{s | task: task, seq: seq})
+      me = self()
+      task = Task.Supervisor.async_nolink(Controller.StillCamera.Tasks, fn -> take(id, seq, dir, solve, Map.put(ctx, :tell, {me, seq})) end)
+      announce(%{s | task: task, seq: seq, shot: stage(seq, %{stage: :preparing})})
     end
   end
 
@@ -487,10 +747,11 @@ defmodule Controller.StillCamera do
     # the mount a caller named (Auto Align, for the mount it is aligning), else the usual one
     mount_id = ctx.opts[:mount] || mount_id()
     watch = Sidecar.watch(mount_id)
-    result = Camera.capture(id)
+    result = Camera.capture(id, progress: ctx[:tell])
     samples = Sidecar.stop(watch)
 
     with {:ok, files} <- result do
+      tell(ctx, %{stage: :saving, files: length(files)})
       saved_at = DateTime.utc_now()
       pressed = hd(files)[:pressed_at] || saved_at
       night = Path.join(dir, Date.to_iso8601(DateTime.to_date(pressed)))
@@ -509,6 +770,7 @@ defmodule Controller.StillCamera do
       # is already in it (the night a frame taken at ISO 3200 was written down as 800).
       settings = hd(files)[:settings]
       jpeg = Enum.find(files, &(&1.format == :jpeg))
+      tell(ctx, %{stage: :measuring})
       frame = jpeg && measure(jpeg.bytes)
 
       # Cloud: this picture's stars against the same stars in the clearest picture of the field. The
@@ -595,7 +857,10 @@ defmodule Controller.StillCamera do
         # for a finder: where the model says the telescope points, should the solve not come back
         aim: solve[:finder] && safe(fn -> Header.context(mount_id, pressed)[:pointing] end),
         # the camera's JPEG, across: the sensor's whole width in this many pixels
-        full_w: jpeg && jpeg_width(jpeg.bytes)
+        full_w: jpeg && jpeg_width(jpeg.bytes),
+        # how the camera was set as the shutter was pressed, for the roll of recent pictures
+        iso: settings && settings[:iso],
+        shutter: settings && settings[:shutter]
       }
 
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
@@ -641,9 +906,13 @@ defmodule Controller.StillCamera do
   defp to_plates(mount_id, jpeg, samples, pressed, exposure_s, opts, sharp) do
     mid = DateTime.add(pressed, round(exposure_s * 500), :millisecond)
 
-    with [_ | _] = snaps <- Enum.filter(samples, fn {_, snap} -> is_map(snap) and is_map(snap[:axes]) end),
+    # a plate is placed on the sky by its time: with the clock not set it would be placed wrong
+    with true <- clock_set?() || %{error: "the clock is not set yet: not solved"},
+         [_ | _] = snaps <- Enum.filter(samples, fn {_, snap} -> is_map(snap) and is_map(snap[:axes]) end),
          {_, snap} = Enum.min_by(snaps, fn {t, _} -> abs(DateTime.diff(t, mid, :millisecond)) end),
          cap when is_map(cap) <- Plates.capture(Map.put_new(snap, :id, mount_id), now: mid, report: safe(fn -> Plates.view(mount_id)[:report] end)),
+         # `hint: false`: solved blind. A hint from a fit of one or two plates can be tens of degrees out
+         cap = if(opts[:hint] == false, do: %{cap | hint: nil}, else: cap),
          pgm when is_binary(pgm) <- solver_copy(jpeg, sharp) do
       # a finder goes ahead of the queue and has its own deadline there, which is all the time its solver gets
       solver = [scale: opts[:scale] || field_scale(), min_stars: opts[:min_stars] || 8, nsigma: opts[:nsigma] || 10, timeout: opts[:timeout] || (opts[:finder] && opts[:deadline]) || 150_000] ++ Keyword.take(opts, [:finder, :deadline])
@@ -852,6 +1121,13 @@ defmodule Controller.StillCamera do
 
   defp finished(s, {:ok, record}) do
     if png = record[:png], do: :persistent_term.put({__MODULE__, :png}, png)
+    # the roll: the last few pictures' grey copies, for a page to look back at; the oldest is dropped
+    if png = record[:png], do: :persistent_term.put({__MODULE__, :png, record.seq}, png)
+    roll = [Map.take(record, [:seq, :at, :iso, :shutter, :stars, :w]) | s.recent]
+    {recent, dropped} = Enum.split(roll, @roll)
+    for %{seq: seq} <- dropped, do: :persistent_term.erase({__MODULE__, :png, seq})
+    s = %{s | recent: recent}
+    roll_save(recent, dropped, record)
     # the field's stars come back with the picture and stay here: the next picture is held against them
     s = %{s | field: Map.get(record, :field, s.field)}
     # the star size of the picture before rides along: a page says which way a focus turn went
@@ -950,6 +1226,8 @@ defmodule Controller.StillCamera do
   defp follow(s, _), do: s
 
   # the next picture, now or in `delay` ms
+  defp clock_set?, do: safe(fn -> Controller.Clock.set?() end) != false
+
   defp arm(s, 0), do: (send(self(), :shoot_next); %{s | armed: true})
   defp arm(s, delay), do: (Process.send_after(self(), :shoot_next, delay); %{s | armed: true})
 
@@ -972,12 +1250,20 @@ defmodule Controller.StillCamera do
       shooting: s.continuous,
       interval_ms: s.interval_ms,
       busy: s.task != nil,
+      # the picture being taken, stage by stage (nil between pictures): `%{stage, since_ms, seq}`
+      # and what the stage carries (`exposure_ms`; a file's `name` and `bytes`)
+      shot: s.shot,
+      # the last few pictures, newest first: `%{seq, at, iso, shutter, stars, w}`; each one's grey
+      # copy is `png/2` (the roll on the camera's page)
+      recent: s.recent,
       last: s.last,
       good: s.good,
       why: s.why,
       solving: s.solving,
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
+      # the card in numbers: `%{total_mb, pictures, pictures_mb}` (how big it is, and what of it is pictures)
+      card: s[:card],
       room_for: if(is_integer(s.free), do: max(div(s.free - floor_bytes(), pair_bytes(s)), 0)),
       # the machine the camera is plugged into, so another can tell whose status it hears (listed?/2)
       node: node()

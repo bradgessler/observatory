@@ -1,8 +1,8 @@
 # Setup
 
-One mount's page (`/setup/<mount>`, from the status line on any page or a
-mount's badge on Home): how it is being steered, its home position, and every
-mode that changes where it points.
+One mount's page (`/setup/<mount>`, from Telescope > Now, which the bar at
+the top of every page opens, or a mount's badge on Home): how it is being
+steered, its home position, and every mode that changes where it points.
 
 ## How it's steered
 
@@ -63,7 +63,19 @@ restart of the box, until the mount itself is switched on again. The card
 then shows what the software has for the mount as it stands, with that key
 lit. If it ever disagrees with what you see, tap the other key.
 
-Until it is told, Go To and tracking wait. The guess was upside down on two
+**I Don't Know** is the third key, for when nobody is at the mount to look.
+Never pick one of the other two at random: a guess recorded as a fact is how
+the tube met the tripod. Not knowing is an answer, and the mount goes on
+working, cautiously. The two sides are mirror images: a turn of the RA axis
+that lowers the counterweight on one side raises it on the other. So with
+the side unknown a Go To stays in the pose the mount is in and turns the RA
+axis only through turns it has already stood at with this alignment (where
+its points were taken, and where it stood when you said so), with 5° to
+spare. Those were survivable whichever side is true. Tracking ends at the
+same edge, and a meridian flip waits for someone to look. A Go To that would
+go further says so, and what to do.
+
+Until it is told (or told nobody knows), Go To and tracking wait. The guess was upside down on two
 nights running, and on the second a Go To drove the tube to the pose with
 the counterweight bar 64° above level and the camera near a tripod leg; a
 meridian flip would have swung it further the wrong way. So a Go To, a flip
@@ -105,7 +117,7 @@ making can't quietly send Go To the wrong way.
 ## Mount as it stands
 
 Before there is an alignment, the [Orb](/docs/orb) and the
-[Scope](/docs/scope) drawing need to know how the mount was set down: **Tilt**
+drawing on [Now](/docs/scope) need to know how the mount was set down: **Tilt**
 is the latitude knob, **Heading** where the tripod's north leg points, in
 degrees east of true north. Once stars or photos have measured the mount,
 the measurement wins.

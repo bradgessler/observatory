@@ -9,13 +9,13 @@ doesn't use for it, and where it is explained properly.
 ### Telescope
 
 The whole instrument: the mount, the tube on it, and its cameras.
-Not: *scope* (the Scope page keeps its name: it draws the whole telescope).
+Not: *scope* (the page that draws the whole telescope is Telescope > Now).
 
 ### Mount
 
 The motorized base that turns the tube: here a Sky-Watcher EQ6-R, a German
 equatorial mount. It is what moves, and what the software talks to.
-Not: *scope*. More in [Scope](/docs/scope).
+Not: *scope*. More in [Now](/docs/scope).
 
 ### Tube
 

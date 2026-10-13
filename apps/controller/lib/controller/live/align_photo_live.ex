@@ -237,7 +237,7 @@ defmodule Controller.AlignPhotoLive do
 
   # Which side the counterweight is on: the one thing no photo can say, so it is asked here, where
   # a mount with no home gets its alignment. The answer is for the mount as it stands this moment.
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     where = String.to_existing_atom(where)
     said = Counterweight.words(Lineup.set_counterweight(socket.assigns.selected, socket.assigns.snap, where), where)
     {:noreply, socket |> assign(model: model(socket.assigns.selected)) |> put_notice(said)}
@@ -309,7 +309,7 @@ defmodule Controller.AlignPhotoLive do
     <.page id="align-photo" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Align by Phone Photo</.title>
+        <.title>Phone</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions><.help href={~p"/docs/align-photo"} label="align by phone photo" /><.stop click="estop" /></.actions>

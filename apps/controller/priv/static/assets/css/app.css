@@ -1444,6 +1444,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .focus-chart { display: block; width: 100%; height: 60px; margin: 8px 0; }
 .focus-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .find-line { margin: 0 0 8px; font-size: 14px; }
+/* a plate solve at work: time used of the time it has, beside the words that say what it is doing */
+.item progress { flex: none; width: 96px; height: 8px; accent-color: var(--accent); }
 /* Queues: how busy a step is, a bar and its number */
 .busy { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--sunk); box-shadow: inset 0 0 0 1px var(--key-edge); overflow: hidden; vertical-align: middle; }
 .busy > span { display: block; height: 100%; background: var(--accent); }
@@ -1561,13 +1563,24 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
    lit from over the camera's shoulder in every theme (night mode: all red).
    A hairline of the same colour closes the seams between neighbouring faces. */
 .scope-3d polygon { stroke-width: .35; stroke-linejoin: round; }
-.scope-3d .l0 { --lit: 24%; } .scope-3d .l1 { --lit: 34%; } .scope-3d .l2 { --lit: 45%; } .scope-3d .l3 { --lit: 56%; }
-.scope-3d .l4 { --lit: 67%; } .scope-3d .l5 { --lit: 78%; } .scope-3d .l6 { --lit: 89%; } .scope-3d .l7 { --lit: 100%; }
-.scope-3d .m-tube { fill: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-tube) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-metal { fill: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-metal) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-steel { fill: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-steel) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-dark { fill: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-dark) var(--lit), var(--mesh-shade)); }
-.scope-3d .m-leg { fill: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); stroke: color-mix(in srgb, var(--mesh-leg) var(--lit), var(--mesh-shade)); }
+/* The mount's faces: a material shaded in eight steps toward the theme's shade (tokens.css --mesh-*).
+   Written out as plain colours, one rule a material and step: the same thing as
+   color-mix(material step%, shade), which Safari drew as solid black on 13 October 2026. */
+.scope-3d .m-tube.l0 { fill: #393a3b; stroke: #393a3b; } .scope-3d .m-tube.l1 { fill: #515254; stroke: #515254; } .scope-3d .m-tube.l2 { fill: #6b6c6f; stroke: #6b6c6f; } .scope-3d .m-tube.l3 { fill: #85878a; stroke: #85878a; } .scope-3d .m-tube.l4 { fill: #9fa1a5; stroke: #9fa1a5; } .scope-3d .m-tube.l5 { fill: #babcc0; stroke: #babcc0; } .scope-3d .m-tube.l6 { fill: #d4d6db; stroke: #d4d6db; } .scope-3d .m-tube.l7 { fill: #eef1f6; stroke: #eef1f6; }
+.scope-3d .m-metal.l0 { fill: #282a2f; stroke: #282a2f; } .scope-3d .m-metal.l1 { fill: #393c42; stroke: #393c42; } .scope-3d .m-metal.l2 { fill: #4b4f57; stroke: #4b4f57; } .scope-3d .m-metal.l3 { fill: #5e636d; stroke: #5e636d; } .scope-3d .m-metal.l4 { fill: #707682; stroke: #707682; } .scope-3d .m-metal.l5 { fill: #828997; stroke: #828997; } .scope-3d .m-metal.l6 { fill: #959dad; stroke: #959dad; } .scope-3d .m-metal.l7 { fill: #a7b0c2; stroke: #a7b0c2; }
+.scope-3d .m-steel.l0 { fill: #333436; stroke: #333436; } .scope-3d .m-steel.l1 { fill: #484a4d; stroke: #484a4d; } .scope-3d .m-steel.l2 { fill: #5f6266; stroke: #5f6266; } .scope-3d .m-steel.l3 { fill: #777a7f; stroke: #777a7f; } .scope-3d .m-steel.l4 { fill: #8e9197; stroke: #8e9197; } .scope-3d .m-steel.l5 { fill: #a5a9b0; stroke: #a5a9b0; } .scope-3d .m-steel.l6 { fill: #bdc1c9; stroke: #bdc1c9; } .scope-3d .m-steel.l7 { fill: #d4d9e2; stroke: #d4d9e2; }
+.scope-3d .m-dark.l0 { fill: #121418; stroke: #121418; } .scope-3d .m-dark.l1 { fill: #191c22; stroke: #191c22; } .scope-3d .m-dark.l2 { fill: #21252d; stroke: #21252d; } .scope-3d .m-dark.l3 { fill: #292e37; stroke: #292e37; } .scope-3d .m-dark.l4 { fill: #323742; stroke: #323742; } .scope-3d .m-dark.l5 { fill: #3a404d; stroke: #3a404d; } .scope-3d .m-dark.l6 { fill: #424958; stroke: #424958; } .scope-3d .m-dark.l7 { fill: #4a5263; stroke: #4a5263; }
+.scope-3d .m-leg.l0 { fill: #222429; stroke: #222429; } .scope-3d .m-leg.l1 { fill: #31343a; stroke: #31343a; } .scope-3d .m-leg.l2 { fill: #40444c; stroke: #40444c; } .scope-3d .m-leg.l3 { fill: #50555f; stroke: #50555f; } .scope-3d .m-leg.l4 { fill: #606672; stroke: #606672; } .scope-3d .m-leg.l5 { fill: #707785; stroke: #707785; } .scope-3d .m-leg.l6 { fill: #7f8797; stroke: #7f8797; } .scope-3d .m-leg.l7 { fill: #8f98aa; stroke: #8f98aa; }
+:root.light .scope-3d .m-tube.l0 { fill: #696f7a; stroke: #696f7a; } :root.light .scope-3d .m-tube.l1 { fill: #7d828c; stroke: #7d828c; } :root.light .scope-3d .m-tube.l2 { fill: #93969f; stroke: #93969f; } :root.light .scope-3d .m-tube.l3 { fill: #a8abb2; stroke: #a8abb2; } :root.light .scope-3d .m-tube.l4 { fill: #bec0c5; stroke: #bec0c5; } :root.light .scope-3d .m-tube.l5 { fill: #d4d5d8; stroke: #d4d5d8; } :root.light .scope-3d .m-tube.l6 { fill: #e9eaec; stroke: #e9eaec; } :root.light .scope-3d .m-tube.l7 { fill: #ffffff; stroke: #ffffff; }
+:root.light .scope-3d .m-metal.l0 { fill: #4e5666; stroke: #4e5666; } :root.light .scope-3d .m-metal.l1 { fill: #565e6f; stroke: #565e6f; } :root.light .scope-3d .m-metal.l2 { fill: #5f6879; stroke: #5f6879; } :root.light .scope-3d .m-metal.l3 { fill: #687183; stroke: #687183; } :root.light .scope-3d .m-metal.l4 { fill: #727b8d; stroke: #727b8d; } :root.light .scope-3d .m-metal.l5 { fill: #7b8497; stroke: #7b8497; } :root.light .scope-3d .m-metal.l6 { fill: #848ea1; stroke: #848ea1; } :root.light .scope-3d .m-metal.l7 { fill: #8d97ab; stroke: #8d97ab; }
+:root.light .scope-3d .m-steel.l0 { fill: #585f6e; stroke: #585f6e; } :root.light .scope-3d .m-steel.l1 { fill: #656c7a; stroke: #656c7a; } :root.light .scope-3d .m-steel.l2 { fill: #737a88; stroke: #737a88; } :root.light .scope-3d .m-steel.l3 { fill: #818895; stroke: #818895; } :root.light .scope-3d .m-steel.l4 { fill: #8f96a3; stroke: #8f96a3; } :root.light .scope-3d .m-steel.l5 { fill: #9da4b1; stroke: #9da4b1; } :root.light .scope-3d .m-steel.l6 { fill: #abb2be; stroke: #abb2be; } :root.light .scope-3d .m-steel.l7 { fill: #b9c0cc; stroke: #b9c0cc; }
+:root.light .scope-3d .m-dark.l0 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l1 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l2 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l3 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l4 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l5 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l6 { fill: #3a4150; stroke: #3a4150; } :root.light .scope-3d .m-dark.l7 { fill: #3a4150; stroke: #3a4150; }
+:root.light .scope-3d .m-leg.l0 { fill: #495161; stroke: #495161; } :root.light .scope-3d .m-leg.l1 { fill: #505768; stroke: #505768; } :root.light .scope-3d .m-leg.l2 { fill: #575f70; stroke: #575f70; } :root.light .scope-3d .m-leg.l3 { fill: #5e6677; stroke: #5e6677; } :root.light .scope-3d .m-leg.l4 { fill: #656d7f; stroke: #656d7f; } :root.light .scope-3d .m-leg.l5 { fill: #6c7487; stroke: #6c7487; } :root.light .scope-3d .m-leg.l6 { fill: #737c8e; stroke: #737c8e; } :root.light .scope-3d .m-leg.l7 { fill: #7a8396; stroke: #7a8396; }
+.night .scope-3d .m-tube.l0 { fill: #3d1313; stroke: #3d1313; } .night .scope-3d .m-tube.l1 { fill: #571b1b; stroke: #571b1b; } .night .scope-3d .m-tube.l2 { fill: #732424; stroke: #732424; } .night .scope-3d .m-tube.l3 { fill: #8f2d2d; stroke: #8f2d2d; } .night .scope-3d .m-tube.l4 { fill: #ab3636; stroke: #ab3636; } .night .scope-3d .m-tube.l5 { fill: #c73e3e; stroke: #c73e3e; } .night .scope-3d .m-tube.l6 { fill: #e34747; stroke: #e34747; } .night .scope-3d .m-tube.l7 { fill: #ff5050; stroke: #ff5050; }
+.night .scope-3d .m-metal.l0 { fill: #2c0e0e; stroke: #2c0e0e; } .night .scope-3d .m-metal.l1 { fill: #3f1414; stroke: #3f1414; } .night .scope-3d .m-metal.l2 { fill: #531a1a; stroke: #531a1a; } .night .scope-3d .m-metal.l3 { fill: #672020; stroke: #672020; } .night .scope-3d .m-metal.l4 { fill: #7b2727; stroke: #7b2727; } .night .scope-3d .m-metal.l5 { fill: #902d2d; stroke: #902d2d; } .night .scope-3d .m-metal.l6 { fill: #a43434; stroke: #a43434; } .night .scope-3d .m-metal.l7 { fill: #b83a3a; stroke: #b83a3a; }
+.night .scope-3d .m-steel.l0 { fill: #341111; stroke: #341111; } .night .scope-3d .m-steel.l1 { fill: #491818; stroke: #491818; } .night .scope-3d .m-steel.l2 { fill: #612020; stroke: #612020; } .night .scope-3d .m-steel.l3 { fill: #792828; stroke: #792828; } .night .scope-3d .m-steel.l4 { fill: #913030; stroke: #913030; } .night .scope-3d .m-steel.l5 { fill: #a83838; stroke: #a83838; } .night .scope-3d .m-steel.l6 { fill: #c04040; stroke: #c04040; } .night .scope-3d .m-steel.l7 { fill: #d84848; stroke: #d84848; }
+.night .scope-3d .m-dark.l0 { fill: #160505; stroke: #160505; } .night .scope-3d .m-dark.l1 { fill: #1f0707; stroke: #1f0707; } .night .scope-3d .m-dark.l2 { fill: #280909; stroke: #280909; } .night .scope-3d .m-dark.l3 { fill: #320b0b; stroke: #320b0b; } .night .scope-3d .m-dark.l4 { fill: #3c0d0d; stroke: #3c0d0d; } .night .scope-3d .m-dark.l5 { fill: #461010; stroke: #461010; } .night .scope-3d .m-dark.l6 { fill: #501212; stroke: #501212; } .night .scope-3d .m-dark.l7 { fill: #5a1414; stroke: #5a1414; }
+.night .scope-3d .m-leg.l0 { fill: #250b0b; stroke: #250b0b; } .night .scope-3d .m-leg.l1 { fill: #341010; stroke: #341010; } .night .scope-3d .m-leg.l2 { fill: #451515; stroke: #451515; } .night .scope-3d .m-leg.l3 { fill: #561a1a; stroke: #561a1a; } .night .scope-3d .m-leg.l4 { fill: #671f1f; stroke: #671f1f; } .night .scope-3d .m-leg.l5 { fill: #782424; stroke: #782424; } .night .scope-3d .m-leg.l6 { fill: #892929; stroke: #892929; } .night .scope-3d .m-leg.l7 { fill: #9a2e2e; stroke: #9a2e2e; }
 .scope-3d .m-lens { fill: var(--mesh-lens); stroke: var(--mesh-lens); }
 .scope-3d .sc-ground { fill: var(--panel2); opacity: .8; }
 
@@ -1638,7 +1651,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 @media (max-width: 959px) {
   .page-header:has(> .tb-status) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys" "status status status"; grid-template-rows: 16px 22px auto; }
   .page-header:has(> .tb-status):not(:has(> .tb-lead)) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "over keys" "title keys" "status status"; }
-  .page-header:has(> .tb-status) > .tb-status { margin: var(--s1) 0 0; }
+  /* the leading key is 44 px in 38 px of rows: the status clears its foot, not just the title's */
+  .page-header:has(> .tb-status) > .tb-status { margin: var(--s2) 0 0; }
 }
 
 /* ---- the Sky pages: the toolbar, then when and where, the same on the Sky Map and Tonight ---- */
@@ -1956,17 +1970,348 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .al-bar-text span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .switcher-al { margin-left: auto; }
 
-/* ---- the Controls status (ControlsStatusLive): what the mount is doing, and where it points ---- */
-.ctl-status { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.ctl-motion { display: inline-flex; align-items: center; gap: var(--s1); flex: none; min-height: 32px; padding: 0 var(--s2); border-radius: 999px; background: var(--panel); }
-.ctl-motion strong { font-size: var(--fs-2); font-weight: 650; white-space: nowrap; }
-.ctl-lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
-.ctl-slewing .ctl-lamp { background: var(--amber); }
-.ctl-slewing strong { color: var(--amber); }
-.ctl-tracking .ctl-lamp { background: var(--on); }
-.ctl-down .ctl-lamp { background: var(--warn); }
-.ctl-where { display: grid; min-width: 0; line-height: 1.25; }
-.ctl-where strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctl-where span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (prefers-reduced-motion: no-preference) { .ctl-slewing .ctl-lamp { animation: ctl-pulse 1s ease-in-out infinite; } }
-@keyframes ctl-pulse { 50% { opacity: .35; } }
+/* ---- Align with the Camera, and a picture in a card ---- */
+/* The strip, one line on any phone whatever the words: every step is its number, and the step you
+   are on is spelled out. Four words in four pills wrapped the longest ("Counterweight") and left
+   the row ragged. The labels of the others stay for a screen reader. */
+.flow-steps.flow-now li { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 var(--s1); white-space: nowrap; }
+.flow-steps.flow-now li::before { content: counter(step); }
+@media (max-width: 599px) {
+  .flow-steps.flow-now { display: flex; }
+  .flow-steps.flow-now li { flex: 0 0 48px; }
+  .flow-steps.flow-now li.now { flex: 1 1 auto; }
+  .flow-steps.flow-now li:not(.now) .flow-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* a picture inside a card: the card's own gap spaces it, and its caption sits close under it */
+.card > .scope-frame { margin: 0; display: grid; gap: var(--s1); }
+.card > .scope-frame p { margin: 0; }
+/* a card's count beside its title, in the title's weight of voice */
+.card-aside { font-size: var(--fs-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* what a run is doing now: room for two lines, so the key under it holds still while the words change */
+.align-now { margin: 0; font-size: var(--fs-3); line-height: 1.4; min-height: 2.8em; }
+/* the picture being taken: its stage in words, and the exposure as a bar the width of the picture */
+.shot-now { margin: 0; font-size: var(--fs-2); display: grid; gap: var(--s1); }
+.shot-now progress { width: 100%; height: 8px; accent-color: var(--accent); }
+/* the picked object's panel: what it is, in a sentence or two, on a wide screen (a phone has Details) */
+.pick-about { display: none; margin: 0; font-size: var(--fs-2); line-height: 1.45; }
+@media (min-width: 960px) { .pick-about { display: block; } }
+.pick-panel > .pick-map { min-height: 44px; display: grid; place-items: center; text-decoration: none; }
+/* what kind of thing an object is, drawn (Icons.kind/1): in a list row's badge, beside a name */
+.kind-icon { width: 18px; height: 18px; flex: none; }
+.targets .target .k .kind-icon { width: 16px; height: 16px; }
+.pick-head h2 .kind-icon, .object .kind .kind-icon { width: 20px; height: 20px; margin-right: var(--s1); vertical-align: -4px; color: var(--dim); }
+
+/* ---- what the telescope is doing, at the top of every page (Controller.ScopeNow) ----
+   A slim bar: a dot, the words, which telescope, where it points. Still and tracking are
+   quiet. Slewing is not: the bar takes the caution tone, the words pulse, and STOP is in it. */
+.scope-now { --now-h: 36px; position: sticky; top: 0; z-index: 21; display: flex; align-items: center; gap: var(--s2); min-height: var(--now-h); padding: env(safe-area-inset-top, 0px) var(--s3) 0; background: var(--bg); border-bottom: 1px solid var(--key-edge); font-size: var(--fs-2); }
+.scope-now .now-what { display: flex; align-items: center; gap: var(--s1); min-width: 0; flex: 1; min-height: var(--now-h); color: var(--dim); text-decoration: none; }
+/* the words are never the part that gives way: the position is */
+.scope-now strong { flex: none; color: var(--text); font-weight: 650; white-space: nowrap; }
+.scope-now .now-id, .scope-now .now-where { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.scope-now .now-where { flex: 1 1 0; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.scope-now .now-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--key-edge); }
+.scope-now.now-tracking .now-dot { background: var(--on); }
+.scope-now.now-offline strong { color: var(--dim); }
+.scope-now.now-slewing, .scope-now.now-moving { --now-h: 52px; background: color-mix(in srgb, var(--amber) 16%, var(--bg)); border-bottom-color: var(--amber); font-size: var(--fs-3); }
+.scope-now.now-slewing strong, .scope-now.now-moving strong { color: var(--amber); }
+.scope-now.now-slewing .now-dot, .scope-now.now-moving .now-dot { width: 10px; height: 10px; background: var(--amber); }
+.scope-now.now-slewing strong, .scope-now.now-slewing .now-dot { animation: now-pulse 1s ease-in-out infinite; }
+.scope-now .now-stop { flex: none; min-height: 44px; }
+@keyframes now-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .scope-now.now-slewing strong, .scope-now.now-slewing .now-dot { animation: none; } }
+/* the page's own header sits under the bar, and the bar has taken the notch's room */
+.shell-main:has(> .scope-now) .page-header { top: calc(36px + env(safe-area-inset-top, 0px)); padding-top: 10px; }
+.shell-main:has(> .scope-now.now-slewing) .page-header, .shell-main:has(> .scope-now.now-moving) .page-header { top: calc(52px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 599px) {
+  .scope-now .now-id { display: none; }
+  .scope-now.now-slewing .now-where, .scope-now.now-moving .now-where { display: none; }
+}
+/* With the bar on the page, STOP is the bar's, there whenever there is something to stop (a slew,
+   a move, a hold) and gone when the telescope is still. The header's own steps aside. */
+.shell-main:has(> .scope-now) .page-header .stop-mini { display: none; }
+.scope-now:has(.now-stop) { --now-h: 52px; }
+.shell-main:has(> .scope-now .now-stop) .page-header { top: calc(52px + env(safe-area-inset-top, 0px)); }
+/* a wide screen has the sidebar saying which page and which telescope: the header is one slim row */
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now) .page-header { min-height: 0; padding-top: 6px; padding-bottom: 6px; grid-template-rows: 0 minmax(32px, auto); }
+  .shell-main:has(> .scope-now) .page-header > .tb-over { display: none; }
+}
+
+/* the telescope in the night path's key, drawn as on the chart */
+.np-key-scope .scope { stroke: var(--warn); stroke-width: 1.4; fill: none; }
+
+/* ---- the telescope's page: what it is doing, seeing, where it points, the mount, its log ---- */
+.now-part, .now-doing { display: grid; gap: var(--s1); margin: 0 0 var(--s4); }
+.now-h { margin: 0; font-size: var(--fs-1); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.now-more { justify-self: start; min-height: 44px; display: inline-flex; align-items: center; font-size: var(--fs-2); }
+.now-part > .scope-frame, .now-part > .scope-sky { margin: 0; }
+.now-part > .scope-frame p { margin: var(--s1) 0 0; }
+.now-doing .state-line strong { font-size: var(--fs-4); }
+.now-doing.now-slewing .state-line strong { color: var(--amber); }
+.now-slew { display: grid; gap: var(--s1); font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+.now-slew progress { width: 100%; height: 8px; accent-color: var(--amber); }
+.scope-now .now-pct { flex: none; font-variant-numeric: tabular-nums; color: var(--amber); }
+
+/* the help key: a document, and in a header the word with it */
+.help.help-icon { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; }
+.help.help-icon .icon { width: 18px; height: 18px; flex: none; }
+.help.help-icon .help-word { display: none; }
+.page-header .actions .help-icon { padding: 0 12px; border-radius: 12px; background: var(--key); box-shadow: var(--bevel); color: var(--text); font-weight: 500; font-size: var(--fs-2); }
+.page-header .actions .help-icon .help-word { display: inline; }
+
+/* the Now page, second pass: one caption line that holds still, the chart and the mount side by side */
+.now-caption { display: flex; flex-wrap: wrap; gap: 4px var(--s2); margin: var(--s1) 0 0; min-height: 22px; font-size: var(--fs-2); }
+.now-caption a { margin-left: auto; }
+.now-under { display: grid; gap: var(--s3); }
+@media (min-width: 960px) { .now-under { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; } }
+.now-under .scope-hero { width: 100%; max-width: 280px; height: auto; }
+.now-axes { margin: 0; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+/* the picture being taken: words and bar on one line, so nothing under it moves as stages come and go */
+.shot-now { display: flex; align-items: center; gap: var(--s2); min-height: 22px; }
+.shot-now progress { flex: 1; max-width: 240px; }
+.shot-slot { min-height: 22px; }
+.shot-slot .shot-now { margin: 0; }
+/* the Now page's log: the time, then the words across the rest of the column */
+.now-part .events li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s2); }
+.page-header .actions .help-icon { min-height: 44px; }
+
+.now-part .events .ev-what { grid-column: auto; }
+
+/* ---- the camera's column: the next picture's settings, the picture in flight, the roll ---- */
+.next-shot, .roll { display: grid; gap: var(--s1); margin: 0 0 var(--s3); }
+.next-shot-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s1); }
+.next-shot-form label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--dim); }
+.next-shot-form select { width: 100%; min-height: 44px; background: var(--key); color: var(--text); border: 1px solid var(--key-edge); border-radius: var(--r); padding: 0 var(--s2); font-size: var(--fs-3); }
+.next-shot-note { margin: 0; min-height: 20px; font-size: var(--fs-2); }
+/* a switch: its state in a word as well as the knob */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); width: 100%; min-height: 44px; padding: 0 var(--s2); background: var(--key); border: 0; border-radius: var(--r); box-shadow: var(--bevel); color: var(--text); font: inherit; font-size: var(--fs-3); text-align: left; }
+.switch-state { display: inline-flex; align-items: center; gap: var(--s1); color: var(--dim); font-size: var(--fs-2); }
+.switch-knob { position: relative; width: 40px; height: 22px; border-radius: 11px; background: var(--key-edge); }
+.switch-knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--dim); transition: transform .12s; }
+.switch-row[aria-checked="true"] .switch-state { color: var(--on); }
+.switch-row[aria-checked="true"] .switch-knob { background: var(--lit-on); }
+.switch-row[aria-checked="true"] .switch-knob::after { transform: translateX(18px); background: var(--on); }
+/* the picture in flight: a slot that keeps its size whatever stage is in it */
+.roll-now { display: grid; grid-template-rows: 22px 18px 6px; gap: 4px; padding: var(--s2); background: var(--panel); border-radius: var(--r); }
+.roll-now strong { font-size: var(--fs-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roll-now .dim { font-size: var(--fs-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the exposure's bar: it runs by itself, so it is smooth; a redraw of the page does not restart it */
+.shot-bar { display: block; height: 6px; border-radius: 3px; background: var(--key-edge); overflow: hidden; }
+.shot-bar i { display: block; width: 100%; height: 100%; background: var(--accent); transform-origin: left center; animation: shot-fill linear both; }
+@keyframes shot-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .shot-bar i { animation: none; opacity: .5; } .switch-knob::after { transition: none; } }
+.shot-now .shot-bar { flex: 1; max-width: 240px; }
+/* the roll's pictures: a thumbnail, its number over what it was taken at */
+.roll-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.roll-pic { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: var(--s2); align-items: center; width: 100%; min-height: 60px; padding: 4px; background: transparent; border: 0; border-radius: var(--r); color: var(--text); font: inherit; text-align: left; }
+.roll-pic img { width: 84px; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; background: #000; }
+.roll-pic.picked { background: var(--lit); }
+.roll-text { display: grid; gap: 2px; min-width: 0; }
+.roll-text strong { font-size: var(--fs-2); }
+.roll-text small { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.night .roll-pic img { filter: sepia(1) saturate(4) hue-rotate(-30deg) brightness(.7); }
+/* the line under the picture: one height, whichever picture it is */
+.shot-line { display: flex; align-items: center; gap: var(--s2); min-height: 44px; margin: 0; font-size: var(--fs-2); }
+.shot-line .shot-latest { margin-left: auto; flex: none; }
+/* a panel opened in the column: its name, and the way out, right there */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin: 0 0 var(--s2); }
+.panel-head h2 { margin: 0; font-size: var(--fs-4); }
+.panel-head .panel-close { min-height: 44px; }
+/* ---- the bar is the one statement of where the telescope points (#148) ----
+   Inside the position, in the order they give way to an ellipsis: that it is not on the sky yet,
+   the position itself, how high and which way. A phone has room for one of them: the position on
+   the sky, or the words when there is none (the axes' angles are on the telescope's own page). */
+.scope-now .now-note + .now-pos::before, .scope-now .now-up::before { content: "·"; margin: 0 6px; }
+@media (max-width: 599px) {
+  .scope-now .now-up, .scope-now .now-note + .now-pos { display: none; }
+}
+
+/* ---- an object's kind, drawn, wherever it is listed (#150) ----
+   A UI.item row for an object in the sky: its kind in a column of its own before the name, the
+   badge Tonight's rows have. On a Recent chip it sits before the name, quieter than the name. */
+.item.item-kind { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+.item-k { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--sunk); color: var(--dim); }
+.item-k .kind-icon { width: 16px; height: 16px; }
+.recent .btn .kind-icon { color: var(--dim); }
+/* ---- a starting exposure for a target (Sky.Exposure, #117): what to set, over why ----
+   On the object's page it is a row of the card (UI.setting's layout), between what the object
+   is and the way to the Sky Map; in Tonight's side panel it is a .pick-about line. */
+.object .card > .exposure-advice { margin: var(--s2) 0; padding-top: 0; }
+.exposure-advice strong { font-variant-numeric: tabular-nums; }
+.exposure-advice .setting-text span { line-height: 1.45; }
+/* the camera's own facts: battery, card, what is on it */
+.cam-facts { display: grid; gap: 2px; margin: 0 0 var(--s3); }
+
+/* ---- one toolbar (13 October: "you kind of have two toolbars going on") ----
+   On a wide screen a page whose header is its title and its keys shares one row with the bar:
+   the title and Docs on the left, the telescope (what it is doing, how well it is aligned, where
+   it points, STOP) on the right. A header that carries a status of its own (the sky's time and
+   place) keeps its row under the bar. */
+.scope-now .now-al { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; color: var(--dim); }
+.scope-now .now-al .al-glyph { flex: none; }
+@media (max-width: 959px) { .scope-now .now-al { display: none; } }
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now { width: fit-content; max-width: 72%; margin: 0 0 -53px auto; background: transparent; border-bottom: 0; min-height: 52px; --now-h: 52px; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now.now-slewing,
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now.now-moving { background: color-mix(in srgb, var(--amber) 16%, var(--bg)); border-radius: 0 0 0 var(--r); }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header { top: 0; min-height: 52px; grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "title keys ." "title keys ."; grid-template-rows: auto; align-items: center; padding-top: 4px; padding-bottom: 4px; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header > .actions { justify-self: start; }
+  .shell-main:has(> .scope-now .now-stop):not(:has(.tb-status)) .page-header { top: 0; }
+}
+
+/* ---- the camera page: a row of controls over the picture, the pictures beside it ---- */
+.cam-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s2); }
+.cam-controls > .cam-take { flex: none; min-height: 44px; padding-left: var(--s4); padding-right: var(--s4); }
+.cam-controls > .switch-row { width: auto; flex: 0 1 auto; gap: var(--s3); }
+.cam-controls > .next-shot-form { flex: 0 1 320px; min-width: 240px; }
+.cam-note { display: flex; align-items: center; gap: var(--s2); min-height: 44px; margin: 0; font-size: var(--fs-2); color: var(--dim); }
+.cam-suggest { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.cam-suggest .btn { min-height: 44px; padding: 0 var(--s2); }
+@media (max-width: 599px) {
+  .cam-controls > .cam-take, .cam-controls > .switch-row, .cam-controls > .next-shot-form { flex: 1 1 100%; width: 100%; }
+}
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-what { flex: 0 1 auto; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-where { flex: 0 1 auto; }
+}
+/* the line under the picture reads as one line of text; only the looked-at picture's line has a key in it */
+.shot-line { display: block; min-height: 40px; }
+.shot-line.is-old { display: flex; }
+.roll-solve { color: var(--on); }
+.roll-solve.is-not { color: var(--dim); }
+
+
+/* ---- the bar is one key (13 October: "here's the essential information... click on the thing
+   and jump into it") ----
+   What the telescope is doing, how well it is aligned, and STOP when something can be stopped.
+   Where it points, the axes and the log are one click away, on Now. A page's Docs moved out of
+   its header to the foot of the sidebar; on a phone Search lists it first. */
+.scope-now .now-what { flex: 0 1 auto; gap: var(--s2); padding: 0 var(--s2); min-height: 44px; border-radius: var(--r); }
+.scope-now .now-what:hover { background: var(--key); }
+.scope-now .now-open { flex: none; width: 16px; height: 16px; color: var(--dim); }
+.scope-now .now-al-words { overflow: hidden; text-overflow: ellipsis; }
+.scope-now strong { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.scope-now { justify-content: space-between; }
+@media (max-width: 959px) { .scope-now .now-al { display: inline-flex; } .scope-now .now-al-words { display: none; } }
+.scope-now .now-al.al-none .now-al-words { display: inline; color: var(--amber); }
+.page-header .actions .help-icon, .hdr-actions .help { display: none; }
+.side-docs small { margin-left: auto; color: var(--dim); font-size: var(--fs-1); }
+.side-docs { margin-top: auto; }
+.side-docs + .side-night { margin-top: 0; }
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "title keys" "title keys"; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header > .actions { justify-self: start; }
+}
+
+/* ---- the bar in two lines (13 October: "it's okay to go two... the big thing that's happening
+   and then the supporting information") ----
+   Line one: what the telescope is doing, and to what. Line two, smaller: how well it is aligned
+   and where it points. The whole of it opens Now (the first link's hit area is stretched over
+   it); the target's name sits above that and opens the page that says what it is. Never three
+   lines. STOP is beside it only for a slew or a move. */
+.scope-now { --now-h: 56px; min-height: 56px; justify-content: flex-start; }
+.scope-now .now-what { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s1); row-gap: 2px; align-items: center; align-content: center; flex: 0 1 auto; min-width: 0; min-height: 48px; padding: 4px var(--s2); border-radius: var(--r); }
+.scope-now .now-what:hover { background: var(--key); }
+.scope-now .now-dot { grid-row: 1; grid-column: 1; }
+.scope-now .now-top { grid-row: 1; grid-column: 2; display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; line-height: 1.25; }
+.scope-now .now-top a { color: var(--text); text-decoration: none; }
+.scope-now .now-doing-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }
+.scope-now .now-doing-link:focus-visible { outline: none; }
+.scope-now .now-doing-link:focus-visible::after { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scope-now .now-target, .scope-now .now-target-plain { font-weight: 650; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.scope-now a.now-target { position: relative; z-index: 1; padding: 12px 2px; margin: -12px -2px; text-decoration: underline; text-decoration-color: var(--dim); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.scope-now a.now-target:hover { text-decoration-color: var(--text); }
+.scope-now .now-sub { grid-row: 2; grid-column: 2; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--fs-1); line-height: 1.25; color: var(--dim); font-variant-numeric: tabular-nums; }
+.scope-now .now-sub > span { flex: none; }
+.scope-now .now-sub > span + span::before { content: "·"; margin: 0 6px; }
+.scope-now .now-sub .now-al { display: inline-flex; align-items: center; gap: 4px; }
+.scope-now .now-sub .now-al-words { display: inline; }
+.scope-now .now-open { display: none; }
+.scope-now.now-slewing, .scope-now.now-moving, .scope-now:has(.now-stop) { --now-h: 56px; }
+.shell-main:has(> .scope-now) .page-header, .shell-main:has(> .scope-now .now-stop) .page-header,
+.shell-main:has(> .scope-now.now-slewing) .page-header, .shell-main:has(> .scope-now.now-moving) .page-header { top: calc(56px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 599px) { .scope-now .now-sub .now-al-words { display: none; } .scope-now .now-what { flex: 1 1 auto; } }
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now { margin: 0 0 -57px auto; min-height: 56px; max-width: 60%; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header { top: 0; min-height: 56px; padding-top: 0; padding-bottom: 0; align-items: center; align-content: center; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header .page-title { align-self: center; margin: 0; line-height: 1.2; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-top { justify-content: flex-end; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) > .scope-now .now-sub { justify-content: flex-end; }
+}
+/* Now: a hold is ended here, with what that does */
+.now-stop-hold { display: grid; gap: var(--s1); margin-top: var(--s2); }
+.now-stop-hold .btn { justify-self: start; min-height: 44px; }
+.now-stop-hold p { margin: 0; font-size: var(--fs-2); }
+.now-doing .state-line strong a { color: inherit; text-decoration: underline; text-decoration-color: var(--dim); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+/* ---- the camera's controls as one strip (13 October: "label and then a control below it...
+   controls that feel precise") ----
+   Every cell is the same shape: a 12 px label, then a 44 px control, bottoms on one line. A
+   switch is a track and a word, with no box round it; the whole cell is its key. On a phone the
+   shutter key runs across and the rest sit two to a row. */
+.cam-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s2) var(--s4); padding-bottom: var(--s2); border-bottom: 1px solid var(--edge); }
+.cam-controls > .cam-take { flex: none; min-height: 44px; height: 44px; padding: 0 var(--s4); }
+.cam-controls > .next-shot-form { display: contents; }
+.cam-controls .ctl { display: grid; grid-template-rows: 16px 44px; row-gap: 4px; align-content: end; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; flex: none; min-width: 0; }
+.cam-controls .ctl-label { font-size: var(--fs-1); line-height: 16px; color: var(--dim); white-space: nowrap; letter-spacing: .01em; }
+.cam-controls .ctl-field { flex: none; width: 112px; height: 44px; min-height: 44px; padding: 0 var(--s2); background: var(--key); border: 1px solid var(--key-edge); border-radius: var(--r); color: var(--text); font-size: var(--fs-3); font-variant-numeric: tabular-nums; text-align: left; }
+.cam-controls .ctl-body { display: inline-flex; align-items: center; gap: var(--s1); height: 44px; }
+.cam-controls .ctl-track { position: relative; flex: none; width: 44px; height: 24px; border-radius: 12px; background: var(--key); border: 1px solid var(--key-edge); box-sizing: border-box; transition: background .12s; }
+.cam-controls .ctl-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--dim); transition: transform .12s, background .12s; }
+.cam-controls .ctl-word { min-width: 3ch; font-size: var(--fs-3); font-variant-numeric: tabular-nums; color: var(--dim); }
+.cam-controls .ctl-switch[aria-checked="true"] .ctl-track { background: var(--lit-on); border-color: transparent; }
+.cam-controls .ctl-switch[aria-checked="true"] .ctl-track::after { transform: translateX(20px); background: var(--on); }
+.cam-controls .ctl-switch[aria-checked="true"] .ctl-word { color: var(--text); }
+.cam-controls .ctl-switch:focus-visible { outline: none; }
+.cam-controls .ctl-switch:focus-visible .ctl-track { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cam-note { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .cam-controls .ctl-track, .cam-controls .ctl-track::after { transition: none; } }
+@media (max-width: 599px) {
+  .cam-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s2) var(--s3); }
+  .cam-controls > .cam-take { grid-column: 1 / -1; width: 100%; }
+  .cam-controls > .ctl-switch:nth-of-type(2) { grid-column: 1; grid-row: 2; }
+  .cam-controls > .ctl-switch:last-of-type { grid-column: 2; grid-row: 2; }
+  .cam-controls .ctl-field { width: 100%; }
+}
+/* the dot sits with the words it belongs to, wherever the line is aligned */
+.scope-now .now-what { grid-template-columns: minmax(0, 1fr); }
+.scope-now .now-top, .scope-now .now-sub { grid-column: 1; }
+.scope-now .now-top { align-items: center; }
+.scope-now .now-top .now-dot { align-self: center; margin-right: 2px; }
+@media (max-width: 1099px) { .scope-now .now-sub { padding-left: 16px; } }
+.cam-note:empty { min-height: 0; }
+
+/* ---- one picture's page: its steps through the box, and what was recorded with it ---- */
+.roll-pic { text-decoration: none; color: inherit; }
+.roll-pic .roll-open { flex: none; width: 16px; height: 16px; margin-left: auto; color: var(--dim); }
+.roll-now { position: relative; }
+.roll-follow { position: absolute; top: var(--s2); right: var(--s2); min-height: 44px; margin-top: -10px; display: inline-flex; align-items: center; font-size: var(--fs-2); color: var(--dim); text-decoration: none; }
+.roll-follow:hover { color: var(--text); }
+.pic-caption { margin: var(--s1) 0 0; font-size: var(--fs-2); min-height: 22px; }
+.pic-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.pic-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--s2); align-items: start; padding: var(--s2) 0; border-top: 1px solid var(--edge); min-height: 44px; }
+.pic-steps li:first-child { border-top: 0; }
+.pic-mark { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: var(--fs-2); line-height: 1; color: var(--dim); border: 1px solid var(--key-edge); }
+.pic-steps .is-done .pic-mark { color: var(--on); border-color: transparent; background: var(--lit-on); }
+.pic-steps .is-now .pic-mark { color: var(--amber); border-color: var(--amber); }
+.pic-steps .is-failed .pic-mark { color: var(--amber); border-color: var(--amber); }
+.pic-step { display: grid; gap: 2px; min-width: 0; }
+.pic-step strong { font-weight: 600; }
+.pic-step small { font-size: var(--fs-2); color: var(--dim); overflow-wrap: anywhere; }
+.pic-steps .is-waiting .pic-step strong, .pic-steps .is-skipped .pic-step strong { color: var(--dim); font-weight: 500; }
+.pic-when { font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 4px; }
+.pic-facts { margin: 0; display: grid; }
+.pic-facts > div { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--edge); }
+.pic-facts > div:first-child { border-top: 0; }
+.pic-facts dt { color: var(--dim); font-size: var(--fs-2); }
+.pic-facts dd { margin: 0; font-size: var(--fs-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* a page under another keeps its back key and its parent's name in the shared row: the key first,
+   the parent's name over the title, the telescope on the right as everywhere */
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "lead over keys" "lead title keys"; grid-template-rows: 16px 26px; column-gap: var(--s2); row-gap: 0; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .tb-over { display: block; align-self: end; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .tb-lead { align-self: center; }
+  .shell-main:has(> .scope-now):not(:has(.tb-status)) .page-header:has(> .tb-lead:not(.tb-home)) > .page-title { align-self: start; }
+}

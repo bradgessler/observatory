@@ -1,16 +1,32 @@
 defmodule Controller.StillCameraLive do
   @moduledoc """
-  The stills camera on the telescope (a Sony a6000 in PC Remote), on a phone:
-  the last picture, ISO and shutter, a picture now or one after another, and
-  Lock On: both motors steered from these pictures to hold the target still.
+  The camera on the telescope when it is a stills camera (a Sony a6000 in PC
+  Remote): the same page a video camera gets, with frames that come seconds
+  or minutes apart. So the latest picture is always on it, with how long ago
+  it was taken.
 
-  The camera is the server's (`Controller.StillCamera`); every phone sees the
-  same pictures and the same lock.
+  One job a screen:
+
+    * `/cameras/stills`: the picture, and beside it everything about taking the next one: a
+      picture now or one after another, ISO and shutter speed (the next picture takes them; with a starting exposure
+      suggested for what the mount is tracking),
+      whether every picture is solved, the picture in flight stage by stage, and the roll of
+      the last few, any of which can be looked at again
+    * `/cameras/stills/lock`: Lock On, both motors steered from these pictures to hold the target still
+    * `/cameras/stills/solving`: the plate solver's queue, where each picture's solve stands
+
+  The two panels open in the column beside the picture and close right there.
+
+  Telescope Camera (`/cameras/telescope`) sends people here when this is the
+  camera on the telescope. The camera is the server's
+  (`Controller.StillCamera`); every phone sees the same pictures and the same lock.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
-  alias Controller.{LockOn, Settings, StillCamera}
+  alias Controller.{LockOn, Plates, Settings, StillCamera}
+  alias Controller.Components.Pictures
+  alias Controller.Sky.{Catalog, Ephemeris, Exposure, Pointing, Tracker}
 
   @isos [
     {"Auto", :auto},
@@ -25,34 +41,85 @@ defmodule Controller.StillCameraLive do
 
   @impl true
   def mount(params, session, socket) do
+    mounts = safe(fn -> Mount.list() end) || []
+    selected = params["id"] || session["telescope"] || Mount.default(Enum.map(mounts, & &1.id))
+
     if connected?(socket) do
       StillCamera.subscribe()
       LockOn.subscribe()
       Settings.subscribe()
+      # what the mount is tracking: the Exposure screen suggests an exposure for it
+      Telescope.subscribe("tracker")
+      if selected, do: Plates.subscribe(selected)
+      # the picture's age, and a solve's seconds
+      Process.send_after(self(), :tick, 1_000)
     end
-
-    mounts = safe(fn -> Mount.list() end) || []
-    selected = params["id"] || session["telescope"] || Mount.default(Enum.map(mounts, & &1.id))
 
     {:ok,
      assign(socket,
-       page_title: "Stills Camera",
        night: Settings.get("night", false),
-       cam: StillCamera.status(),
+       # the camera on the telescope, whichever machine of the cluster it is plugged into
+       cam: StillCamera.find(),
        lock: LockOn.status(),
        selected: selected,
+       plates: plates(selected),
+       # a starting exposure for what the mount is tracking (`Sky.Exposure`), nil while it tracks nothing
+       suggest: suggest(selected && safe(fn -> Tracker.status(selected) end)),
+       now_ms: System.system_time(:millisecond),
        notice: nil,
-       turning: false
+       turning: false,
+       # the roll: the picture this viewer is looking at (its number), or nil for the latest as it comes
+       picked: nil,
+       # the bar of the exposure in flight: which one it is for, and how far in it was when first drawn
+       bar: nil
      )}
   end
 
+  @impl true
+  def handle_params(_params, _uri, socket), do: {:noreply, assign(socket, page_title: screen_title(socket.assigns.live_action))}
+
+  defp screen_title(:lock), do: "Lock On"
+  defp screen_title(:solving), do: "Plate Solving"
+  defp screen_title(_), do: "Telescope Camera"
+
+  # the solver's queue for this mount, newest first
+  defp plates(nil), do: []
+  defp plates(id), do: Enum.reverse((safe(fn -> Plates.view(id) end) || %{})[:plates] || [])
+
   # another machine's simulated camera is never this page's camera (StillCamera.listed?/2)
   @impl true
-  def handle_info({:still_camera, cam}, socket),
-    do: {:noreply, if(StillCamera.listed?(cam), do: assign(socket, cam: cam), else: socket)}
+  def handle_info({:still_camera, cam}, socket) do
+    cam = StillCamera.prefer(socket.assigns.cam, cam)
+    # a picture that has left the roll is no longer the one being looked at
+    picked = if socket.assigns.picked && Enum.any?(cam[:recent] || [], &(&1.seq == socket.assigns.picked)), do: socket.assigns.picked
+    {:noreply, assign(socket, cam: cam, picked: picked, bar: bar(socket.assigns.bar, cam[:shot]))}
+  end
 
   def handle_info({:lock_on, lock}, socket), do: {:noreply, assign(socket, lock: lock)}
+
+  def handle_info(:tick, socket) do
+    Process.send_after(self(), :tick, 1_000)
+    {:noreply, assign(socket, now_ms: System.system_time(:millisecond))}
+  end
+
+  def handle_info({:plates, id, view}, socket) do
+    if id == socket.assigns.selected,
+      do: {:noreply, assign(socket, plates: Enum.reverse(view[:plates] || []), now_ms: System.system_time(:millisecond))},
+      else: {:noreply, socket}
+  end
+
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
+
+  # the telescope's optics changed (a solve measured the focal length): the suggestion is worked out again
+  def handle_info({:settings, key, _}, %{assigns: %{selected: id}} = socket) when key in ["aperture_mm", "focal_length_mm"] and is_binary(id),
+    do: {:noreply, assign(socket, suggest: suggest(safe(fn -> Tracker.status(id) end)))}
+
+  # a hold started, ended or moved to another target: the suggestion follows it; its every tick doesn't
+  def handle_info({:tracker, id, status}, %{assigns: %{selected: id}} = socket) do
+    if get_in(status || %{}, [:target, :id]) == (socket.assigns.suggest || %{})[:id],
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, suggest: suggest(status))}
+  end
 
   def handle_info({:set_done, result}, socket) do
     notice =
@@ -64,22 +131,51 @@ defmodule Controller.StillCameraLive do
 
   def handle_info(_, socket), do: {:noreply, socket}
 
+  # The exposure's bar runs by itself in the browser (CSS), so it is smooth. It is started once
+  # per exposure: how far in the exposure was when this page first saw it is worked out then and
+  # kept, or every redraw would start the bar again.
+  defp bar(%{key: key} = bar, %{stage: :exposing, seq: seq}) when key == seq, do: bar
+
+  defp bar(_, %{stage: :exposing, seq: seq, exposure_ms: ms, since_ms: since}) when is_number(ms) and ms >= 1_000,
+    do: %{key: seq, ms: round(ms), in_ms: max(System.system_time(:millisecond) - since, 0)}
+
+  defp bar(_, _), do: nil
+
   # -- events -------------------------------------------------------------------------------
 
   @impl true
+  # every key goes to the machine the camera is on
   def handle_event("shoot", _, socket) do
-    StillCamera.shoot()
+    StillCamera.shoot(on: socket.assigns.cam[:node])
     {:noreply, socket}
   end
 
   def handle_event("continuous", %{"on" => on}, socket) do
-    StillCamera.continuous(on == "true")
+    safe(fn -> StillCamera.continuous(on == "true", 0, on: socket.assigns.cam[:node]) end)
     {:noreply, socket}
   end
 
   # the dials turn a notch at a time: the page stays live while they do
   def handle_event("iso", %{"iso" => v}, socket), do: {:noreply, turn(socket, iso: parse_iso(v))}
   def handle_event("shutter", %{"shutter" => v}, socket), do: {:noreply, turn(socket, shutter: v)}
+
+  # the two dropdowns: whichever was changed is turned; the next picture takes it
+  def handle_event("exposure", %{"_target" => ["iso"], "iso" => v}, socket), do: {:noreply, turn(socket, iso: parse_iso(v))}
+  def handle_event("exposure", %{"_target" => ["shutter"], "shutter" => v}, socket), do: {:noreply, turn(socket, shutter: v)}
+  def handle_event("exposure", _, socket), do: {:noreply, socket}
+
+  # the roll: look at one of the last pictures, or go back to the latest as it comes
+  def handle_event("pick", %{"seq" => seq}, socket), do: {:noreply, assign(socket, picked: String.to_integer(seq))}
+  def handle_event("latest", _, socket), do: {:noreply, assign(socket, picked: nil)}
+
+  # Use It: both dials to the suggested exposure, as the server worked it out (nothing is taken from the page)
+  def handle_event("use_exposure", _, %{assigns: %{suggest: %{advice: a}}} = socket), do: {:noreply, turn(socket, iso: a.iso, shutter: a.shutter)}
+  def handle_event("use_exposure", _, socket), do: {:noreply, socket}
+
+  # Lock On steers from the camera's pictures where they arrive: on the camera's own machine
+  def handle_event("lock", _, %{assigns: %{cam: %{node: n}}} = socket) when n != node() do
+    {:noreply, assign(socket, notice: "Lock On runs on the machine the camera is on: open it there")}
+  end
 
   def handle_event("lock", %{"target" => t}, socket) do
     target = if t == "star", do: :star, else: :bright
@@ -97,7 +193,7 @@ defmodule Controller.StillCameraLive do
   end
 
   def handle_event("solving", %{"on" => on}, socket) do
-    StillCamera.solving(on == "true")
+    safe(fn -> StillCamera.solving(on == "true", on: socket.assigns.cam[:node]) end)
     {:noreply, socket}
   end
 
@@ -114,12 +210,28 @@ defmodule Controller.StillCameraLive do
 
   defp turn(socket, settings) do
     me = self()
-    Task.start(fn -> send(me, {:set_done, StillCamera.set(settings)}) end)
+    on = socket.assigns.cam[:node]
+    Task.start(fn -> send(me, {:set_done, StillCamera.set(settings, on)}) end)
     assign(socket, turning: true, notice: nil)
   end
 
   defp parse_iso("auto"), do: :auto
   defp parse_iso(v), do: String.to_integer(v)
+
+  # A starting exposure for what the mount is tracking, among the ISOs and shutter speeds this
+  # screen's dials offer: `%{id, name, advice}`, or nil when it tracks nothing the catalogue knows
+  # (the tracker keeps the target's id, name and place; what kind of thing it is comes from the catalogue).
+  defp suggest(%{target: %{id: id}}) when is_binary(id) do
+    obj = Catalog.object(id) || Enum.find(safe(fn -> Ephemeris.objects(DateTime.utc_now(), Pointing.site()) end) || [], &(&1.id == id))
+
+    case Exposure.tonight(obj, shutters: @shutters, isos: for({_, iso} <- @isos, is_integer(iso), do: iso)) do
+      nil -> nil
+      # "Moon · last quarter" is the Moon
+      advice -> %{id: id, name: obj.name |> String.split(" · ", parts: 2) |> hd(), advice: advice}
+    end
+  end
+
+  defp suggest(_), do: nil
 
   # -- render ----------------------------------------------------------------------------------
 
@@ -135,122 +247,334 @@ defmodule Controller.StillCameraLive do
     ~H"""
     <.page id="still-camera" night={@night}>
       <:header>
-        <.back navigate={~p"/"} label="Home" section="Cameras" />
-        <.title>Stills Camera</.title>
+        <.back :if={@live_action == :index} navigate={~p"/"} label="Home" section={section(@cam)} />
+        <.back :if={@live_action != :index} patch={~p"/cameras/stills"} label="Telescope Camera" />
+        <.title>{screen_title(@live_action)}</.title>
         <.actions>
-          <.help href={~p"/docs/still-camera"} label="the stills camera" /><.stop />
+          <.help href={help_href(@live_action)} label={help_label(@live_action)} /><.stop />
         </.actions>
       </:header>
 
       <p :for={line <- trouble(@cam)} class="hint tone-caution" role="status">{line}</p>
 
+      <%!-- One row over the picture: take one, keep taking them, and what the next one is taken at.
+            Under it the picture, with the pictures already taken beside it (on a phone, below). --%>
+      <.controls :if={@cam.camera && @live_action == :index} cam={@cam} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} suggest={@suggest} />
       <.split :if={@cam.camera}>
         <:main>
-          <section class="scope-frame" aria-label="latest picture">
-            <img
-              :if={@cam.last && @cam.last[:w]}
-              src={~p"/cameras/stills/latest.png?#{[t: @cam.last.seq]}"}
-              alt={"Latest picture: #{caption(@cam.last)}"}
-            />
-            <div :if={!(@cam.last && @cam.last[:w])} class="scope-frame-empty">
-              <p class="dim">No picture yet. Tap Take Picture.</p>
-            </div>
-            <p :if={@cam.last} class="dim" role="status">{caption(@cam.last)}</p>
-            <%!-- why the last picture isn't counted as a good one, a line each; gone with the next good picture --%>
-            <p :for={line <- uncounted(@cam.last)} class="hint" role="status">{line}</p>
-            <%!-- the number to focus by, on a line of its own; under it what to do, with its ? at the row's end (UI.setting's layout) --%>
-            <p :if={@cam.last} class="lock-line" role="status">{star_size_line(@cam.last)}</p>
-            <div :if={@cam.last} class="setting">
-              <div class="setting-text">
-                <span>Smaller is sharper. Turn the focus knob a little, take a picture, compare.</span>
-              </div>
-              <span class="setting-action">
-                <.help href={~p"/docs/still-camera#focusing"} label="focusing" />
-              </span>
-            </div>
-            <p :if={@cam[:free_mb]} class={["dim", @cam.room_for < 20 && "tone-caution"]}>{card_line(@cam)}</p>
-          </section>
+          <.shot cam={@cam} now_ms={@now_ms} focus={@live_action == :index} picked={@picked} />
         </:main>
         <:side>
-          <div class="focus-keys">
-            <.btn variant="primary" phx-click="shoot" disabled={@cam.busy}>
-              {if @cam.busy, do: "Taking…", else: "Take Picture"}
-            </.btn>
-            <.btn on={@cam.shooting} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
-              {if @cam.shooting, do: "Shooting On", else: "Shoot Continuously"}
-            </.btn>
+          <%!-- a panel opened from this column closes right here, where the hand already is --%>
+          <div :if={@live_action != :index} class="panel-head">
+            <h2>{screen_title(@live_action)}</h2>
+            <.link patch={~p"/cameras/stills"} class="btn panel-close" aria-label={"Close #{screen_title(@live_action)}"}><span aria-hidden="true">✕ </span>Close</.link>
           </div>
-          <p :if={@cam.why} class="hint tone-caution" role="status">{@cam.why}</p>
-
-          <.card title="Lock On">
-            <p class="lock-line" role="status">{lock_line(@lock)}</p>
-            <p :if={@lock.state in [:holding, :coasting] && @lock[:error_px]} class="dim">
-              {hold_line(@lock)}
-            </p>
-            <.row>
-              <.btn
-                :if={@lock.state == :off}
-                variant="primary"
-                phx-click="lock"
-                phx-value-target="bright"
-                disabled={!@selected}
-              >
-                Lock On the Bright Target
-              </.btn>
-              <.btn
-                :if={@lock.state == :off}
-                phx-click="lock"
-                phx-value-target="star"
-                disabled={!@selected}
-              >
-                Lock On a Star
-              </.btn>
-              <.btn :if={@lock.state != :off} phx-click="release">Release</.btn>
-            </.row>
-            <.hint>
-              Measures how the target drifts and how each motor moves the picture, then steers both. No polar alignment needed.
-            </.hint>
-          </.card>
-
-          <.card title="Plate Solve">
-            <p class="lock-line" role="status">{solve_line(@cam)}</p>
-            <.row>
-              <.btn on={@cam[:solving] == true} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
-                {if @cam[:solving], do: "Solving On", else: "Solve Pictures"}
-              </.btn>
-              <.btn variant="ghost" navigate={~p"/align/photo"}>Alignment Photos</.btn>
-            </.row>
-            <.hint>
-              Each picture is plate solved on the box: where the telescope pointed, to a few arcseconds. Solved pictures add to the mount's alignment.
-            </.hint>
-          </.card>
-
-          <.card title="Settings">
-            <p class="dim">
-              ISO {iso_words(@settings[:iso])} · {@settings[:shutter] || "?"} s · {@settings[:quality] ||
-                "?"}{if @turning, do: " · turning the dial…", else: ""}
-            </p>
-            <.rates label="ISO" class="rates-4">
-              <:opt :for={{lbl, v} <- @isos} on={@settings[:iso] == v} click="iso" value={%{iso: v}}>
-                {lbl}
-              </:opt>
-            </.rates>
-            <.rates label="shutter speed" class="rates-4">
-              <:opt
-                :for={v <- @shutters}
-                on={@settings[:shutter] == v}
-                click="shutter"
-                value={%{shutter: v}}
-              >
-                {v}
-              </:opt>
-            </.rates>
-          </.card>
+          <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} picked={@picked} bar={@bar} now_ms={@now_ms} suggest={@suggest} />
+          <%!-- the lock and the solver's queue live on the machine the camera is on: from another, a way there --%>
+          <.elsewhere :if={@live_action in [:lock, :solving] and StillCamera.remote?(@cam)} cam={@cam} action={@live_action} />
+          <.lock :if={@live_action == :lock and not StillCamera.remote?(@cam)} lock={@lock} selected={@selected} />
+          <.solving :if={@live_action == :solving and not StillCamera.remote?(@cam)} cam={@cam} plates={@plates} now_ms={@now_ms} selected={@selected} />
         </:side>
       </.split>
 
       <.notice notice={@notice} />
     </.page>
+    """
+  end
+
+  # "Cameras · ILCE-6000": the section, and the camera's own name as it spells it
+  defp section(%{camera: %{} = c}), do: "Cameras · #{c[:model] || c[:id]}"
+  defp section(_), do: "Cameras"
+
+  defp help_href(:lock), do: ~p"/docs/still-camera#lock-on"
+  defp help_href(:solving), do: ~p"/docs/still-camera#plate-solving"
+  defp help_href(_), do: ~p"/docs/still-camera"
+
+  defp help_label(:lock), do: "Lock On"
+  defp help_label(:solving), do: "plate solving"
+  defp help_label(_), do: "the telescope camera"
+
+  # The latest picture, on every screen: how long ago it was taken, what is in it, and on the
+  # camera's own screen the number to focus by. Only the facts are a live region: an age that
+  # counts up would be read out every second.
+  attr :cam, :map, required: true
+  attr :now_ms, :integer, required: true
+  attr :focus, :boolean, default: false
+
+  attr :picked, :integer, default: nil
+
+  defp shot(assigns) do
+    old = assigns.picked && Enum.find(assigns.cam[:recent] || [], &(&1.seq == assigns.picked))
+    assigns = assign(assigns, last: assigns.cam.last, old: old)
+
+    ~H"""
+    <section class="scope-frame" aria-label={if @old, do: "picture #{@old.seq}", else: "latest picture"}>
+      <%!-- one of the roll's pictures, looked at again: it stays until Latest, or until it leaves the roll --%>
+      <img :if={@old} src={StillCamera.src_of(@cam, @old.seq)} alt={"Picture #{@old.seq}: #{roll_words(@old)}"} />
+      <p :if={@old} class="shot-line is-old">
+        <span>Picture {@old.seq} · taken {Pictures.age_words(@old, @now_ms)} · {roll_words(@old)}</span>
+        <button type="button" class="btn shot-latest" phx-click="latest">Latest</button>
+      </p>
+
+      <img
+        :if={!@old && @last && @last[:w]}
+        src={StillCamera.src(@cam, @last.seq)}
+        alt={"Latest picture: #{caption(@last)}"}
+      />
+      <div :if={!@old && !(@last && @last[:w])} class="scope-frame-empty">
+        <p class="dim">{cond do
+          @cam.busy -> "The first picture is on its way"
+          not ready?(@cam) -> "The camera is not ready"
+          true -> "No picture yet. Tap Take Picture."
+        end}</p>
+      </div>
+      <p :if={!@old && @last} class="shot-line dim">
+        <span>Taken {Pictures.age_words(@last, @now_ms)}</span><span :if={caption(@last) != ""}> · </span><span role="status">{caption(@last)}</span>
+      </p>
+      <%!-- why the last picture isn't counted as a good one, a line each; gone with the next good picture --%>
+      <p :for={line <- uncounted(@last)} :if={!@old} class="hint" role="status">{line}</p>
+      <%!-- the number to focus by, on a line of its own; under it what to do, with its help at the row's end --%>
+      <p :if={@last && @focus && !@old} class="lock-line" role="status">{star_size_line(@last)}</p>
+      <div :if={@last && @focus && !@old} class="setting">
+        <div class="setting-text">
+          <span>Smaller is sharper. Turn the focus knob a little, take a picture, compare.</span>
+        </div>
+        <span class="setting-action">
+          <.help href={~p"/docs/still-camera#focusing"} label="focusing" />
+        </span>
+      </div>
+    </section>
+    """
+  end
+
+  # "06:28:23 UTC · ISO 6400 · 15 s · 40 stars": one of the roll's pictures in a line
+  defp roll_words(r) do
+    [
+      match?(%DateTime{}, r[:at]) && Calendar.strftime(r.at, "%H:%M:%S UTC"),
+      r[:iso] && "ISO #{iso_words(r.iso)}",
+      r[:shutter] && "#{r.shutter} s",
+      stars_words(r[:stars])
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" · ")
+  end
+
+  # The row over the picture. Left to right: the two things you do (take one; keep taking them),
+  # then what the next picture is taken at (ISO, shutter speed), then whether each is plate solved.
+  # Under the row, one line that keeps its height: why nothing is being taken, or a dial turning,
+  # or a starting exposure for what the mount tracks, with the key that sets it.
+  attr :cam, :map, required: true
+  attr :settings, :map, required: true
+  attr :isos, :list, required: true
+  attr :shutters, :list, required: true
+  attr :turning, :boolean, default: false
+  attr :suggest, :map, default: nil
+
+  defp controls(assigns) do
+    ~H"""
+    <%!-- One strip of controls, each the same shape: a small label over a 44 px control, bottoms on one
+          line (13 October: "controls that feel precise... label and then a control below it"). No boxes
+          round the switches. On a phone: the key across, then two to a row. --%>
+    <div class="cam-controls" role="group" aria-label="taking pictures">
+      <.btn variant="primary" class="cam-take" phx-click="shoot" disabled={@cam.busy or not ready?(@cam)}>Take Picture</.btn>
+      <button type="button" class="ctl ctl-switch" role="switch" aria-checked={to_string(@cam.shooting == true)} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
+        <span class="ctl-label">Keep taking pictures</span>
+        <span class="ctl-body"><i class="ctl-track" aria-hidden="true"></i><span class="ctl-word">{if @cam.shooting, do: "On", else: "Off"}</span></span>
+      </button>
+      <form phx-change="exposure" class="next-shot-form" aria-label="the next picture's exposure">
+        <label class="ctl">
+          <span class="ctl-label">ISO</span>
+          <select name="iso" class="field ctl-field">
+            <option :for={{lbl, v} <- options(@isos, @settings[:iso])} value={to_string(v)} selected={@settings[:iso] == v}>{lbl}</option>
+          </select>
+        </label>
+        <label class="ctl">
+          <span class="ctl-label">Shutter speed</span>
+          <select name="shutter" class="field ctl-field">
+            <option :for={v <- shutter_options(@shutters, @settings[:shutter])} value={v} selected={@settings[:shutter] == v}>{v} s</option>
+          </select>
+        </label>
+      </form>
+      <button type="button" class="ctl ctl-switch" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
+        <span class="ctl-label">Plate solve each picture</span>
+        <span class="ctl-body"><i class="ctl-track" aria-hidden="true"></i><span class="ctl-word">{if @cam[:solving], do: "On", else: "Off"}</span></span>
+      </button>
+    </div>
+    <p class="cam-note" role="status">
+      <span :if={@cam.why} class="tone-caution">{@cam.why}</span>
+      <span :if={!@cam.why && @turning}>Turning the camera's dial…</span>
+      <%!-- the mount is tracking something: a starting exposure for it, and the one key that sets it (#117) --%>
+      <span :if={!@cam.why && !@turning && @suggest} class="cam-suggest" title={@suggest.advice.why}>
+        Suggested for {@suggest.name}: {Exposure.words(@suggest.advice)}
+        <.btn :if={!in_use?(@settings, @suggest)} phx-click="use_exposure" aria-label={"Use it: set #{Exposure.words(@suggest.advice)}"}>Use It</.btn>
+        <span :if={in_use?(@settings, @suggest)}>· set <span aria-hidden="true">✓</span></span>
+        <.link href={~p"/docs/still-camera#suggested-exposure"}>Why</.link>
+      </span>
+    </p>
+    """
+  end
+
+  # Beside the picture: the picture in flight, the roll of the last few, the camera's own facts,
+  # and the two panels a tap away.
+  attr :cam, :map, required: true
+  attr :lock, :map, required: true
+  attr :settings, :map, required: true
+  attr :isos, :list, required: true
+  attr :shutters, :list, required: true
+  attr :turning, :boolean, default: false
+  attr :picked, :integer, default: nil
+  attr :bar, :map, default: nil
+  attr :now_ms, :integer, required: true
+  attr :suggest, :map, default: nil
+
+  defp camera(assigns) do
+    ~H"""
+    <%!-- the roll: the picture in flight on top, in a slot that keeps its size; then the last few, newest
+          first. Tap one for its own page. --%>
+    <section class="roll" aria-labelledby="roll-h">
+      <h2 id="roll-h" class="now-h">Pictures</h2>
+      <div class="roll-now">
+        <strong role="status">{if @cam.busy, do: Pictures.shot_words(@cam[:shot]), else: "Ready"}</strong>
+        <%!-- the picture being taken has its page already: open it and watch it go through --%>
+        <.link :if={@cam.busy && is_map(@cam[:shot]) && @cam.shot[:seq]} navigate={~p"/cameras/stills/pictures/#{@cam.shot.seq}"} class="roll-follow" aria-label={"Picture #{@cam.shot.seq}: follow it"}>Picture {@cam.shot.seq} ›</.link>
+        <span class="dim">{if @cam.busy, do: flight_words(@cam[:shot], @settings), else: idle_words(@cam, @settings)}</span>
+        <span class="shot-bar" aria-hidden="true">
+          <i :if={@bar && @cam.busy && match?(%{stage: :exposing}, @cam[:shot])} id={"shot-bar-#{@bar.key}"} style={"animation-duration: #{@bar.ms}ms; animation-delay: -#{@bar.in_ms}ms"}></i>
+        </span>
+      </div>
+      <ol :if={(@cam[:recent] || []) != []} class="roll-list" aria-label="the last pictures, newest first">
+        <li :for={r <- @cam[:recent] || []}>
+          <%!-- a picture's row opens its own page: everything known about it (13 October 2026) --%>
+          <.link navigate={~p"/cameras/stills/pictures/#{r.seq}"} class="roll-pic" aria-label={"Picture #{r.seq}: everything about it"}>
+            <img src={StillCamera.src_of(@cam, r.seq)} alt="" loading="lazy" />
+            <span class="roll-text"><strong>Picture {r.seq}</strong><small>{roll_words(r)}<span :if={solve_mark(@cam, r)} class={["roll-solve", solve_mark(@cam, r) != "solved" && "is-not"]}> · {solve_mark(@cam, r)}</span></small></span>
+            <Controller.Components.Icons.icon name="chevron" class="icon roll-open" />
+          </.link>
+        </li>
+      </ol>
+    </section>
+
+    <%!-- the camera itself: its battery, its card, what is on it --%>
+    <p :if={StillCamera.remote?(@cam)} class="hint" role="status">This camera is on {host(@cam)}. Pictures and exposure work from here.</p>
+    <section class="cam-facts" aria-labelledby="cam-facts-h">
+      <h2 id="cam-facts-h" class="now-h">Camera</h2>
+      <.kv :if={battery(@cam)} label="Battery" value={"#{battery(@cam)}%"} />
+      <.kv :if={@settings[:quality]} label="Format" value={to_string(@settings.quality)} />
+      <.kv :if={@cam[:free_mb]} label="SD card" value={card_line(@cam)} />
+      <.kv :if={@cam[:card]} label="On the card" value={on_card_words(@cam.card)} />
+    </section>
+
+    <.items label="more">
+      <.link_item patch={~p"/cameras/stills/lock"} label="Lock On" detail={if StillCamera.remote?(@cam), do: "On #{host(@cam)}", else: lock_line(@lock)} />
+      <.link_item patch={~p"/cameras/stills/solving"} label="Plate Solving" detail={solve_line(@cam)} />
+    </.items>
+    """
+  end
+
+  # the dropdown's choices, with whatever the camera is set to when that is not one of them
+  defp options(isos, now), do: if(is_nil(now) or Enum.any?(isos, fn {_, v} -> v == now end), do: isos, else: isos ++ [{iso_words(now), now}])
+  defp shutter_options(shutters, now), do: if(is_nil(now) or now in shutters, do: shutters, else: shutters ++ [now])
+
+  # what the picture in flight is being taken at, beside its stage
+  defp flight_words(%{stage: :exposing, exposure_ms: ms}, settings) when is_number(ms), do: "#{shutter_words(ms)} at ISO #{iso_words(settings[:iso])}"
+  defp flight_words(%{stage: :downloading, file: n}, settings) when is_integer(n), do: "file #{n} · #{exposure_words(settings)}"
+  defp flight_words(_, settings), do: exposure_words(settings)
+
+  # between pictures: the last one's plate solve while it runs, else what the next is taken at
+  defp idle_words(%{solve: %{state: st, seq: n}}, _settings) when st in [:queued, :solving], do: "Plate solving picture #{n}"
+  defp idle_words(_cam, settings), do: "Next: " <> exposure_words(settings)
+
+  # where a roll picture's plate solve stands (the camera follows the newest one's): a word, or nil
+  defp solve_mark(%{solve: %{seq: seq, state: :solved}}, %{seq: seq}), do: "solved"
+  defp solve_mark(%{solve: %{seq: seq, state: st}}, %{seq: seq}) when st in [:queued, :solving], do: "solving"
+  defp solve_mark(%{solve: %{seq: seq, state: :failed}}, %{seq: seq}), do: "not solved"
+  defp solve_mark(_, _), do: nil
+
+  defp shutter_words(ms) when ms >= 1_000, do: "#{round(ms / 1000)} s"
+  defp shutter_words(ms), do: "#{round(ms)} ms"
+
+  # the host of the machine the camera is on ("observatory.local")
+  defp host(%{node: n}), do: n |> Atom.to_string() |> String.split("@") |> List.last()
+  defp host(_), do: "this machine"
+
+  attr :cam, :map, required: true
+  attr :action, :atom, required: true
+
+  defp elsewhere(assigns) do
+    ~H"""
+    <div class="state-line">
+      <strong>{screen_title(@action)} runs on {host(@cam)}</strong>
+      <span>It works from the camera's pictures where they arrive, on the machine the camera is plugged into.</span>
+    </div>
+    <.row><.btn variant="primary" href={"http://#{host(@cam)}/cameras/stills/#{@action}"}>Open It on {host(@cam)} ›</.btn></.row>
+    """
+  end
+
+  attr :lock, :map, required: true
+  attr :selected, :string, default: nil
+
+  defp lock(assigns) do
+    ~H"""
+    <p class="lock-line" role="status">{lock_line(@lock)}</p>
+    <p :if={@lock.state in [:holding, :coasting] && @lock[:error_px]} class="dim">
+      {hold_line(@lock)}
+    </p>
+    <.row>
+      <.btn
+        :if={@lock.state == :off}
+        variant="primary"
+        phx-click="lock"
+        phx-value-target="bright"
+        disabled={!@selected}
+      >
+        Lock On the Bright Target
+      </.btn>
+      <.btn
+        :if={@lock.state == :off}
+        phx-click="lock"
+        phx-value-target="star"
+        disabled={!@selected}
+      >
+        Lock On a Star
+      </.btn>
+      <.btn :if={@lock.state != :off} phx-click="release">Release</.btn>
+    </.row>
+    <.hint>
+      Measures how the target drifts and how each motor moves the picture, then steers both. No polar alignment needed.
+    </.hint>
+    """
+  end
+
+  attr :cam, :map, required: true
+  attr :plates, :list, required: true
+  attr :now_ms, :integer, required: true
+  attr :selected, :string, default: nil
+
+  defp solving(assigns) do
+    ~H"""
+    <p class="lock-line" role="status">{solve_line(@cam)}</p>
+    <.row>
+      <.btn on={@cam[:solving] == true} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
+        {if @cam[:solving], do: "Solving On", else: "Solve Pictures"}
+      </.btn>
+    </.row>
+    <.hint>
+      Each picture is plate solved on the box: where the telescope pointed, to a few arcseconds. Solved pictures add to the mount's alignment.
+    </.hint>
+
+    <%!-- every picture in the solver's queue, newest first: the stage it is at and its time, or how it ended --%>
+    <.card :if={@plates != []} title="Pictures">
+      <Pictures.solves plates={@plates} now_ms={@now_ms} />
+    </.card>
+
+    <.items label="alignment">
+      <.link_item
+        navigate={if @selected, do: ~p"/align/camera/#{@selected}", else: ~p"/align/camera"}
+        label="Align with the Camera"
+        detail="Takes the pictures and moves the telescope between them, until four agree"
+      />
+    </.items>
     """
   end
 
@@ -267,19 +591,41 @@ defmodule Controller.StillCameraLive do
     end
   end
 
+  # A camera that is on the cable and answers nothing: say so, and what to do with one's hands.
+  # (13 October: a reboot caught the Sony in the middle of sending a picture, and it answered
+  # nothing afterwards; the page said "No picture yet. Tap Take Picture".)
+  defp trouble(%{camera: %{state: :failed} = c}) do
+    ["The camera is not answering#{failed_words(c[:error])}. Unplug its USB cable, switch the camera off and on (and look at its battery), then plug the cable back in. The box picks it up by itself."]
+  end
+
   defp trouble(%{seen: seen}),
     do: seen |> Enum.filter(&(&1[:says] && &1[:mode] != :ptp)) |> Enum.map(& &1.says)
 
+  defp failed_words(:timeout), do: " (it was asked and said nothing)"
+  defp failed_words(nil), do: ""
+  defp failed_words(other), do: " (#{Controller.Words.error(other)})"
+
+  defp ready?(%{camera: %{state: :ready}}), do: true
+  defp ready?(_), do: false
+
+  # what is in the picture: its files, how bright the sky is, what was found
   defp caption(r) do
     [
       r[:names] && Enum.join(r.names, " + "),
       r[:background] && "background #{round(r.background)} of 255",
       bright_words(r[:bright]),
-      stars_words(r[:stars]),
-      r[:at] && Calendar.strftime(r.at, "%H:%M:%S UTC")
+      stars_words(r[:stars])
     ]
     |> Enum.filter(& &1)
     |> Enum.join(" · ")
+  end
+
+  # the camera is already set to the suggested ISO and shutter speed
+  defp in_use?(settings, %{advice: a}), do: settings[:iso] == a.iso and settings[:shutter] == a.shutter
+  defp in_use?(_, _), do: false
+
+  defp exposure_words(settings) do
+    "ISO #{iso_words(settings[:iso])} · #{settings[:shutter] || "?"} s · #{settings[:quality] || "?"}"
   end
 
   # Why the last picture is kept but not counted as a good one (`StillCamera.status().good`), a
@@ -365,10 +711,19 @@ defmodule Controller.StillCameraLive do
 
   defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
 
-  defp card_line(%{free_mb: mb, room_for: n}) do
-    free = if mb >= 1000, do: "#{Float.round(mb / 1000, 1)} GB", else: "#{mb} MB"
-    "SD card: #{free} free, room for #{if n == 1, do: "1 picture", else: "about #{n} pictures"}"
+  defp card_line(%{free_mb: mb, room_for: n} = cam) do
+    total = get_in(cam, [:card, :total_mb])
+    "#{size_words(mb)} free#{if total, do: " of #{size_words(total)}", else: ""}, room for #{if n == 1, do: "1 picture", else: "about #{n} pictures"}"
   end
+
+  defp on_card_words(%{pictures: n, pictures_mb: mb}), do: "#{n} #{if n == 1, do: "picture", else: "pictures"}, #{size_words(mb)}"
+  defp on_card_words(_), do: "?"
+
+  defp size_words(mb) when mb >= 1000, do: "#{Float.round(mb / 1000, 1)} GB"
+  defp size_words(mb), do: "#{mb} MB"
+
+  defp battery(%{camera: %{settings: %{battery: b}}}) when is_number(b), do: round(b)
+  defp battery(_), do: nil
 
   defp bright_words(%{fraction: f, edge: true}),
     do: "bright target, #{pct(f)} of the picture, cut by the edge"

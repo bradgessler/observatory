@@ -55,6 +55,8 @@ defmodule Controller.ListedTest do
     end
 
     test "the Telescope Camera page never shows another machine's simulated frames", %{conn: conn} do
+      # no stills camera on this machine either, or the page is that camera's (one a test before this started may take a few seconds to go)
+      eventually(fn -> StillCamera.status().camera == nil end)
       {:ok, view, before} = live(conn, ~p"/cameras/telescope")
       refute before =~ "24 stars"
 
@@ -143,6 +145,34 @@ defmodule Controller.ListedTest do
       assert StillCamera.listed?(Map.delete(stills(@mac, a6000(true)), :node))
     end
 
+    # 13 October: the Mac joined the box's cluster and its Telescope Camera page showed the Mac's own
+    # simulated camera, while the box's page showed the Sony's pictures. A page shows the camera on
+    # the telescope, whichever machine it is plugged into.
+    test "across the cluster a page shows the real camera, wherever it is, before its own simulated one" do
+      none = %{camera: nil, node: @mac}
+      # the Mac's own stand-in, and the box's real camera
+      assert StillCamera.pick(stills(@mac, a6000(true)), [stills(@box, a6000(false))], @mac).node == @box
+      assert StillCamera.pick(none, [stills(@box, a6000(false))], @mac).node == @box
+      # another machine's simulator is never the answer; this machine's own is better than none
+      assert StillCamera.pick(none, [stills(@box, a6000(true))], @mac) == none
+      assert StillCamera.pick(stills(@mac, a6000(true)), [%{camera: nil, node: @box}], @mac).node == @mac
+
+      # what a page hears afterwards: the box's news replaces the box's, the Mac's simulator never replaces the box's camera
+      shown = stills(@box, a6000(false))
+      assert StillCamera.prefer(shown, Map.put(stills(@box, a6000(false)), :busy, true), @mac).busy == true
+      assert StillCamera.prefer(shown, stills(@mac, a6000(true)), @mac) == shown
+
+      # its picture and its keys go to the machine it is on
+      assert StillCamera.remote?(stills(@box, a6000(false))) 
+      assert StillCamera.src(stills(@box, a6000(false)), 7) == "/cameras/stills/latest.png?t=7&node=#{URI.encode_www_form(to_string(@box))}"
+      assert StillCamera.src(stills(node(), a6000(true)), 7) == "/cameras/stills/latest.png?t=7"
+
+      # and a real stills camera is the telescope's camera before a simulated video camera is
+      assert StillCamera.on_telescope?(stills(@box, a6000(false)), %{camera: "Simulated camera", sim: true})
+      refute StillCamera.on_telescope?(stills(node(), a6000(true)), %{camera: "Simulated camera", sim: true})
+      refute StillCamera.on_telescope?(stills(@box, a6000(false)), %{camera: "SVBONY SV105C"})
+    end
+
     test "the Stills Camera page never shows another machine's simulated camera", %{conn: conn} do
       # no stills camera on this machine (one a test before this started may take a few seconds to go)
       eventually(fn -> StillCamera.status().camera == nil end)
@@ -190,11 +220,14 @@ defmodule Controller.ListedTest do
 
   defp watch(pid) do
     for name <- @pubsub, do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, true, [])
+    # news for the other machines is handed to the relay, which carries it (the sender never sends across the link)
+    :erlang.trace_pattern({Telescope.Relay, :forward, 2}, true, [])
     :erlang.trace(pid, true, [:call])
 
     on_exit(fn ->
       if Process.alive?(pid), do: :erlang.trace(pid, false, [:call])
       for name <- @pubsub, do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, false, [])
+      :erlang.trace_pattern({Telescope.Relay, :forward, 2}, false, [])
     end)
   end
 
@@ -208,6 +241,8 @@ defmodule Controller.ListedTest do
   defp traces(pid) do
     receive do
       {:trace, ^pid, :call, {Phoenix.PubSub, name, [Telescope.PubSub, topic, message]}} -> [{name, topic, message} | traces(pid)]
+      # what goes to every machine: counted as the broadcast it is
+      {:trace, ^pid, :call, {Telescope.Relay, :forward, [topic, message]}} -> [{:broadcast, topic, message} | traces(pid)]
     after
       0 -> []
     end

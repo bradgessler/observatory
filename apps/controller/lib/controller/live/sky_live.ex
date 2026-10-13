@@ -67,6 +67,8 @@ defmodule Controller.SkyLive do
        snap: nil,
        selected: params["id"],
        target: nil,
+       # a starting exposure for the picked object: advice (`Sky.Exposure`)
+       exposure: nil,
        notice: nil,
        # the counterweight question, asked because a Go To waited for it (#113)
        cw_ask: false,
@@ -95,6 +97,7 @@ defmodule Controller.SkyLive do
     socket
     |> assign(target: Catalog.object(id) || Enum.find(Ephemeris.objects(socket.assigns.now, socket.assigns.site), &(&1.id == id)))
     |> night_path()
+    |> exposure()
   end
 
   # No handle_params: this view can be nested inside another page (child views may
@@ -257,10 +260,10 @@ defmodule Controller.SkyLive do
 
     # the Sky Map shows a pick over its chart; Tonight keeps its list and shows it beside
     tab = if socket.assigns.live_action == :tonight, do: socket.assigns.tab, else: "map"
-    {:noreply, socket |> assign(target: target, notice: nil, tab: tab) |> night_path()}
+    {:noreply, socket |> assign(target: target, notice: nil, tab: tab) |> night_path() |> exposure()}
   end
 
-  def handle_event("clear", _, socket), do: {:noreply, socket |> assign(target: nil, notice: nil) |> night_path()}
+  def handle_event("clear", _, socket), do: {:noreply, socket |> assign(target: nil, notice: nil) |> night_path() |> exposure()}
 
   # step the sky an hour either side of now, up to a day; "now" comes back
   def handle_event("shift", %{"by" => "now"}, socket), do: {:noreply, socket |> set_shift(0) |> compute()}
@@ -355,7 +358,7 @@ defmodule Controller.SkyLive do
   def handle_event("goto", _, socket), do: {:noreply, socket}
 
   # The one answer Go To waited for, from someone looking at the mount
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
     {:noreply, socket |> assign(cw_ask: not told?, notice: said) |> compute()}
   end
@@ -463,6 +466,7 @@ defmodule Controller.SkyLive do
     )
     |> locked()
     |> night_path()
+    |> exposure()
     |> sun()
   end
 
@@ -475,6 +479,11 @@ defmodule Controller.SkyLive do
     do: assign(socket, path: Scene.night_path(scene, t.ra_deg, t.dec_deg, socket.assigns.utc_offset_min))
 
   defp night_path(socket), do: assign(socket, path: nil)
+
+  # A starting exposure for the picked object, for a camera on the telescope (`Sky.Exposure`):
+  # from the f-ratio as it is set and, for the Moon, its phase at the time shown.
+  defp exposure(%{assigns: %{target: %{} = t}} = socket), do: assign(socket, exposure: Controller.Sky.Exposure.tonight(t, at: sky_time(socket.assigns)))
+  defp exposure(socket), do: assign(socket, exposure: nil)
 
   # Tonight, with a mount to drive: whether Go To can place anything at all. Without a lock
   # every row would say so; the page says it once instead. What Go To and the hold will do
@@ -765,7 +774,7 @@ defmodule Controller.SkyLive do
               <% recent = if @selected, do: Pointing.recent(@selected) |> Enum.filter(& &1["id"]), else: [] %>
               <nav :if={recent != []} class="recent" aria-label="Recent Go To targets">
                 <span class="dim">Recent</span>
-                <.link :for={r <- recent} navigate={~p"/object/#{r["id"]}?#{[mount: @selected, from: "tonight"]}"} class="btn">{r["name"]}</.link>
+                <.link :for={{r, kind} <- Enum.map(recent, &{&1, recent_kind(&1)})} navigate={~p"/object/#{r["id"]}?#{[mount: @selected, from: "tonight"]}"} class="btn"><Controller.Components.Icons.kind :if={kind} kind={kind} />{r["name"]}</.link>
               </nav>
               <p :if={@locked == false} class="lock-line tone-caution" role="status">
                 Not aligned yet, so Go To and tracking can't place anything. Open any bright star or planet, center it with the touchpad or the D-pad, and tap Centered. <.link href={~p"/docs/align"}>What's alignment?</.link>
@@ -874,13 +883,22 @@ defmodule Controller.SkyLive do
   defp tree_at(true, horizon, az), do: Settings.horizon_at(horizon, az)
   defp tree_at(_, _, _), do: 0
 
+  # What kind of thing a remembered Go To target is, for the icon on its chip. What is stored is
+  # only its id and name (`Pointing.recent/1`), so the catalogue says; a body of the solar system
+  # is not in the catalogue, and its id says which it is (`Ephemeris.objects/2`).
+  defp recent_kind(%{"id" => "sol-moon"}), do: :moon
+  defp recent_kind(%{"id" => "sol-" <> _}), do: :planet
+  defp recent_kind(%{"id" => id}), do: (obj = Catalog.object(id)) && obj[:kind]
+
   # One row of the Tonight list. Every row has the same columns, in this order, so each lines up
-  # down the whole list (the row is a grid of fixed tracks, app.css): its number (or kind), the
+  # down the whole list (the row is a grid of fixed tracks, app.css): its kind, drawn, the
   # name over its detail, how long it's up, and how high, drawn, last: at the row's far edge.
   # What Go To and the hold will do for it is on its own page, not here: on a list row it was noise.
+  # Rank is the order and nothing more (#150): the list is an <ol> under "best first", and the five
+  # best keep a lit badge. A number beside the drawn kind would be a second badge in every row.
   defp target_body(assigns) do
     ~H"""
-    <span class="k" aria-hidden="true">{if @i <= 5, do: "#{@i}", else: glyph(@o.kind)}</span>
+    <span class="k"><Controller.Components.Icons.kind kind={@o.kind} /></span>
     <span class="t">
       <strong>{@o.name}</strong>
       <span class="d">
@@ -895,7 +913,7 @@ defmodule Controller.SkyLive do
   # not up yet: the same columns, with nothing to draw in the last
   defp later_body(assigns) do
     ~H"""
-    <span class="k" aria-hidden="true">{glyph(@o.kind)}</span>
+    <span class="k"><Controller.Components.Icons.kind kind={@o.kind} /></span>
     <span class="t">
       <strong>{@o.name}</strong>
       <span class="d"><span>{compass(@o.az)} · {@o.words}</span></span>
@@ -906,7 +924,7 @@ defmodule Controller.SkyLive do
 
   # what the picked object's panel needs from the page
   defp pick_assigns(assigns) do
-    Map.take(assigns, [:target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
+    Map.take(assigns, [:scope, :target, :exposure, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
   end
 
   # the picked object: what it is, when it's up, and on Tonight its path across the sky
@@ -919,24 +937,44 @@ defmodule Controller.SkyLive do
     end
   end
 
+  # The first two sentences of what the object is (`Controller.Sky.Blurbs`, written in the UI's
+  # own punctuation); nil for something the catalog has no words for.
+  defp about(%{id: _, kind: _} = obj) do
+    case Controller.Sky.Blurbs.for(obj) do
+      "" -> nil
+      text -> text |> String.split(~r/(?<=[.!?])\s+/) |> Enum.take(2) |> Enum.join(" ")
+    end
+  end
+
+  defp about(_), do: nil
+
+  defp sky_map(nil, obj), do: ~p"/sky?#{[pick: obj.id]}"
+  defp sky_map(id, obj), do: ~p"/sky/#{id}?#{[pick: obj.id]}"
+
   defp pick_panel(assigns) do
     assigns = assign_new(assigns, :class, fn -> nil end)
 
     ~H"""
     <section class={["pick-panel", @class]} aria-labelledby="pick-name">
       <div class="pick-head">
-        <h2 id="pick-name">{@target.name}</h2>
+        <h2 id="pick-name"><Controller.Components.Icons.kind :if={@target[:kind]} kind={@target.kind} />{@target.name}</h2>
         <button type="button" class="ghost pick-close" phx-click="clear" aria-label={"Close #{@target.name}"}>
           <Controller.Components.Icons.icon name="close" />
         </button>
       </div>
       <p class="dim" role="status">{describe(@target, @stars ++ @dsos, @lim, @moon, @scene)}</p>
-      <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} />
+      <%!-- what it is, in a sentence or two, where there is room for it (a wide screen); the rest is on Details --%>
+      <p :if={about(@target)} class="pick-about">{about(@target)}</p>
+      <%!-- a starting exposure for a camera on the telescope and why, where there is room for it too: advice (Sky.Exposure) --%>
+      <p :if={@exposure} class="pick-about pick-exposure">Start at {Controller.Sky.Exposure.words(@exposure)}. {@exposure.why}</p>
+      <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} scope={assigns[:scope]} />
       <Controller.Components.Visibility.plot targets={[@target]} site={@site} at={@at} utc_offset_min={@utc_offset_min} horizon={if @trees, do: @horizon, else: nil} />
       <div class="row">
         <button class="go" phx-click="goto" disabled={!@snap || !@snap.connected} aria-label={"Go To #{@target.name}"}>Go To</button>
         <.link navigate={~p"/object/#{@target.id}?#{[mount: @selected, from: if(@live_action == :tonight, do: "tonight", else: nil)]}"} class="btn" aria-label={"Details about #{@target.name}"}>Details ›</.link>
       </div>
+      <%!-- from the list to where it is in the sky: the Sky Map opens with it picked --%>
+      <.link :if={@live_action == :tonight} navigate={sky_map(@selected, @target)} class="btn pick-map" aria-label={"Show #{@target.name} on the Sky Map"}>Show on Sky Map ›</.link>
       <%!-- Go To waited for which side the counterweight is on: the question, right here (#113) --%>
       <Counterweight.card :if={@cw_ask} cw={Counterweight.asking(@cw_model, @snap)} />
     </section>
@@ -967,14 +1005,6 @@ defmodule Controller.SkyLive do
         "below the horizon · mag #{t.mag}"
     end
   end
-
-  defp glyph(:moon), do: "☾"
-  defp glyph(:planet), do: "Pl"
-  defp glyph(:planetary), do: "Pn"
-  defp glyph(:galaxy), do: "Gal"
-  defp glyph(:nebula), do: "Neb"
-  defp glyph(:cluster), do: "Cl"
-  defp glyph(_), do: "★"
 
   # Until 23:40, Sets 20:10 (within the hour), All night, Rises 20:05: a time
   # in the viewer's zone rather than a sign to decode

@@ -63,6 +63,55 @@ builder.
 6. **Check the live site** with curl: the pages answer 200, the pictures
    load, the `og:image` is right.
 
+## A night published as it goes
+
+Brad, 13 October 2026: "the plan gets published... each page could just be a
+placeholder... and then as observations complete... you just publish each
+observation." First done that night: eleven targets on the menu, ten
+pictures published one at a time between 02:30 and 05:30 while he slept.
+
+- **`observations/<date>/plan.json`** beside `session.md`: the targets in
+  order, each with `slug`, `title`, `sub`, `what` (a sentence or two), and
+  `state`: `planned`, `observing`, `processing`, `published` or `skipped`,
+  with an optional short `note` ("30 frames"). The builder draws it as "On
+  the menu" under the night's pictures, and gives a target with no picture
+  yet a page saying where it stands. A target whose slug is in
+  `objects.json` is published whatever the plan file says. **The slug in
+  the plan and the key in `annotate.py`'s `targets()` must be the same.**
+- **Publish the plan before the first picture exists**, then again at every
+  change: the telescope moves on (the one it left is `processing`, the next
+  `observing`), a picture is annotated (`published`), a target is skipped.
+- **`tools/publish.sh check`** builds, lays the site over a fresh clone and
+  prints what would change; **`tools/publish.sh push "message"`** does the
+  same and pushes. Only `observations/<date>/…`, `observations/index.html`,
+  `index.html` and `style.css` should change. It stops loudly when the
+  build refuses.
+- **One pipeline per picture, in this order:** a stacking agent per target
+  as soon as the telescope leaves it (`stack-pictures`; give it the
+  night's newest finished pipeline as its template and a time limit), then
+  one annotating agent kept for the whole night and sent each finished
+  picture in turn (`annotate-pictures`; it keeps the night's
+  `annotate.py`), then look at the labelled picture yourself, then publish.
+  Disk: one or two stacks at a time; each needs under 1 GB when RAWs are
+  read in place.
+- **No clock times in the plan or the pages.** States, not a schedule.
+- **Write `session.md` twice:** once before the night (what is planned),
+  and again at the end as what happened. Tell Brad you wrote it.
+
+Things that went wrong that night, so they do not again:
+
+- **How high a named object climbs is the telescope's latitude to half a
+  degree**, clock time or not. Altitudes go to the nearest ten degrees at
+  most ("about 80 degrees up", "nearly overhead").
+- **The privacy guard refuses innocent numbers** that match the site's
+  latitude or longitude to one decimal ("noise 37.9 DN"). Reword the number;
+  never loosen the guard.
+- **A share card's words sit at the foot by default.** When the subject is
+  at the foot, set `CARD_TEXT[slug] = "top"` in `annotate.py`. Look at
+  every card on a contact sheet before the last publish.
+- **GitHub Pages serves the old page for about ten minutes** after a push:
+  a state that looks stale on the live site usually is not.
+
 ## What the pages must do
 
 - Plain pictures on true black, whatever the reader's theme.

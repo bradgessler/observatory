@@ -268,7 +268,7 @@ defmodule Controller.ScopeCameraTest do
 
       assert_receive {:auto_align, ^id, %{done: true, ok: true, words: words}}, 90_000
       # never zeroed: no picture can say which side the counterweight is on, so the last words ask (#113)
-      assert words =~ "Aligned: 4 frames agree"
+      assert words =~ "Aligned: 4 pictures agree"
       assert words =~ "Is the counterweight bar below or above level right now?"
 
       st = Lineup.status(id)

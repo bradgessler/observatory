@@ -15,9 +15,14 @@ defmodule Controller.Components.AlignmentStatus do
     * `glyph/1`: the bullseye alone;
     * `chip/1`: the sidebar's line under the telescope switcher, a link to
       the Alignment page;
-    * `bar/1`: the toolbar status on the Alignment pages, with what it's good for.
+    * `bar/1`: the toolbar status on the Alignment pages, with what it's good for;
+    * `set_aside/1`: the alignment a reset replaced, with the key that brings
+      it back, on every page that can reset one. `restore/1` is that key's
+      `"restore_alignment"` event, for the page.
   """
   use Phoenix.Component
+
+  alias Controller.Sky.Lineup
 
   attr :summary, :map, required: true
   attr :size, :integer, default: 24
@@ -59,4 +64,55 @@ defmodule Controller.Components.AlignmentStatus do
     </div>
     """
   end
+
+  @doc """
+  The alignment a reset replaced, and the key that brings it back: nothing is
+  thrown away by clearing, forgetting a point or aligning again
+  (`Controller.Sky.Lineup.restore/2`). Draws nothing when none can be brought
+  back. `was` is `Controller.Sky.Lineup.restorable/1`.
+  """
+  attr :was, :map, default: nil
+  attr :now, :any, default: nil, doc: "the page's clock, a DateTime; the time now when not given"
+
+  def set_aside(assigns) do
+    assigns = assign(assigns, now: assigns.now || DateTime.utc_now())
+
+    ~H"""
+    <div :if={@was} class="setting" id="alignment-set-aside">
+      <div class="setting-text">
+        <strong>Alignment set aside {ago(@was.set_aside_at, @now)}</strong>
+        <span>{set_aside_words(@was)}</span>
+      </div>
+      <span class="setting-action">
+        <Controller.Components.UI.btn phx-click="restore_alignment">Restore</Controller.Components.UI.btn>
+      </span>
+    </div>
+    """
+  end
+
+  @doc ~S("4 points agree to 0.4′. A new alignment replaced it.")
+  def set_aside_words(was) do
+    why = if is_binary(was.why), do: " " <> Controller.Components.UI.sentence(was.why) <> ".", else: ""
+    points_words(was.n, was.rms_arcmin) <> "." <> why
+  end
+
+  @doc "A tap on Restore, for the page's event: brings the alignment back and says what happened in one line."
+  def restore(nil), do: "No mount"
+
+  def restore(id) do
+    case Lineup.restore(id) do
+      {:ok, st} -> "Alignment restored: " <> points_words(st.n, st.rms_arcmin)
+      {:error, :stale} -> "That alignment no longer holds: the mount was switched off and on, or home was set again"
+      {:error, :another_night} -> "That alignment is from another night"
+      {:error, :nothing} -> "No alignment set aside"
+    end
+  end
+
+  # one or two points fit exactly whatever they are: only three or more have a margin to give
+  defp points_words(1, _), do: "1 point"
+  defp points_words(n, rms) when n >= 3 and is_number(rms), do: "#{n} points agree to #{Float.round(rms / 1, 1)}′"
+  defp points_words(n, _), do: "#{n} points"
+
+  defp ago(%DateTime{} = at, %DateTime{} = now), do: Controller.Components.Pictures.ago(max(DateTime.diff(now, at), 0))
+  defp ago(_, _), do: "earlier"
 end

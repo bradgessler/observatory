@@ -123,7 +123,7 @@ defmodule Controller.Sky.Revive do
     s
   end
 
-  defp clock_ok?(s), do: (safe(fn -> Controller.Clock.synced?() end) == true) or System.monotonic_time(:millisecond) - s.started >= s.clock_wait
+  defp clock_ok?(s), do: (safe(fn -> Controller.Clock.set?() end) == true) or System.monotonic_time(:millisecond) - s.started >= s.clock_wait
 
   defp words({:too_far, deg}, name), do: "#{name} is #{fmt(deg)}° away by now: too far to go back without someone watching"
   defp words(why, name), do: Pointing.refusal_words(why, name)

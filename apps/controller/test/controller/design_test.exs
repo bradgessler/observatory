@@ -216,8 +216,12 @@ defmodule Controller.DesignTest do
   # instead, which is how this failed before there was one.
   test "the telescope drawn on a scope badge is 3:1 on the badge's ground, in every theme" do
     rules = rules()
-    lits = for {_media, ".scope-3d .l" <> _, %{"--lit" => lit}} <- rules, do: lit |> String.trim_trailing("%") |> String.to_integer()
-    assert lits != [], "the faces' shading steps (.scope-3d .l0 and up) are gone"
+    # each face is a material at a shading step, written out as a plain colour (Safari drew the
+    # color-mix() they were worked out with as solid black)
+    darkest = for {_media, ".scope-3d .m-" <> _ = face, %{"stroke" => stroke}} <- rules, String.ends_with?(face, ".l0"), do: {face, stroke}
+    assert darkest != [], "the faces' shading steps (.scope-3d .m-tube.l0 and up) are gone"
+    refute Enum.any?(rules, fn {_media, sel, decls} -> String.contains?(sel, ".scope-3d") and Enum.any?(decls, fn {_, v} -> String.contains?(v, "color-mix") end) end),
+           "a face painted with color-mix(): Safari draws the mount solid black"
 
     for w <- [320, 390, 1280] do
       assert "var(--" <> ground = cascade(rules, ".scope-badge", w)["background"]
@@ -229,7 +233,7 @@ defmodule Controller.DesignTest do
       strokes =
         if rim["stroke"],
           do: [{".scope-badge .sc-outline", rim["stroke"], 100}],
-          else: for({_media, ".scope-3d .m-" <> _ = face, %{"stroke" => stroke}} <- rules, face != ".scope-3d .m-lens", do: {face, stroke, Enum.min(lits)})
+          else: for({face, stroke} <- darkest, do: {face, stroke, 100})
 
       assert strokes != []
 

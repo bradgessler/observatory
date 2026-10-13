@@ -1,8 +1,8 @@
 defmodule Controller.CamerasLive do
   @moduledoc """
-  Every camera, side by side: the telescope camera (in the focuser) and the
-  observatory camera (watching the mount), each its latest picture, its
-  name, and one line on how it is. Tap one for its page.
+  Every camera, side by side: the telescope camera (video in the focuser, or
+  a stills camera) and the observatory camera (watching the mount), each its
+  latest picture, its name, and one line on how it is. Tap one for its page.
 
   Looking here keeps the observatory camera's stills coming, as its own page
   does. It doesn't turn on the telescope camera's live view, which changes
@@ -12,12 +12,13 @@ defmodule Controller.CamerasLive do
   use Controller, :live_view
   import Controller.Components.UI
 
-  alias Controller.{ScopeCamera, Settings}
+  alias Controller.{ScopeCamera, Settings, StillCamera}
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       ScopeCamera.subscribe()
+      StillCamera.subscribe()
       Watch.subscribe()
       Settings.subscribe()
       # the ages in words
@@ -31,6 +32,7 @@ defmodule Controller.CamerasLive do
   defp load(socket) do
     assign(socket,
       cam: ScopeCamera.find(),
+      stills: safe(fn -> StillCamera.find() end, nil),
       watch: safe(fn -> Watch.status() end, %{}),
       stamp: System.unique_integer([:positive])
     )
@@ -38,6 +40,7 @@ defmodule Controller.CamerasLive do
 
   @impl true
   def handle_info({:scope_camera, cam}, socket), do: {:noreply, assign(socket, cam: ScopeCamera.prefer(socket.assigns.cam, cam))}
+  def handle_info({:still_camera, st}, socket), do: {:noreply, assign(socket, stills: StillCamera.prefer(socket.assigns.stills, st))}
   def handle_info({:watch, _}, socket), do: {:noreply, load(socket)}
   def handle_info(:tick, socket), do: {:noreply, assign(socket, now: DateTime.utc_now())}
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
@@ -53,7 +56,9 @@ defmodule Controller.CamerasLive do
   def render(assigns) do
     latest = List.first(assigns.cam[:frames] || [])
     still = assigns.watch[:latest]
-    assigns = assign(assigns, latest: latest, still: still)
+    # a stills camera on the telescope is the telescope camera: its last picture is this tile's
+    shot = if StillCamera.on_telescope?(assigns.stills, assigns.cam), do: assigns.stills
+    assigns = assign(assigns, latest: latest, still: still, shot: shot)
 
     ~H"""
     <.page id="cameras" night={@night}>
@@ -66,13 +71,17 @@ defmodule Controller.CamerasLive do
       <ul class="camera-grid" role="list">
         <li>
           <.link navigate={~p"/cameras/telescope"} class="camera-tile">
-            <span class="camera-pic">
+            <span :if={!@shot} class="camera-pic">
               <img :if={picture?(@cam, @latest)} src={ScopeCamera.src(@cam, @latest.seq)} alt={"Telescope camera, frame #{@latest.seq}"} />
               <span :if={!picture?(@cam, @latest)} class="camera-none">{if @cam[:camera], do: "No picture yet", else: "Not plugged in"}</span>
             </span>
+            <span :if={@shot} class="camera-pic">
+              <img :if={shot?(@shot)} src={StillCamera.src(@shot, @shot.last.seq)} alt="Telescope camera, the latest picture" />
+              <span :if={!shot?(@shot)} class="camera-none">No picture yet</span>
+            </span>
             <span class="camera-text">
               <strong>Telescope Camera</strong>
-              <small>{telescope_line(@cam, @latest, @now)}</small>
+              <small>{if @shot, do: stills_line(@shot, @now), else: telescope_line(@cam, @latest, @now)}</small>
             </span>
           </.link>
         </li>
@@ -103,6 +112,22 @@ defmodule Controller.CamerasLive do
   def telescope_line(%{live: true}, %{seq: seq}, _), do: "Live · frame #{seq}"
   def telescope_line(_, %{seq: seq, at: at}, now), do: "Frame #{seq} · #{ago(at, now)} · Live View is off"
   def telescope_line(_, _, _), do: "Live View is off"
+
+  defp shot?(%{last: %{w: w}}) when not is_nil(w), do: true
+  defp shot?(_), do: false
+
+  @doc false
+  # one line on a stills camera on the telescope: which, whether it is ready, how old its picture is
+  def stills_line(%{camera: c} = st, now) do
+    name = c[:model] || c[:id] || "Stills camera"
+
+    cond do
+      c[:state] != :ready -> "#{name} · not ready"
+      st[:busy] -> "#{name} · taking a picture"
+      shot?(st) -> "#{name} · picture from #{ago(st.last[:at], now)}"
+      true -> "#{name} · no picture yet"
+    end
+  end
 
   @doc false
   def observatory_line(%{last_error: e}, nil, _) when is_binary(e), do: e

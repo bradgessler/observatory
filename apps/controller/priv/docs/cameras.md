@@ -3,10 +3,12 @@
 Two kinds of camera, in one place under **Cameras** in the sidebar (and on
 Home on a phone):
 
-- **Telescope Camera**: a small USB camera in the telescope's focuser, in
-  place of an eyepiece. It's for focusing and for working out where the
-  telescope is pointing (plate solving), not for pretty pictures. See
-  [Telescope camera](/docs/scope-camera).
+- **Telescope Camera**: the camera on the telescope, in place of an
+  eyepiece. A small USB video camera or a stills camera (a Sony a6000): it is
+  the same page either way. A stills camera is a camera whose frames come
+  seconds or minutes apart, so its page always shows the latest picture and
+  says how long ago it was taken. See [Telescope camera](/docs/scope-camera)
+  and [Stills camera](/docs/still-camera).
 - **Observatory Camera**: a webcam pointed at the mount, so you can see it
   move from anywhere: is it about to wrap a cable, did it stop where it
   should. See [Observatory camera](/docs/watch).

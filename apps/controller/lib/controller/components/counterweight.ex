@@ -10,8 +10,9 @@ defmodule Controller.Components.Counterweight do
   `Controller.Sky.Lineup.set_counterweight/3` keeps the answer with the
   alignment.
 
-    * `card/1`: the question, two keys in a radio group for how the mount
-      stands right now. Once told, the same card is the fact: the key the
+    * `card/1`: the question, keys in a radio group for how the mount
+      stands right now: below level, above level, or I don't know (nobody is
+      at the mount; then Go To stays cautious, `Pointing.side_unknown?/2`). Once told, the same card is the fact: the key the
       model now has is lit, and a tap on the other one changes it. On Setup
       (`/setup/<mount>#counterweight`, where every mode points), on Align by
       Phone Photo and under Align with the Camera, where a mount with no home
@@ -32,12 +33,12 @@ defmodule Controller.Components.Counterweight do
   # by name, not imported: this module has a card of its own
   alias Controller.Components.UI
 
-  attr :cw, :map, default: nil, doc: "`Lineup.counterweight/2`: `%{from: :told | :guessed, now: :below | :above | :level}`"
+  attr :cw, :map, default: nil, doc: "`Lineup.counterweight/2`: `%{from: :told | :unknown | :guessed, now: :below | :above | :level}`"
 
   def card(assigns) do
     ~H"""
     <UI.card :if={@cw} id="counterweight" title="Counterweight">
-      <:aside><UI.badge on={@cw.from == :told}>{if @cw.from == :told, do: "told", else: "guessed"}</UI.badge></:aside>
+      <:aside><UI.badge on={@cw.from == :told}>{badge(@cw)}</UI.badge></:aside>
       <div class="state-line">
         <strong>{headline(@cw)}</strong>
         <span>{detail(@cw)}</span>
@@ -46,11 +47,13 @@ defmodule Controller.Components.Counterweight do
       <UI.seg label="The counterweight is, right now">
         <:opt on={lit?(@cw, :below)} click="counterweight" value={%{where: "below"}} disabled={@cw.now == :level}>Below Level<span :if={lit?(@cw, :below)} aria-hidden="true"> ✓</span></:opt>
         <:opt on={lit?(@cw, :above)} click="counterweight" value={%{where: "above"}} disabled={@cw.now == :level}>Above Level<span :if={lit?(@cw, :above)} aria-hidden="true"> ✓</span></:opt>
+        <%!-- nobody at the mount to look: an answer too, and never a coin toss between the other two --%>
+        <:opt on={@cw.from == :unknown} click="counterweight" value={%{where: "unknown"}}>I Don't Know<span :if={@cw.from == :unknown} aria-hidden="true"> ✓</span></:opt>
       </UI.seg>
       <%!-- near level nobody can say by eye, so the keys are greyed and this says what to do --%>
       <UI.hint :if={@cw.now == :level} role="status">{level_words(@cw)}</UI.hint>
       <UI.hint :if={@cw.now != :level}>
-        {if @cw.from == :told, do: "Not what you see at the mount? Tap the other one.", else: "Follow the counterweight shaft from the mount out to the weight: sloping down is below level, sloping up is above."}
+        {hint_words(@cw)}
         <.link href={~p"/docs/setup#counterweight"}>Why it asks</.link>
       </UI.hint>
     </UI.card>
@@ -60,11 +63,21 @@ defmodule Controller.Components.Counterweight do
   defp lit?(%{from: :told, now: now}, where), do: now == where
   defp lit?(_, _), do: false
 
-  defp headline(%{from: :guessed}), do: "Is the counterweight below or above level right now?"
-  defp headline(%{now: :below}), do: "Below level right now"
-  defp headline(%{now: :above}), do: "Above level right now"
-  defp headline(%{now: :level}), do: "Close to level right now"
+  defp badge(%{from: :told}), do: "told"
+  defp badge(%{from: :unknown}), do: "unknown"
+  defp badge(_), do: "guessed"
 
+  defp hint_words(%{from: :told}), do: "Not what you see at the mount? Tap the other one."
+  defp hint_words(%{from: :unknown}), do: "When someone can look: follow the counterweight shaft from the mount out to the weight. Sloping down is below level, sloping up is above."
+  defp hint_words(_), do: "Follow the counterweight shaft from the mount out to the weight: sloping down is below level, sloping up is above. Can't see the mount? Say so: never pick one."
+
+  defp headline(%{from: :unknown}), do: "Counterweight side unknown: Go To stays cautious"
+  defp headline(%{from: :guessed}), do: "Is the counterweight below or above level right now?"
+  defp headline(%{now: :below}), do: "Counterweight below level right now"
+  defp headline(%{now: :above}), do: "Counterweight above level right now"
+  defp headline(%{now: :level}), do: "Counterweight close to level right now"
+
+  defp detail(%{from: :unknown}), do: "Go To stays on this side of the mount and turns the RA axis only where it has already stood tonight. A meridian flip waits for someone to look."
   defp detail(%{from: :guessed}), do: "Guessed so far, from where the alignment points were taken. Go To and tracking wait for an answer."
   defp detail(%{from: :told}), do: "As told. Go To and the tracking limit go by it until the mount is switched on again."
 
@@ -103,7 +116,7 @@ defmodule Controller.Components.Counterweight do
   tells mount `id` (as it stands in `snap`) where the counterweight is, and
   returns `{told?, words}`, whether it took and the notice to show.
   """
-  def answer(id, snap, where) when where in ["below", "above"] do
+  def answer(id, snap, where) when where in ["below", "above", "unknown"] do
     where = String.to_existing_atom(where)
     result = Controller.Sky.Lineup.set_counterweight(id, snap, where)
     {match?({:ok, _}, result), words(result, where)}
@@ -116,6 +129,7 @@ defmodule Controller.Components.Counterweight do
   def words({:ok, sign}, where) when is_integer(sign) and where in [:below, :above],
     do: "Told: the counterweight is #{where} level right now. Go To and the tracking limit go by it"
 
+  def words({:ok, :unknown}, _where), do: "Side unknown: Go To stays on this side and turns the RA axis only where it has already stood tonight"
   def words({:ok, sign}, _where) when is_integer(sign), do: "Counterweight side told. Go To and the tracking limit go by it"
   def words({:ok, nil}, _where), do: "Counterweight side back to a guess"
   def words({:error, :level}, _where), do: "The counterweight shaft is close to level right now. Turn the RA axis a little and answer again"

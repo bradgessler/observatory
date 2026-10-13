@@ -45,8 +45,18 @@ line, help and icon, in one place; the sidebar, a phone's Home and Search
 (⌘K, or the search key on a phone) all draw from it through
 `Controller.Components.Menu` and `Controller.Search`. A page has one
 address, never a hand-made list of other pages or a second shell around it
-(the old Bench was both), and every page has STOP (`Controller.Stop.all/0`
-when it isn't about one mount).
+(the old Bench was both).
+
+**The bar says what the telescope is doing, and STOP lives in it.** Every
+page has the bar (`Controller.ScopeNow`, drawn by the shell): still,
+tracking, moving or slewing, with the target and how well it is aligned. It
+is one key and carries only the essentials: it opens Now, where the position,
+the axes and the log are. The page's title is top left, the telescope top
+right; a page's Docs are at the foot of the sidebar. A slew is loud. STOP is in the bar whenever there is something to stop (a slew, a
+move, a hold) and is not shown when the telescope is still. A page keeps a
+`<.stop />` in its header for when there is no bar (no telescope chosen);
+the shell hides it under the bar. Only the machine a mount is plugged into
+speaks for it; other machines of the cluster show what it says.
 
 **Modes are loud.** Anything persistent that changes where the scope goes
 (sync offset, flipped axis sign, reversed tracking, auto-track off, site
@@ -95,10 +105,22 @@ crammed onto one. One type scale: 12, 14, 16, 20, 28 px. No em dashes in
 the UI, no red except STOP and a real warning.
 
 **Safety in the driver, not the UI.** Held slews self-stop unless refreshed
-(`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. Every
-page has STOP. The driver exits and restarts on a lost serial link, and stops
+(`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. STOP is
+on every page whenever the telescope moves or holds. The driver exits and restarts on a lost serial link, and stops
 both axes on every (re)connect and in `terminate/2`, so a restart can never
 inherit motion.
+
+**The motor loop is local.** (From the night M33 trailed: the Mac was in the
+cluster as a terminal, pictures were crossing weak Wi-Fi, the link's buffer
+filled, and the VM put every process sending over it to sleep, the mount
+driver among them. Both motors stopped for five seconds at a time.) The
+driver and the tracker run on the machine the mount is plugged into and
+depend on nothing else: they never send to, call, or wait on another machine,
+a disk, or a page. News leaves through `Telescope.broadcast/2`, which
+delivers here and hands the rest to `Telescope.Relay`; settings are read from
+memory; pictures and anything large cross the network over HTTP, never as
+messages between machines. A terminal, a slow link or a dead one can make a
+page stale. It cannot change what the motors do.
 
 **Every crash is a gap in the supervision tree.** Flaky cables, cameras that
 stop delivering frames, encoders that hang, a pad unplugged mid-slew: reality

@@ -67,7 +67,9 @@ defmodule Camera.Server do
   @doc """
   Take one picture: `{:ok, [%{name, format, bytes, info, pressed_at, ready_at, settings}]}` (two
   files for RAW+JPEG). `settings` is what the camera was set to when the shutter was pressed;
-  `status/1`, asked afterwards, may already say something else.
+  `status/1`, asked afterwards, may already say something else. With `progress: {pid, tag}` the
+  pid is sent `{:camera_progress, tag, %{stage: ...}}` as the capture goes: `:preparing`,
+  `:exposing` (with `exposure_ms`), `:processing`, `:downloading` (with `file`, `name`, `bytes`).
   """
   def capture(id, opts \\ []) do
     exposure = Keyword.get(opts, :exposure_ms, 0)
@@ -134,7 +136,7 @@ defmodule Camera.Server do
     exposure = Keyword.get_lazy(opts, :exposure_ms, fn -> exposure_ms(s.props) end)
     t0 = System.monotonic_time(:millisecond)
 
-    case Sony.capture(s.conn, exposure_ms: exposure) do
+    case Sony.capture(s.conn, exposure_ms: exposure, progress: opts[:progress]) do
       {:ok, files, conn} ->
         last = %{
           at: DateTime.utc_now(),

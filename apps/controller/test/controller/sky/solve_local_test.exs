@@ -46,6 +46,83 @@ defmodule Controller.Sky.SolveLocalTest do
   Did not solve (or no WCS file was written).
   """
 
+  defmodule Programs do
+    @moduledoc false
+    # the solver's four programs, played: solve-field finds nothing near a hint and the field without one
+    @behaviour Controller.Sky.Solve.Runner
+    @impl true
+    def run(exe, args, opts) do
+      send(opts[:test], {:ran, Path.basename(exe), args, opts[:timeout]})
+
+      case Path.basename(exe) do
+        "image2xy" -> {:ok, 0, "simplexy: found 40 sources.\n"}
+        "solve-field" -> {:ok, 0, if("--ra" in args, do: opts[:unsolved], else: opts[:solved])}
+        _ -> {:ok, 0, ""}
+      end
+    end
+  end
+
+  # 12 October 2026: one picture solved blind in 12 s, then four in a row ran out of time. Each
+  # had a hint some 30 degrees wrong, and a hinted search that fails runs to its limit, which was
+  # the whole deadline: nothing was left for the blind search that would have found it.
+  describe "a hint that is wrong" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: dir} do
+      for n <- ~w(djpeg an-pnmtofits image2xy solve-field astrometry.cfg), do: File.write!(Path.join(dir, n), "")
+
+      opts = [
+        djpeg: Path.join(dir, "djpeg"),
+        an_pnmtofits: Path.join(dir, "an-pnmtofits"),
+        image2xy: Path.join(dir, "image2xy"),
+        solve_field: Path.join(dir, "solve-field"),
+        index_config: Path.join(dir, "astrometry.cfg"),
+        tmp_dir: dir,
+        min_stars: 6,
+        timeout: 120_000,
+        progress: {self(), :watch}
+      ]
+
+      %{opts: opts, pgm: "P5\n8 8\n255\n" <> :binary.copy(<<0>>, 64)}
+    end
+
+    test "the hinted search gets a share of the time, then the whole sky is searched, and each stage is said", %{opts: opts, pgm: pgm} do
+      runner = {Programs, test: self(), solved: @solved, unsolved: @unsolved}
+      assert {:ok, %{ra_deg: 83.819891, stars: 40}} = Local.solve(pgm, opts ++ [runner: runner, hint: {10.0, 10.0, 15.0}])
+
+      assert_received {:solve_progress, :watch, %{stage: :reading}}
+      assert_received {:solve_progress, :watch, %{stage: :stars, stars: 40}}
+      assert_received {:solve_progress, :watch, %{stage: :matching, how: :hinted, stars: 40, limit_ms: hinted}}
+      assert hinted <= 20_000
+      assert_received {:solve_progress, :watch, %{stage: :matching, how: :blind, limit_ms: blind}}
+      assert blind > 90_000
+
+      assert_received {:ran, "solve-field", near, near_ms}
+      assert "--ra" in near and near_ms <= 20_000
+      assert near |> Enum.at(Enum.find_index(near, &(&1 == "--cpulimit")) + 1) |> String.to_integer() <= 20
+      assert_received {:ran, "solve-field", sky, sky_ms}
+      refute "--ra" in sky
+      assert sky_ms > 90_000
+    end
+
+    test "with no hint there is one search, of the whole sky, with all the time", %{opts: opts, pgm: pgm} do
+      runner = {Programs, test: self(), solved: @solved, unsolved: @unsolved}
+      assert {:ok, _} = Local.solve(pgm, opts ++ [runner: runner])
+      assert_received {:solve_progress, :watch, %{stage: :matching, how: :blind, limit_ms: ms}}
+      assert ms > 110_000
+      assert_received {:ran, "solve-field", _, _}
+      refute_received {:ran, "solve-field", _, _}
+    end
+
+    test "no blind search to follow (asked not to): the hinted one keeps all the time", %{opts: opts, pgm: pgm} do
+      runner = {Programs, test: self(), solved: @solved, unsolved: @unsolved}
+      assert {:error, :no_solution} = Local.solve(pgm, opts ++ [runner: runner, hint: {10.0, 10.0, 15.0}, blind_fallback: false])
+      assert_received {:ran, "solve-field", _, ms}
+      assert ms > 110_000
+      refute_received {:ran, "solve-field", _, _}
+    end
+  end
+
   describe "reading solve-field" do
     test "a solved field: centre, size, rotation, parity, scale, stars, index" do
       assert {:ok, sol} = Local.parse(@solved)

@@ -17,7 +17,9 @@ for page in "$P"/*.html; do
   shot "$P/_phone.html" "$OUT/$n-phone.png" 600 4200
   python3 - "$page" "$P/_card.html" <<'PY'
 import re, sys
-card = re.search(r'<template id="ogplus">(.*?)</template>', open(sys.argv[1]).read(), re.S).group(1)
+m = re.search(r'<template id="ogplus">(.*?)</template>', open(sys.argv[1]).read(), re.S)
+# a page with no card of its own (a target with no picture yet) is photographed as it stands: nothing to draw here
+card = m.group(1) if m else '<p style="color:#888;font:24px sans-serif;padding:40px">no card of its own</p>'
 open(sys.argv[2], "w").write('<!doctype html><html data-ogplus><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#000">' + card + "</body></html>")
 PY
   shot "$P/_card.html" "$OUT/$n-card.png" 1200 630

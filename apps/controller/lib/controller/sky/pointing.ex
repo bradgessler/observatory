@@ -175,8 +175,86 @@ defmodule Controller.Sky.Pointing do
   would have swung it further the wrong way. Someone at the mount can answer
   by looking (`Lineup.set_counterweight/3`); until then, it waits.
   """
-  def side_guessed?(%{homed: false}, %{model: %{cw_told: false}}), do: true
+  def side_guessed?(%{homed: false}, %{model: %{cw_told: false} = m}), do: not is_tuple(m[:cw_unknown])
   def side_guessed?(_snap, _ctx), do: false
+
+  # not knowing the side, the bar may turn this much past where it has stood
+  @unknown_allow 5.0
+
+  @doc """
+  Has someone said they cannot tell which side the counterweight is on
+  (`Lineup.set_counterweight(id, snap, :unknown)`: nobody is at the mount)?
+  That is an answer, so the mount moves, but by nothing that depends on the
+  side.
+
+  The two sides are mirror images. Turn the RA axis so the bar reads `t`
+  degrees from level on the model's scale: on one side that is `t` above
+  level, on the other `t` below. A turn the mount has already stood at was
+  survivable whichever is true; a turn beyond that range raises the
+  counterweight on one side or the other, and nobody knows which. So:
+
+    * a Go To stays in the pose the mount is in, turns the RA axis the short
+      way, never carries the bar through upright, and lands only inside the
+      range of turns it has stood at with this alignment (its points, and
+      where it stood when this was said), widened by #{trunc(@unknown_allow)}° and always
+      including #{trunc(@meridian_margin)}° either side of level, which is safe on both
+      (`unknown_landing/3`);
+    * a hold ends at the edge of the same range (`unknown_limit?/2`);
+    * a meridian flip and its home leg are refused: both go by the side.
+  """
+  def side_unknown?(%{homed: false}, %{model: %{cw_told: false, cw_unknown: {_, _}}}), do: true
+  def side_unknown?(_snap, _ctx), do: false
+
+  @doc "The turns from level (`bar_turn/2`) the bar may stand at with the side unknown: `{lo, hi}`, or nil."
+  def unknown_range(%{model: %{cw_unknown: {lo, hi}}}),
+    do: {max(min(lo, -@meridian_margin) - @unknown_allow, -90.0), min(max(hi, @meridian_margin) + @unknown_allow, 90.0)}
+
+  def unknown_range(_ctx), do: nil
+
+  @doc """
+  The bar's turn from level with the RA axis at `ra_axis`, in degrees, with
+  the sign left open: `counterweight/2` on one side of the pier, its negative
+  on the other.
+  """
+  def bar_turn(%{model: m, pointing: p}, ra_axis) when is_map(m), do: Model.counterweight(Map.put(m, :cw, 1), signs_of(m, p), ra_axis)
+
+  @doc "With the side unknown, is the RA axis at `ra_axis` outside the turns the bar may stand at?"
+  def unknown_limit?(ctx, ra_axis) do
+    {lo, hi} = unknown_range(ctx)
+    turn = bar_turn(ctx, ra_axis)
+    turn < lo or turn > hi
+  end
+
+  @doc """
+  Where a Go To to `obj` lands with the counterweight's side unknown
+  (`side_unknown?/2`): the pose nearest the axes as they stand, the RA axis
+  turned the short way. `ok?` is whether it may go: the landing inside the
+  turns the bar may stand at (`turn` within `range`), and the bar not carried
+  through upright on the way (`upright?`).
+
+      %{pose: :same, ra:, dec:, d_ra:, d_dec:, turn:, range: {lo, hi}, upright?:, ok?:}
+  """
+  def unknown_landing(obj, snap, %{model: m, pointing: p} = ctx) when is_map(m) do
+    sg = signs_of(m, p)
+    cur_ra = snap.axes.ra.degrees
+    cur_dec = snap.axes.dec.degrees
+    lst = Astro.lst_deg(ctx.now, ctx.site.lon)
+    {alt, az} = Astro.alt_az(obj.ra_deg, obj.dec_deg, ctx.site.lat, lst)
+
+    {ra, dec} =
+      Model.solutions(m, sg, alt, az)
+      |> Enum.min_by(fn {r, d} -> abs(Astro.norm180(r - cur_ra)) + abs(d - cur_dec) end)
+
+    d_ra = Astro.norm180(ra - cur_ra)
+    dec = dec_through_pole(m, sg, cur_dec, dec)
+    turn = bar_turn(ctx, cur_ra + d_ra)
+    {lo, hi} = range = unknown_range(ctx)
+    # the bar is upright where the axis' hour angle is an odd multiple of 90
+    {h0, h1} = {sg.ha_sign * cur_ra + m.off_ra, sg.ha_sign * (cur_ra + d_ra) + m.off_ra}
+    upright? = through_ground?(2 * h0, 2 * h1)
+
+    %{pose: :same, ra: cur_ra + d_ra, dec: dec, d_ra: d_ra, d_dec: dec - cur_dec, turn: turn, range: range, upright?: upright?, ok?: not upright? and turn >= lo and turn <= hi}
+  end
 
   @doc """
   Where a Go To to `obj` puts the axes of a never-zeroed, lined-up mount, and
@@ -226,7 +304,7 @@ defmodule Controller.Sky.Pointing do
   """
   def home_leg(ref, snap, %{model: m, pointing: p} = ctx) when is_map(m) do
     # "counterweight straight down" is only where the model has it: on a guess, it may be straight up
-    if side_guessed?(snap, ctx), do: {:error, :counterweight_unknown}, else: do_home_leg(ref, snap, m, p, ctx)
+    if side_guessed?(snap, ctx) or side_unknown?(snap, ctx), do: {:error, :counterweight_unknown}, else: do_home_leg(ref, snap, m, p, ctx)
   end
 
   def home_leg(_ref, _snap, _ctx), do: {:error, :not_lined_up}
@@ -266,6 +344,13 @@ defmodule Controller.Sky.Pointing do
       # the one question someone at the mount can answer by looking (#113)
       :counterweight_unknown ->
         "Which side is the counterweight on? Say whether the bar is below or above level right now, then Go To again"
+
+      # nobody could say which side: Go To goes only where the RA axis has already stood
+      {:bar_unknown, %{upright?: true}} ->
+        "#{name} is across the meridian from here. With the counterweight's side unknown Go To stays on this side: look at the mount and say below or above level to go there"
+
+      {:bar_unknown, _} ->
+        "#{name} would turn the RA axis past where it has stood tonight. With the counterweight's side unknown Go To goes no further: look at the mount and say below or above level to go there"
 
       {:flip, %{past: past}} ->
         "#{name} needs a meridian flip (on this side the counterweight would sit #{round(past)}° above level): open #{name} to flip in two legs"
@@ -360,6 +445,16 @@ defmodule Controller.Sky.Pointing do
       # down twice, and Go To drove the tube toward the tripod (#113). Nothing moves until told.
       side_guessed?(snap, ctx) ->
         {:error, :counterweight_unknown}
+
+      # never zeroed, and nobody can look: only what both sides agree on (`side_unknown?/2`)
+      side_unknown?(snap, ctx) ->
+        plan = unknown_landing(obj, snap, ctx)
+        later = %{ctx | now: DateTime.add(ctx.now, round(flight_s(plan.d_ra, plan.d_dec)), :second)}
+        plan = unknown_landing(obj, snap, later)
+
+        if plan.ok?,
+          do: go(ref, snap, obj, ctx, plan.d_ra, plan.d_dec, opts),
+          else: {:error, {:bar_unknown, Map.take(plan, [:turn, :range, :upright?])}}
 
       # never zeroed, lined up: the model says where the counterweight hangs
       not snap.homed ->
@@ -474,4 +569,47 @@ defmodule Controller.Sky.Pointing do
       :exit, _ -> {:error, :unreachable}
     end
   end
+
+  # -- asked from another machine ----------------------------------------------------------
+  #
+  # Where a telescope points is worked out from its own machine's alignment, site and axis
+  # signs, and a Go To is flown and then held by that machine. From another machine of the
+  # cluster both happen there (`Controller.Machine`, #143).
+
+  alias Controller.Machine
+
+  defoverridable context: 2, slew: 5, home_leg: 3
+
+  def context(now, id) when is_binary(id), do: Machine.route(id, {__MODULE__, :context, [now, id]}, nil, fn -> super(now, id) end) || super(now, nil)
+  def context(now, id), do: super(now, id)
+
+  def slew(ref, snap, obj, ctx, opts) do
+    case Machine.away(ref) do
+      nil -> super(ref, snap, obj, ctx, opts)
+      node -> Machine.ask(node, __MODULE__, :slew_here, [id_of(ref), obj, opts], {:error, :unreachable})
+    end
+  end
+
+  def home_leg(ref, snap, ctx) do
+    case Machine.away(ref) do
+      nil -> super(ref, snap, ctx)
+      node -> Machine.ask(node, __MODULE__, :home_leg_here, [id_of(ref)], {:error, :unreachable})
+    end
+  end
+
+  @doc false
+  # a Go To asked from another machine: with this machine's own snapshot and alignment
+  def slew_here(id, obj, opts) do
+    ref = Enum.find(Mount.list(), &(&1.id == id))
+    if ref, do: slew(ref, Mount.snapshot(id), obj, context(DateTime.utc_now(), id), opts), else: {:error, :not_connected}
+  end
+
+  @doc false
+  def home_leg_here(id) do
+    ref = Enum.find(Mount.list(), &(&1.id == id))
+    if ref, do: home_leg(ref, Mount.snapshot(id), context(DateTime.utc_now(), id)), else: {:error, :not_connected}
+  end
+
+  defp id_of(%{id: id}), do: id
+  defp id_of(id), do: id
 end

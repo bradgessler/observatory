@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Site.Build do
 
     paths = posts_dir |> Path.join("*.md") |> Path.wildcard()
     nights = Path.wildcard(Path.join([root, "observations", "*", "session.md"]))
-    private!(paths ++ nights ++ Path.wildcard(Path.join([root, "observations", "*", "objects.json"])))
+    private!(paths ++ nights ++ Path.wildcard(Path.join([root, "observations", "*", "objects.json"])) ++ Path.wildcard(Path.join([root, "observations", "*", "plan.json"])))
     posts = paths |> Enum.map(&read_post/1) |> Enum.sort_by(& &1.date, {:desc, Date})
     sessions = nights |> Enum.map(&read_session/1) |> Enum.sort_by(& &1.date, {:desc, Date})
 
@@ -368,8 +368,93 @@ defmodule Mix.Tasks.Site.Build do
       html: render(body),
       objects: data["objects"] || [],
       credit: data["credit"],
-      made_with: data["made_with"]
+      made_with: data["made_with"],
+      plan: read_plan(dir)
     }
+  end
+
+  # A night's plan, when it has one (`plan.json`): what is on the menu, in order, and how far each
+  # has got. The night's page is published with it before the first picture exists and again as
+  # each target moves on, so a reader can follow the night:
+  #
+  #     {"targets": [{"slug": "ngc-891", "title": "NGC 891", "sub": "An edge-on galaxy in Andromeda",
+  #                   "what": "One or two sentences.", "state": "observing", "note": "12 of 30 frames"}]}
+  #
+  # `state` is planned, observing, processing, published or skipped. No clock times go in it: a
+  # time with an altitude and a name places the telescope, and a time alone is not needed.
+  defp read_plan(dir) do
+    with {:ok, json} <- File.read(Path.join(dir, "plan.json")),
+         {:ok, %{"targets" => targets}} when is_list(targets) <- Jason.decode(json) do
+      targets
+    else
+      _ -> []
+    end
+  end
+
+  @plan_words %{
+    "planned" => "Planned",
+    "observing" => "Being photographed now",
+    "processing" => "Photographed, being processed",
+    "published" => "Published",
+    "skipped" => "Skipped"
+  }
+
+  defp plan_words(t), do: [@plan_words[t["state"]] || "Planned", t["note"]] |> Enum.reject(&(&1 in [nil, ""])) |> Enum.join(": ")
+
+  # is this target's picture on the site? Then its own page is the picture's, not a placeholder
+  defp published?(night, t), do: Enum.any?(night.objects, &(&1["slug"] == t["slug"]))
+
+  # The menu under the night's pictures: every target in order, what it is, and how far it has got.
+  defp menu(%{plan: []}), do: ""
+
+  defp menu(night) do
+    rows =
+      Enum.map_join(night.plan, "\n", fn t ->
+        state = if published?(night, t), do: "published", else: t["state"] || "planned"
+        t = Map.put(t, "state", state)
+
+        """
+        <li class="is-#{esc(state)}">
+          <a href="#{esc(t["slug"])}.html">
+            <strong>#{esc(t["title"])}</strong>
+            <span class="detail">#{esc(t["sub"])}</span>
+            <span class="state">#{esc(plan_words(t))}</span>
+          </a>
+        </li>
+        """
+      end)
+
+    """
+    <section class="menu" aria-labelledby="menu-h">
+      <h2 id="menu-h">On the menu</h2>
+      <p class="lede">What the telescope was sent to photograph this night, in order. Each one gets its page when its picture is ready.</p>
+      <ol>#{rows}</ol>
+    </section>
+    """
+  end
+
+  # A target whose picture is not on the site yet: what it is, and where it stands.
+  defp placeholder_page(night, t, site) do
+    line =
+      case t["state"] do
+        "observing" -> "The telescope is photographing this one now. Its picture will be here when the frames have been stacked."
+        "processing" -> "This one has been photographed. Its frames are being stacked into a picture, which will be here soon."
+        "skipped" -> "This one was skipped this night#{if t["note"] not in [nil, ""], do: ": " <> t["note"], else: ""}."
+        _ -> "This one is on the menu for this night and has not been photographed yet. Check back."
+      end
+
+    share = %{path: "observations/#{night.slug}/#{t["slug"]}.html", type: "article", title: t["title"], description: t["what"] || t["sub"] || "", hero: cover(night), hero_alt: cover_alt(night), date: night.date, card: nil}
+
+    layout(t["title"], share_tags(share, site), """
+    <p class="back"><a href="./">‹ #{esc(night.title)}</a></p>
+    <header>
+      <h1>#{esc(t["title"])}</h1>
+      <p class="sub">#{esc(t["sub"])}</p>
+      <p class="what">#{esc(t["what"])}</p>
+    </header>
+    <p class="waiting" role="status">#{esc(line)}</p>
+    #{rights(night.date.year)}
+    """, "wide", "../../", "obs")
   end
 
   # The night's facts, in the order the file gives them: every front-matter
@@ -403,6 +488,8 @@ defmodule Mix.Tasks.Site.Build do
 
       File.write!(Path.join(to, "index.html"), session_page(night, site))
       for o <- night.objects, do: File.write!(Path.join(to, o["slug"] <> ".html"), object_page(night, o, site))
+      # a target with no picture yet has a page saying where it stands
+      for t <- night.plan, not published?(night, t), do: File.write!(Path.join(to, t["slug"] <> ".html"), placeholder_page(night, t, site))
     end
   end
 
@@ -476,6 +563,7 @@ defmodule Mix.Tasks.Site.Build do
       <p class="lede">#{esc(night.summary)}</p>
     </header>
     <ul class="sky">#{pictures}</ul>
+    #{menu(night)}
     <article class="night-notes">
       #{night.html}
     </article>
@@ -587,6 +675,7 @@ defmodule Mix.Tasks.Site.Build do
     """
   end
 
+  defp count([]), do: "the first pictures are on their way"
   defp count([_]), do: "one picture"
   defp count(list), do: "#{length(list)} pictures"
 
@@ -908,6 +997,19 @@ defmodule Mix.Tasks.Site.Build do
     /* the first picture leads: twice the size, where there is room for three across */
     @media (min-width:64rem) { ul.sky { grid-template-columns:repeat(3,1fr); } ul.sky li:first-child { grid-column:span 2; grid-row:span 2; } }
     ul.sky a { display:block; color:inherit; text-decoration:none; }
+    .menu { margin:0 0 4rem; }
+    .menu ol { list-style:none; padding:0; margin:1.5rem 0 0; display:grid; gap:0; }
+    .menu li { border-top:1px solid #1c1f27; }
+    .menu li:last-child { border-bottom:1px solid #1c1f27; }
+    .menu a { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.1rem 1.5rem; align-items:baseline; padding:.85rem 0; color:inherit; text-decoration:none; }
+    .menu strong { font-weight:600; }
+    .menu .detail { grid-column:1; color:#9a9fae; font-size:.9rem; }
+    .menu .state { grid-column:2; grid-row:1 / span 2; align-self:center; color:#9a9fae; font-size:.9rem; text-align:right; max-width:16rem; }
+    .menu .is-published .state { color:#e6e8ee; }
+    .menu .is-observing .state { color:#f0c674; }
+    .menu a:hover strong { text-decoration:underline; }
+    .waiting { margin:2rem 0 4rem; padding:1.25rem 1.4rem; background:#12151c; border-radius:12px; color:#e6e8ee; max-width:46rem; }
+    @media (max-width:40rem) { .menu a { grid-template-columns:1fr; } .menu .state { grid-column:1; grid-row:auto; text-align:left; max-width:none; } }
     ul.sky .frame { display:block; aspect-ratio:3/2; }
     /* every picture whole, and a small one at its own size: scale-down shrinks to fit but never enlarges */
     ul.sky img { width:100%; height:100%; object-fit:scale-down; display:block; transition:filter .12s ease; }

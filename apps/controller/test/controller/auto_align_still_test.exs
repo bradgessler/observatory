@@ -91,6 +91,32 @@ defmodule Controller.AutoAlignStillTest do
     %{id: id, ref: Enum.find(Mount.list(), &(&1.id == id))}
   end
 
+  # 12 October: STOP 1.7 s into the third move ended a run with two pictures solved, and starting
+  # again took all four again (#144)
+  @tag timeout: 300_000
+  test "a stopped run carries on from the pictures it has solved", %{id: id} do
+    :ok = AutoAlign.start(id, overhead: true)
+    assert_receive {:auto_align, ^id, %{solved: 2, done: false}}, 120_000
+    :ok = AutoAlign.stop(id)
+    assert_receive {:auto_align, ^id, %{done: true, ok: false}}, 5_000
+    kept = AutoAlign.placed(id)
+    assert kept >= 2
+    before = length(Plates.view(id).plates)
+
+    :ok = AutoAlign.start(id, keep: true)
+    assert_receive {:auto_align, ^id, %{done: false, solved: ^kept, words: "Carrying on with" <> _}}, 5_000
+    assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
+    assert run.ok, run.words
+    # the pictures from before the stop are among the four, and only the rest were taken
+    assert length(Plates.view(id).plates) - before <= 4 - kept + 1
+    assert Lineup.status(id).n >= 4
+
+    # starting over does take them all again
+    :ok = AutoAlign.start(id)
+    assert_receive {:auto_align, ^id, %{done: false, solved: 0}}, 5_000
+    AutoAlign.stop(id)
+  end
+
   test "one tap from home: up high, finder pictures, and a Go To that lands in the eyepiece and stays", %{id: id, ref: ref} do
     assert AutoAlign.camera() == :still
     :ok = AutoAlign.start(id, overhead: true)
@@ -98,7 +124,7 @@ defmodule Controller.AutoAlignStillTest do
     assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
     assert run.ok, run.words
     assert run.camera == :still
-    assert run.words =~ "Found it: 4 frames agree"
+    assert run.words =~ "Found it: 4 pictures agree"
 
     # the pictures were the stills camera's finders, on this mount's plates
     assert [_, _, _, _] = Enum.filter(Plates.view(id).plates, &(&1.state == :solved and &1[:finder] == true))
@@ -181,7 +207,7 @@ defmodule Controller.AutoAlignStillTest do
 
     assert_receive {:auto_align, ^id, %{done: true} = run}, 240_000
     assert run.ok, run.words
-    assert run.words =~ "Aligned: 4 frames agree"
+    assert run.words =~ "Aligned: 4 pictures agree"
     assert run.words =~ "Is the counterweight bar below or above level right now?"
     status = Lineup.status(id)
     assert status.n == 4 and "just look" in status.good_for

@@ -23,6 +23,7 @@ defmodule Controller.ObjectLive do
     Blurbs,
     Catalog,
     Ephemeris,
+    Exposure,
     Lineup,
     Moves,
     Pointing,
@@ -62,6 +63,8 @@ defmodule Controller.ObjectLive do
        search: nil,
        night: Settings.get("night", false),
        aperture: Settings.get("aperture_mm", 100),
+       # a starting exposure for a camera on the telescope: advice (`Sky.Exposure`)
+       exposure: nil,
        confirming: false,
        can_undo: false,
        counterweight: nil,
@@ -221,6 +224,8 @@ defmodule Controller.ObjectLive do
       visible: alt > tree,
       scope: Pointing.scope_radec(socket.assigns.snap, ctx),
       reach: reach,
+      # from this telescope's f-ratio as it is set, and the Moon's phase now
+      exposure: Exposure.tonight(obj, at: now),
       # :guessed while Go To picks its side of the pier on a guess (`Lineup.status/1`)
       counterweight: lock && lock.counterweight,
       holding: id && (Tracker.status(id) || %{})[:name]
@@ -276,7 +281,7 @@ defmodule Controller.ObjectLive do
   end
 
   # The one answer Go To waited for, from someone looking at the mount
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     {told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
     {:noreply, socket |> assign(cw_ask: not told?, notice: said) |> compute()}
   end
@@ -479,17 +484,23 @@ defmodule Controller.ObjectLive do
 
       <.split class="object-split">
         <:main>
-          <Controller.Components.NightPath.figure id="object-path" scene={@scene} obj={@obj} utc_offset_min={@utc_offset_min} />
+          <Controller.Components.NightPath.figure id="object-path" scene={@scene} obj={@obj} utc_offset_min={@utc_offset_min} scope={scope_mark(@scene, @snap, @selected)} />
           <Controller.Components.Visibility.plot targets={[@obj]} site={@site} at={@now} utc_offset_min={@utc_offset_min} horizon={@horizon} />
         </:main>
         <:side>
           <section class="card">
             <p class="kind">
-              {kind_name(@obj.kind)}<span :if={@about}> · {@about}</span><span :if={@obj[:desig]}> · {@obj.desig}</span><span :if={@rank}>
+              <Controller.Components.Icons.kind kind={@obj.kind} />{kind_name(@obj.kind)}<span :if={@about}> · {@about}</span><span :if={@obj[:desig]}> · {@obj.desig}</span><span :if={@rank}>
                  · #{@rank} tonight
               </span>
             </p>
             <p class="blurb">{Blurbs.for(@obj)}</p>
+            <%!-- a starting exposure for a camera on the telescope, over its reason: advice, set on the camera's own Exposure screen --%>
+            <div :if={@exposure} class="setting exposure-advice">
+              <div class="setting-text"><strong>Start at {Exposure.words(@exposure)}</strong><span>{@exposure.why}</span></div>
+              <span class="setting-action"><.help href={~p"/docs/still-camera#suggested-exposure"} label="the suggested exposure" /></span>
+            </div>
+            <.link navigate={if @selected, do: ~p"/sky/#{@selected}?#{[pick: @obj.id]}", else: ~p"/sky?#{[pick: @obj.id]}"} class="btn" aria-label={"Show #{@obj.name} on the Sky Map"}>Show on Sky Map ›</.link>
           </section>
 
           <dl class="card facts">
@@ -646,6 +657,18 @@ defmodule Controller.ObjectLive do
   defp verdict(%{visible: false}), do: "Not up right now"
   defp verdict(%{entry: %{words: w}}), do: w
   defp verdict(_), do: "Faint for this telescope tonight"
+
+  # where the telescope points on this object's chart right now, as the Sky Map draws it
+  defp scope_mark(scene, %{connected: true} = snap, id) when is_binary(id) do
+    with {ra, dec} <- Pointing.scope_radec(snap, Pointing.context(DateTime.utc_now(), id)),
+         {x, y} <- Controller.Sky.Scene.place(scene, ra, dec) do
+      %{x: x, y: y}
+    else
+      _ -> nil
+    end
+  end
+
+  defp scope_mark(_, _, _), do: nil
 
   defp kind_name(:moon), do: "The Moon"
   defp kind_name(:planet), do: "Planet"

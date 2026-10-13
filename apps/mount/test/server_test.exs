@@ -45,6 +45,30 @@ defmodule Mount.ServerTest do
     assert_eventually(fn -> Mount.snapshot(id).axes.ra end, &(not &1.running), 3_000)
   end
 
+  test "a slew at a tracking rate keeps its longer lease through a quiet spell", %{id: id} do
+    # 13 October 2026: the tracker went quiet for five seconds and the 900 ms dead-man let go of
+    # both motors in the middle of a run of exposures. At 2x sidereal or slower the lease holds
+    :ok = Mount.slew(id, :ra, 0.96, hold: 15_000)
+    Process.sleep(2_000)
+    assert Mount.snapshot(id).axes.ra.running, "the tracking slew stopped inside its lease"
+    :ok = Mount.stop(id, :ra)
+    refute Mount.snapshot(id).axes.ra.running
+  end
+
+  test "a fast slew gets the hand's 900 ms whatever lease it asks for", %{id: id} do
+    :ok = Mount.slew(id, :ra, 64, hold: 15_000)
+    assert Mount.snapshot(id).axes.ra.running
+    assert_eventually(fn -> Mount.snapshot(id).axes.ra end, &(not &1.running), 3_000)
+  end
+
+  test "a tracking lease that does run out stops the axis and says so", %{id: id} do
+    Telescope.Events.subscribe()
+    :ok = Mount.slew(id, :dec, 0.5, hold: 1_200)
+    assert Mount.snapshot(id).axes.dec.running
+    assert_receive {:event, %{module: :mount, name: :hold_expired, data: %{id: ^id, axis: :dec}}}, 3_000
+    assert_eventually(fn -> Mount.snapshot(id).axes.dec end, &(not &1.running), 3_000)
+  end
+
   test "a goto after a held slew is not killed by the old dead-man", %{id: id} do
     # the night the third alignment star landed 9° short: the tracker's held
     # slews left a hold timer armed, and it stopped the goto a second in

@@ -130,6 +130,8 @@ defmodule Controller.StartLive do
       step: step,
       page_title: start_title(id) <> " · " <> (steps(status) |> List.keyfind(step, 0) |> elem(1)),
       status: status,
+      # an alignment a reset replaced, while it can still be brought back
+      was: id && Lineup.restorable(id),
       # past Set Home without it: the camera does without, so the strip says it's optional
       home_optional: step in [:stars, :look] and not snap.homed,
       # for the counterweight question (`Lineup.counterweight/2`, drawn from the live snapshot)
@@ -177,7 +179,12 @@ defmodule Controller.StartLive do
   end
 
   # Which side the counterweight is on, from someone looking at the mount: Go To waited for it
-  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above"] do
+  def handle_event("restore_alignment", _, socket) do
+    said = Controller.Components.AlignmentStatus.restore(socket.assigns.selected)
+    {:noreply, socket |> compute() |> notice(said)}
+  end
+
+  def handle_event("counterweight", %{"where" => where}, socket) when where in ["below", "above", "unknown"] do
     {_told?, said} = Counterweight.answer(socket.assigns.selected, socket.assigns.snap, where)
     {:noreply, socket |> compute() |> notice(said)}
   end
@@ -272,7 +279,7 @@ defmodule Controller.StartLive do
     ~H"""
     <.page id="start" night={@night} class="start">
       <:header>
-        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected && short(@selected))} />
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Telescope", @selected && short(@selected))} />
         <.title>Status</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
@@ -282,17 +289,18 @@ defmodule Controller.StartLive do
         </.actions>
       </:header>
 
-      <ol class="flow-steps" aria-label="setup steps">
-        <li :for={{key, label} <- steps(@status)} class={state(key, @step, @home_optional)} aria-current={if key == @step, do: "step"}>{label}<span :if={state(key, @step, @home_optional) == "done"} role="img" aria-label="done"> ✓</span><span :if={key == :zero and @home_optional}> (optional)</span></li>
+      <%!-- one line on any phone: every step is its number, and the one you are on is spelled out --%>
+      <ol class="flow-steps flow-now" aria-label="setup steps">
+        <li :for={{key, label} <- steps(@status)} class={state(key, @step, @home_optional)} aria-current={if key == @step, do: "step"}><span class="flow-label">{label}<span :if={key == :zero and @home_optional}> (optional)</span></span><span :if={state(key, @step, @home_optional) == "done"} role="img" aria-label="done">✓</span></li>
       </ol>
-
-      <%!-- the scope's live state, one line, on every step that has a scope --%>
-      <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
 
       <%!-- an alignment on a mount with no home: Go To picks its side of the pier by where the
             counterweight is, and until someone says, that is a guess (the question itself is
             right under Align with the Camera on the Stars step) --%>
       <Counterweight.line :if={@step != :stars} from={@status && @status.counterweight} mount={@selected} />
+
+      <%!-- nothing is thrown away by a reset: the alignment it replaced, and the key that brings it back --%>
+      <Controller.Components.AlignmentStatus.set_aside :if={@step in [:stars, :look, :zero]} was={@was} now={@now} />
 
       <%!-- step 1: nothing to talk to --%>
       <.card :if={@step == :plug} title="Plug In the Telescope">
@@ -312,7 +320,7 @@ defmodule Controller.StartLive do
           <.btn :if={!aligning?(@run)} variant="primary" phx-click="camera_align" disabled={!@camera}>Align with the Camera</.btn>
           <.btn :if={@run && @run[:phase] == :waiting} variant="primary" phx-click="camera_align_continue">Continue</.btn>
           <.btn :if={aligning?(@run)} phx-click="camera_align_stop">Stop Aligning</.btn>
-          <.btn variant="ghost" navigate={~p"/cameras/stills"}>Stills Camera ›</.btn>
+          <.btn variant="ghost" navigate={~p"/align/camera/#{@selected}"}>Step by Step ›</.btn>
         </.row>
       </.card>
 
@@ -371,7 +379,7 @@ defmodule Controller.StartLive do
 
         <.card title="Look At">
           <.items :if={@targets != []} label="tonight's targets">
-            <.item :for={t <- @targets} as="li" label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
+            <.item :for={t <- @targets} as="li" kind={t[:kind]} label={t.name} detail={Lineup.where_words(t.alt, t.az) <> if(t.words, do: " · " <> t.words, else: "")}>
               <.btn variant="primary" phx-click="go" phx-value-id={t.id} aria-label={"Go To #{t.name}"}>Go To</.btn>
             </.item>
           </.items>

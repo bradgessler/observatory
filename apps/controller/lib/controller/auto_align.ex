@@ -37,6 +37,16 @@ defmodule Controller.AutoAlign do
   that doesn't solve is a miss and the mount moves on. Continuous shooting
   stands down for the run and comes back after it.
 
+  **The first pictures are solved blind.** Until three of them agree, the
+  solver is told nothing about where the mount thinks it points
+  (`finder(hint: false)`). One solved picture and the axis directions the
+  box last learned do not make a hint: on 12 October the scope stood on the
+  other side of the mount from the night those were learned, every hint was
+  some 30 degrees out, and four pictures in a row ran out of time on a sky
+  that solved blind in 12 seconds. What counts as solved is what the plate
+  queue says is solved (`placed/1`), not a tally kept here: a picture that
+  solves late still counts.
+
   One run per mount. Broadcasts `{:auto_align, mount_id, status}` on
   `"auto_align"` at every step.
   """
@@ -63,8 +73,9 @@ defmodule Controller.AutoAlign do
   @still_iso 6400
   @still_shutter "2"
   @still_settle_ms 2_500
-  @still_blind_ms 120_000
-  @still_hinted_ms 45_000
+  @still_ms 120_000
+  # until this many pictures agree the solver gets no hint from them
+  @trust 3
   # a picture already on its way (continuous shooting stopping): ask again this often, this many times
   @busy_ms 2_000
   @busy_tries 60
@@ -72,7 +83,8 @@ defmodule Controller.AutoAlign do
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc """
-  Start finding where mount `id` points. Options: `plan:`, `enough:`,
+  Start finding where mount `id` points. Options: `keep:` (true carries on a
+  run that was stopped, with the pictures it had solved), `plan:`, `enough:`,
   `settle_ms:`, `stack:`, and `camera:` (`:still` or `:scope`; whichever is
   ready when not given, `camera/0`). For the telescope camera, the pictures'
   `exposure_ms:` (2000, or as long as the camera goes) and `gain:` (80), which
@@ -121,11 +133,22 @@ defmodule Controller.AutoAlign do
       snap(id) == nil ->
         {:reply, {:error, :no_mount}, runs}
 
+      # the cameras here are this machine's: a telescope on another machine is aligned there, with
+      # the camera that is on it (13 October: the Mac's simulated camera stood ready to align the box's mount)
+      elsewhere(id) != nil ->
+        {:reply, {:error, :other_machine}, runs}
+
       camera == nil ->
         {:reply, {:error, :no_camera}, runs}
 
       true ->
-        Plates.clear(id)
+        # `keep: true` carries on a run that was stopped: its solved pictures stay (each is an
+        # encoder reading, a place on the sky and a time, good whatever the mount did since), and
+        # the rest are taken from where the telescope stands now (#144)
+        keep? = Keyword.get(opts, :keep, false)
+        unless keep?, do: Plates.clear(id)
+        kept = if keep?, do: placed(id), else: 0
+        taken = if keep?, do: length((safe(fn -> Plates.view(id) end) || %{plates: []}).plates), else: 0
         ref = Enum.find(Mount.list(), &(&1.id == id))
         # the model's hold would pull each move back toward its old target
         Controller.Sky.Tracker.stop(id, halt: false)
@@ -154,8 +177,8 @@ defmodule Controller.AutoAlign do
           gain: Keyword.get(opts, :gain, @gain),
           at: {0, 0},
           step: 0,
-          picture: 0,
-          solved: 0,
+          picture: taken,
+          solved: kept,
           misses: 0,
           retried: false,
           plate: nil,
@@ -163,7 +186,7 @@ defmodule Controller.AutoAlign do
           # the last STOP before this run: any other one ends it
           estop0: snap(id)[:estop_at],
           phase: :starting,
-          words: "Starting",
+          words: if(kept > 0, do: "Carrying on with #{kept} #{if kept == 1, do: "picture", else: "pictures"} solved", else: "Starting"),
           done: false,
           ok: nil
         }
@@ -172,6 +195,10 @@ defmodule Controller.AutoAlign do
         send(self(), {:watch, id})
 
         case if(Keyword.get(opts, :overhead, false), do: overhead(run), else: {:ok, run}) do
+          # the pictures kept are already enough: nothing to take, the alignment is made from them
+          {:ok, %{solved: n, enough: enough} = run} when n >= enough ->
+            {:reply, :ok, put(runs, solved(%{run | solved: n - 1}, %{state: :solved}))}
+
           {:ok, run} ->
             send(self(), {:next, id})
             {:reply, :ok, put(runs, run)}
@@ -258,10 +285,10 @@ defmodule Controller.AutoAlign do
           {:noreply, put(runs, %{run | busy: run.busy + 1, picture: run.picture - 1} |> say(:shooting, "Waiting for the camera to finish a picture"))}
 
         {:still, why} ->
-          {:noreply, put(runs, missed(%{run | busy: 0}, "Frame #{run.picture}: #{still_words(why)}"))}
+          {:noreply, put(runs, missed(%{run | busy: 0}, "Picture #{run.picture}: #{still_words(why)}"))}
 
         {:ok, n} ->
-          run = %{run | plate: n} |> say(:solving, "Plate solving frame #{run.picture}")
+          run = %{run | plate: n} |> say(:solving, "Plate solving picture #{run.picture}")
 
           # it may have been solved already, before we knew its number
           case Enum.find((safe(fn -> Plates.view(id) end) || %{plates: []}).plates, &(&1.n == n)) do
@@ -272,13 +299,13 @@ defmodule Controller.AutoAlign do
         # not worth solving: the garage, a cloud, the Moon
         {:bad, :few_stars} when not run.retried ->
           send(self(), {:next, id})
-          {:noreply, put(runs, %{run | retried: true} |> say(:retrying, "Only a few stars in frame #{run.picture}; trying again with more exposures stacked"))}
+          {:noreply, put(runs, %{run | retried: true} |> say(:retrying, "Only a few stars in picture #{run.picture}; trying again with more exposures stacked"))}
 
         {:bad, verdict} ->
-          {:noreply, put(runs, missed(run, "Frame #{run.picture}: #{Controller.ScopeCamera.Image.verdict_words(verdict)}"))}
+          {:noreply, put(runs, missed(run, "Picture #{run.picture}: #{Controller.ScopeCamera.Image.verdict_words(verdict)}"))}
 
         {:error, reason} ->
-          {:noreply, put(runs, missed(run, "The camera didn't give a frame: #{Controller.Words.error(reason)}"))}
+          {:noreply, put(runs, missed(run, "The camera didn't give a picture: #{Controller.Words.error(reason)}"))}
       end
     else
       _ -> {:noreply, runs}
@@ -298,14 +325,15 @@ defmodule Controller.AutoAlign do
     settle = run.settle_ms
     first? = not run.exposed
     exposure = Enum.reject([iso: run.iso, shutter: run.shutter], fn {_, v} -> is_nil(v) end)
-    deadline = if run.solved > 0, do: @still_hinted_ms, else: @still_blind_ms
+    # blind until the pictures so far make a model worth a hint
+    blind = if placed(id) < @trust, do: [hint: false], else: []
 
     Task.Supervisor.start_child(Controller.ScopeCamera.Tasks, fn ->
       Process.sleep(settle)
       if first? and exposure != [] and not set?(exposure), do: safe(fn -> StillCamera.set(exposure) end)
 
       result =
-        case StillCamera.finder(mount: id, scale: StillCamera.field_scale(), min_stars: 6, deadline: deadline) do
+        case StillCamera.finder([mount: id, scale: StillCamera.field_scale(), min_stars: 6, deadline: @still_ms] ++ blind) do
           {:ok, %{from: :solve}} -> :solved
           {:error, why} -> why
           other -> other
@@ -315,7 +343,7 @@ defmodule Controller.AutoAlign do
     end)
 
     %{run | picture: picture, plate: nil, exposed: true}
-    |> say(:shooting, if(first?, do: "Setting the camera for stars, then taking frame #{picture}", else: "Taking and plate solving frame #{picture}"))
+    |> say(:shooting, if(first?, do: "Setting the camera for stars, then taking picture #{picture}", else: "Taking picture #{picture}, then plate solving it"))
   end
 
   defp shoot(run) do
@@ -352,11 +380,11 @@ defmodule Controller.AutoAlign do
     end)
 
     %{run | picture: picture, plate: nil}
-    |> say(:shooting, "Taking frame #{picture}#{if stack, do: " (#{stack} exposures stacked)", else: ""}")
+    |> say(:shooting, "Taking picture #{picture}#{if stack, do: " (#{stack} exposures stacked)", else: ""}")
   end
 
   defp solved(run, %{state: :solved}) do
-    run = %{run | solved: run.solved + 1, misses: 0, retried: false, plate: nil}
+    run = %{run | solved: max(run.solved + 1, placed(run.id)), misses: 0, retried: false, plate: nil}
 
     if run.solved >= run.enough do
       case Plates.use_alignment(run.id) do
@@ -364,7 +392,7 @@ defmodule Controller.AutoAlign do
           finish(run, true, found_words(st))
 
         {:error, e} ->
-          finish(run, false, "The frames were plate solved but couldn't be used: #{Controller.Words.error(e)}")
+          finish(run, false, "The pictures were plate solved but couldn't be used: #{Controller.Words.error(e)}")
       end
     else
       move(run)
@@ -374,23 +402,23 @@ defmodule Controller.AutoAlign do
   # taken while the mount was still settling: the same spot again, no harm done
   defp solved(run, %{reason: "moving"}) do
     Process.send_after(self(), {:next, run.id}, 1_000)
-    %{run | plate: nil} |> say(:retrying, "The mount was still settling; taking frame #{run.picture} again")
+    %{run | plate: nil} |> say(:retrying, "The mount was still settling; taking picture #{run.picture} again")
   end
 
   defp solved(run, %{reason: reason}) do
     # no stars: one more try here with more light, then move on
     if reason in ["too_few_stars", "no_solution"] and not run.retried do
       send(self(), {:next, run.id})
-      %{run | retried: true, plate: nil} |> say(:retrying, "No match in frame #{run.picture}; trying again with more exposures stacked")
+      %{run | retried: true, plate: nil} |> say(:retrying, "No match in picture #{run.picture}; trying again with more exposures stacked")
     else
-      missed(run, "Frame #{run.picture} didn't plate solve (#{reason |> to_string() |> String.replace("_", " ")})")
+      missed(run, "Picture #{run.picture} didn't plate solve (#{reason |> to_string() |> String.replace("_", " ")})")
     end
   end
 
   # On a mount whose home was never set, no picture can say which side of the pier the
   # counterweight is on, and Go To waits for it (#113): the last words are the question.
   defp found_words(st) do
-    agree = "#{st.n} frames agree#{if st.rms_arcmin, do: " to #{round(st.rms_arcmin * 10) / 10}′", else: ""}"
+    agree = "#{st.n} pictures agree#{if st.rms_arcmin, do: " to #{round(st.rms_arcmin * 10) / 10}′", else: ""}"
 
     if st[:counterweight] == :guessed,
       do: "Aligned: #{agree}. Is the counterweight bar below or above level right now?",
@@ -398,13 +426,38 @@ defmodule Controller.AutoAlign do
   end
 
   defp missed(run, why) do
-    run = %{run | misses: run.misses + 1, retried: false, plate: nil}
+    run = %{run | misses: run.misses + 1, retried: false, plate: nil, solved: max(run.solved, placed(run.id))}
 
-    if run.misses >= @give_up_after do
+    cond do
+      # a picture given up on earlier has solved since: with it there are enough
+      run.solved >= run.enough ->
+        solved(%{run | solved: run.solved - 1}, %{state: :solved})
+
+      run.misses >= @give_up_after ->
       # hand the mount over: a person can see what the camera can't
-      run |> say(:waiting, "#{why}. Three bad frames in a row. Move the telescope to open sky with the game controller or the touchpad, then tap Continue")
-    else
-      move(run |> say(:missed, why))
+        run |> say(:waiting, "#{why}. Three pictures in a row found no match. Move the telescope to open sky with the game controller or the touchpad, then tap Continue")
+
+      true ->
+        move(run |> say(:missed, why))
+    end
+  end
+
+  @doc """
+  The machine mount `id` is on when it is not this one (its node), else nil. A run uses this
+  machine's cameras and this machine's alignment, so it only runs where the mount is.
+  """
+  def elsewhere(id) do
+    case Enum.find(safe(fn -> Mount.list() end) || [], &(&1.id == id)) do
+      %{node: n} when n != node() -> n
+      _ -> nil
+    end
+  end
+
+  @doc "How many of mount `id`'s pictures the plate queue has solved and can use: the count that matters."
+  def placed(id) do
+    case safe(fn -> Plates.view(id) end) do
+      %{plates: plates} -> Enum.count(plates, &(&1.state == :solved and &1[:moving] != true and is_map(&1[:solution])))
+      _ -> 0
     end
   end
 
@@ -421,7 +474,7 @@ defmodule Controller.AutoAlign do
   defp move(%{step: step, plan: plan} = run) do
     case Enum.at(plan, step + 1) do
       nil ->
-        finish(run, run.solved >= 2, "Out of places to look: #{run.solved} frames plate solved")
+        finish(run, run.solved >= 2, "Out of places to look: #{run.solved} pictures plate solved")
 
       {ra, dec} = next ->
         {ra0, dec0} = run.at

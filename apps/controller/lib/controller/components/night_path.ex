@@ -28,6 +28,7 @@ defmodule Controller.Components.NightPath do
   attr :scene, :map, required: true, doc: "built for now (it may carry stars; they aren't drawn)"
   attr :obj, :map, required: true, doc: "`name`, `ra_deg`, `dec_deg`"
   attr :utc_offset_min, :any, default: nil
+  attr :scope, :map, default: nil, doc: "where the telescope points on this chart right now (`%{x, y}`, `Scene.place/3`): the Sky Map's crosshair, here too"
   attr :class, :any, default: nil
 
   def figure(assigns) do
@@ -58,15 +59,21 @@ defmodule Controller.Components.NightPath do
           <SkyChart.grid scene={@scene} except={["equator", "ecliptic"]} />
           <SkyChart.trees scene={@scene} />
           <SkyChart.path path={@path} />
+          <%!-- the telescope, live: on a Go To it is seen crossing the sky to the ring marked Now --%>
+          <SkyChart.telescope scope={@scope} />
         </SkyChart.frame>
         <span :for={t <- @compass} class={["np-word", t.class, anchor(t.anchor)]} style={pos(t)} aria-hidden="true">{t.text}</span>
         <span :for={h <- @hours} class={["np-word", "np-hour", h.class, h.side, h[:behind] && "behind"]} style={pos(h)} aria-hidden="true">{h.label}</span>
         <span :if={@now} class={["np-word", "np-now", @now.side]} style={pos(@now)} aria-hidden="true">Now</span>
       </div>
-      <ul :if={@kinds != []} class="np-keys" aria-hidden="true">
+      <ul :if={@kinds != [] or @scope} class="np-keys" aria-hidden="true">
         <li :for={{k, words} <- @kinds}>
           <svg class="np-key" viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><line class={["path", k]} x1="3" y1="3" x2="25" y2="3" /></svg>
           {words}
+        </li>
+        <li :if={@scope}>
+          <svg class="np-key np-key-scope" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><g class="scope" transform="translate(10 10)"><circle r="5" fill="none" /><line x1="-8" y1="0" x2="-3" y2="0" /><line x1="3" y1="0" x2="8" y2="0" /><line x1="0" y1="-8" x2="0" y2="-3" /><line x1="0" y1="3" x2="0" y2="8" /></g></svg>
+          Telescope
         </li>
         <li :if={@behind}>
           <svg class="np-key" viewBox="0 0 28 6" width="28" height="6" aria-hidden="true"><line class="path dark behind" x1="3" y1="3" x2="25" y2="3" /></svg>

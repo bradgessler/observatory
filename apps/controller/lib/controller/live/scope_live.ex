@@ -1,14 +1,18 @@
 defmodule Controller.ScopeLive do
   @moduledoc """
-  The mount as a picture, posed from the encoders and redrawn on every
-  snapshot. Nothing to drive here: this is the page you leave open to see
-  what the telescope is doing.
+  The telescope, right now: what it is doing (still, tracking, slewing, with
+  how far a slew has got), what it is seeing (the camera's latest picture
+  and how old it is), where it points on the sky, the mount itself drawn
+  from its encoders, and a log of what has happened to it, newest first.
+  Nothing to drive here: this is the page you leave open, and the page the
+  bar at the top of every page opens.
   """
   use Controller, :live_view
   import Controller.Components.UI
 
   alias Controller.Components.Scope
-  alias Controller.Settings
+  alias Controller.{ScopeNow, Settings, StillCamera}
+  alias Controller.Components.Pictures
   alias Controller.Sky.{Pointing, Tracker}
 
   @impl true
@@ -17,6 +21,10 @@ defmodule Controller.ScopeLive do
       send(self(), :rescan)
       Settings.subscribe()
       Telescope.subscribe("tracker")
+      # what it sees, and what happens to it
+      StillCamera.subscribe()
+      Telescope.Events.subscribe()
+      Process.send_after(self(), :tick, 1_000)
       # the live sky under the mount: the stars move on, so it's redrawn every 15 s
       :timer.send_interval(15_000, :sky)
     end
@@ -26,7 +34,10 @@ defmodule Controller.ScopeLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Scope",
+       page_title: "Now",
+       cam: safe(fn -> StillCamera.find() end),
+       now_ms: System.system_time(:millisecond),
+       log: [],
        night: Settings.get("night", false),
        nested: session["nested"] == true,
        selected: params["id"] || session["id"] || session["telescope"],
@@ -37,8 +48,24 @@ defmodule Controller.ScopeLive do
      )
      |> rescan()
      |> sky()
-     |> compute()}
+     |> compute()
+     |> log()}
   end
+
+  # what has happened to this telescope, newest first: the events that name it
+  @log 25
+  # (the log is kept by the machine the telescope is plugged into: asked there)
+  defp log(socket) do
+    id = socket.assigns.selected
+    events = if is_binary(id), do: Controller.Machine.route(id, {Telescope.Events, :recent, [400]}, [], fn -> Telescope.Events.recent(400) end), else: []
+    assign(socket, log: events |> Enum.filter(&about?(&1, id)) |> Enum.take(@log))
+  end
+
+  # The hold nudging an axis and stopping it again is its ordinary work, many times a minute: not
+  # something that happened to the telescope. (All Events has them.)
+  defp about?(%{module: :mount, name: name, by: "tracking"}, _id) when name in [:stop, :slew], do: false
+  defp about?(%{data: %{id: id}}, id) when is_binary(id), do: true
+  defp about?(_, _), do: false
 
   @impl true
   def handle_info(:rescan, socket) do
@@ -52,6 +79,17 @@ defmodule Controller.ScopeLive do
 
   def handle_info({:tracker, id, status}, socket) do
     if id == socket.assigns.selected, do: {:noreply, compute(assign(socket, tracker: status))}, else: {:noreply, socket}
+  end
+
+  def handle_info({:event, e}, socket) do
+    if about?(e, socket.assigns.selected), do: {:noreply, assign(socket, log: Enum.take([e | socket.assigns.log], @log))}, else: {:noreply, socket}
+  end
+
+  def handle_info({:still_camera, cam}, socket), do: {:noreply, assign(socket, cam: StillCamera.prefer(socket.assigns.cam, cam))}
+
+  def handle_info(:tick, socket) do
+    Process.send_after(self(), :tick, 1_000)
+    {:noreply, assign(socket, now_ms: System.system_time(:millisecond))}
   end
 
   def handle_info(:sky, socket), do: {:noreply, sky(socket)}
@@ -113,42 +151,104 @@ defmodule Controller.ScopeLive do
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, now: (assigns[:scope_now] || %{})[assigns.selected] || ScopeNow.summary(assigns.snap, assigns.tracker))
+
     ~H"""
     <.page id="scope" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
-        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Mount", @selected)} />
-        <.title>Scope</.title>
+        <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Telescope", @selected)} />
+        <.title>Now</.title>
         <.actions>
-          
-          <.help href={~p"/docs/scope"} label="the scope drawing" />
-          <.stop /></.actions>
+          <.help href={~p"/docs/scope"} label="the telescope's page" />
+          <.stop />
+        </.actions>
       </:header>
 
-      <Controller.Components.Status.status :if={@snap && !@nested} snap={@snap} id={@selected} compact />
-
-      <%!-- the mount takes the room; what it's doing beside it (on a phone, below) --%>
       <.split :if={@pose}>
         <:main>
-          <Controller.Components.Scope.scope pose={@pose} size={520} label={@selected} class="scope-hero" />
-          <%!-- where it points, on the sky right now: the mount's own chart, live --%>
+          <%!-- what it is seeing: the camera's latest picture; one line under it that never changes height --%>
+          <section :if={@cam && @cam.camera} class="now-part" aria-labelledby="now-seeing">
+            <h2 id="now-seeing" class="now-h">Seeing</h2>
+            <section class="scope-frame" aria-label="latest picture">
+              <img :if={@cam.last && @cam.last[:w]} src={StillCamera.src(@cam, @cam.last.seq)} alt={"Latest picture, taken #{Pictures.age_words(@cam.last, @now_ms)}"} />
+              <div :if={!(@cam.last && @cam.last[:w])} class="scope-frame-empty"><p class="dim">No picture yet</p></div>
+              <p class="now-caption dim">
+                <span :if={@cam.last && @cam.last[:w]}>Taken {Pictures.age_words(@cam.last, @now_ms)} with the {@cam.camera[:model] || "camera"}</span>
+                <span :if={@cam.busy} role="status">{Pictures.shot_words(@cam[:shot])}</span>
+                <.link navigate={~p"/cameras/telescope"}>Telescope Camera ›</.link>
+              </p>
+            </section>
+          </section>
+
+          <%!-- under the picture: where it points on the sky (most of the width), and the mount itself, small --%>
           <% cross = crosshair(assigns) %>
-          <figure class="scope-sky">
-            <Controller.Components.SkyChart.chart id="scope-sky" scene={@sky} scope={cross} label={"Where #{@selected} points: the sky now, hour angle across, declination up"} />
-            <figcaption class="dim">
-              The sky now from {if @site_set, do: "the telescope's location", else: "0° N, 0° E (location not set)"}, in the mount's own axes: hour angle across, the meridian down the middle, declination up.
-              {if cross, do: "The crosshair is the telescope.", else: "Where the telescope points isn't known yet: set home, or align."}
-            </figcaption>
-          </figure>
+          <div class="now-under">
+            <section class="now-part" aria-labelledby="now-points">
+              <h2 id="now-points" class="now-h">Where It Points</h2>
+              <figure class="scope-sky">
+                <Controller.Components.SkyChart.chart id="scope-sky" scene={@sky} scope={cross} label={"Where #{@selected} points: the sky now, hour angle across, declination up"} />
+                <figcaption class="dim">
+                  The sky now as the mount turns through it: hour angle across, the meridian down the middle, declination up. Grey is below the horizon.
+                  {if cross, do: "The crosshair is the telescope.", else: "Where the telescope points isn't known yet: set home, or align."}
+                  <.link navigate={~p"/sky/#{@selected}"}>Sky Map ›</.link>
+                </figcaption>
+              </figure>
+            </section>
+            <section class="now-part" aria-labelledby="now-mount">
+              <h2 id="now-mount" class="now-h">The Mount</h2>
+              <Controller.Components.Scope.scope pose={@pose} size={280} label={@selected} class="scope-hero" />
+              <p class="dim">As its encoders say it stands. An arc beside an axis means it is turning.</p>
+            </section>
+          </div>
         </:main>
         <:side>
-          <div class="state-line">
-            <strong>{state_words(@snap, @tracker)}</strong>
-            <span class="dim">Drawn from the encoders as it stands: the polar axis leans up from the tripod at your latitude, the Dec axis crosses its top with the tube on one end and the counterweight on the other. An arc beside an axis means it's turning.</span>
-          </div>
-          <%!-- this mount's setup isn't in the sidebar; the ways to move it are --%>
-          <.row :if={@selected}>
-            <.btn navigate={~p"/setup/#{@selected}"}>Setup ›</.btn>
-          </.row>
+          <%!-- what it is doing --%>
+          <section class={["now-doing", @now && "now-#{@now.state}"]} aria-labelledby="now-doing-h">
+            <h2 id="now-doing-h" class="now-h">Doing</h2>
+            <div class="state-line">
+              <strong role="status">
+                <%= if @now && @now.target && @now[:target_id] do %>
+                  {String.trim(String.replace_suffix(@now.words, @now.target, ""))} <.link navigate={~p"/object/#{@now.target_id}"}>{@now.target}</.link>
+                <% else %>
+                  {if @now, do: @now.words, else: state_words(@snap, @tracker)}
+                <% end %>
+              </strong>
+              <span :if={@now && @now.where}>{@now.where}</span>
+              <%!-- on the sky: how high and which way. Not yet: said, with what puts it there --%>
+              <span :if={@now && (@now[:up] || @now[:note])}>{@now[:up] || "#{@now.note}: set home or align"}</span>
+            </div>
+            <%!-- a slew: how far it has got, as a bar and in degrees to go on each axis --%>
+            <div :if={@now && @now[:slew]} class="now-slew">
+              <progress max="100" value={@now.slew.pct} aria-label="slew progress"></progress>
+              <span>{@now.slew.pct}% · RA axis {fmt1(@now.slew.ra)}° to go · Dec axis {fmt1(@now.slew.dec)}° to go</span>
+            </div>
+            <%!-- a hold is ended here, where it says what that does (13 October: "what does stop do?").
+                  A slew or a move has STOP in the bar on every page --%>
+            <div :if={@now && @now.state == :tracking} class="now-stop-hold">
+              <button type="button" class="btn" phx-click="scope_stop">Stop Tracking</button>
+              <p class="dim">Stops both motors. {if @now.target, do: @now.target, else: "The sky"} drifts out of the picture in about a minute; Go To brings it back.</p>
+            </div>
+            <%!-- the axes themselves, and whether home is set: what the bar has no room for --%>
+            <p :if={@snap && @snap.connected} class="dim now-axes">{axes_words(@snap, @now)}</p>
+          </section>
+
+          <.items label="about this telescope">
+            <.link_item navigate={~p"/alignment/#{@selected}"} label="Alignment" detail={alignment_words((assigns[:alignments] || %{})[@selected])} />
+            <.link_item navigate={~p"/setup/#{@selected}"} label="Setup" detail="How it is steered, home, the counterweight's side" />
+          </.items>
+
+          <%!-- what has happened to it, newest first --%>
+          <section class="now-part" aria-labelledby="now-log">
+            <h2 id="now-log" class="now-h">Log</h2>
+            <p :if={@log == []} class="dim">Nothing yet. Every Go To, stop and alignment point shows here as it happens.</p>
+            <ol :if={@log != []} class="events" aria-label="what has happened to this telescope, newest first">
+              <li :for={e <- @log}>
+                <time datetime={Calendar.strftime(e.at, "%Y-%m-%dT%H:%M:%SZ")}>{Calendar.strftime(e.at, "%H:%M:%S")}</time>
+                <span class="ev-what">{Controller.EventsLive.words(e)}</span>
+              </li>
+            </ol>
+            <.link navigate={~p"/events"} class="now-more">All Events ›</.link>
+          </section>
         </:side>
       </.split>
 
@@ -160,6 +260,18 @@ defmodule Controller.ScopeLive do
     </.page>
     """
   end
+
+  # (when nothing places it on the sky, the line above is already the axes)
+  defp axes_words(%{axes: %{ra: ra, dec: dec}} = snap, now) do
+    home = if snap.homed, do: "Home set", else: "Home not set"
+    if is_map(now) and is_binary(now[:where]) and String.starts_with?(now.where, "RA axis"), do: home, else: "RA axis #{fmt1(ra.degrees)}° · Dec axis #{fmt1(dec.degrees)}° · #{String.downcase(home)}"
+  end
+
+  defp fmt1(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
+  defp fmt1(_), do: "?"
+
+  defp alignment_words(%{words: words}), do: words
+  defp alignment_words(_), do: "Not aligned"
 
   defp state_words(nil, _), do: "Not connected"
   defp state_words(%{connected: false}, _), do: "Not answering"

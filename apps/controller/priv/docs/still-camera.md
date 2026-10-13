@@ -6,6 +6,13 @@ box drives it the way Sony's own remote software does: it reads and sets ISO
 and shutter speed, presses the shutter, and takes each picture straight off
 the camera, RAW and JPEG, as the camera made it.
 
+With a stills camera on the telescope, **Telescope Camera** is this camera.
+Its page always shows the latest picture and how long ago it was taken (past
+a minute, the clock time too), because its frames come seconds or minutes
+apart rather than thirty a second. One job a screen: the picture and **Take
+Picture** on the camera's own screen; **Exposure**, **Lock On** and **Plate
+Solving** each a tap away, each with the latest picture on it.
+
 ## Plug it in so the box can drive it
 
 The camera has to be in **PC Remote** mode: **Menu → toolbox → USB
@@ -34,6 +41,55 @@ for the page to have something to show.
 **ISO** and **shutter speed** are set by turning the camera's own dials a
 notch at a time, the only way an a6000 takes them over USB, so a change takes
 a few seconds. The line above the keys says where they landed.
+
+While a picture is being taken the page says what the camera is doing,
+stage by stage: preparing, exposing (with a bar against the shutter time for
+an exposure of two seconds or more), the camera finishing the picture, each
+file coming down with its size, saving, and measuring the stars. The last
+picture stays on the screen until the new one is in.
+
+## Exposure
+
+**Exposure** is the screen for ISO and shutter speed, with the latest picture
+and **Take Picture** beside them: change one, take a picture, look. Shutter
+speed is in seconds. A longer shutter or a higher ISO shows more stars.
+
+### Suggested exposure
+
+While the mount is tracking a target, the screen has one more line: **For
+Saturn: ISO 800 · 1/60 s**, the reason under it, and **Use It**, which turns
+both dials there. The same suggestion is on the object's own page and, on a
+wide screen, beside Tonight's List. It is advice, a place to start: take a
+picture, look, and turn the dials from there. Nothing is set until you tap
+**Use It**.
+
+What it is based on depends on what the target is:
+
+- **The Moon and the planets** are sunlit discs, so the exposure follows
+  from how bright the disc is per square arcsecond, the telescope's f-ratio
+  and the ISO. The Moon uses the photographer's Looney 11 rule (a full Moon
+  at f/11 takes 1/ISO seconds), with half a stop more for a gibbous Moon,
+  one for a quarter and two for a crescent. Each planet is scaled from that
+  by its surface brightness: Venus shorter than a full Moon's, Mars about
+  twice as long, Jupiter about six times, Saturn about twenty.
+- **A star** gets a short shutter that keeps it round and unclipped, so its
+  colour shows. It is not a deep exposure, and it is rough: how wide a star
+  is depends on the air and the focus.
+- **Galaxies, nebulae and clusters**: the object's magnitude does not set
+  the exposure. Sky glow and how long the mount keeps a star round do. The
+  suggestion is the longest shutter under the tracking limit at a high ISO,
+  and a number of frames to stack, more for a big faint thing than a small
+  bright one.
+
+The f-ratio comes from the aperture and the focal length the box has (the
+focal length is measured by the first plate solve). Until both are set it
+assumes f/10 and says so. The tracking limit is 15 s until the box measures
+how much the mount drifts under a hold, which it does not do yet.
+
+The shutter speed and ISO are always ones this screen's dials offer, so the
+suggestion can sit a stop or so from what the arithmetic asks for. When it
+has to miss, it leans dark: a clipped planet is lost, a dark one can be
+brightened afterwards.
 
 ## Pictures that are kept but not counted
 

@@ -103,8 +103,9 @@ defmodule Controller.Components.UI do
   @doc """
   A section's status in the toolbar, between the title and the keys: what
   every page of that section shares and wants in view (the Sky's time and
-  location, how well the telescope is aligned, where the mount points). Beside
-  the title on a wide screen; its own row under it on a phone.
+  location, how well the telescope is aligned). Beside the title on a wide
+  screen; its own row under it on a phone. Never what the telescope is doing
+  or where it points: the bar at the top of every page says that, once.
 
       <:header>
         <.back navigate={~p"/"} label="Home" section="Sky" />
@@ -179,7 +180,8 @@ defmodule Controller.Components.UI do
     assigns = assign_new(assigns, :name, fn -> "help: " <> (assigns.label || Path.basename(assigns.href)) end)
 
     ~H"""
-    <.link href={@href} class="help help-icon" aria-label={@name}>?</.link>
+    <%!-- a document, and in a header the word: a bare "?" read as something broken --%>
+    <.link href={@href} class="help help-icon" aria-label={@name}><Controller.Components.Icons.icon name="doc" /><span class="help-word" aria-hidden="true">Docs</span></.link>
     """
   end
 
@@ -388,16 +390,21 @@ defmodule Controller.Components.UI do
   defp values(nil), do: %{}
   defp values(map), do: Map.new(map, fn {k, v} -> {"phx-value-#{k}", v} end)
 
-  @doc "One row in a list: a name, a dim detail under it, and the keys that act on it. Inside `<.items>` it is a list item."
+  @doc """
+  One row in a list: a name, a dim detail under it, and the keys that act on it. Inside `<.items>` it is a list item.
+  A row for an object in the sky takes its `kind`, drawn in a column of its own before the name, as on Tonight.
+  """
   attr :label, :string, required: true
   attr :detail, :string, default: nil
+  attr :kind, :atom, default: nil, doc: "an object in the sky: what kind of thing it is (`Icons.kind/1`)"
   attr :as, :string, default: "div", doc: "\"li\" inside an <.items> list"
   attr :rest, :global
   slot :inner_block
 
   def item(assigns) do
     ~H"""
-    <.dynamic_tag tag_name={@as} class="item" {@rest}>
+    <.dynamic_tag tag_name={@as} class={["item", @kind && "item-kind"]} {@rest}>
+      <span :if={@kind} class="item-k"><Controller.Components.Icons.kind kind={@kind} /></span>
       <div class="item-text"><strong>{@label}</strong><span :if={@detail} class="dim">{sentence(@detail)}</span></div>
       {render_slot(@inner_block)}
     </.dynamic_tag>

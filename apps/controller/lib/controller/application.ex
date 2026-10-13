@@ -31,6 +31,16 @@ defmodule Controller.Application do
       Controller.PadView,
       # when each mount was last switched on: a never-zeroed alignment holds until then
       Controller.MountPower,
+      # a box with no clock chip asks the cluster for the time until its clock is set
+      Supervisor.child_spec(Controller.Clock.Peers, restart: :temporary),
+      # what each telescope is doing right now (still, tracking, slewing), for the bar on every
+      # page; its own branch, left down if it keeps crashing: the bar goes, the pages stay
+      %{
+        id: Controller.ScopeNow.Supervisor,
+        start: {Supervisor, :start_link, [[Controller.ScopeNow], [strategy: :one_for_one, max_restarts: 5, max_seconds: 60]]},
+        restart: :temporary,
+        type: :supervisor
+      },
       # the box's own supply: dips drop the USB hub, camera and mount cable with it
       Controller.Power,
       # the last word from each control layer, for a Control Stack page opening mid-session

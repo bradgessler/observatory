@@ -1,49 +1,119 @@
-# Scope: the mount as a picture
+# Now: what the telescope is doing
 
-The Scope page draws the telescope the way it is standing right now. It is not
-a diagram of the geometry, that is the Orb. It is the thing itself: tripod,
-pier, the head turning on the RA axis (the polar axis), the tube swinging on
-the Dec axis, the counterweight opposite it.
+Two things say what the telescope is doing. A **bar at the top of every
+page** says it in one line, and **Now**, first under Telescope in the
+sidebar, is the page the bar opens: the same line, and everything behind it.
 
-Everything comes from the mount's own encoders, read four times a second. Turn
-an axis anywhere, on the keypad, with the game controller, from a Go To, and
-the picture follows.
+Both come from the mount's own driver, the same for every phone and laptop
+looking at it. There is nothing to drive on Now. It is the page you leave
+open.
 
-## What the shapes mean
+## The bar on every page
 
-Each part is told apart by its shape first, so the drawing reads the same in
-night mode, where every line is red.
+One line, the same wherever you are: what the telescope is doing, which
+telescope, and where it points.
 
-- The **housing that leans up from the pier** is the RA axis (blue), the
-  one the whole head turns on; pointed at the pole, it is the polar axis. On a German equatorial it points at the
-  celestial pole when the mount is aligned.
-- The **thin bar across its top** is the Dec axis (green), the one the tube
-  swings on: the counterweight is the disc on one end, the tube on the other.
-- The **thickest line** is the tube (bright). The small circle at one end is
-  the aperture, the end you look through the other way.
-- **Dim** lines are structure: the tripod, the pier, the ground.
-- A **dashed arc** around an axis means that axis is turning right now.
+- **Still**: nothing is moving it.
+- **Tracking**, with the object's name when it is holding one ("Tracking
+  M33 Triangulum").
+- **Moving**: an axis is being driven by hand, from a keypad, a strip or the
+  game controller.
+- **Slewing**, with where it is going when a Go To sent it ("Slewing to
+  Saturn") and how far it has got, as a percentage.
+- **Aligning with the camera**: an alignment run is taking its pictures.
+- **Not answering**: the mount's cable or power.
+
+While it is slewing or moving the bar is loud: taller, in the caution tone,
+and it carries **STOP**. That STOP stops everything that could be moving this
+telescope: the motors, a Go To, an alignment run, tracking, Lock On. The
+page's own STOP steps aside while the bar has one, so there is one at the
+top of the screen, never two. When the telescope is still or tracking, STOP
+is back in the page's toolbar, on every page.
+
+After the words comes where it points:
+
+- **RA and Dec**, once an alignment or a home says where the axes point on
+  the sky. On a wide screen it adds how high and which way ("45° up in the
+  SE").
+- **Not on the sky yet**, before that. Set home or align and it changes by
+  itself. On a wide screen the two axis angles follow, called *RA axis* and
+  *Dec axis*: they are how far each axis has turned, not a place on the sky.
+
+A phone has room for the words and one of these. During a slew it shows the
+words, the percentage and STOP.
+
+The bar is the one place this is said. Pages that move the telescope
+(Nudge, Plain Keypad, Axis Strips, Center, Position) do not repeat it under
+their titles.
+
+With more than one telescope, the bar is about the one picked in the
+switcher at the top of the sidebar. These help pages have no bar.
+
+Tap the bar to open Now.
+
+## Doing
+
+The bar's line, larger, with what it has no room for:
+
+- Where it points, and under that how high and which way, or **Not on the
+  sky yet: set home or align**.
+- During a Go To, a progress bar and how many degrees each axis still has to
+  turn.
+- A line for the mount itself: each axis's angle with a lamp while it turns,
+  whether it is tracking, whether home is set, and *Simulator* when there is
+  no telescope on the cable. It opens [Setup](/docs/setup).
+
+Under it, **Alignment** says how well the telescope is aligned and opens
+[Status](/docs/start), and **Setup** opens how it is steered.
+
+## Seeing
+
+The latest picture from the camera on the telescope, with how long ago it
+was taken. While a picture is being taken it says which stage it is at and,
+for a long exposure, how many seconds have gone. **Telescope Camera** opens
+the camera's own page. With no camera on the telescope this part is not
+drawn.
+
+## Where it points
+
+The sky right now as the mount turns through it: hour angle across, the
+meridian down the middle, declination up. Grey is below the horizon. The
+crosshair is the telescope. Until home is set or the telescope is aligned
+there is no crosshair, and the caption says so. **Sky Map** opens the map
+for picking something to go to.
+
+## The mount
+
+The telescope drawn the way it is standing, from its encoders: the tripod,
+the head turning on the RA axis (the polar axis), the tube on the Dec axis
+with the counterweight opposite. Turn an axis from anywhere and the drawing
+follows.
+
+- An **arc** beside an axis means that axis is turning right now.
 - A **lamp** at the base, lit, means the mount is tracking, either sidereal
   tracking (the RA motor alone) or tracking through the alignment.
 
-## Where the polar axis comes from
-
 Before an alignment the drawing assumes the mount stands as you said it does
 under *Mount As It Stands* on [Setup](/docs/setup#mount-as-it-stands): the
-latitude knob at your latitude, the tripod pointed north. After three stars
-agree, the drawing uses the axis the stars actually measured, so a crooked
-set-up looks crooked.
-
-## Equatorial and alt-az
+latitude knob at your latitude, the tripod pointed north. Once stars or
+pictures have measured the mount, the drawing uses the axis they measured,
+so a crooked set-up looks crooked.
 
 Two forms are drawn. A German equatorial has the polar axis and the
-counterweight. An alt-az mount, a fork or a single arm, turns about the
-vertical and the tube swings up and down. The page picks the form from what
-the driver says the mount is.
+counterweight. An alt-az mount, a fork on a base, turns about the vertical
+and the tube swings up and down. The page picks the form from what the
+driver says the mount is. For the geometry as a diagram, see the
+[Orb](/docs/orb).
+
+## Log
+
+What has happened to this telescope, newest first: every Go To, stop, home
+and alignment point, with the time. **All Events** opens the full log for
+every device.
 
 ## What it is for
 
-Three things. Seeing at a glance that the mount is where you think it is,
-without walking outside. Watching a slew happen when the telescope is in another
-building. And having something to look at when nothing is plugged in at all:
-the [simulator](/docs/glossary#simulator) drives the same drawing.
+Seeing at a glance that the telescope is where you think it is, without
+walking outside. Watching a slew happen when the telescope is in another
+building. And having something to look at when nothing is plugged in at
+all: the [simulator](/docs/glossary#simulator) drives the same page.

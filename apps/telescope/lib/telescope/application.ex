@@ -7,6 +7,7 @@ defmodule Telescope.Application do
     children =
       [
         {Phoenix.PubSub, name: Telescope.PubSub},
+        Telescope.Relay,
         Telescope.Events,
         {Cluster.Supervisor, [topologies(), [name: Telescope.ClusterSupervisor]]}
       ] ++ cluster_children()

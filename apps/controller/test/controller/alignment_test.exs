@@ -1,8 +1,8 @@
 defmodule Controller.AlignmentTest do
   @moduledoc """
   One alignment summary per telescope, the same everywhere: in the sidebar,
-  in the switcher, in the Alignment pages' toolbar. And the Controls pages
-  say what the mount is doing and where it points.
+  in the switcher, in the Alignment pages' toolbar. (What the mount is doing
+  and where it points is the bar's, on every page: `Controller.ScopeNowTest`.)
   """
   use Controller.ConnCase, async: false
   import Phoenix.LiveViewTest
@@ -49,12 +49,5 @@ defmodule Controller.AlignmentTest do
     # the watcher notices the home and says so; the page redraws from the broadcast
     Process.sleep(300)
     assert render(view) =~ "Home set · no points"
-  end
-
-  test "the Controls pages say what the mount is doing and where it points", %{conn: conn, id: id} do
-    {:ok, _view, html} = live(conn, "/keypad/#{id}")
-    assert html =~ "ctl-status"
-    assert html =~ "Still"
-    assert html =~ "Not on the sky yet"
   end
 end

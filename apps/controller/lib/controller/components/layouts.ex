@@ -23,7 +23,7 @@ defmodule Controller.Layouts do
   """
   def shell(assigns) do
     ~H"""
-    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]} alignments={assigns[:alignments] || %{}}>
+    <.frame current_path={assigns[:current_path]} nav_path={assigns[:nav_path]} night={assigns[:night]} telescopes={assigns[:telescopes] || []} telescope={assigns[:telescope]} alignments={assigns[:alignments] || %{}} now={assigns[:telescope] && (assigns[:scope_now] || %{})[assigns[:telescope].id]}>
       {@inner_content}
       <:search><.live_component module={Controller.Spotlight} id="spotlight" here={assigns[:current_path]} /></:search>
     </.frame>
@@ -36,6 +36,7 @@ defmodule Controller.Layouts do
   attr :telescopes, :list, default: []
   attr :telescope, :map, default: nil
   attr :alignments, :map, default: %{}, doc: "each telescope's alignment (`Controller.Alignment`), by id"
+  attr :now, :map, default: nil, doc: "what the telescope being driven is doing right now (`Controller.ScopeNow`)"
   slot :inner_block, required: true
   slot :search, doc: "Search, on a LiveView page; a page without it (a doc) links to the search page instead"
 
@@ -74,7 +75,8 @@ defmodule Controller.Layouts do
         </div>
         <%!-- how well the telescope you're driving is aligned: the same on every page, and it
               changes with the switcher --%>
-        <AlignmentStatus.chip :if={@telescope} summary={@alignments[@telescope.id]} href={~p"/alignment/#{@telescope.id}"} />
+        <%!-- (on a phone there is no room for it in the bar: the Status page has it) --%>
+        <AlignmentStatus.chip :if={@telescope && !@now} summary={@alignments[@telescope.id]} href={~p"/alignment/#{@telescope.id}"} />
 
         <%!-- a field-shaped key, so it reads as search; ⌘K opens the same thing --%>
         <button :if={@search != []} type="button" class="side-search" popovertarget="spotlight" phx-click={JS.push("reset", target: "#spotlight")}>
@@ -96,15 +98,59 @@ defmodule Controller.Layouts do
           </li>
         </ul>
         <Controller.Components.Menu.menu variant="side" current={@current} />
+        <%!-- this page's help: out of the header (13 October: "not that important" up there), with the
+              other things that are the same on every page --%>
+        <.link :if={doc = page_doc(@current)} href={doc} class="side-link side-docs"><Icons.icon name="doc" /><span>Docs</span><small>This page</small></.link>
         <%!-- night mode, the same switch on every page --%>
         <button :if={@search != []} type="button" class="side-link side-night" phx-click="night" phx-target="#spotlight" aria-pressed={to_string(@night == true)}>
           <span class="night-glyph" aria-hidden="true">◐</span><span>Night Mode</span><small>{if @night, do: "On", else: "Off"}</small>
         </button>
       </nav>
-      <div class="shell-main">{render_slot(@inner_block)}</div>
+      <div class="shell-main">
+        <%!-- What the telescope is doing, on every page, the same way. One thing in the toolbar, two
+              lines at most (13 October: "here's the big thing that's happening and then the supporting
+              information"): what it is doing and to what, and under it how well it is aligned and where
+              it points. The line opens Now; the target's name opens the page that says what it is.
+              A slew or a move is loud and has STOP beside it. A hold is not stopped from here: Now has
+              Stop Tracking, where it says what stopping does. Only the top line is a live region. --%>
+        <div :if={@now} id="scope-now" class={["scope-now", "now-#{@now.state}"]}>
+          <div class="now-what">
+            <span class="now-top" role="status">
+              <span class="now-dot" aria-hidden="true"></span>
+              <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-doing-link" aria-label={"#{@now.id}: #{@now.words}. Open Now"}><strong>{now_verb(@now)}</strong></.link>
+              <.link :if={@now.target && @now[:target_id]} navigate={~p"/object/#{@now.target_id}"} class="now-target" aria-label={"#{@now.target}: what it is"}>{@now.target}</.link>
+              <strong :if={@now.target && !@now[:target_id]} class="now-target-plain">{@now.target}</strong>
+              <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
+            </span>
+            <span class="now-sub">
+              <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={14} /><span class="now-al-words">{@alignments[@now.id].words}</span></span>
+              <span :if={@now[:note]} class="now-note">{@now.note}</span>
+              <span :if={@now.where} class="now-pos">{@now.where}</span>
+              <span :if={@now[:up]} class="now-up">{@now.up}</span>
+            </span>
+          </div>
+          <%!-- STOP is here when the telescope is going somewhere: a slew, a move --%>
+          <button :if={@now.state in [:slewing, :moving]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
+        </div>
+        {render_slot(@inner_block)}
+      </div>
       {render_slot(@search)}
     </div>
     """
+  end
+
+  # "Tracking", "Slewing to": the words without the target, which is its own link beside them
+  defp now_verb(%{words: words, target: target}) when is_binary(target), do: words |> String.replace_suffix(target, "") |> String.trim()
+  defp now_verb(%{words: words}), do: words
+
+  # the help of the page being shown, from the one list of pages
+  defp page_doc(nil), do: nil
+
+  defp page_doc(path) do
+    case Enum.find(Controller.Nav.pages(), &(&1.path == path)) do
+      %{doc: doc} when is_binary(doc) and doc != "" -> doc
+      _ -> nil
+    end
   end
 
   defp telescope_name(nil), do: "No telescope"

@@ -378,6 +378,9 @@ defmodule Camera.Sony do
   shutter speed, quality), read just before the press.
   """
   def capture(conn, opts \\ []) do
+    exposure = Keyword.get(opts, :exposure_ms, 1000)
+    say(opts, %{stage: :preparing})
+
     with {:ok, props, conn} <- drain_memory(conn, 4),
          # what this picture is taken at: a dial turned while it comes down belongs to the next
          settings = describe(props),
@@ -385,16 +388,14 @@ defmodule Camera.Sony do
          pressed = DateTime.utc_now(),
          pressed_mono = System.monotonic_time(:millisecond),
          {:ok, conn} <- press(conn, prop(:shutter_full), 2),
+         :ok = say(opts, %{stage: :exposing, exposure_ms: exposure}),
          {:ok, conn} <- hold_for_focus(conn),
          {:ok, conn} <- press(conn, prop(:shutter_full), 1),
          {:ok, conn} <- press(conn, prop(:shutter_half), 1),
          {:ok, conn} <-
-           await_picture(
-             conn,
-             Keyword.get(opts, :exposure_ms, 1000) + Keyword.get(opts, :wait_ms, 35_000)
-           ),
+           await_picture(conn, exposure + Keyword.get(opts, :wait_ms, 35_000), {opts, pressed_mono + exposure}),
          ready = DateTime.utc_now(),
-         {:ok, files, conn} <- download_all(conn, []) do
+         {:ok, files, conn} <- download_all(conn, [], opts) do
       # when the box pressed the shutter and when the camera had the picture: the exposure sits
       # just after the first (a manual-focus camera opens within tens of ms of the press)
       stamps = %{
@@ -439,38 +440,53 @@ defmodule Camera.Sony do
     end
   end
 
-  defp await_picture(conn, ms),
-    do: await_picture(conn, System.monotonic_time(:millisecond) + ms, 0)
+  # `note` is who is told once the shutter has closed and the camera is still busy with the
+  # picture (`{opts, when the exposure ends}`), or nil once they have been told.
+  defp await_picture(conn, ms, note),
+    do: await_picture(conn, System.monotonic_time(:millisecond) + ms, 0, note)
 
-  defp await_picture(conn, deadline, n) do
+  defp await_picture(conn, deadline, n, note) do
     with {:ok, props, conn} <- props(conn) do
+      now = System.monotonic_time(:millisecond)
+
       cond do
         (current(props, :object_in_memory) || 0) >= 0x8000 ->
           {:ok, conn}
 
-        System.monotonic_time(:millisecond) >= deadline ->
+        now >= deadline ->
           {:error, :no_picture, conn}
 
         true ->
-          Process.sleep(if n < 10, do: 100, else: 250) && await_picture(conn, deadline, n + 1)
+          note =
+            case note do
+              {opts, closes} when now >= closes ->
+                say(opts, %{stage: :processing})
+                nil
+
+              other ->
+                other
+            end
+
+          Process.sleep(if n < 10, do: 100, else: 250) && await_picture(conn, deadline, n + 1, note)
       end
     end
   end
 
-  defp download_all(conn, acc) do
+  defp download_all(conn, acc, opts) do
     with {:ok, props, conn} <- props(conn) do
       if (current(props, :object_in_memory) || 0) >= 0x8000 and length(acc) < 4 do
-        with {:ok, file, conn} <- download(conn), do: download_all(conn, [file | acc])
+        with {:ok, file, conn} <- download(conn, Keyword.put(opts, :file, length(acc) + 1)), do: download_all(conn, [file | acc], opts)
       else
         {:ok, Enum.reverse(acc), conn}
       end
     end
   end
 
-  defp download(conn) do
+  defp download(conn, opts \\ []) do
     with {:ok, %{code: :ok, data: oi}, conn} <-
            Ptp.transact(conn, Ptp.op(:get_object_info), [@in_memory_handle], read: true),
          info = Ptp.object_info(oi),
+         :ok = say(opts, %{stage: :downloading, file: opts[:file], name: info.filename, bytes: info[:size]}),
          {:ok, %{code: :ok, data: bytes}, conn} <-
            Ptp.transact(conn, Ptp.op(:get_object), [@in_memory_handle],
              read: true,
@@ -484,6 +500,20 @@ defmodule Camera.Sony do
   end
 
   defp current(props, name), do: get_in(props, [prop(name), :current])
+
+  # Where a capture has got to, for whoever asked (`progress: {pid, tag}`): the pid is sent
+  # `{:camera_progress, tag, %{stage: ...}}`. The stages a camera can tell apart, in order:
+  # `:preparing`, `:exposing` (with `exposure_ms`), `:processing` (the shutter has closed and the
+  # camera is still busy with the picture), `:downloading` (with `file`, `name`, `bytes`). A
+  # driver for another camera says the ones it can; nobody listening costs nothing.
+  defp say(opts, info) do
+    case opts[:progress] do
+      {pid, tag} when is_pid(pid) -> send(pid, {:camera_progress, tag, info})
+      _ -> nil
+    end
+
+    :ok
+  end
 
   # -- what the values mean ----------------------------------------------------------------------
 

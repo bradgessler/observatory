@@ -13,9 +13,17 @@ defmodule Controller.Sky.Tracker do
   that centred the star wins over the model. A STOP on any page or the pad
   (`estop_at` in the snapshot) ends it.
 
-  Fail-safe: every slew it issues carries the driver's dead-man (`hold: true`)
-  and is refreshed each tick, so if this process dies or stalls the motors
-  stop within a second on their own. It never chases a large error: past a
+  Fail-safe: every slew it issues carries the driver's dead-man and is
+  refreshed each tick. At a tracking rate (2× sidereal or slower) the lease
+  it asks for is #{15} s, not the 900 ms a hand gets: the motors must not let
+  go of the sky because this box was busy for a moment (13 October 2026:
+  both motors stopped for five seconds while a picture was being measured,
+  the sky slid 70 arcseconds, and the next exposure trailed as the error was
+  pulled back). So if this process dies outright the motors run on at the
+  last rate for at most that long, a few arcminutes, and stop; a correction
+  faster than 2× still stops within a second. This process runs at high
+  priority, reads nothing that can wait on a disk, and says so in the log
+  when a tick is late (`:late`). It never chases a large error: past a
   few degrees (a pier flip the model wants, a target the limits won't allow)
   it stops and says so rather than crawl across the sky at 16×. A new target
   is far off by nature until the Go To that named it lands, so it is not
@@ -31,8 +39,10 @@ defmodule Controller.Sky.Tracker do
   ends if the side goes back to a guess, and `ended/1` says why
   (`:counterweight_unknown`).
 
-  State is per mount; the current readout is in `:persistent_term` so status
-  strips can show it for free.
+  State is per mount; the current readout is in a table anyone can read, so
+  status strips can show it for free. (Not `:persistent_term`: a term put
+  there twice a second makes every process on the box scan its heap twice a
+  second.)
   """
   use GenServer
   require Logger
@@ -41,6 +51,11 @@ defmodule Controller.Sky.Tracker do
 
   # the driver's hold grace is 900 ms: refresh well inside it
   @tick_ms 500
+  # the lease asked of the driver, which grants it only at a tracking rate
+  @lease_ms 15_000
+  # a tick this long after the last one is worth a line in the log
+  @late_ms 1_500
+  @table __MODULE__
   @lookahead_s 10.0
   # correct the accumulated error over this many seconds
   @correct_s 20.0
@@ -83,7 +98,15 @@ defmodule Controller.Sky.Tracker do
   end
 
   @doc "Readout for a mount: nil, or `%{name, ra_rate, dec_rate, error_arcmin, paused, since}`."
-  def status(id), do: :persistent_term.get({__MODULE__, id}, nil)
+  def status(id) do
+    case :ets.lookup(@table, id) do
+      [{_, status}] -> status
+      [] -> nil
+    end
+  rescue
+    # no tracker process, so nothing is held
+    ArgumentError -> nil
+  end
 
   def active?(id), do: status(id) != nil
 
@@ -135,7 +158,10 @@ defmodule Controller.Sky.Tracker do
   @impl true
   def init(_) do
     Process.flag(:trap_exit, true)
+    # following the sky comes before everything else this box is doing
+    Process.flag(:priority, :high)
     Telescope.Events.tag("tracking")
+    :ets.new(@table, [:named_table, :public, read_concurrency: true])
     :timer.send_interval(@tick_ms, :tick)
     {:ok, %{}}
   end
@@ -208,7 +234,17 @@ defmodule Controller.Sky.Tracker do
     do: {:reply, :ok, Enum.reduce(Map.keys(s), s, &drop(&2, &1, :stop))}
 
   @impl true
-  def handle_info(:tick, s), do: {:noreply, Enum.reduce(Map.keys(s), s, &step/2)}
+  def handle_info(:tick, s) do
+    now = System.monotonic_time(:millisecond)
+    last = Process.get(:ticked)
+    Process.put(:ticked, now)
+
+    # a late tick is a moment the motors ran on their lease alone: the log says how long
+    if map_size(s) > 0 and is_integer(last) and now - last > @late_ms,
+      do: Telescope.Events.emit(:tracker, :late, %{ms: now - last, ids: Map.keys(s)})
+
+    {:noreply, Enum.reduce(Map.keys(s), s, &step/2)}
+  end
 
   def handle_info({:tick_one, id}, s),
     do: {:noreply, if(Map.has_key?(s, id), do: step(id, s), else: s)}
@@ -298,8 +334,9 @@ defmodule Controller.Sky.Tracker do
       Pointing.side_guessed?(snap, ctx) ->
         {:give_up, :counterweight_unknown, %{}}
 
-      # never zeroed: no soft limits, so the counterweight is the limit
-      not snap.homed and Pointing.hold_limit?(cw) ->
+      # never zeroed: no soft limits, so the counterweight is the limit. With its side unknown
+      # (nobody can look) the limit is how far from level the bar has been, whichever way up
+      not snap.homed and if(Pointing.side_unknown?(snap, ctx), do: Pointing.unknown_limit?(ctx, r1), else: Pointing.hold_limit?(cw)) ->
         {:give_up, :meridian, %{}}
 
       abs(err_ra) > @give_up_deg or abs(err_dec) > @give_up_deg ->
@@ -320,7 +357,7 @@ defmodule Controller.Sky.Tracker do
         for {axis, rate} <- cmd do
           cond do
             abs(rate) >= 0.02 ->
-              safe(fn -> Mount.slew(entry.ref, axis, rate, hold: true, quiet: true) end)
+              safe(fn -> Mount.slew(entry.ref, axis, rate, hold: @lease_ms, quiet: true) end)
 
             abs(Map.get(entry.cmd, axis)) >= 0.02 ->
               safe(fn -> Mount.stop(entry.ref, axis) end)
@@ -405,7 +442,7 @@ defmodule Controller.Sky.Tracker do
       if why != :handoff,
         do: for(axis <- [:ra, :dec], do: safe(fn -> Mount.stop(entry.ref, axis) end))
 
-      :persistent_term.erase({__MODULE__, id})
+      :ets.delete(@table, id)
       # a person or a limit ended it: nothing to offer back after a restart
       if why in [:stop, :estop, :meridian, :counterweight_unknown, :lost], do: forget_interrupted(id)
       # ended on its own (not a person's stop or a Go To taking over): the pages say why
@@ -434,7 +471,7 @@ defmodule Controller.Sky.Tracker do
       target: entry.target
     }
 
-    :persistent_term.put({__MODULE__, id}, status)
+    :ets.insert(@table, {id, status})
     Telescope.broadcast("tracker", {:tracker, id, status})
   end
 
@@ -447,4 +484,21 @@ defmodule Controller.Sky.Tracker do
       :exit, _ -> nil
     end
   end
+
+  # -- asked from another machine ----------------------------------------------------------
+  #
+  # A hold runs on the machine the mount is plugged into. From another machine of the cluster
+  # these are answered, and done, there (`Controller.Machine`, #143).
+
+  alias Controller.Machine
+
+  defoverridable status: 1, ended: 1, interrupted: 1, forget_interrupted: 1, stop: 2, track: 2, track: 3
+
+  def status(id), do: Machine.route(id, {__MODULE__, :status, [id]}, nil, fn -> super(id) end)
+  def ended(id), do: Machine.route(id, {__MODULE__, :ended, [id]}, nil, fn -> super(id) end)
+  def interrupted(id), do: Machine.route(id, {__MODULE__, :interrupted, [id]}, nil, fn -> super(id) end)
+  def forget_interrupted(id), do: Machine.route(id, {__MODULE__, :forget_interrupted, [id]}, :ok, fn -> super(id) end)
+  def stop(id, opts), do: Machine.route(id, {__MODULE__, :stop, [id, opts]}, :ok, fn -> super(id, opts) end)
+  def track(id, obj), do: Machine.route(id, {__MODULE__, :track, [id, obj]}, :ok, fn -> super(id, obj) end)
+  def track(id, here, target), do: Machine.route(id, {__MODULE__, :track, [id, here, target]}, :ok, fn -> super(id, here, target) end)
 end

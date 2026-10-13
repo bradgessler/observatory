@@ -18,6 +18,17 @@ log "before: $before"
 lock=$(field "$before" lock); age=$(field "$before" heartbeat_age_s)
 case "$lock" in holding|coasting) [ "$age" != "nil" ] && [ "$age" -lt 30 ] || { log "the lock is $lock but its heartbeat is $age s old: it would not be picked up. Not flashing."; exit 1; };; esac
 
+# A reboot in the middle of a download left the Sony answering nothing until it was switched off
+# and on (13 October 2026). So no new picture is started while the firmware goes up, and the one
+# in flight is waited for. The pause is in the box's memory only: the reboot forgets it and the
+# run picks itself up; if the upload fails it runs out by itself in three minutes.
+timeout 10 "$HERE/box" 'Controller.StillCamera.pause(180_000)' >/dev/null 2>&1
+for i in $(seq 1 45); do
+  [ "$(timeout 8 "$HERE/box" 'IO.puts("BUSY #{Controller.StillCamera.status().busy}")' 2>/dev/null | tr -d '\r' | grep -c 'BUSY true')" = "0" ] && break
+  [ $i -eq 1 ] && log "waiting for the picture in flight"
+  sleep 2
+done
+
 t_up=$(date +%s); log "upload starts ($(ls -l "$FW" | awk '{print $5}') bytes)"
 ssh -s $KEY nerves@$BOXIP fwup < "$FW" 2>&1 | tr '\r' '\n' | grep -E "Success|rror|fail" | tail -1
 down=$(date +%s); log "upload done in $((down - t_up)) s: the box is rebooting (DOWN from here)"

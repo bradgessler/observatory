@@ -28,7 +28,7 @@ defmodule Controller.CenterPointsTest do
 
   test "held, the press is a point on the held target, with the axes from the press", %{id: id} do
     # the hold's readout, as the tracker publishes it while it keeps M13
-    :persistent_term.put({Tracker, id}, %{name: "M13", target: %{id: "m13", name: "M13", ra_deg: 250.42, dec_deg: 36.46}})
+    :ets.insert(Tracker, {id, %{name: "M13", target: %{id: "m13", name: "M13", ra_deg: 250.42, dec_deg: 36.46}}})
 
     press(id)
     assert_receive {:centered_point, ^id, %{name: "M13", n: 1}}, 2_000
@@ -37,6 +37,6 @@ defmodule Controller.CenterPointsTest do
     assert p["theta_ra"] == 12.5
     assert p["theta_dec"] == -40.0
   after
-    :persistent_term.erase({Tracker, id})
+    :ets.delete(Tracker, id)
   end
 end

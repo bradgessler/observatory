@@ -13,8 +13,10 @@ defmodule Controller.PlatesTest do
 
   defmodule Gate do
     @moduledoc false
-    def solve(image, _opts) do
+    def solve(image, opts) do
       send(:persistent_term.get({__MODULE__, :test}), {:solving, image})
+      # as the real solver does: say where it is to whoever asked
+      with {pid, tag} <- opts[:progress], do: send(pid, {:solve_progress, tag, %{stage: :matching, how: :blind, stars: 40, limit_ms: 90_000}})
       wait()
 
       case image do
@@ -99,6 +101,28 @@ defmodule Controller.PlatesTest do
 
   defp states(view), do: Enum.map(view.plates, & &1.state)
   defp solving_started, do: receive(do: ({:solving, img} -> img), after: (2_000 -> flunk("no solve started")))
+
+  # 12 October 2026: "it's just counting up... if there's visual status, somehow we can watch the
+  # plate solver work". The view says where a running solve is, and for how long it may run.
+  test "a solve can be watched: its stage, its stars, when it began and the most it may take", %{id: id} do
+    :ok = Plates.set_workers(1)
+    Gate.open(false)
+    t0 = System.system_time(:millisecond)
+    assert {:ok, 1} = add(id, photo("STUB", 1))
+    assert {:ok, 2} = add(id, photo("STUB", 2), {10, -40})
+
+    view = await(id, &match?([%{solving: %{stage: :matching}}, _], &1.plates))
+    [%{solving: sv}, waiting] = view.plates
+    assert %{stage: :matching, how: :blind, stars: 40, limit_ms: 90_000} = sv
+    assert sv.since_ms >= t0 and sv.stage_ms >= sv.since_ms
+    assert is_integer(sv.total_ms) and sv.total_ms > 0
+    # only a plate that is solving has it
+    assert waiting.state == :queued and waiting.solving == nil
+
+    Gate.open(true)
+    view = await(id, &(states(&1) == [:solved, :solved]))
+    assert Enum.all?(view.plates, &(&1.solving == nil))
+  end
 
   test "oldest first, one at a time with one worker, and each lands as it solves", %{id: id} do
     :ok = Plates.set_workers(1)

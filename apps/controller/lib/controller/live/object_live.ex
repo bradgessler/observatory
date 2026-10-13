@@ -23,6 +23,7 @@ defmodule Controller.ObjectLive do
     Blurbs,
     Catalog,
     Ephemeris,
+    Exposure,
     Lineup,
     Moves,
     Pointing,
@@ -62,6 +63,8 @@ defmodule Controller.ObjectLive do
        search: nil,
        night: Settings.get("night", false),
        aperture: Settings.get("aperture_mm", 100),
+       # a starting exposure for a camera on the telescope: advice (`Sky.Exposure`)
+       exposure: nil,
        confirming: false,
        can_undo: false,
        counterweight: nil,
@@ -221,6 +224,8 @@ defmodule Controller.ObjectLive do
       visible: alt > tree,
       scope: Pointing.scope_radec(socket.assigns.snap, ctx),
       reach: reach,
+      # from this telescope's f-ratio as it is set, and the Moon's phase now
+      exposure: Exposure.tonight(obj, at: now),
       # :guessed while Go To picks its side of the pier on a guess (`Lineup.status/1`)
       counterweight: lock && lock.counterweight,
       holding: id && (Tracker.status(id) || %{})[:name]
@@ -490,6 +495,11 @@ defmodule Controller.ObjectLive do
               </span>
             </p>
             <p class="blurb">{Blurbs.for(@obj)}</p>
+            <%!-- a starting exposure for a camera on the telescope, over its reason: advice, set on the camera's own Exposure screen --%>
+            <div :if={@exposure} class="setting exposure-advice">
+              <div class="setting-text"><strong>Start at {Exposure.words(@exposure)}</strong><span>{@exposure.why}</span></div>
+              <span class="setting-action"><.help href={~p"/docs/still-camera#suggested-exposure"} label="the suggested exposure" /></span>
+            </div>
             <.link navigate={if @selected, do: ~p"/sky/#{@selected}?#{[pick: @obj.id]}", else: ~p"/sky?#{[pick: @obj.id]}"} class="btn" aria-label={"Show #{@obj.name} on the Sky Map"}>Show on Sky Map ›</.link>
           </section>
 

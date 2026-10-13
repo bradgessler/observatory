@@ -8,7 +8,8 @@ defmodule Controller.StillCameraLive do
   One job a screen:
 
     * `/cameras/stills`: the picture, and beside it everything about taking the next one: a
-      picture now or one after another, ISO and shutter speed (the next picture takes them),
+      picture now or one after another, ISO and shutter speed (the next picture takes them; with a starting exposure
+      suggested for what the mount is tracking),
       whether every picture is solved, the picture in flight stage by stage, and the roll of
       the last few, any of which can be looked at again
     * `/cameras/stills/lock`: Lock On, both motors steered from these pictures to hold the target still
@@ -25,6 +26,7 @@ defmodule Controller.StillCameraLive do
 
   alias Controller.{LockOn, Plates, Settings, StillCamera}
   alias Controller.Components.Pictures
+  alias Controller.Sky.{Catalog, Ephemeris, Exposure, Pointing, Tracker}
 
   @isos [
     {"Auto", :auto},
@@ -46,6 +48,8 @@ defmodule Controller.StillCameraLive do
       StillCamera.subscribe()
       LockOn.subscribe()
       Settings.subscribe()
+      # what the mount is tracking: the Exposure screen suggests an exposure for it
+      Telescope.subscribe("tracker")
       if selected, do: Plates.subscribe(selected)
       # the picture's age, and a solve's seconds
       Process.send_after(self(), :tick, 1_000)
@@ -59,6 +63,8 @@ defmodule Controller.StillCameraLive do
        lock: LockOn.status(),
        selected: selected,
        plates: plates(selected),
+       # a starting exposure for what the mount is tracking (`Sky.Exposure`), nil while it tracks nothing
+       suggest: suggest(selected && safe(fn -> Tracker.status(selected) end)),
        now_ms: System.system_time(:millisecond),
        notice: nil,
        turning: false,
@@ -103,6 +109,17 @@ defmodule Controller.StillCameraLive do
   end
 
   def handle_info({:settings, "night", v}, socket), do: {:noreply, assign(socket, night: v)}
+
+  # the telescope's optics changed (a solve measured the focal length): the suggestion is worked out again
+  def handle_info({:settings, key, _}, %{assigns: %{selected: id}} = socket) when key in ["aperture_mm", "focal_length_mm"] and is_binary(id),
+    do: {:noreply, assign(socket, suggest: suggest(safe(fn -> Tracker.status(id) end)))}
+
+  # a hold started, ended or moved to another target: the suggestion follows it; its every tick doesn't
+  def handle_info({:tracker, id, status}, %{assigns: %{selected: id}} = socket) do
+    if get_in(status || %{}, [:target, :id]) == (socket.assigns.suggest || %{})[:id],
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, suggest: suggest(status))}
+  end
 
   def handle_info({:set_done, result}, socket) do
     notice =
@@ -151,6 +168,10 @@ defmodule Controller.StillCameraLive do
   def handle_event("pick", %{"seq" => seq}, socket), do: {:noreply, assign(socket, picked: String.to_integer(seq))}
   def handle_event("latest", _, socket), do: {:noreply, assign(socket, picked: nil)}
 
+  # Use It: both dials to the suggested exposure, as the server worked it out (nothing is taken from the page)
+  def handle_event("use_exposure", _, %{assigns: %{suggest: %{advice: a}}} = socket), do: {:noreply, turn(socket, iso: a.iso, shutter: a.shutter)}
+  def handle_event("use_exposure", _, socket), do: {:noreply, socket}
+
   # Lock On steers from the camera's pictures where they arrive: on the camera's own machine
   def handle_event("lock", _, %{assigns: %{cam: %{node: n}}} = socket) when n != node() do
     {:noreply, assign(socket, notice: "Lock On runs on the machine the camera is on: open it there")}
@@ -197,6 +218,21 @@ defmodule Controller.StillCameraLive do
   defp parse_iso("auto"), do: :auto
   defp parse_iso(v), do: String.to_integer(v)
 
+  # A starting exposure for what the mount is tracking, among the ISOs and shutter speeds this
+  # screen's dials offer: `%{id, name, advice}`, or nil when it tracks nothing the catalogue knows
+  # (the tracker keeps the target's id, name and place; what kind of thing it is comes from the catalogue).
+  defp suggest(%{target: %{id: id}}) when is_binary(id) do
+    obj = Catalog.object(id) || Enum.find(safe(fn -> Ephemeris.objects(DateTime.utc_now(), Pointing.site()) end) || [], &(&1.id == id))
+
+    case Exposure.tonight(obj, shutters: @shutters, isos: for({_, iso} <- @isos, is_integer(iso), do: iso)) do
+      nil -> nil
+      # "Moon · last quarter" is the Moon
+      advice -> %{id: id, name: obj.name |> String.split(" · ", parts: 2) |> hd(), advice: advice}
+    end
+  end
+
+  defp suggest(_), do: nil
+
   # -- render ----------------------------------------------------------------------------------
 
   @impl true
@@ -233,7 +269,7 @@ defmodule Controller.StillCameraLive do
             <.link patch={~p"/cameras/stills"} class="btn panel-close" aria-label={"Close #{screen_title(@live_action)}"}><span aria-hidden="true">✕ </span>Close</.link>
           </div>
           <p :if={StillCamera.remote?(@cam)} class="hint" role="status">This camera is on {host(@cam)}. Pictures and exposure work from here.</p>
-          <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} picked={@picked} bar={@bar} now_ms={@now_ms} />
+          <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} picked={@picked} bar={@bar} now_ms={@now_ms} suggest={@suggest} />
           <%!-- the lock and the solver's queue live on the machine the camera is on: from another, a way there --%>
           <.elsewhere :if={@live_action in [:lock, :solving] and StillCamera.remote?(@cam)} cam={@cam} action={@live_action} />
           <.lock :if={@live_action == :lock and not StillCamera.remote?(@cam)} lock={@lock} selected={@selected} />
@@ -331,6 +367,7 @@ defmodule Controller.StillCameraLive do
   attr :picked, :integer, default: nil
   attr :bar, :map, default: nil
   attr :now_ms, :integer, required: true
+  attr :suggest, :map, default: nil
 
   defp camera(assigns) do
     ~H"""
@@ -362,6 +399,11 @@ defmodule Controller.StillCameraLive do
         </label>
       </form>
       <p class="dim next-shot-note" role="status">{@settings[:quality] || "?"}{if @turning, do: " · turning the dial…", else: ""}</p>
+      <%!-- the mount is tracking something: a starting exposure for it over its reason, and the one key that sets it (#117) --%>
+      <.setting :if={@suggest} label={"For #{@suggest.name}: #{Exposure.words(@suggest.advice)}"} value={@suggest.advice.why}>
+        <.btn :if={!in_use?(@settings, @suggest)} phx-click="use_exposure" disabled={@turning} aria-label={"Use it: set #{Exposure.words(@suggest.advice)}"}>Use It</.btn>
+        <.badge :if={in_use?(@settings, @suggest)} on>Set ✓</.badge>
+      </.setting>
       <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
         <span>Plate solve every picture</span>
         <span class="switch-state"><span class="switch-word">{if @cam[:solving], do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
@@ -519,6 +561,10 @@ defmodule Controller.StillCameraLive do
     |> Enum.filter(& &1)
     |> Enum.join(" · ")
   end
+
+  # the camera is already set to the suggested ISO and shutter speed
+  defp in_use?(settings, %{advice: a}), do: settings[:iso] == a.iso and settings[:shutter] == a.shutter
+  defp in_use?(_, _), do: false
 
   defp exposure_words(settings) do
     "ISO #{iso_words(settings[:iso])} · #{settings[:shutter] || "?"} s · #{settings[:quality] || "?"}"

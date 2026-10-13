@@ -196,6 +196,64 @@ defmodule Controller.StillCameraTest do
     assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?t=#{third.seq}"]))
   end
 
+  # #117, 12 October: "The targets have known magnitudes. Saturn's bright. You could work out what
+  # the camera exposure and ISO should be." While the mount tracks a target the Exposure screen
+  # says where to start for it, and one key turns both dials there.
+  @tag timeout: 60_000
+  test "Exposure suggests ISO and shutter for the target being tracked, and Use It sets them", %{conn: conn} do
+    alias Controller.Sky.{Pointing, Tracker}
+
+    id = "sim-still-mount-#{System.unique_integer([:positive])}"
+    start_supervised!({Mount.Server, id: id, transport: {Mount.Transport.Sim, []}})
+    Mount.subscribe(id)
+    assert_receive {:mount, %{connected: true}}, 2_000
+    :ok = Mount.set_home(id)
+
+    # the 8SE: f/10
+    optics = {Controller.Settings.get("aperture_mm"), Controller.Settings.get("focal_length_mm")}
+    Controller.Settings.put("aperture_mm", 203.2)
+    Controller.Settings.put("focal_length_mm", 2032)
+
+    on_exit(fn ->
+      Tracker.stop(id)
+      # never nil: Settings has no delete, and a nil left behind takes the place of the pages' default of 100
+      Controller.Settings.put("aperture_mm", elem(optics, 0) || 100)
+      Controller.Settings.put("focal_length_mm", elem(optics, 1))
+    end)
+
+    # tracking nothing: the screen is its dials and no suggestion
+    {:ok, view, html} = live(conn, ~p"/cameras/stills?#{[id: id]}")
+    refute html =~ "Use It"
+
+    # a hold right where the tube is, named as Saturn (found by a nudge, say)
+    saturn = Enum.find(Controller.Sky.Ephemeris.objects(DateTime.utc_now(), Pointing.site()), &(&1.id == "sol-saturn"))
+    {ra, dec} = Pointing.scope_radec(Mount.snapshot(id), Pointing.context(DateTime.utc_now(), id))
+    Tracker.track(id, %{name: saturn.name, ra_deg: ra, dec_deg: dec}, saturn)
+    Enum.find(1..100, fn _ -> Tracker.status(id) != nil or (Process.sleep(50) && false) end)
+    assert %{name: "Saturn", target: %{id: "sol-saturn"}} = Tracker.status(id)
+
+    # the page that was open hears of it, and one opened now reads it
+    html = render(view)
+    assert html =~ "For Saturn: ISO 800 · 1/60 s"
+    assert html =~ "From the surface brightness of Saturn, 6.8 mag per square arcsecond, at f/10."
+    {:ok, _other, html} = live(conn, ~p"/cameras/stills?#{[id: id]}")
+    assert html =~ "For Saturn: ISO 800 · 1/60 s"
+
+    # it is advice until the key is pressed: the camera is as it was
+    refute match?(%{iso: 800, shutter: "1/60"}, StillCamera.status().camera.settings)
+    view |> element("button", "Use It") |> render_click()
+    assert_receive {:still_camera, %{camera: %{settings: %{iso: 800, shutter: "1/60"}}}}, 20_000
+    html = render(view)
+    # set: said in words with a mark, and the key is gone
+    assert html =~ "Set ✓"
+    refute has_element?(view, "button", "Use It")
+    assert html =~ "ISO 800 · 1/60 s · "
+
+    # the hold ends: so does the suggestion
+    Tracker.stop(id)
+    refute render(view) =~ "For Saturn"
+  end
+
   @tag timeout: 60_000
   test "All Cameras shows this camera's picture as the telescope camera's, with its age", %{conn: conn} do
     picture()

@@ -5,7 +5,8 @@ defmodule Controller.Sky.Catalog do
   https://github.com/ofrohn/d3-celestial). Parsed once at boot into
   `:persistent_term`; everything is a plain list of maps.
 
-  Coordinates are J2000. RA is stored in degrees 0–360.
+  Coordinates are J2000. RA is stored in degrees 0–360. A DSO carries its
+  size on the sky as `size_arcmin: {long, short}` where the data set gives it.
   """
   use GenServer
   require Logger
@@ -92,6 +93,7 @@ defmodule Controller.Sky.Catalog do
           ra_deg: ra360(ra),
           dec_deg: dec,
           mag: num(p["mag"]),
+          size_arcmin: size(p["dim"]),
           kind: dso_kind(p["type"])
         }
       end
@@ -121,6 +123,7 @@ defmodule Controller.Sky.Catalog do
           ra_deg: ra360(ra),
           dec_deg: dec,
           mag: mag,
+          size_arcmin: size(p["dim"]),
           kind: dso_kind(p["type"])
         }
       end
@@ -168,6 +171,18 @@ defmodule Controller.Sky.Catalog do
   end
 
   defp big?(_), do: false
+
+  # How big it is on the sky, in arcminutes, `{long, short}`: "190x60", or "17" for a round one.
+  # nil when the catalogue doesn't say.
+  defp size(dim) when is_binary(dim) do
+    case dim |> String.split("x") |> Enum.map(&Float.parse/1) do
+      [{a, _}, {b, _}] when a > 0 and b > 0 -> {a, b}
+      [{a, _}] when a > 0 -> {a, a}
+      _ -> nil
+    end
+  end
+
+  defp size(_), do: nil
 
   defp ra360(ra) when ra < 0, do: ra + 360.0
   defp ra360(ra), do: ra * 1.0

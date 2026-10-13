@@ -2134,4 +2134,10 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .item-k { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--sunk); color: var(--dim); }
 .item-k .kind-icon { width: 16px; height: 16px; }
 .recent .btn .kind-icon { color: var(--dim); }
+/* ---- a starting exposure for a target (Sky.Exposure, #117): what to set, over why ----
+   On the object's page it is a row of the card (UI.setting's layout), between what the object
+   is and the way to the Sky Map; in Tonight's side panel it is a .pick-about line. */
+.object .card > .exposure-advice { margin: var(--s2) 0; padding-top: 0; }
+.exposure-advice strong { font-variant-numeric: tabular-nums; }
+.exposure-advice .setting-text span { line-height: 1.45; }
 

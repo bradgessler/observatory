@@ -67,6 +67,8 @@ defmodule Controller.SkyLive do
        snap: nil,
        selected: params["id"],
        target: nil,
+       # a starting exposure for the picked object: advice (`Sky.Exposure`)
+       exposure: nil,
        notice: nil,
        # the counterweight question, asked because a Go To waited for it (#113)
        cw_ask: false,
@@ -95,6 +97,7 @@ defmodule Controller.SkyLive do
     socket
     |> assign(target: Catalog.object(id) || Enum.find(Ephemeris.objects(socket.assigns.now, socket.assigns.site), &(&1.id == id)))
     |> night_path()
+    |> exposure()
   end
 
   # No handle_params: this view can be nested inside another page (child views may
@@ -257,10 +260,10 @@ defmodule Controller.SkyLive do
 
     # the Sky Map shows a pick over its chart; Tonight keeps its list and shows it beside
     tab = if socket.assigns.live_action == :tonight, do: socket.assigns.tab, else: "map"
-    {:noreply, socket |> assign(target: target, notice: nil, tab: tab) |> night_path()}
+    {:noreply, socket |> assign(target: target, notice: nil, tab: tab) |> night_path() |> exposure()}
   end
 
-  def handle_event("clear", _, socket), do: {:noreply, socket |> assign(target: nil, notice: nil) |> night_path()}
+  def handle_event("clear", _, socket), do: {:noreply, socket |> assign(target: nil, notice: nil) |> night_path() |> exposure()}
 
   # step the sky an hour either side of now, up to a day; "now" comes back
   def handle_event("shift", %{"by" => "now"}, socket), do: {:noreply, socket |> set_shift(0) |> compute()}
@@ -463,6 +466,7 @@ defmodule Controller.SkyLive do
     )
     |> locked()
     |> night_path()
+    |> exposure()
     |> sun()
   end
 
@@ -475,6 +479,11 @@ defmodule Controller.SkyLive do
     do: assign(socket, path: Scene.night_path(scene, t.ra_deg, t.dec_deg, socket.assigns.utc_offset_min))
 
   defp night_path(socket), do: assign(socket, path: nil)
+
+  # A starting exposure for the picked object, for a camera on the telescope (`Sky.Exposure`):
+  # from the f-ratio as it is set and, for the Moon, its phase at the time shown.
+  defp exposure(%{assigns: %{target: %{} = t}} = socket), do: assign(socket, exposure: Controller.Sky.Exposure.tonight(t, at: sky_time(socket.assigns)))
+  defp exposure(socket), do: assign(socket, exposure: nil)
 
   # Tonight, with a mount to drive: whether Go To can place anything at all. Without a lock
   # every row would say so; the page says it once instead. What Go To and the hold will do
@@ -915,7 +924,7 @@ defmodule Controller.SkyLive do
 
   # what the picked object's panel needs from the page
   defp pick_assigns(assigns) do
-    Map.take(assigns, [:scope, :target, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
+    Map.take(assigns, [:scope, :target, :exposure, :stars, :dsos, :lim, :moon, :scene, :live_action, :utc_offset_min, :site, :at, :trees, :horizon, :snap, :selected, :cw_ask, :cw_model])
   end
 
   # the picked object: what it is, when it's up, and on Tonight its path across the sky
@@ -956,6 +965,8 @@ defmodule Controller.SkyLive do
       <p class="dim" role="status">{describe(@target, @stars ++ @dsos, @lim, @moon, @scene)}</p>
       <%!-- what it is, in a sentence or two, where there is room for it (a wide screen); the rest is on Details --%>
       <p :if={about(@target)} class="pick-about">{about(@target)}</p>
+      <%!-- a starting exposure for a camera on the telescope and why, where there is room for it too: advice (Sky.Exposure) --%>
+      <p :if={@exposure} class="pick-about pick-exposure">Start at {Controller.Sky.Exposure.words(@exposure)}. {@exposure.why}</p>
       <Controller.Components.NightPath.figure :if={@live_action == :tonight} id="pick-path" scene={@scene} obj={@target} utc_offset_min={@utc_offset_min} scope={assigns[:scope]} />
       <Controller.Components.Visibility.plot targets={[@target]} site={@site} at={@at} utc_offset_min={@utc_offset_min} horizon={if @trees, do: @horizon, else: nil} />
       <div class="row">

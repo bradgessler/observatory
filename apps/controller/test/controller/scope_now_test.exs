@@ -103,7 +103,9 @@ defmodule Controller.ScopeNowTest do
 
       # the detail is one tap away, on the telescope's own page
       {:ok, _page, html} = live(conn, ~p"/controls/scope/#{id}")
-      assert html =~ "scope-status"
+      # (its own chip went too, on 13 October: "you're showing tracking twice"; the axes are a quiet line under Doing)
+      assert html =~ "now-axes"
+      refute html =~ "scope-status"
       assert html =~ ~r/\d+° (up|below the horizon) in the (N|NE|E|SE|S|SW|W|NW)</
     end
   end

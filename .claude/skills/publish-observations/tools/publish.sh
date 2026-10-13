@@ -9,7 +9,10 @@ set -e
 MODE=${1:-check}; MSG=${2:-"Rebuild the site"}
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd); cd "$ROOT"
 mix compile >/dev/null 2>&1
-mix site.build | tail -1
+# a build that refuses (a word that places the telescope, a missing picture) must stop the publish, loudly:
+# piped through tail it once failed in silence and "nothing to publish" was the only sign (13 October 2026)
+BUILD=$(mix site.build 2>&1) || { echo "THE BUILD FAILED, nothing published:"; echo "$BUILD" | tail -5; exit 1; }
+echo "$BUILD" | tail -1
 PUB=$(mktemp -d "${TMPDIR:-/tmp}/observatory-blog.XXXXXX")/site
 HELPER='!gh auth git-credential'
 git -c credential.helper= -c credential.helper="$HELPER" clone -q --depth 1 https://github.com/bradgessler/observatory-blog.git "$PUB"

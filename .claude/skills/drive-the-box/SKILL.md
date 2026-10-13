@@ -78,6 +78,29 @@ tripod set down anyhow (polar axis 13° off), aligned by four plate solves in
 10. **Ledger** every manual step and every surprise in
     `~/.observatory/nights/<date>.txt`; it becomes issues.
 
+## A night the box runs while Brad sleeps
+
+First done on 12 October 2026: ten targets, 263 pictures, parked before dawn, operated by a Haiku subagent.
+
+- **One question before he sleeps:** anything only his eyes can tell (which side of the mount the tube is on, when
+  the bar is level). Then a read-only check that every target lands on the same side.
+- **A runbook the operator follows** (`.claude/runbooks/<night>/RUNBOOK.md`, with `check.exs` and `status.exs`):
+  what may move the telescope (the plan and the park, nothing else), a status line every three minutes into the
+  ledger, a table of what to do for each failure, and "anything that needs a hand at the telescope means park".
+  Copy that night's and change the list.
+- **`plan.exs`** runs on the box, detached: Go To and Centre, wait for the hold to settle, N pictures, next. It
+  stops a camera run left going and sets the camera for centring before every target (both learned the hard
+  way). A reflash kills it: restart from the target it was on with the remaining count and `FIRST_SKIP_CENTRE=1`.
+- **`park.exs`** stops the plan and the camera, ends the hold, and sends the mount home: counterweight down, tube
+  at the mount's own pole, tracking off. The tube then reads a few degrees under Dec 90 when the polar axis is
+  off. **Park twice over:** the operator at the deadline, and a timer on the Mac a few minutes later.
+- **`flats.exs`** takes twilight flats at dawn with the camera only, parked. At f/10 and ISO 100 the useful
+  window is the Sun 3 to 0.5 degrees down.
+- **The main session stacks, annotates and publishes each target as the telescope leaves it** (`stack-pictures`,
+  `annotate-pictures`, `publish-observations`: "A night published as it goes").
+- A script's first printed line can arrive glued to the shell's own output and its last can be lost when the ssh
+  session closes: match with `grep -o 'S .*'`, not `^S`, and end a script with a short sleep.
+
 ## Scripts here
 
 Run with `BOX=observatory.local .claude/skills/mttr/box - < script.exs`.
@@ -89,3 +112,4 @@ Each prints `S ...` lines; grep for them.
 - `goto.exs`: dry-run, refuse unless same side and the counterweight told,
   Go To, wait for landing, one finder solve, the miss in arcminutes.
 - `centre.exs`: `Sky.Centre` with progress lines and the hold afterwards.
+- `plan.exs`, `park.exs`, `flats.exs`: a night's list, the end of the night, and dawn flats (see above).

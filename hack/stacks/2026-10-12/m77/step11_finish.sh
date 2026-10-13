@@ -1,0 +1,30 @@
+#!/bin/sh
+# Step 11: crop, then levels, quiet sky and colour with finish16.py (the finish-pictures tool finish.py, reading the
+# 16-bit stretch of step 10 at full depth). Every number that shaped the finished picture is on these lines, and
+# finish16.py writes them to final/m77.json. skycheck.py prints the dark sky's colour: R-G and B-G within about 1.
+#   crop.py                 the galaxy is 7 x 6 arcmin in a 38 x 25 arcmin field of plain sky: a cut around the
+#                           nucleus's catalogue place (step 9 chose the rectangle), pixels untouched, nothing resampled.
+#                           Crop first, then finish: levels are percentiles of what is in the frame.
+#   --neutral, band 0-40%   the darkest 40% (sky) made grey
+#   --black-pct / --black   black point at that percentile of brightness (the sky's own level), then lifted a little:
+#                           the sky's noise below it goes to black, by choice (less noise over faint detail)
+#   --white-pct --gamma --curve   the brightest pixels (star cores, the nucleus) to white, midtones, a small S-curve
+#   --quiet --chroma-blur   where the picture is dark: a bilateral filter on brightness, and colour blurred. Stars and
+#                           the galaxy's bright middle are left alone.
+#   --sat --grey-below      a little colour; below the first L no colour at all (there it is only noise)
+# The same options make the full field (m77/m77-field.*), kept beside the crop.
+# Hooks: M77_FINISH="<options>" replaces the options below.
+set -e
+cd "$(dirname "$0")"
+PY=${PY:-$HOME/.observatory/pyenv/bin/python}
+NIGHT=${M77_NIGHT:-$HOME/.observatory/nights/2026-10-12-a6000}
+OUT=${M77_OUT:-$NIGHT/m77}
+WORK=${M77_WORK:-$OUT/work}
+FINAL=${M77_FINAL:-$NIGHT/final}
+OPTS=${M77_FINISH:-"--neutral --neutral-band 0 40 --black-pct 78 --black 0.02 --white-pct 99.9 --gamma 0.9 --curve 0.2 --quiet 5 12 50 --chroma-blur 6 --sat 1.15 --grey-below 10 22"}
+mkdir -p "$FINAL"
+set -- $($PY -c "import json,sys; g=json.load(open(sys.argv[1]))['galaxy_crop']; print(g['x'],g['y'],g['w'],g['h'])" "$WORK/step9_solve.json")
+$PY crop.py "$WORK/m77-stretched.png" "$WORK/m77-crop" "$1" "$2" "$3" "$4" "the galaxy is 7 x 6 arcmin in a 38 x 25 arcmin field of plain sky: a cut around the nucleus's catalogue place at the stack's own pixels, nothing resampled"
+$PY finish16.py "$WORK/m77-crop.png" "$FINAL/m77" $OPTS
+$PY finish16.py "$WORK/m77-stretched.png" "$OUT/m77-field" $OPTS
+$PY skycheck.py "$FINAL/m77.png" "$OUT/m77-field.png"

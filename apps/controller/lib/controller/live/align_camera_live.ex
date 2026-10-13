@@ -190,6 +190,17 @@ defmodule Controller.AlignCameraLive do
     end
   end
 
+  def handle_event("carry_on", _, socket) do
+    id = socket.assigns.selected
+
+    case id && AutoAlign.start(id, keep: true) do
+      :ok -> {:noreply, assign(socket, run: AutoAlign.status(id))}
+      {:error, :running} -> {:noreply, socket}
+      {:error, e} -> {:noreply, put_notice(socket, Controller.Words.error(e))}
+      nil -> {:noreply, put_notice(socket, "No mount")}
+    end
+  end
+
   def handle_event("continue", _, socket) do
     AutoAlign.continue(socket.assigns.selected)
     {:noreply, socket}
@@ -285,6 +296,8 @@ defmodule Controller.AlignCameraLive do
         pictures: if(run, do: Enum.reverse(plates), else: []),
         placed: Enum.count(plates, &(&1.state == :solved and &1[:moving] != true)),
         last: assigns.still && assigns.still.last,
+        # a run that ended short of an alignment with solved pictures still in the queue
+        resumable: is_map(run) and run[:done] == true and run[:ok] != true and not aligned and Enum.any?(plates, &(&1.state == :solved and &1[:moving] != true)),
         # the host of the machine this mount is on, when it is not this one ("observatory.local")
         elsewhere: (n = AutoAlign.elsewhere(assigns.selected)) && n |> Atom.to_string() |> String.split("@") |> List.last(),
         # a mount with home set has nothing resting on the counterweight question
@@ -335,7 +348,13 @@ defmodule Controller.AlignCameraLive do
         <%!-- the last run's answer, when it did not get there --%>
         <p :if={@run && @run.done && !@run.ok} class="find-line tone-caution" role="status">Not aligned: {@run.words}.</p>
         <.hint :if={@ready}>Lens cap off, pointed at open sky, roughly in focus. It takes at least four pictures, with the telescope moving a little between them. About a minute a picture: four minutes or so.</.hint>
-        <.row>
+        <%!-- a run that was stopped keeps what it solved: carry on from there, or take all of them again --%>
+        <.hint :if={@resumable} role="status">{@placed} of {@run.enough} pictures are solved and kept. Continue takes the rest from where the telescope stands.</.hint>
+        <.row :if={@resumable}>
+          <.btn variant="primary" phx-click="carry_on" disabled={!@ready}>Continue</.btn>
+          <.btn phx-click="start" disabled={!@ready}>Start Over</.btn>
+        </.row>
+        <.row :if={!@resumable}>
           <.btn variant="primary" phx-click="start" disabled={!@ready}>{if @run && @run.done, do: "Start Again", else: "Start Aligning"}</.btn>
           <.btn phx-click="test_picture" disabled={!@ready or @still.busy}>{if @ready && @still.busy, do: "Taking…", else: "Test Picture"}</.btn>
         </.row>

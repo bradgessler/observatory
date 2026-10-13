@@ -83,7 +83,8 @@ defmodule Controller.AutoAlign do
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc """
-  Start finding where mount `id` points. Options: `plan:`, `enough:`,
+  Start finding where mount `id` points. Options: `keep:` (true carries on a
+  run that was stopped, with the pictures it had solved), `plan:`, `enough:`,
   `settle_ms:`, `stack:`, and `camera:` (`:still` or `:scope`; whichever is
   ready when not given, `camera/0`). For the telescope camera, the pictures'
   `exposure_ms:` (2000, or as long as the camera goes) and `gain:` (80), which
@@ -141,7 +142,13 @@ defmodule Controller.AutoAlign do
         {:reply, {:error, :no_camera}, runs}
 
       true ->
-        Plates.clear(id)
+        # `keep: true` carries on a run that was stopped: its solved pictures stay (each is an
+        # encoder reading, a place on the sky and a time, good whatever the mount did since), and
+        # the rest are taken from where the telescope stands now (#144)
+        keep? = Keyword.get(opts, :keep, false)
+        unless keep?, do: Plates.clear(id)
+        kept = if keep?, do: placed(id), else: 0
+        taken = if keep?, do: length((safe(fn -> Plates.view(id) end) || %{plates: []}).plates), else: 0
         ref = Enum.find(Mount.list(), &(&1.id == id))
         # the model's hold would pull each move back toward its old target
         Controller.Sky.Tracker.stop(id, halt: false)
@@ -170,8 +177,8 @@ defmodule Controller.AutoAlign do
           gain: Keyword.get(opts, :gain, @gain),
           at: {0, 0},
           step: 0,
-          picture: 0,
-          solved: 0,
+          picture: taken,
+          solved: kept,
           misses: 0,
           retried: false,
           plate: nil,
@@ -179,7 +186,7 @@ defmodule Controller.AutoAlign do
           # the last STOP before this run: any other one ends it
           estop0: snap(id)[:estop_at],
           phase: :starting,
-          words: "Starting",
+          words: if(kept > 0, do: "Carrying on with #{kept} #{if kept == 1, do: "picture", else: "pictures"} solved", else: "Starting"),
           done: false,
           ok: nil
         }
@@ -188,6 +195,10 @@ defmodule Controller.AutoAlign do
         send(self(), {:watch, id})
 
         case if(Keyword.get(opts, :overhead, false), do: overhead(run), else: {:ok, run}) do
+          # the pictures kept are already enough: nothing to take, the alignment is made from them
+          {:ok, %{solved: n, enough: enough} = run} when n >= enough ->
+            {:reply, :ok, put(runs, solved(%{run | solved: n - 1}, %{state: :solved}))}
+
           {:ok, run} ->
             send(self(), {:next, id})
             {:reply, :ok, put(runs, run)}

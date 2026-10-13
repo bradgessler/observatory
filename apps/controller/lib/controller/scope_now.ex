@@ -8,8 +8,14 @@ defmodule Controller.ScopeNow do
 
       %{id, state: :offline | :still | :tracking | :moving | :slewing,
         words: "Slewing to M33 Triangulum", target: "M33 Triangulum" | nil,
-        where: "RA 01h 33m 51s · Dec +30° 39′" | "RA axis +21°39′ · Dec axis −14°58′",
+        where: "RA 01h 33m · Dec +30° 39′" | "RA axis +21°39′ · Dec axis −14°58′",
+        up: "45° up in the SE" | nil, note: nil | "Not on the sky yet",
         slew: nil | %{pct: 62, ra: 3.1, dec: 0.0}}
+
+  `where`, `up` and `note` are `aim/1`: on the sky once an alignment (or home)
+  says where the axes point, with how high and which way; until then the
+  axes' own angles, called that, and `note` says so in words. This is the
+  one statement of it on a page: no page carries a status of its own.
 
   `slew` is how far a Go To has got: the share of the turn done, and the
   degrees each axis still has to go. It is worked out from the Go To the
@@ -36,7 +42,7 @@ defmodule Controller.ScopeNow do
   """
   use GenServer
 
-  alias Controller.Sky.{Pointing, Tracker}
+  alias Controller.Sky.{Astro, Pointing, Tracker}
 
   @topic "scope_now"
   @rescan_ms 5_000
@@ -44,6 +50,8 @@ defmodule Controller.ScopeNow do
   @look_ms 1_000
   # faster than this an axis is being driven, not tracking (sidereal is 0.0042°/s)
   @driven_deg_s 0.02
+  # where it points, when nothing can say
+  @nowhere %{where: nil, up: nil, note: nil}
 
   def start_link(_), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
@@ -64,11 +72,11 @@ defmodule Controller.ScopeNow do
   @doc """
   The summary for a mount's snapshot. `tracker` is `Controller.Sky.Tracker.status/1`
   for it (nil when nothing is held), `aligning?` whether an alignment run is
-  moving it, `where` its position in words.
+  moving it, `aim` where it points in words (`aim/1`).
   """
-  def summary(snap, tracker \\ nil, aligning? \\ false, where \\ nil)
+  def summary(snap, tracker \\ nil, aligning? \\ false, aim \\ nil)
 
-  def summary(%{connected: true, axes: axes} = snap, tracker, aligning?, where) do
+  def summary(%{connected: true, axes: axes} = snap, tracker, aligning?, aim) do
     target = is_map(tracker) && tracker[:name]
     slewing? = Enum.any?(axes, fn {_, ax} -> Map.get(ax, :goto_pending, false) end)
     driven? = Enum.any?(axes, fn {_, ax} -> ax[:running] == true and abs(ax[:deg_per_s] || 0.0) > @driven_deg_s end)
@@ -86,10 +94,10 @@ defmodule Controller.ScopeNow do
         true -> {:still, "Still"}
       end
 
-    %{id: snap.id, state: state, words: words, target: target || nil, where: where, slew: nil}
+    Map.merge(%{id: snap.id, state: state, words: words, target: target || nil, slew: nil}, aim || @nowhere)
   end
 
-  def summary(%{id: id}, _tracker, _aligning?, _where), do: %{id: id, state: :offline, words: "Not answering", target: nil, where: nil, slew: nil}
+  def summary(%{id: id}, _tracker, _aligning?, _aim), do: Map.merge(%{id: id, state: :offline, words: "Not answering", target: nil, slew: nil}, @nowhere)
   def summary(_, _, _, _), do: nil
 
   # -- the process --------------------------------------------------------------------------
@@ -154,10 +162,10 @@ defmodule Controller.ScopeNow do
         known = look(snap)
         {known, %{s | known: Map.put(s.known, id, known), looked: Map.put(s.looked, id, now)}}
       else
-        {Map.get(s.known, id, %{tracker: nil, aligning?: false, where: nil}), s}
+        {Map.get(s.known, id, %{tracker: nil, aligning?: false, aim: nil}), s}
       end
 
-    new = summary(snap, known.tracker, known.aligning?, known.where)
+    new = summary(snap, known.tracker, known.aligning?, known.aim)
     s = %{s | axes: Map.put(s.axes, id, axes_deg(snap))}
     # a Go To's record lasts as long as the slew: once the axes have settled it is history
     s = if new.state != :slewing and match?(%{state: :slewing}, s.now[id]), do: %{s | gotos: Map.delete(s.gotos, id)}, else: s
@@ -209,7 +217,7 @@ defmodule Controller.ScopeNow do
     %{
       tracker: on(node, Tracker, :status, [id]),
       aligning?: match?(%{done: false}, on(node, Controller.AutoAlign, :status, [id])),
-      where: where(snap)
+      aim: aim(snap)
     }
   end
 
@@ -221,15 +229,29 @@ defmodule Controller.ScopeNow do
     _, _ -> nil
   end
 
-  @doc "Where a mount points, in words: on the sky when its alignment says, else its axes."
-  def where(%{connected: true, id: id, axes: %{ra: ra, dec: dec}} = snap) do
-    case safe(fn -> Pointing.scope_radec(snap, Pointing.context(DateTime.utc_now(), id)) end) do
-      {r, d} when is_number(r) and is_number(d) -> "RA #{hms(r)} · Dec #{dms(d)}"
-      _ -> "RA axis #{deg(ra.degrees)} · Dec axis #{deg(dec.degrees)}"
+  @doc """
+  Where a mount points, in words. On the sky when its alignment (or home)
+  says: `where` is right ascension and declination, `up` how high and which
+  way. Until then `where` is its axes' own angles, called that, and `note`
+  says it is not on the sky yet. nil for a mount that isn't answering.
+  """
+  def aim(%{connected: true, id: id, axes: %{ra: ra, dec: dec}} = snap) do
+    ctx = safe(fn -> Pointing.context(DateTime.utc_now(), id) end)
+
+    case ctx && safe(fn -> Pointing.scope_radec(snap, ctx) end) do
+      {r, d} when is_number(r) and is_number(d) -> %{where: "RA #{hms(r)} · Dec #{dms(d)}", up: safe(fn -> up(r, d, ctx) end), note: nil}
+      _ -> %{where: "RA axis #{deg(ra.degrees)} · Dec axis #{deg(dec.degrees)}", up: nil, note: "Not on the sky yet"}
     end
   end
 
-  def where(_), do: nil
+  def aim(_), do: nil
+
+  # how high and which way, for a person: the horizon is the line that matters
+  defp up(ra, dec, %{site: site, now: now}) do
+    {alt, az} = Astro.alt_az(ra, dec, site.lat, Astro.lst_deg(now, site.lon))
+    to = Enum.at(~w(N NE E SE S SW W NW), rem(round(Astro.norm360(az) / 45), 8))
+    if alt < 0, do: "#{round(-alt)}° below the horizon in the #{to}", else: "#{round(alt)}° up in the #{to}"
+  end
 
   defp hms(ra) do
     s = round(ra / 15 * 3600)

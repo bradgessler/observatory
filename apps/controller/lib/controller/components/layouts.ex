@@ -105,14 +105,17 @@ defmodule Controller.Layouts do
       <div class="shell-main">
         <%!-- What the telescope is doing, on every page, the same way: still, tracking, or SLEWING,
               which is loud and comes with its own STOP. Only the words are a live region: a
-              position that counts would be read out every second. --%>
+              position that counts would be read out every second. Where it points is said
+              here and on no page under it: on the sky, with how high and which way where
+              there is room; before an alignment, that it is not on the sky yet, and the
+              axes' own angles where there is room. --%>
         <div :if={@now} id="scope-now" class={["scope-now", "now-#{@now.state}"]}>
-          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" aria-label={"#{@now.id}: #{@now.words}. Open the telescope"}>
+          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" aria-label={"#{@now.id}: #{@now.words}. #{@now[:note] && @now.note <> ". "}Open the telescope"}>
             <span class="now-dot" aria-hidden="true"></span>
             <strong role="status">{@now.words}</strong>
             <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
             <span class="now-id">{@now.id}</span>
-            <span :if={@now.where} class="now-where">{@now.where}</span>
+            <span :if={@now.where} class="now-where"><span :if={@now[:note]} class="now-note">{@now.note}</span><span class="now-pos">{@now.where}</span><span :if={@now[:up]} class="now-up">{@now.up}</span></span>
           </.link>
           <%!-- STOP is here whenever there is something to stop: a slew, a move, a hold --%>
           <button :if={@now.state in [:slewing, :moving, :tracking]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>

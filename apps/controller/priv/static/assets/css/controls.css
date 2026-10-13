@@ -1,4 +1,4 @@
-/* ---- scope status strip (every surface) ---- */
+/* ---- the mount in a line (Components.Status): Telescope > Now only; the bar on every page says what it is doing ---- */
 .scope-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; color: var(--text); text-decoration: none; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
 .scope-status.compact { padding: 6px 10px; border-radius: 12px; gap: 4px 10px; font-size: var(--fs-1); }
 .scope-status.compact .ss-id { display: none; }

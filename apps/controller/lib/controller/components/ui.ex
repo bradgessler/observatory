@@ -103,8 +103,9 @@ defmodule Controller.Components.UI do
   @doc """
   A section's status in the toolbar, between the title and the keys: what
   every page of that section shares and wants in view (the Sky's time and
-  location, how well the telescope is aligned, where the mount points). Beside
-  the title on a wide screen; its own row under it on a phone.
+  location, how well the telescope is aligned). Beside the title on a wide
+  screen; its own row under it on a phone. Never what the telescope is doing
+  or where it points: the bar at the top of every page says that, once.
 
       <:header>
         <.back navigate={~p"/"} label="Home" section="Sky" />

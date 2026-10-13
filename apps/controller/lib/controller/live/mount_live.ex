@@ -267,8 +267,6 @@ defmodule Controller.MountLive do
       <header :if={!@nested} class="page-header">
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Controls", @selected)} />
         <.title>Axis Strips</.title>
-        <%!-- the Controls section's status: what the mount is doing and where it points --%>
-        <.status label="Mount">{live_render(@socket, Controller.ControlsStatusLive, id: "controls-status", session: %{"id" => @selected})}</.status>
         <.actions>
           <.help href={~p"/docs/keypad"} label="the keypad" />
           <.stop click="estop" />
@@ -376,8 +374,7 @@ defmodule Controller.MountLive do
           <p :if={!@snap}>No mount found. Plug the EQDIR cable into this machine or a box; it's found by itself.</p>
           <.row><.btn navigate={if @snap, do: ~p"/devices/mount/#{@selected}", else: ~p"/devices"}>{if @snap, do: "#{@selected} on Devices ›", else: "Devices ›"}</.btn></.row>
         </section>
-        <%!-- STOP is on every page, answering or not: a link lost mid-slew is when it matters --%>
-        <.stop :if={!@nested} size="bar" click="estop" />
+        <%!-- no strips, so no STOP beside them: the one in the toolbar is this page's, answering or not (a link lost mid-slew is when it matters) --%>
       <% end %>
 
       <.notice notice={@notice} />

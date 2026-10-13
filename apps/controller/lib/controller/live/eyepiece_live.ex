@@ -316,8 +316,6 @@ defmodule Controller.EyepieceLive do
           <.stop /></.actions>
       </:header>
 
-      <Controller.Components.Status.status :if={@snap && !@nested} snap={@snap} id={@selected} compact />
-
       <.card :if={@centre} class="wide">
         <svg viewBox="-110 -110 220 220" class="eyepiece" role="img" aria-label={field_words(@centre, @target, @objects)}>
           <circle r={@r_field} class="ep-field" />

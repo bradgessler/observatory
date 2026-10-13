@@ -208,6 +208,8 @@ defmodule Controller.ScopeLive do
             <div class="state-line">
               <strong role="status">{if @now, do: @now.words, else: state_words(@snap, @tracker)}</strong>
               <span :if={@now && @now.where}>{@now.where}</span>
+              <%!-- on the sky: how high and which way. Not yet: said, with what puts it there --%>
+              <span :if={@now && (@now[:up] || @now[:note])}>{@now[:up] || "#{@now.note}: set home or align"}</span>
             </div>
             <%!-- a slew: how far it has got, as a bar and in degrees to go on each axis --%>
             <div :if={@now && @now[:slew]} class="now-slew">

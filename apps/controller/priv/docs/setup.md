@@ -1,8 +1,8 @@
 # Setup
 
-One mount's page (`/setup/<mount>`, from the status line on any page or a
-mount's badge on Home): how it is being steered, its home position, and every
-mode that changes where it points.
+One mount's page (`/setup/<mount>`, from Telescope > Now, which the bar at
+the top of every page opens, or a mount's badge on Home): how it is being
+steered, its home position, and every mode that changes where it points.
 
 ## How it's steered
 

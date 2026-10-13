@@ -1970,21 +1970,6 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .al-bar-text span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .switcher-al { margin-left: auto; }
 
-/* ---- the Controls status (ControlsStatusLive): what the mount is doing, and where it points ---- */
-.ctl-status { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.ctl-motion { display: inline-flex; align-items: center; gap: var(--s1); flex: none; min-height: 32px; padding: 0 var(--s2); border-radius: 999px; background: var(--panel); }
-.ctl-motion strong { font-size: var(--fs-2); font-weight: 650; white-space: nowrap; }
-.ctl-lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
-.ctl-slewing .ctl-lamp { background: var(--amber); }
-.ctl-slewing strong { color: var(--amber); }
-.ctl-tracking .ctl-lamp { background: var(--on); }
-.ctl-down .ctl-lamp { background: var(--warn); }
-.ctl-where { display: grid; min-width: 0; line-height: 1.25; }
-.ctl-where strong { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ctl-where span { font-size: var(--fs-1); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (prefers-reduced-motion: no-preference) { .ctl-slewing .ctl-lamp { animation: ctl-pulse 1s ease-in-out infinite; } }
-@keyframes ctl-pulse { 50% { opacity: .35; } }
-
 /* ---- Align with the Camera, and a picture in a card ---- */
 /* The strip, one line on any phone whatever the words: every step is its number, and the step you
    are on is spelled out. Four words in four pills wrapped the longest ("Counterweight") and left
@@ -2133,4 +2118,12 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin: 0 0 var(--s2); }
 .panel-head h2 { margin: 0; font-size: var(--fs-4); }
 .panel-head .panel-close { min-height: 44px; }
+/* ---- the bar is the one statement of where the telescope points (#148) ----
+   Inside the position, in the order they give way to an ellipsis: that it is not on the sky yet,
+   the position itself, how high and which way. A phone has room for one of them: the position on
+   the sky, or the words when there is none (the axes' angles are on the telescope's own page). */
+.scope-now .now-note + .now-pos::before, .scope-now .now-up::before { content: "·"; margin: 0 6px; }
+@media (max-width: 599px) {
+  .scope-now .now-up, .scope-now .now-note + .now-pos { display: none; }
+}
 

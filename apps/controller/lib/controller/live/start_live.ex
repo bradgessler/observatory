@@ -294,9 +294,6 @@ defmodule Controller.StartLive do
         <li :for={{key, label} <- steps(@status)} class={state(key, @step, @home_optional)} aria-current={if key == @step, do: "step"}><span class="flow-label">{label}<span :if={key == :zero and @home_optional}> (optional)</span></span><span :if={state(key, @step, @home_optional) == "done"} role="img" aria-label="done">✓</span></li>
       </ol>
 
-      <%!-- the scope's live state, one line, on every step that has a scope --%>
-      <Controller.Components.Status.status :if={@snap && @snap.connected} snap={@snap} id={@selected} compact />
-
       <%!-- an alignment on a mount with no home: Go To picks its side of the pier by where the
             counterweight is, and until someone says, that is a guess (the question itself is
             right under Align with the Camera on the Stars step) --%>

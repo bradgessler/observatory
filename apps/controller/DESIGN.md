@@ -113,8 +113,8 @@ Every page's header is `back` · `title` · `actions`, drawn by `UI.back/1`,
   down; under 360 px the overline drops its capitals and a long title takes a
   second line rather than losing its end.
 - **A section's status rides in the toolbar and never widens it.**
-  `UI.status/1` (the Sky's time and place, what the mount is doing, how well
-  it's aligned) sits beside the title where its one line fits, and takes its
+  `UI.status/1` (the Sky's time and place, how well the telescope is
+  aligned) sits beside the title where its one line fits, and takes its
   own row under the title where it doesn't: always on a phone. It takes its
   width from the toolbar, never from what's in it, so what's in it wraps to
   a second line or ends in an ellipsis, and a toolbar never scrolls
@@ -123,6 +123,13 @@ Every page's header is `back` · `title` · `actions`, drawn by `UI.back/1`,
   (its solar graph makes way under 540 px). A page wider than the phone
   makes the phone zoom the whole page out; `design_test.exs` checks the
   stylesheet for it.
+- **What the telescope is doing is said once, by the bar above the toolbar.**
+  `Layouts.frame/1` draws `Controller.ScopeNow`'s summary on every page: the
+  state in words, which telescope, where it points (before an alignment,
+  that it is not on the sky yet). No page repeats it under its title; the
+  detail is on Telescope > Now, which the bar opens. While the bar is loud
+  (a slew, a move by hand) it carries STOP and the toolbar's STOP steps
+  aside, so there is one at the top of the screen, never two.
 
 ## Every screen size
 

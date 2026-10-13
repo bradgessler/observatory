@@ -30,6 +30,8 @@ runner = fn ->
   # and each target is then skipped as "not centred". The plan owns the camera from here.
   StillCamera.continuous(false)
   id = "ttyUSB0"
+  # and a centring left running by a plan this one replaces would fight this one's first Go To
+  Centre.stop(id)
   file = "/root/.observatory/plan.json"
   progress = fn map -> File.write(file, Jason.encode!(Map.put(map, :at, DateTime.utc_now()))) end
   say = fn words -> Logger.warning("plan: " <> words) end
@@ -37,6 +39,9 @@ runner = fn ->
   stopped? = fn -> receive do :stop -> true after 0 -> false end end
 
   centre = fn obj ->
+    # the centring pictures are taken with whatever the camera is set to, and a step may have left it at 1/60 s
+    # (13 October: after Almach every centring picture was black and NGC 891 was skipped). Set what a solve needs.
+    StillCamera.set(iso: 6400, shutter: "2")
     Centre.start(id, obj, flip: true)
     wait = fn wait, n ->
       st = Centre.status(id)

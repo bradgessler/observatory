@@ -132,8 +132,10 @@ It must end with a line like:
 
     S parked: ra_running=false dec_running=false tracking=:off hold=nil tube_dec=89.x (90 is the pole)
 
-- `tube_dec` above 85 and both `running=false`: tell Brad "Parked at the pole,
-  tracking off. Safe for sunrise."
+- `tube_dec` above 80 and both `running=false`: tell Brad "Parked at the pole,
+  tracking off. Safe for sunrise." (The tube sits at the mount's own pole, and
+  a mount set down a few degrees off the sky's pole reads a few degrees under
+  90: on this night it read 84.8, with the polar axis 5.2 degrees off.)
 - `S NOT PARKED` or anything else: tell Brad at once, in these words: "The
   telescope is NOT parked. Motors are stopped. Please put the cap on or turn
   it away from the east before sunrise (07:15)." Run status and give him the

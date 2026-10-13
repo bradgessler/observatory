@@ -77,14 +77,16 @@
    "title": "NGC 2419",
    "sub": "A globular cluster far out in the galaxy's halo, in Lynx",
    "what": "A ball of hundreds of thousands of old stars, so far from the centre of the Milky Way that it was once thought to be adrift between galaxies.",
-   "state": "observing"
+   "state": "processing",
+   "note": "28 frames"
   },
   {
    "slug": "cigar-galaxy",
    "title": "The Cigar Galaxy",
    "sub": "Messier 82, in Ursa Major",
    "what": "A galaxy seen from the side that is making new stars at a furious rate after a close pass by its neighbour.",
-   "state": "planned"
+   "state": "skipped",
+   "note": "almost no stars showed where the telescope pointed, so something was in the way: a tree, a roof or cloud"
   }
  ]
 }

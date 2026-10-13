@@ -13,7 +13,11 @@ defmodule Controller.Settings do
   database isn't up (it failed to open or migrate), settings carry on from
   and to the JSON file as before: the scope never stops over its settings.
 
-  Reads come from memory; writes go to memory, then to disk.
+  Reads come from memory; writes go to memory, then to disk. A read never
+  waits for a write: the values are also kept in a table anyone can read, so
+  the tracker asking for the site twice a second is not held up while a row
+  goes to a busy SD card (on 13 October 2026 the hold on M33 let go of both
+  motors for five seconds at a time, picture after picture).
   """
   use Agent
   require Logger
@@ -25,9 +29,30 @@ defmodule Controller.Settings do
   @sectors ~w(N NE E SE S SW W NW)
   @default_horizon Map.new(@sectors, &{&1, 20})
 
-  def start_link(_), do: Agent.start_link(fn -> read() end, name: __MODULE__)
+  @table __MODULE__
 
-  def get(key, default \\ nil), do: Agent.get(__MODULE__, &Map.get(&1, key, default))
+  def start_link(_) do
+    Agent.start_link(
+      fn ->
+        map = read()
+        if :ets.whereis(@table) == :undefined, do: :ets.new(@table, [:named_table, :protected, read_concurrency: true])
+        :ets.delete_all_objects(@table)
+        :ets.insert(@table, Map.to_list(map))
+        map
+      end,
+      name: __MODULE__
+    )
+  end
+
+  def get(key, default \\ nil) do
+    case :ets.lookup(@table, key) do
+      [{_, value}] -> value
+      [] -> default
+    end
+  rescue
+    # the table goes with its process: between a crash and the restart, ask the process
+    ArgumentError -> Agent.get(__MODULE__, &Map.get(&1, key, default))
+  end
 
   @topic "settings"
 
@@ -37,6 +62,8 @@ defmodule Controller.Settings do
   def put(key, value) do
     Agent.update(__MODULE__, fn s ->
       s = Map.put(s, key, value)
+      # memory first: every reader has the new value while the disk takes its time
+      :ets.insert(@table, {key, value})
       write(s, key, value)
       s
     end)

@@ -9,6 +9,11 @@ defmodule Mount.Server do
 
   Safety: slews started with `hold: true` stop by themselves unless refreshed
   within #{900} ms — a held arrow button on a flaky link can't run away. A
+  slew at a tracking rate (#{2}× sidereal or slower) may ask for a longer
+  lease, `hold: ms` up to #{15} s: following the sky must not let go of the
+  motors because the computer was busy for a moment, and at that rate an axis
+  left to itself for the whole lease covers a few arcminutes. Faster than
+  that, the lease is the 900 ms a hand gets whatever was asked. A
   goto takes its axis over from any hold (the dead-man is cancelled, the axis
   stopped first) and answers `:ok` only once the axis is seen on its way: one
   the mount did not start is an error to the caller. An axis the board says
@@ -25,6 +30,9 @@ defmodule Mount.Server do
 
   @poll_ms 250
   @hold_grace_ms 900
+  # a slew this slow is following the sky, not a hand on a control: it may hold a longer lease
+  @track_lease_x 2.0
+  @track_lease_ms 15_000
   @stop_wait_ms 4_000
   # how long a goto has to be seen on its way before it counts as not started
   @goto_start_ms 1_000
@@ -154,9 +162,13 @@ defmodule Mount.Server do
   # its own timer's ref, and one that is no longer the axis's hold (a goto, a
   # stop or an un-held slew cancelled it, a refresh replaced it) is dropped.
   def handle_info({:timeout, ref, {:hold_expired, axis}}, state) do
-    if state.holds[axis] == ref,
-      do: {:noreply, %{stop_axis(state, axis) | holds: Map.delete(state.holds, axis)}},
-      else: {:noreply, state}
+    if state.holds[axis] == ref do
+      # whoever held it went quiet: worth a line, because a tracker that lets go leaves trails
+      if state.axes[axis].running, do: Telescope.Events.emit(:mount, :hold_expired, %{id: state.id, axis: axis})
+      {:noreply, %{stop_axis(state, axis) | holds: Map.delete(state.holds, axis)}}
+    else
+      {:noreply, state}
+    end
   end
 
   # -- calls -----------------------------------------------------------------------
@@ -176,7 +188,7 @@ defmodule Mount.Server do
         {:reply, {:error, :limit}, state}
 
       true ->
-        state = state |> start_slew(axis, rate) |> arm_hold(axis, Keyword.get(opts, :hold, false))
+        state = state |> start_slew(axis, rate) |> arm_hold(axis, lease(Keyword.get(opts, :hold, false), rate))
         {:reply, :ok, broadcast(clear_stall(state))}
     end
   end
@@ -540,11 +552,20 @@ defmodule Mount.Server do
 
   # start_timer, not send_after: its expiry carries the timer's own ref, which
   # is how a stale one is told from the hold armed now (see :hold_expired)
-  defp arm_hold(state, axis, true) do
+  defp arm_hold(state, axis, ms) when is_integer(ms) do
     if ref = state.holds[axis], do: Process.cancel_timer(ref)
-    ref = :erlang.start_timer(@hold_grace_ms, self(), {:hold_expired, axis})
+    ref = :erlang.start_timer(ms, self(), {:hold_expired, axis})
     %{state | holds: Map.put(state.holds, axis, ref)}
   end
+
+  # How long a held slew runs with nobody refreshing it. A hand gets 900 ms. Only a slew at a
+  # tracking rate can have more, and never more than @track_lease_ms: the rate is judged here, in
+  # the driver, so no caller can talk a fast slew into a long lease.
+  defp lease(false, _rate), do: false
+  defp lease(true, _rate), do: @hold_grace_ms
+  defp lease(ms, rate) when is_integer(ms) and ms > @hold_grace_ms and abs(rate) <= @track_lease_x, do: min(ms, @track_lease_ms)
+  defp lease(ms, _rate) when is_integer(ms) and ms > 0, do: min(ms, @hold_grace_ms)
+  defp lease(_, _rate), do: @hold_grace_ms
 
   defp cancel_hold(holds, axis) do
     if ref = holds[axis], do: Process.cancel_timer(ref)

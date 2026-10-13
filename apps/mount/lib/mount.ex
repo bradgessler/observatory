@@ -69,7 +69,10 @@ defmodule Mount do
 
   @doc """
   Run an axis at `rate` × sidereal until told otherwise. `hold: true` makes it
-  self-stop unless refreshed. `quiet: true` skips the event (for a refresh of a
+  self-stop unless refreshed within 900 ms. `hold: ms` asks for a longer lease,
+  which the driver grants only to a slew at a tracking rate (2× sidereal or
+  slower, 15 s at most): a tracker's motors keep turning through a busy moment,
+  a hand's never do. `quiet: true` skips the event (for a refresh of a
   slew already reported, e.g. the tracker feeding its dead-man).
   """
   def slew(ref, axis, rate, opts \\ []) do

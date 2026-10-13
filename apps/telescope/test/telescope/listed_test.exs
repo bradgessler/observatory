@@ -31,8 +31,9 @@ defmodule Telescope.ListedTest do
     assert [_, _] = Enum.filter(devices, &Telescope.listed?(&1.node, &1.sim, @mac))
   end
 
-  # No second node here, so this watches which broadcast is made: the one that
-  # goes to every node, or the one that stays on this machine.
+  # No second node here, so this watches what is handed on: news for the cluster is delivered
+  # here by the sender and given to `Telescope.Relay` for the other machines (the sender never
+  # sends across the link itself, so a slow link cannot hold it up); a simulator's is not.
   test "a simulated device's news stays on this machine; a real one's goes to the cluster" do
     Telescope.subscribe("listed-test")
     test = self()
@@ -48,8 +49,8 @@ defmodule Telescope.ListedTest do
         end
       end)
 
-    for name <- [:broadcast, :local_broadcast], do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, true, [])
-    on_exit(fn -> for name <- [:broadcast, :local_broadcast], do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, false, []) end)
+    for mfa <- [{Phoenix.PubSub, :broadcast, 3}, {Phoenix.PubSub, :local_broadcast, 3}, {Telescope.Relay, :forward, 2}], do: :erlang.trace_pattern(mfa, true, [])
+    on_exit(fn -> for mfa <- [{Phoenix.PubSub, :broadcast, 3}, {Phoenix.PubSub, :local_broadcast, 3}, {Telescope.Relay, :forward, 2}], do: :erlang.trace_pattern(mfa, false, []) end)
     :erlang.trace(sender, true, [:call])
     send(sender, :go)
     assert_receive :sent
@@ -59,8 +60,12 @@ defmodule Telescope.ListedTest do
     # this machine hears all three
     for news <- [:simulator, :real, :unsaid], do: assert_receive(^news)
 
-    calls = for {:trace, ^sender, :call, {Phoenix.PubSub, name, [Telescope.PubSub, "listed-test", news]}} <- messages(), do: {name, news}
-    assert calls == [local_broadcast: :simulator, broadcast: :real, broadcast: :unsaid]
+    traced = messages()
+    calls = for {:trace, ^sender, :call, {Phoenix.PubSub, name, [Telescope.PubSub, "listed-test", news]}} <- traced, do: {name, news}
+    # every one is delivered here by the sender, and none is sent across the link by it
+    assert calls == [local_broadcast: :simulator, local_broadcast: :real, local_broadcast: :unsaid]
+    relayed = for {:trace, ^sender, :call, {Telescope.Relay, :forward, ["listed-test", news]}} <- traced, do: news
+    assert relayed == [:real, :unsaid]
   end
 
   defp messages do

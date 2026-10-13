@@ -11,7 +11,17 @@ defmodule Telescope do
 
   def subscribe(topic), do: Phoenix.PubSub.subscribe(@pubsub, topic)
   def unsubscribe(topic), do: Phoenix.PubSub.unsubscribe(@pubsub, topic)
-  def broadcast(topic, message), do: Phoenix.PubSub.broadcast(@pubsub, topic, message)
+
+  @doc """
+  To every subscriber in the cluster. The ones on this machine get it now,
+  from the caller; the other machines get it from `Telescope.Relay`, so a
+  slow link to another machine never holds the caller up (the mount driver
+  and the tracker broadcast several times a second, and must not wait).
+  """
+  def broadcast(topic, message) do
+    Phoenix.PubSub.local_broadcast(@pubsub, topic, message)
+    Telescope.Relay.forward(topic, message)
+  end
 
   @doc """
   To subscribers on this machine only. For what belongs to the machine it

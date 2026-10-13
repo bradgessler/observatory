@@ -16,6 +16,12 @@
 ## break handler and possibly exiting the VM.
 +Bc
 
+## How much may wait on the link to another machine before the VM puts the senders to sleep
+## (kilobytes; the default is 1024). A megabyte fills with one picture on its way to the Mac, and
+## the senders it put to sleep on 13 October 2026 included the mount driver: both motors stopped
+## for five seconds at a time. 64 MB is more than a burst ever is and still bounded.
++zdbbl 65536
+
 ## Require an initialization handshake within 10 minutes from the startup guard
 ## See https://nerves-runtime.hexdocs.pm/readme.html#assisted-firmware-validation-and-automatic-revert
 -env HEART_INIT_TIMEOUT 600

@@ -9,7 +9,7 @@ defmodule Controller.Components.Pictures do
       measured in it ("Taken 14 s ago · 40 stars · star size 5.4 arcsec"). While the
       next one is on its way it says so and keeps showing this one.
     * `taking/1`: the picture being taken, stage by stage: preparing, the
-      exposure against the shutter time (a bar as well as words), the camera
+      exposure against the shutter time (a bar that runs smoothly), the camera
       finishing it, each file coming down, saving, measuring. Whatever stages
       the camera's driver reports (`Camera.capture/2`); one that reports none
       just says a picture is being taken.
@@ -58,8 +58,9 @@ defmodule Controller.Components.Pictures do
   def taking(assigns) do
     ~H"""
     <p class="shot-now">
-      <span role="status">{shot_words(@shot)}</span><span :if={timed?(@shot)}> · {exposed_s(@shot, @now_ms)} s of {exposure_s(@shot)}</span>
-      <progress :if={timed?(@shot)} max={exposure_s(@shot)} value={exposed_s(@shot, @now_ms)} aria-label="exposure"></progress>
+      <span role="status">{shot_words(@shot)}</span>
+      <%!-- the exposure's bar runs by itself in the browser, smoothly; a new one for each picture --%>
+      <span :if={timed?(@shot)} class="shot-bar" aria-hidden="true"><i id={"taking-bar-#{@shot[:seq]}"} style={"animation-duration: #{round(@shot.exposure_ms)}ms"}></i></span>
     </p>
     """
   end
@@ -78,12 +79,10 @@ defmodule Controller.Components.Pictures do
   defp size_words(b) when is_integer(b) and b > 0, do: " · #{div(b, 1000)} kB"
   defp size_words(_), do: ""
 
-  # an exposure of two seconds or more has something to count; a shorter one is over before it shows
-  defp timed?(%{stage: :exposing, exposure_ms: ms, since_ms: since}) when is_number(ms) and is_integer(since), do: ms >= 2_000
+  # an exposure of a second or more has something to show; a shorter one is over before it does
+  defp timed?(%{stage: :exposing, exposure_ms: ms}) when is_number(ms), do: ms >= 1_000
   defp timed?(_), do: false
 
-  defp exposure_s(%{exposure_ms: ms}), do: round(ms / 1000)
-  defp exposed_s(%{since_ms: since} = shot, now_ms), do: (now_ms - since) |> div(1000) |> max(0) |> min(exposure_s(shot))
 
   defp picture?(last), do: is_map(last) and last[:w] != nil
 

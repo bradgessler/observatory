@@ -287,7 +287,7 @@ defmodule Controller.PagesTest do
         "/cameras/observatory", "/cameras/observatory/frames", "/cameras/observatory/settings", "/controls/watch/axes/#{id}",
         "/controls/dpad/#{id}", "/controls/nudge/#{id}", "/controls/position/#{id}", "/controls/align/#{id}", "/align/photo/#{id}",
         "/controls/center/#{id}", "/setup/#{id}", "/docs/keypad",
-        "/align/camera/#{id}", "/cameras/stills", "/cameras/stills/exposure", "/cameras/stills/lock", "/cameras/stills/solving"
+        "/align/camera/#{id}", "/cameras/stills", "/cameras/stills/lock", "/cameras/stills/solving"
       ]
     end
 

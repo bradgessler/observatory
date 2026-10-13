@@ -119,7 +119,8 @@ defmodule Controller.Router do
     get "/cameras/stills/files/:night", StillCameraController, :night
     get "/cameras/stills/files/:night/:name", StillCameraController, :file
     live "/cameras/stills", StillCameraLive, :index
-    live "/cameras/stills/exposure", StillCameraLive, :exposure
+    # ISO and shutter speed moved onto the camera's own screen: an old link lands there
+    get "/cameras/stills/exposure", RedirectController, :moved, assigns: %{to: "/cameras/stills"}
     live "/cameras/stills/lock", StillCameraLive, :lock
     live "/cameras/stills/solving", StillCameraLive, :solving
     live "/cameras/observatory", WatchLive, :index

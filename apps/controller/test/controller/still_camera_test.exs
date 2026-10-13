@@ -55,9 +55,12 @@ defmodule Controller.StillCameraTest do
     # it is the telescope camera: one job on this screen, the rest a screen away
     assert html =~ ~s(<h1 class="page-title">Telescope Camera</h1>) and html =~ "Take Picture"
     refute html =~ "Stills Camera"
-    refute html =~ ~s(aria-label="ISO")
+    # the next picture's ISO and shutter speed are set right here, and so is solving; the two panels are a tap away
+    assert has_element?(view, ~s(form[phx-change="exposure"] select[name="iso"]))
+    assert has_element?(view, ~s(form[phx-change="exposure"] select[name="shutter"]))
+    assert has_element?(view, ~s(button[role="switch"][phx-click="solving"]), "Plate solve every picture")
     refute html =~ "Lock On the Bright Target"
-    for screen <- ~w(exposure lock solving), do: assert(has_element?(view, ~s(a[href="/cameras/stills/#{screen}"])))
+    for screen <- ~w(lock solving), do: assert(has_element?(view, ~s(a[href="/cameras/stills/#{screen}"])))
 
     view |> element("button", "Take Picture") |> render_click()
     assert_receive {:still_camera, %{busy: false, last: %{w: 960}}}, 15_000
@@ -90,18 +93,26 @@ defmodule Controller.StillCameraTest do
     send(view.pid, :tick)
     html = render(view)
     assert html =~ "Taken 3 min ago"
-    assert html =~ ~r/Exposing<\/span><span> · [45] s of 30/
-    assert has_element?(view, ~s(.shot-now progress[max="30"]))
+    assert has_element?(view, ~s(.roll-now strong[role="status"]), "Exposing")
+    # the bar runs by itself in the browser for the length of the exposure, from where it already is;
+    # a redraw of the page does not start it again
+    assert has_element?(view, ~s(.roll-now .shot-bar i[style*="animation-duration: 30000ms"]))
+    bar = view |> element(".roll-now .shot-bar i") |> render()
+    assert bar =~ ~r/animation-delay: -[34]\d\d\dms/
+    send(view.pid, :tick)
+    assert view |> element(".roll-now .shot-bar i") |> render() == bar
     send(view.pid, {:still_camera, %{status | busy: true, shot: %{stage: :downloading, file: 2, name: "DSC00521.ARW", bytes: 24_300_000, since_ms: now, seq: 9}}})
     assert render(view) =~ "Downloading DSC00521.ARW · 24.3 MB"
     # a camera whose driver reports no stages still says a picture is being taken
     send(view.pid, {:still_camera, %{status | busy: true, shot: nil}})
-    assert has_element?(view, ~s(.shot-now [role="status"]), "Taking a picture")
+    assert has_element?(view, ~s(.roll-now [role="status"]), "Taking a picture")
 
-    for screen <- ~w(exposure lock solving) do
+    # a panel opened beside the picture keeps the picture, and closes right there in the panel
+    for screen <- ~w(lock solving) do
       {:ok, view, html} = live(conn, "/cameras/stills/#{screen}")
       assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png"])), screen
       assert html =~ "Taken ", screen
+      assert has_element?(view, ~s(.panel-head a.panel-close[href="/cameras/stills"]), "Close"), screen
       assert has_element?(view, ~s(a[href="/cameras/stills"][aria-label="Back to Telescope Camera"])), screen
     end
   end
@@ -148,18 +159,41 @@ defmodule Controller.StillCameraTest do
     assert_receive {:still_camera, %{busy: false, why: nil, last: %{seq: seq}}} when seq > before, 15_000
   end
 
+  # 13 October: "if you change the exposure, that should be a control on that screen. A dropdown."
   @tag timeout: 60_000
-  test "Exposure is its own screen: ISO, shutter speed and a picture to check them by", %{conn: conn} do
-    {:ok, view, html} = live(conn, ~p"/cameras/stills/exposure")
-    assert html =~ ~s(<h1 class="page-title">Exposure</h1>)
-    assert html =~ ~s(aria-label="ISO") and html =~ ~s(aria-label="shutter speed, in seconds")
-    assert has_element?(view, "button", "Take Picture")
-    refute html =~ "Lock On the Bright Target"
-    refute html =~ "Solve Pictures"
-
-    view |> element(~s(button[role="radio"][phx-click="iso"]), "800") |> render_click()
+  test "ISO and shutter speed are dropdowns on the camera's own screen", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/cameras/stills")
+    view |> element(~s(form[phx-change="exposure"])) |> render_change(%{"_target" => ["iso"], "iso" => "800", "shutter" => "1/60"})
     assert_receive {:still_camera, %{camera: %{settings: %{iso: 800}}}}, 10_000
-    assert render(view) =~ "ISO 800"
+    assert has_element?(view, ~s(select[name="iso"] option[value="800"][selected]))
+    # the screen it used to be on lands here
+    assert redirected_to(get(conn, "/cameras/stills/exposure"), 301) == "/cameras/stills"
+  end
+
+  # the same day: "we see these pictures taken and they're just getting pushed down... if you click on
+  # one of these pictures it shows that picture"
+  @tag timeout: 60_000
+  test "the roll: the last pictures newest first, any of them looked at again, and back to the latest", %{conn: conn} do
+    first = picture()
+    second = picture()
+    assert [%{seq: s2}, %{seq: s1} | _] = StillCamera.status().recent
+    assert {s2, s1} == {second.seq, first.seq}
+    assert <<137, "PNG", _::binary>> = StillCamera.png(node(), first.seq)
+    assert conn |> get("/cameras/stills/latest.png?seq=#{first.seq}") |> response(200) =~ <<137, "PNG">>
+
+    {:ok, view, _html} = live(conn, ~p"/cameras/stills")
+    assert view |> element(".roll-list") |> render() |> String.split("roll-pic") |> length() >= 3
+    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?t=#{second.seq}"]))
+
+    view |> element(~s(button.roll-pic[phx-value-seq="#{first.seq}"])) |> render_click()
+    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?seq=#{first.seq}"]))
+    assert has_element?(view, ~s(button.roll-pic.picked[aria-pressed="true"]), "Picture #{first.seq}")
+
+    # a new picture arrives: the one being looked at stays
+    third = picture()
+    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?seq=#{first.seq}"]))
+    view |> element("button", "Latest") |> render_click()
+    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?t=#{third.seq}"]))
   end
 
   @tag timeout: 60_000

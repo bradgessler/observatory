@@ -100,12 +100,22 @@ defmodule Controller.StillCamera do
         shooting: false,
         busy: false,
         shot: nil,
+        recent: [],
         last: nil,
         good: 0
       })
 
   @doc "The last picture's grey copy as a PNG (for the page), or nil."
   def png, do: :persistent_term.get({__MODULE__, :png}, nil)
+
+  @doc "The grey copy of one of the last few pictures (`status().recent`), by its number, on machine `node`; nil once it has left the roll."
+  def png(node, seq) when node == node(), do: :persistent_term.get({__MODULE__, :png, seq}, nil)
+
+  def png(node, seq) do
+    :erpc.call(node, __MODULE__, :png, [node, seq], 5_000)
+  catch
+    _, _ -> nil
+  end
 
   @doc "The same from machine `node` (nil when it does not answer)."
   def png(node) when node == node(), do: png()
@@ -162,6 +172,11 @@ defmodule Controller.StillCamera do
 
   @doc "Is this status a camera on another machine? Its picture and its commands go there."
   def remote?(status), do: Map.get(status || %{}, :node, node()) != node()
+
+  @doc "Where a page gets one of the roll's pictures, by its number."
+  def src_of(status, seq) do
+    "/cameras/stills/latest.png?" <> URI.encode_query([seq: seq] ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
+  end
 
   @doc "Where a page gets a camera's latest picture (`seq` makes each new one a new address)."
   def src(status, seq) do
@@ -379,6 +394,8 @@ defmodule Controller.StillCamera do
        interval_ms: (is_integer(was["interval_ms"]) && was["interval_ms"]) || 0,
        # a :shoot_next is on its way: so the look loop can start one when none is (after a restart, a lost message)
        armed: false,
+       # the last few pictures, newest first (`status().recent`): the roll a page shows
+       recent: [],
        # since when a run has been waiting for the clock to be set (monotonic ms), or nil
        clock_wait: nil,
        task: nil,
@@ -448,6 +465,9 @@ defmodule Controller.StillCamera do
 
   @impl true
   def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
+
+  # how many of the last pictures the roll keeps
+  @roll 8
 
   # a run waits this long for the clock to be set, then takes its pictures anyway
   @clock_wait_ms 90_000
@@ -728,7 +748,10 @@ defmodule Controller.StillCamera do
         # for a finder: where the model says the telescope points, should the solve not come back
         aim: solve[:finder] && safe(fn -> Header.context(mount_id, pressed)[:pointing] end),
         # the camera's JPEG, across: the sensor's whole width in this many pixels
-        full_w: jpeg && jpeg_width(jpeg.bytes)
+        full_w: jpeg && jpeg_width(jpeg.bytes),
+        # how the camera was set as the shutter was pressed, for the roll of recent pictures
+        iso: settings && settings[:iso],
+        shutter: settings && settings[:shutter]
       }
 
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
@@ -989,6 +1012,12 @@ defmodule Controller.StillCamera do
 
   defp finished(s, {:ok, record}) do
     if png = record[:png], do: :persistent_term.put({__MODULE__, :png}, png)
+    # the roll: the last few pictures' grey copies, for a page to look back at; the oldest is dropped
+    if png = record[:png], do: :persistent_term.put({__MODULE__, :png, record.seq}, png)
+    roll = [Map.take(record, [:seq, :at, :iso, :shutter, :stars, :w]) | s.recent]
+    {recent, dropped} = Enum.split(roll, @roll)
+    for %{seq: seq} <- dropped, do: :persistent_term.erase({__MODULE__, :png, seq})
+    s = %{s | recent: recent}
     # the field's stars come back with the picture and stay here: the next picture is held against them
     s = %{s | field: Map.get(record, :field, s.field)}
     # the star size of the picture before rides along: a page says which way a focus turn went
@@ -1114,6 +1143,9 @@ defmodule Controller.StillCamera do
       # the picture being taken, stage by stage (nil between pictures): `%{stage, since_ms, seq}`
       # and what the stage carries (`exposure_ms`; a file's `name` and `bytes`)
       shot: s.shot,
+      # the last few pictures, newest first: `%{seq, at, iso, shutter, stars, w}`; each one's grey
+      # copy is `png/2` (the roll on the camera's page)
+      recent: s.recent,
       last: s.last,
       good: s.good,
       why: s.why,

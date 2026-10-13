@@ -110,7 +110,6 @@ defmodule Controller.Nav do
       under("Settings", ~p"/cameras/telescope/settings", "Exposure, gain, frames per picture, keeping frames, video", "Telescope Camera", "gear"),
       under("Frames", ~p"/cameras/telescope/frames", "The last pictures, each with what was known when it was taken", "Telescope Camera", "frames"),
       # a stills camera on the telescope: its screens, each one job
-      under("Exposure", ~p"/cameras/stills/exposure", "A stills camera's ISO and shutter speed", "Telescope Camera", "gear"),
       under("Lock On", ~p"/cameras/stills/lock", "Both motors steered from a stills camera's pictures, to hold the target still", "Telescope Camera", "crosshair"),
       under("Plate Solving", ~p"/cameras/stills/solving", "Solve every picture from a stills camera, and watch each solve work", "Telescope Camera", "star"),
       under("Settings", ~p"/cameras/observatory/settings", "Which camera, timed stills, video size and frame rate", "Observatory Camera", "gear"),

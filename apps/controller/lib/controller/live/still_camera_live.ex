@@ -7,10 +7,14 @@ defmodule Controller.StillCameraLive do
 
   One job a screen:
 
-    * `/cameras/stills`: the latest picture, a picture now or one after another, the star size to focus by
-    * `/cameras/stills/exposure`: ISO and shutter speed
+    * `/cameras/stills`: the picture, and beside it everything about taking the next one: a
+      picture now or one after another, ISO and shutter speed (the next picture takes them),
+      whether every picture is solved, the picture in flight stage by stage, and the roll of
+      the last few, any of which can be looked at again
     * `/cameras/stills/lock`: Lock On, both motors steered from these pictures to hold the target still
-    * `/cameras/stills/solving`: plate solving, and where each picture's solve stands
+    * `/cameras/stills/solving`: the plate solver's queue, where each picture's solve stands
+
+  The two panels open in the column beside the picture and close right there.
 
   Telescope Camera (`/cameras/telescope`) sends people here when this is the
   camera on the telescope. The camera is the server's
@@ -57,14 +61,17 @@ defmodule Controller.StillCameraLive do
        plates: plates(selected),
        now_ms: System.system_time(:millisecond),
        notice: nil,
-       turning: false
+       turning: false,
+       # the roll: the picture this viewer is looking at (its number), or nil for the latest as it comes
+       picked: nil,
+       # the bar of the exposure in flight: which one it is for, and how far in it was when first drawn
+       bar: nil
      )}
   end
 
   @impl true
   def handle_params(_params, _uri, socket), do: {:noreply, assign(socket, page_title: screen_title(socket.assigns.live_action))}
 
-  defp screen_title(:exposure), do: "Exposure"
   defp screen_title(:lock), do: "Lock On"
   defp screen_title(:solving), do: "Plate Solving"
   defp screen_title(_), do: "Telescope Camera"
@@ -75,7 +82,12 @@ defmodule Controller.StillCameraLive do
 
   # another machine's simulated camera is never this page's camera (StillCamera.listed?/2)
   @impl true
-  def handle_info({:still_camera, cam}, socket), do: {:noreply, assign(socket, cam: StillCamera.prefer(socket.assigns.cam, cam))}
+  def handle_info({:still_camera, cam}, socket) do
+    cam = StillCamera.prefer(socket.assigns.cam, cam)
+    # a picture that has left the roll is no longer the one being looked at
+    picked = if socket.assigns.picked && Enum.any?(cam[:recent] || [], &(&1.seq == socket.assigns.picked)), do: socket.assigns.picked
+    {:noreply, assign(socket, cam: cam, picked: picked, bar: bar(socket.assigns.bar, cam[:shot]))}
+  end
 
   def handle_info({:lock_on, lock}, socket), do: {:noreply, assign(socket, lock: lock)}
 
@@ -102,6 +114,16 @@ defmodule Controller.StillCameraLive do
 
   def handle_info(_, socket), do: {:noreply, socket}
 
+  # The exposure's bar runs by itself in the browser (CSS), so it is smooth. It is started once
+  # per exposure: how far in the exposure was when this page first saw it is worked out then and
+  # kept, or every redraw would start the bar again.
+  defp bar(%{key: key} = bar, %{stage: :exposing, seq: seq}) when key == seq, do: bar
+
+  defp bar(_, %{stage: :exposing, seq: seq, exposure_ms: ms, since_ms: since}) when is_number(ms) and ms >= 1_000,
+    do: %{key: seq, ms: round(ms), in_ms: max(System.system_time(:millisecond) - since, 0)}
+
+  defp bar(_, _), do: nil
+
   # -- events -------------------------------------------------------------------------------
 
   @impl true
@@ -119,6 +141,15 @@ defmodule Controller.StillCameraLive do
   # the dials turn a notch at a time: the page stays live while they do
   def handle_event("iso", %{"iso" => v}, socket), do: {:noreply, turn(socket, iso: parse_iso(v))}
   def handle_event("shutter", %{"shutter" => v}, socket), do: {:noreply, turn(socket, shutter: v)}
+
+  # the two dropdowns: whichever was changed is turned; the next picture takes it
+  def handle_event("exposure", %{"_target" => ["iso"], "iso" => v}, socket), do: {:noreply, turn(socket, iso: parse_iso(v))}
+  def handle_event("exposure", %{"_target" => ["shutter"], "shutter" => v}, socket), do: {:noreply, turn(socket, shutter: v)}
+  def handle_event("exposure", _, socket), do: {:noreply, socket}
+
+  # the roll: look at one of the last pictures, or go back to the latest as it comes
+  def handle_event("pick", %{"seq" => seq}, socket), do: {:noreply, assign(socket, picked: String.to_integer(seq))}
+  def handle_event("latest", _, socket), do: {:noreply, assign(socket, picked: nil)}
 
   # Lock On steers from the camera's pictures where they arrive: on the camera's own machine
   def handle_event("lock", _, %{assigns: %{cam: %{node: n}}} = socket) when n != node() do
@@ -190,15 +221,19 @@ defmodule Controller.StillCameraLive do
 
       <p :for={line <- trouble(@cam)} class="hint tone-caution" role="status">{line}</p>
 
-      <%!-- the picture takes the room on every screen; what this screen does with it beside (on a phone, below) --%>
+      <%!-- the picture takes the room; beside it (on a phone, below) everything about taking the next one --%>
       <.split :if={@cam.camera}>
         <:main>
-          <.shot cam={@cam} now_ms={@now_ms} focus={@live_action == :index} />
+          <.shot cam={@cam} now_ms={@now_ms} focus={@live_action == :index} picked={@picked} />
         </:main>
         <:side>
+          <%!-- a panel opened from this column closes right here, where the hand already is --%>
+          <div :if={@live_action != :index} class="panel-head">
+            <h2>{screen_title(@live_action)}</h2>
+            <.link patch={~p"/cameras/stills"} class="btn panel-close" aria-label={"Close #{screen_title(@live_action)}"}><span aria-hidden="true">✕ </span>Close</.link>
+          </div>
           <p :if={StillCamera.remote?(@cam)} class="hint" role="status">This camera is on {host(@cam)}. Pictures and exposure work from here.</p>
-          <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} />
-          <.exposure :if={@live_action == :exposure} cam={@cam} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} />
+          <.camera :if={@live_action == :index} cam={@cam} lock={@lock} settings={@settings} isos={@isos} shutters={@shutters} turning={@turning} picked={@picked} bar={@bar} now_ms={@now_ms} />
           <%!-- the lock and the solver's queue live on the machine the camera is on: from another, a way there --%>
           <.elsewhere :if={@live_action in [:lock, :solving] and StillCamera.remote?(@cam)} cam={@cam} action={@live_action} />
           <.lock :if={@live_action == :lock and not StillCamera.remote?(@cam)} lock={@lock} selected={@selected} />
@@ -215,12 +250,10 @@ defmodule Controller.StillCameraLive do
   defp section(%{camera: %{} = c}), do: "Cameras · #{c[:model] || c[:id]}"
   defp section(_), do: "Cameras"
 
-  defp help_href(:exposure), do: ~p"/docs/still-camera#exposure"
   defp help_href(:lock), do: ~p"/docs/still-camera#lock-on"
   defp help_href(:solving), do: ~p"/docs/still-camera#plate-solving"
   defp help_href(_), do: ~p"/docs/still-camera"
 
-  defp help_label(:exposure), do: "exposure"
   defp help_label(:lock), do: "Lock On"
   defp help_label(:solving), do: "plate solving"
   defp help_label(_), do: "the telescope camera"
@@ -232,29 +265,37 @@ defmodule Controller.StillCameraLive do
   attr :now_ms, :integer, required: true
   attr :focus, :boolean, default: false
 
+  attr :picked, :integer, default: nil
+
   defp shot(assigns) do
-    assigns = assign(assigns, last: assigns.cam.last)
+    old = assigns.picked && Enum.find(assigns.cam[:recent] || [], &(&1.seq == assigns.picked))
+    assigns = assign(assigns, last: assigns.cam.last, old: old)
 
     ~H"""
-    <section class="scope-frame" aria-label="latest picture">
+    <section class="scope-frame" aria-label={if @old, do: "picture #{@old.seq}", else: "latest picture"}>
+      <%!-- one of the roll's pictures, looked at again: it stays until Latest, or until it leaves the roll --%>
+      <img :if={@old} src={StillCamera.src_of(@cam, @old.seq)} alt={"Picture #{@old.seq}: #{roll_words(@old)}"} />
+      <p :if={@old} class="shot-line">
+        <span>Picture {@old.seq} · taken {Pictures.age_words(@old, @now_ms)} · {roll_words(@old)}</span>
+        <button type="button" class="btn shot-latest" phx-click="latest">Latest</button>
+      </p>
+
       <img
-        :if={@last && @last[:w]}
+        :if={!@old && @last && @last[:w]}
         src={StillCamera.src(@cam, @last.seq)}
         alt={"Latest picture: #{caption(@last)}"}
       />
-      <div :if={!(@last && @last[:w])} class="scope-frame-empty">
+      <div :if={!@old && !(@last && @last[:w])} class="scope-frame-empty">
         <p class="dim">{if @cam.busy, do: "The first picture is on its way", else: "No picture yet. Tap Take Picture."}</p>
       </div>
-      <p :if={@last} class="dim">
+      <p :if={!@old && @last} class="shot-line dim">
         <span>Taken {Pictures.age_words(@last, @now_ms)}</span><span :if={caption(@last) != ""}> · </span><span role="status">{caption(@last)}</span>
       </p>
-      <%!-- the picture being taken, stage by stage, while this one stays on the screen --%>
-      <div class="shot-slot"><Pictures.taking :if={@cam.busy} shot={@cam[:shot]} now_ms={@now_ms} /></div>
       <%!-- why the last picture isn't counted as a good one, a line each; gone with the next good picture --%>
-      <p :for={line <- uncounted(@last)} class="hint" role="status">{line}</p>
-      <%!-- the number to focus by, on a line of its own; under it what to do, with its ? at the row's end (UI.setting's layout) --%>
-      <p :if={@last && @focus} class="lock-line" role="status">{star_size_line(@last)}</p>
-      <div :if={@last && @focus} class="setting">
+      <p :for={line <- uncounted(@last)} :if={!@old} class="hint" role="status">{line}</p>
+      <%!-- the number to focus by, on a line of its own; under it what to do, with its help at the row's end --%>
+      <p :if={@last && @focus && !@old} class="lock-line" role="status">{star_size_line(@last)}</p>
+      <div :if={@last && @focus && !@old} class="setting">
         <div class="setting-text">
           <span>Smaller is sharper. Turn the focus knob a little, take a picture, compare.</span>
         </div>
@@ -267,10 +308,29 @@ defmodule Controller.StillCameraLive do
     """
   end
 
-  # the camera's own screen: a picture now, or one after another; everything else is a screen away
+  # "06:28:23 UTC · ISO 6400 · 15 s · 40 stars": one of the roll's pictures in a line
+  defp roll_words(r) do
+    [
+      match?(%DateTime{}, r[:at]) && Calendar.strftime(r.at, "%H:%M:%S UTC"),
+      r[:iso] && "ISO #{iso_words(r.iso)}",
+      r[:shutter] && "#{r.shutter} s",
+      stars_words(r[:stars])
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" · ")
+  end
+
+  # The camera's column: a picture now or one after another; the next picture's settings, changed
+  # right here; the picture in flight; the roll of the last few; and the two panels a tap away.
   attr :cam, :map, required: true
   attr :lock, :map, required: true
   attr :settings, :map, required: true
+  attr :isos, :list, required: true
+  attr :shutters, :list, required: true
+  attr :turning, :boolean, default: false
+  attr :picked, :integer, default: nil
+  attr :bar, :map, default: nil
+  attr :now_ms, :integer, required: true
 
   defp camera(assigns) do
     ~H"""
@@ -284,13 +344,69 @@ defmodule Controller.StillCameraLive do
     </div>
     <p :if={@cam.why} class="hint tone-caution" role="status">{@cam.why}</p>
 
+    <%!-- the next picture: its ISO and shutter speed are set here, and the one after this takes them --%>
+    <section class="next-shot" aria-labelledby="next-shot-h">
+      <h2 id="next-shot-h" class="now-h">Next Picture</h2>
+      <form phx-change="exposure" class="next-shot-form">
+        <label>
+          <span>ISO</span>
+          <select name="iso" class="field">
+            <option :for={{lbl, v} <- options(@isos, @settings[:iso])} value={to_string(v)} selected={@settings[:iso] == v}>{lbl}</option>
+          </select>
+        </label>
+        <label>
+          <span>Shutter speed</span>
+          <select name="shutter" class="field">
+            <option :for={v <- shutter_options(@shutters, @settings[:shutter])} value={v} selected={@settings[:shutter] == v}>{v} s</option>
+          </select>
+        </label>
+      </form>
+      <p class="dim next-shot-note" role="status">{@settings[:quality] || "?"}{if @turning, do: " · turning the dial…", else: ""}</p>
+      <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
+        <span>Plate solve every picture</span>
+        <span class="switch-state"><span class="switch-word">{if @cam[:solving], do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
+      </button>
+    </section>
+
+    <%!-- the roll: the picture in flight on top, in a slot that keeps its size; then the last few, newest
+          first. Tap one to look at it again. --%>
+    <section class="roll" aria-labelledby="roll-h">
+      <h2 id="roll-h" class="now-h">Pictures</h2>
+      <div class="roll-now">
+        <strong role="status">{if @cam.busy, do: Pictures.shot_words(@cam[:shot]), else: "Ready"}</strong>
+        <span class="dim">{if @cam.busy, do: flight_words(@cam[:shot]), else: "Next: " <> exposure_words(@settings)}</span>
+        <span class="shot-bar" aria-hidden="true">
+          <i :if={@bar && @cam.busy && match?(%{stage: :exposing}, @cam[:shot])} id={"shot-bar-#{@bar.key}"} style={"animation-duration: #{@bar.ms}ms; animation-delay: -#{@bar.in_ms}ms"}></i>
+        </span>
+      </div>
+      <ol :if={(@cam[:recent] || []) != []} class="roll-list" aria-label="the last pictures, newest first">
+        <li :for={r <- @cam[:recent] || []}>
+          <button type="button" class={["roll-pic", @picked == r.seq && "picked"]} phx-click="pick" phx-value-seq={r.seq} aria-pressed={to_string(@picked == r.seq)} aria-label={"Look at picture #{r.seq}"}>
+            <img src={StillCamera.src_of(@cam, r.seq)} alt="" loading="lazy" />
+            <span class="roll-text"><strong>Picture {r.seq}</strong><small>{roll_words(r)}</small></span>
+          </button>
+        </li>
+      </ol>
+    </section>
+
     <.items label="more">
-      <.link_item patch={~p"/cameras/stills/exposure"} label="Exposure" detail={exposure_words(@settings)} />
       <.link_item patch={~p"/cameras/stills/lock"} label="Lock On" detail={if StillCamera.remote?(@cam), do: "On #{host(@cam)}", else: lock_line(@lock)} />
       <.link_item patch={~p"/cameras/stills/solving"} label="Plate Solving" detail={solve_line(@cam)} />
     </.items>
     """
   end
+
+  # the dropdown's choices, with whatever the camera is set to when that is not one of them
+  defp options(isos, now), do: if(is_nil(now) or Enum.any?(isos, fn {_, v} -> v == now end), do: isos, else: isos ++ [{iso_words(now), now}])
+  defp shutter_options(shutters, now), do: if(is_nil(now) or now in shutters, do: shutters, else: shutters ++ [now])
+
+  # what the picture in flight is being taken at, beside its stage
+  defp flight_words(%{stage: :exposing, exposure_ms: ms}) when is_number(ms), do: "#{shutter_words(ms)} exposure"
+  defp flight_words(%{stage: :downloading, file: n}) when is_integer(n), do: "file #{n}"
+  defp flight_words(_), do: " "
+
+  defp shutter_words(ms) when ms >= 1_000, do: "#{round(ms / 1000)} s"
+  defp shutter_words(ms), do: "#{round(ms)} ms"
 
   # the host of the machine the camera is on ("observatory.local")
   defp host(%{node: n}), do: n |> Atom.to_string() |> String.split("@") |> List.last()
@@ -306,35 +422,6 @@ defmodule Controller.StillCameraLive do
       <span>It works from the camera's pictures where they arrive, on the machine the camera is plugged into.</span>
     </div>
     <.row><.btn variant="primary" href={"http://#{host(@cam)}/cameras/stills/#{@action}"}>Open It on {host(@cam)} ›</.btn></.row>
-    """
-  end
-
-  attr :cam, :map, required: true
-  attr :settings, :map, required: true
-  attr :isos, :list, required: true
-  attr :shutters, :list, required: true
-  attr :turning, :boolean, default: false
-
-  defp exposure(assigns) do
-    ~H"""
-    <p class="lock-line" role="status">{exposure_words(@settings)}{if @turning, do: " · turning the dial…", else: ""}</p>
-    <.rates label="ISO" class="rates-4">
-      <:opt :for={{lbl, v} <- @isos} on={@settings[:iso] == v} click="iso" value={%{iso: v}}>
-        {lbl}
-      </:opt>
-    </.rates>
-    <.rates label="shutter speed, in seconds" class="rates-4">
-      <:opt :for={v <- @shutters} on={@settings[:shutter] == v} click="shutter" value={%{shutter: v}}>
-        {v}
-      </:opt>
-    </.rates>
-    <.row>
-      <.btn variant="primary" phx-click="shoot" disabled={@cam.busy}>
-        {if @cam.busy, do: "Taking…", else: "Take Picture"}
-      </.btn>
-    </.row>
-    <p :if={@cam.why} class="hint tone-caution" role="status">{@cam.why}</p>
-    <.hint>Shutter speed is in seconds. A longer shutter or a higher ISO shows more stars.</.hint>
     """
   end
 

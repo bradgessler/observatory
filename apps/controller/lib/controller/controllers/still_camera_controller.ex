@@ -9,8 +9,17 @@ defmodule Controller.StillCameraController do
   use Controller, :controller
 
   # `node`: the machine the camera is on, for a page on another machine of the cluster
+  # `seq`: one of the roll's pictures by its number, instead of the latest
   def latest(conn, params) do
-    case Controller.StillCamera.png(Controller.ScopeCamera.node_named(params["node"])) do
+    node = Controller.ScopeCamera.node_named(params["node"])
+
+    png =
+      case Integer.parse(params["seq"] || "") do
+        {seq, ""} -> Controller.StillCamera.png(node, seq)
+        _ -> Controller.StillCamera.png(node)
+      end
+
+    case png do
       png when is_binary(png) ->
         conn
         |> put_resp_content_type("image/png")

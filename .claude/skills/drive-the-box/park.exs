@@ -39,3 +39,7 @@ dec = case Pointing.scope_radec(s, Pointing.context(DateTime.utc_now(), id)) do
   _ -> nil
 end
 IO.puts("S parked: ra_running=#{s.axes.ra.running} dec_running=#{s.axes.dec.running} tracking=#{inspect(s[:tracking])} hold=#{inspect(Tracker.status(id))} tube_dec=#{inspect(dec)} (90 is the pole)")
+# The line above is the one that matters, and over ssh the last line of a script was lost four times out of five on
+# 13 October (the session closed before it was flushed; the telescope was parked every time). Give it a moment.
+Process.sleep(500)
+IO.puts("S end")

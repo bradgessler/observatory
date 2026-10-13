@@ -1,7 +1,7 @@
 # Twilight flats at dawn, with the telescope parked and nothing moving: blank sky lit evenly, tracking off, the
 # exposure walked so the sky sits mid-scale, 24 frames. The camera only: this script never touches the mount, and it
 # refuses to start if an axis is running or a hold is on. It runs on the box by itself (so the ssh session ending
-# does not stop it), waits for the Sun to reach 9.5 degrees below the horizon, and stops at 3.5 below or after 24
+# does not stop it), waits for the Sun to reach 9.5 degrees below the horizon, and stops at half a degree below (FLATS_UNTIL) or after 24
 # good frames, whichever comes first. Progress is in the log ("flats: ..."). Stop it with send(:flats_runner, :stop).
 # The frames land in the night's folder like any others, at ISO 100, pointing at the pole.
 alias Controller.StillCamera
@@ -21,6 +21,9 @@ runner = fn ->
   end
   # longest first: each step is four times shorter
   speeds = ~w(30 15 4 1 1/4 1/15 1/60 1/250 1/1000)
+  # where to stop, in degrees of the Sun below the horizon. On 13 October the first run stopped at 3.5 with the sky
+  # still far too dark for ISO 100 at f/10 (30 s read 54 of 255): this telescope needs the last three degrees.
+  until = String.to_float(System.get_env("FLATS_UNTIL") || "-0.5")
 
   wait = fn wait ->
     cond do
@@ -50,7 +53,7 @@ runner = fn ->
         cond do
           good >= 24 -> {:done, good}
           shots >= 70 -> {:shots, good}
-          sun.() > -3.5 -> {:sun, good}
+          sun.() > until -> {:sun, good}
           stopped?.() -> {:asked, good}
           not still?.() -> {:moving, good}
           true ->
@@ -69,7 +72,7 @@ runner = fn ->
         end
       end
 
-      result = loop.(loop, 2, 0, 0)
+      result = loop.(loop, 0, 0, 0)
       StillCamera.set(iso: 6400, shutter: "2")
       say.("finished: #{inspect(result)}")
 

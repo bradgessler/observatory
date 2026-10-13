@@ -373,29 +373,32 @@ defmodule Controller.StillCameraLive do
 
   defp controls(assigns) do
     ~H"""
+    <%!-- One strip of controls, each the same shape: a small label over a 44 px control, bottoms on one
+          line (13 October: "controls that feel precise... label and then a control below it"). No boxes
+          round the switches. On a phone: the key across, then two to a row. --%>
     <div class="cam-controls" role="group" aria-label="taking pictures">
       <.btn variant="primary" class="cam-take" phx-click="shoot" disabled={@cam.busy or not ready?(@cam)}>Take Picture</.btn>
-      <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam.shooting == true)} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
-        <span>Keep taking pictures</span>
-        <span class="switch-state"><span class="switch-word">{if @cam.shooting, do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
+      <button type="button" class="ctl ctl-switch" role="switch" aria-checked={to_string(@cam.shooting == true)} phx-click="continuous" phx-value-on={to_string(!@cam.shooting)}>
+        <span class="ctl-label">Keep taking pictures</span>
+        <span class="ctl-body"><i class="ctl-track" aria-hidden="true"></i><span class="ctl-word">{if @cam.shooting, do: "On", else: "Off"}</span></span>
       </button>
       <form phx-change="exposure" class="next-shot-form" aria-label="the next picture's exposure">
-        <label>
-          <span>ISO</span>
-          <select name="iso" class="field">
+        <label class="ctl">
+          <span class="ctl-label">ISO</span>
+          <select name="iso" class="field ctl-field">
             <option :for={{lbl, v} <- options(@isos, @settings[:iso])} value={to_string(v)} selected={@settings[:iso] == v}>{lbl}</option>
           </select>
         </label>
-        <label>
-          <span>Shutter speed</span>
-          <select name="shutter" class="field">
+        <label class="ctl">
+          <span class="ctl-label">Shutter speed</span>
+          <select name="shutter" class="field ctl-field">
             <option :for={v <- shutter_options(@shutters, @settings[:shutter])} value={v} selected={@settings[:shutter] == v}>{v} s</option>
           </select>
         </label>
       </form>
-      <button type="button" class="switch-row" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
-        <span>Plate solve each picture</span>
-        <span class="switch-state"><span class="switch-word">{if @cam[:solving], do: "On", else: "Off"}</span><i class="switch-knob" aria-hidden="true"></i></span>
+      <button type="button" class="ctl ctl-switch" role="switch" aria-checked={to_string(@cam[:solving] == true)} phx-click="solving" phx-value-on={to_string(@cam[:solving] != true)}>
+        <span class="ctl-label">Plate solve each picture</span>
+        <span class="ctl-body"><i class="ctl-track" aria-hidden="true"></i><span class="ctl-word">{if @cam[:solving], do: "On", else: "Off"}</span></span>
       </button>
     </div>
     <p class="cam-note" role="status">

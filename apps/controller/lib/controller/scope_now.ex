@@ -94,11 +94,46 @@ defmodule Controller.ScopeNow do
         true -> {:still, "Still"}
       end
 
-    Map.merge(%{id: snap.id, state: state, words: words, target: target || nil, slew: nil}, aim || @nowhere)
+    Map.merge(%{id: snap.id, state: state, words: words, target: target || nil, target_id: object_id(is_map(tracker) && tracker[:target]), slew: nil}, aim || @nowhere)
   end
 
-  def summary(%{id: id}, _tracker, _aligning?, _aim), do: Map.merge(%{id: id, state: :offline, words: "Not answering", target: nil, slew: nil}, @nowhere)
+  def summary(%{id: id}, _tracker, _aligning?, _aim), do: Map.merge(%{id: id, state: :offline, words: "Not answering", target: nil, target_id: nil, slew: nil}, @nowhere)
   def summary(_, _, _, _), do: nil
+
+  # The page that says what the target is (`/object/:id`), when the catalogue or the planets have
+  # it: a hold started from a plan names a star by its name ("Almach"), the catalogue by its number.
+  # Looked up once per target and kept: the summary is made several times a second.
+  defp object_id(%{} = target) do
+    key = {__MODULE__, :object, target[:id], target[:name]}
+
+    case Process.get(key, :unasked) do
+      :unasked ->
+        found = find_object(target)
+        Process.put(key, found)
+        found
+
+      found ->
+        found
+    end
+  end
+
+  defp object_id(_), do: nil
+
+  defp find_object(target) do
+    alias Controller.Sky.Catalog
+    id = target[:id]
+    name = is_binary(target[:name]) && String.downcase(target.name)
+
+    cond do
+      is_binary(id) and String.starts_with?(id, "sol-") -> id
+      is_binary(id) and Catalog.object(id) != nil -> id
+      is_binary(id) and Catalog.object(String.downcase(id)) != nil -> String.downcase(id)
+      name -> Enum.find_value(Catalog.stars(99.0), &(is_binary(&1[:proper]) and String.downcase(&1.proper) == name and &1.id))
+      true -> nil
+    end
+  rescue
+    _ -> nil
+  end
 
   # -- the process --------------------------------------------------------------------------
 

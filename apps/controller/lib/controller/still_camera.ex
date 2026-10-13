@@ -174,13 +174,29 @@ defmodule Controller.StillCamera do
   def remote?(status), do: Map.get(status || %{}, :node, node()) != node()
 
   @doc "Where a page gets one of the roll's pictures, by its number."
-  def src_of(status, seq) do
-    "/cameras/stills/latest.png?" <> URI.encode_query([seq: seq] ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
-  end
+  def src_of(status, seq), do: picture_address(status, seq: seq)
 
   @doc "Where a page gets a camera's latest picture (`seq` makes each new one a new address)."
-  def src(status, seq) do
-    "/cameras/stills/latest.png?" <> URI.encode_query([t: seq] ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
+  def src(status, seq), do: picture_address(status, t: seq)
+
+  # A picture of a camera on another machine is fetched by the browser from that machine, over
+  # HTTP, when it is a box (it serves its own pages on port 80 under the name the cluster knows it
+  # by). It used to be asked for through this machine, as a message between the two: megabytes
+  # on the link the mount's news travels on (13 October 2026, #160). Only a camera on a machine
+  # that is not a box still comes that way.
+  defp picture_address(status, query) do
+    case remote?(status) && box_address(status.node) do
+      "http" <> _ = base -> base <> "/cameras/stills/latest.png?" <> URI.encode_query(query)
+      _ -> "/cameras/stills/latest.png?" <> URI.encode_query(query ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
+    end
+  end
+
+  @doc false
+  def box_address(node) do
+    case String.split(to_string(node), "@", parts: 2) do
+      ["telescope", host] when host != "" -> "http://" <> host
+      _ -> nil
+    end
   end
 
   # the process that has the camera: this machine's, or the machine named with `on:`

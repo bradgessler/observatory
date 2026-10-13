@@ -107,22 +107,30 @@ defmodule Controller.Layouts do
         </button>
       </nav>
       <div class="shell-main">
-        <%!-- What the telescope is doing, on every page, the same way: still, tracking, or SLEWING,
-              which is loud and comes with its own STOP. It is one key: the essentials (what it
-              is doing, how well it is aligned) and nothing else, and it opens Now, where the
-              position, the axes and the log are (13 October: "you don't have to cram all the
-              detail in there... click on the thing and jump into it"). Only the words are a
-              live region. --%>
+        <%!-- What the telescope is doing, on every page, the same way. One thing in the toolbar, two
+              lines at most (13 October: "here's the big thing that's happening and then the supporting
+              information"): what it is doing and to what, and under it how well it is aligned and where
+              it points. The line opens Now; the target's name opens the page that says what it is.
+              A slew or a move is loud and has STOP beside it. A hold is not stopped from here: Now has
+              Stop Tracking, where it says what stopping does. Only the top line is a live region. --%>
         <div :if={@now} id="scope-now" class={["scope-now", "now-#{@now.state}"]}>
-          <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-what" title={now_title(@now, @alignments[@now.id])} aria-label={"#{@now.id}: #{now_title(@now, @alignments[@now.id])}. Open Now"}>
-            <span class="now-dot" aria-hidden="true"></span>
-            <strong role="status">{@now.words}</strong>
-            <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
-            <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={16} /><span class="now-al-words">{@alignments[@now.id].words}</span></span>
-            <Icons.icon name="chevron" class="icon now-open" />
-          </.link>
-          <%!-- STOP is here whenever there is something to stop: a slew, a move, a hold --%>
-          <button :if={@now.state in [:slewing, :moving, :tracking]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
+          <div class="now-what">
+            <span class="now-top" role="status">
+              <span class="now-dot" aria-hidden="true"></span>
+              <.link navigate={~p"/controls/scope/#{@now.id}"} class="now-doing-link" aria-label={"#{@now.id}: #{@now.words}. Open Now"}><strong>{now_verb(@now)}</strong></.link>
+              <.link :if={@now.target && @now[:target_id]} navigate={~p"/object/#{@now.target_id}"} class="now-target" aria-label={"#{@now.target}: what it is"}>{@now.target}</.link>
+              <strong :if={@now.target && !@now[:target_id]} class="now-target-plain">{@now.target}</strong>
+              <span :if={@now[:slew]} class="now-pct">{@now.slew.pct}%</span>
+            </span>
+            <span class="now-sub">
+              <span :if={@alignments[@now.id]} class={["now-al", "al-#{@alignments[@now.id].state}"]}><AlignmentStatus.glyph summary={@alignments[@now.id]} size={14} /><span class="now-al-words">{@alignments[@now.id].words}</span></span>
+              <span :if={@now[:note]} class="now-note">{@now.note}</span>
+              <span :if={@now.where} class="now-pos">{@now.where}</span>
+              <span :if={@now[:up]} class="now-up">{@now.up}</span>
+            </span>
+          </div>
+          <%!-- STOP is here when the telescope is going somewhere: a slew, a move --%>
+          <button :if={@now.state in [:slewing, :moving]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
         </div>
         {render_slot(@inner_block)}
       </div>
@@ -131,12 +139,9 @@ defmodule Controller.Layouts do
     """
   end
 
-  # everything the bar's key stands for, for a pointer resting on it and for a screen reader
-  defp now_title(now, alignment) do
-    [now.words, alignment && alignment.words, now[:note], now[:where], now[:up]]
-    |> Enum.filter(&(is_binary(&1) and &1 != ""))
-    |> Enum.join(" · ")
-  end
+  # "Tracking", "Slewing to": the words without the target, which is its own link beside them
+  defp now_verb(%{words: words, target: target}) when is_binary(target), do: words |> String.replace_suffix(target, "") |> String.trim()
+  defp now_verb(%{words: words}), do: words
 
   # the help of the page being shown, from the one list of pages
   defp page_doc(nil), do: nil

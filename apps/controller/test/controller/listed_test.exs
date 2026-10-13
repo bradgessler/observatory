@@ -164,7 +164,11 @@ defmodule Controller.ListedTest do
 
       # its picture and its keys go to the machine it is on
       assert StillCamera.remote?(stills(@box, a6000(false))) 
-      assert StillCamera.src(stills(@box, a6000(false)), 7) == "/cameras/stills/latest.png?t=7&node=#{URI.encode_www_form(to_string(@box))}"
+      # (its picture: fetched by the browser from the box itself over HTTP, never as a message between the machines, #160)
+      assert StillCamera.src(stills(@box, a6000(false)), 7) == "http://observatory.local/cameras/stills/latest.png?t=7"
+      assert StillCamera.src_of(stills(@box, a6000(false)), 7) == "http://observatory.local/cameras/stills/latest.png?seq=7"
+      # a camera on a machine that is not a box still comes through this one
+      assert StillCamera.src(stills(:"observatory@other-mac.local", a6000(false)), 7) == "/cameras/stills/latest.png?t=7&node=#{URI.encode_www_form("observatory@other-mac.local")}"
       assert StillCamera.src(stills(node(), a6000(true)), 7) == "/cameras/stills/latest.png?t=7"
 
       # and a real stills camera is the telescope's camera before a simulated video camera is
@@ -220,11 +224,14 @@ defmodule Controller.ListedTest do
 
   defp watch(pid) do
     for name <- @pubsub, do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, true, [])
+    # news for the other machines is handed to the relay, which carries it (the sender never sends across the link)
+    :erlang.trace_pattern({Telescope.Relay, :forward, 2}, true, [])
     :erlang.trace(pid, true, [:call])
 
     on_exit(fn ->
       if Process.alive?(pid), do: :erlang.trace(pid, false, [:call])
       for name <- @pubsub, do: :erlang.trace_pattern({Phoenix.PubSub, name, 3}, false, [])
+      :erlang.trace_pattern({Telescope.Relay, :forward, 2}, false, [])
     end)
   end
 
@@ -238,6 +245,8 @@ defmodule Controller.ListedTest do
   defp traces(pid) do
     receive do
       {:trace, ^pid, :call, {Phoenix.PubSub, name, [Telescope.PubSub, topic, message]}} -> [{name, topic, message} | traces(pid)]
+      # what goes to every machine: counted as the broadcast it is
+      {:trace, ^pid, :call, {Telescope.Relay, :forward, [topic, message]}} -> [{:broadcast, topic, message} | traces(pid)]
     after
       0 -> []
     end

@@ -206,7 +206,13 @@ defmodule Controller.ScopeLive do
           <section class={["now-doing", @now && "now-#{@now.state}"]} aria-labelledby="now-doing-h">
             <h2 id="now-doing-h" class="now-h">Doing</h2>
             <div class="state-line">
-              <strong role="status">{if @now, do: @now.words, else: state_words(@snap, @tracker)}</strong>
+              <strong role="status">
+                <%= if @now && @now.target && @now[:target_id] do %>
+                  {String.trim(String.replace_suffix(@now.words, @now.target, ""))} <.link navigate={~p"/object/#{@now.target_id}"}>{@now.target}</.link>
+                <% else %>
+                  {if @now, do: @now.words, else: state_words(@snap, @tracker)}
+                <% end %>
+              </strong>
               <span :if={@now && @now.where}>{@now.where}</span>
               <%!-- on the sky: how high and which way. Not yet: said, with what puts it there --%>
               <span :if={@now && (@now[:up] || @now[:note])}>{@now[:up] || "#{@now.note}: set home or align"}</span>
@@ -215,6 +221,12 @@ defmodule Controller.ScopeLive do
             <div :if={@now && @now[:slew]} class="now-slew">
               <progress max="100" value={@now.slew.pct} aria-label="slew progress"></progress>
               <span>{@now.slew.pct}% · RA axis {fmt1(@now.slew.ra)}° to go · Dec axis {fmt1(@now.slew.dec)}° to go</span>
+            </div>
+            <%!-- a hold is ended here, where it says what that does (13 October: "what does stop do?").
+                  A slew or a move has STOP in the bar on every page --%>
+            <div :if={@now && @now.state == :tracking} class="now-stop-hold">
+              <button type="button" class="btn" phx-click="scope_stop">Stop Tracking</button>
+              <p class="dim">Stops both motors. {if @now.target, do: @now.target, else: "The sky"} drifts out of the picture in about a minute; Go To brings it back.</p>
             </div>
             <%!-- the axes themselves, and whether home is set: what the bar has no room for --%>
             <p :if={@snap && @snap.connected} class="dim now-axes">{axes_words(@snap, @now)}</p>

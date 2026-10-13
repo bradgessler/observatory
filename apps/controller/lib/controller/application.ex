@@ -31,6 +31,8 @@ defmodule Controller.Application do
       Controller.PadView,
       # when each mount was last switched on: a never-zeroed alignment holds until then
       Controller.MountPower,
+      # a box with no clock chip asks the cluster for the time until its clock is set
+      Supervisor.child_spec(Controller.Clock.Peers, restart: :temporary),
       # what each telescope is doing right now (still, tracking, slewing), for the bar on every
       # page; its own branch, left down if it keeps crashing: the bar goes, the pages stay
       %{

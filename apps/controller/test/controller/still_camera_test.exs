@@ -129,6 +129,25 @@ defmodule Controller.StillCameraTest do
     end
   end
 
+  # 12 October: a picture taken 40 s after a reboot was stamped three and a half minutes slow. A
+  # box with no clock chip starts from the time it last saved; a run waits for the real time.
+  @tag timeout: 60_000
+  test "a run waits for the clock to be set before its next picture, and says so" do
+    Application.put_env(:controller, :clock_synced, false)
+    on_exit(fn -> Application.delete_env(:controller, :clock_synced) end)
+    refute Controller.Clock.set?()
+    before = (StillCamera.status().last || %{})[:seq] || 0
+
+    :ok = StillCamera.continuous(true)
+    assert_receive {:still_camera, %{why: "waiting for network time before the next picture" <> _, busy: false}}, 5_000
+    refute_receive {:still_camera, %{busy: true}}, 3_000
+    assert ((StillCamera.status().last || %{})[:seq] || 0) == before
+
+    # the clock is set (the network, a phone, another machine of the cluster): the run goes on
+    Application.put_env(:controller, :clock_synced, true)
+    assert_receive {:still_camera, %{busy: false, why: nil, last: %{seq: seq}}} when seq > before, 15_000
+  end
+
   @tag timeout: 60_000
   test "Exposure is its own screen: ISO, shutter speed and a picture to check them by", %{conn: conn} do
     {:ok, view, html} = live(conn, ~p"/cameras/stills/exposure")

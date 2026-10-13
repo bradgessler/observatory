@@ -67,10 +67,11 @@ defmodule Controller.AlignCameraLiveTest do
     view |> element(~s(button[phx-click="test_picture"])) |> render_click()
     assert_receive {:still_camera, %{last: %{seq: _, w: _}}}, 20_000
     # (the page hears of the picture as this test does: look once it has drawn it)
-    html = Enum.find_value(1..40, fn _ -> (h = render(view)) =~ "Taken " && h || (Process.sleep(50) && nil) end)
-    assert html, "the page never showed the picture's age"
+    # (a picture left by a test before this one may be on the page first, minutes old)
+    fresh? = fn h -> h =~ "Taken just now" or h =~ ~r/Taken \d+ s ago/ end
+    html = Enum.find_value(1..60, fn _ -> (h = render(view)) |> fresh?.() && h || (Process.sleep(50) && nil) end)
+    assert html, "the page never showed the new picture's age"
     assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png"]))
-    assert html =~ "Taken just now" or html =~ ~r/Taken \d+ s ago/
 
     view |> element(~s(button[phx-click="start"])) |> render_click()
     assert_receive {:auto_align, ^id, %{done: false, camera: :still}}, 5_000

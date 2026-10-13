@@ -379,6 +379,8 @@ defmodule Controller.StillCamera do
        interval_ms: (is_integer(was["interval_ms"]) && was["interval_ms"]) || 0,
        # a :shoot_next is on its way: so the look loop can start one when none is (after a restart, a lost message)
        armed: false,
+       # since when a run has been waiting for the clock to be set (monotonic ms), or nil
+       clock_wait: nil,
        task: nil,
        shot: nil,
        seq: 0,
@@ -446,6 +448,9 @@ defmodule Controller.StillCamera do
 
   @impl true
   def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
+
+  # a run waits this long for the clock to be set, then takes its pictures anyway
+  @clock_wait_ms 90_000
 
   @impl true
   def handle_info(:look, s) do
@@ -516,7 +521,25 @@ defmodule Controller.StillCamera do
 
   def handle_info(:shoot_next, s) do
     s = %{s | armed: false}
-    {:noreply, if(s.continuous, do: start_shot(s), else: s)}
+    now = System.monotonic_time(:millisecond)
+
+    cond do
+      not s.continuous ->
+        {:noreply, s}
+
+      # A picture's time is what its plate is solved and fitted by, and a box just booted runs on the
+      # time it last saved until the network's arrives (12 October: stamped 3.5 minutes slow). A run
+      # waits for the clock, a bounded time, and says so; then it carries on, and the sidecar says
+      # the clock was not set.
+      not clock_set?() and now - (s.clock_wait || now) < @clock_wait_ms ->
+        why = "waiting for network time before the next picture: the clock is not set yet"
+        s = arm(%{s | clock_wait: s.clock_wait || now}, 2_000)
+        {:noreply, if(s.why == why, do: s, else: announce(%{s | why: why}))}
+
+      true ->
+        s = if is_binary(s.why) and s.why =~ "waiting for network time", do: %{s | why: nil}, else: s
+        {:noreply, start_shot(s)}
+    end
   end
 
   def handle_info({ref, result}, %{task: %Task{ref: ref}} = s) do
@@ -751,7 +774,9 @@ defmodule Controller.StillCamera do
   defp to_plates(mount_id, jpeg, samples, pressed, exposure_s, opts, sharp) do
     mid = DateTime.add(pressed, round(exposure_s * 500), :millisecond)
 
-    with [_ | _] = snaps <- Enum.filter(samples, fn {_, snap} -> is_map(snap) and is_map(snap[:axes]) end),
+    # a plate is placed on the sky by its time: with the clock not set it would be placed wrong
+    with true <- clock_set?() || %{error: "the clock is not set yet: not solved"},
+         [_ | _] = snaps <- Enum.filter(samples, fn {_, snap} -> is_map(snap) and is_map(snap[:axes]) end),
          {_, snap} = Enum.min_by(snaps, fn {t, _} -> abs(DateTime.diff(t, mid, :millisecond)) end),
          cap when is_map(cap) <- Plates.capture(Map.put_new(snap, :id, mount_id), now: mid, report: safe(fn -> Plates.view(mount_id)[:report] end)),
          # `hint: false`: solved blind. A hint from a fit of one or two plates can be tens of degrees out
@@ -1062,6 +1087,8 @@ defmodule Controller.StillCamera do
   defp follow(s, _), do: s
 
   # the next picture, now or in `delay` ms
+  defp clock_set?, do: safe(fn -> Controller.Clock.set?() end) != false
+
   defp arm(s, 0), do: (send(self(), :shoot_next); %{s | armed: true})
   defp arm(s, delay), do: (Process.send_after(self(), :shoot_next, delay); %{s | armed: true})
 

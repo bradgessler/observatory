@@ -122,7 +122,12 @@ defmodule Controller.StillCamera.Sidecar do
         picture_ready: shot[:ready_at],
         saved: shot[:saved_at],
         # a box that has just booted keeps its own time until the network sets it: times written then can be off by a minute
-        clock: if(Controller.Clock.synced?(), do: "set by the network", else: "the box's own, not yet set by the network"),
+        clock:
+          cond do
+            Controller.Clock.synced?() -> "set by the network"
+            Controller.Clock.set?() -> "set from a phone or another machine of the cluster"
+            true -> "the box's own, not yet set by the network"
+          end,
         note: "UTC by the box's clock. shutter_pressed is when the box sent the press; the camera opens within tens of ms."
       },
       files: shot[:files],

@@ -186,6 +186,51 @@ defmodule Mix.Tasks.Site.BuildTest do
       refute night =~ "<dt>title</dt>"
     end
 
+    # 13 October 2026: "the plan gets published... each page could just be a placeholder... and then as
+    # observations complete... you just publish each observation". A night may carry its plan.
+    test "a night with a plan lists what is on the menu and how far each has got; a target with no picture yet has a page saying so", %{tmp_dir: dir, night: night} do
+      File.write!(
+        Path.join(night, "plan.json"),
+        Jason.encode!(%{
+          targets: [
+            %{slug: "orion-nebula", title: "The Orion Nebula", sub: "Messier 42", what: "A cloud of gas & dust.", state: "processing"},
+            %{slug: "crab-nebula", title: "The Crab Nebula", sub: "Messier 1", what: "What is left of a star.", state: "observing", note: "12 of 40 frames"},
+            %{slug: "cigar-galaxy", title: "The Cigar Galaxy", sub: "Messier 82", what: "A galaxy seen from the side.", state: "planned"},
+            %{slug: "messier-78", title: "Messier 78", sub: "In Orion", what: "Dust lit by stars.", state: "skipped", note: "cloud"}
+          ]
+        })
+      )
+
+      build(dir, ["--ogplus", ""])
+      night_page = page(dir, "2026-10-03/index.html")
+      assert night_page =~ "On the menu"
+      # in the plan's order, each a link to its page
+      assert [_, _, _, _] = Regex.scan(~r/<li class="is-(published|observing|planned|skipped)">/, night_page)
+      # its picture is on the site: published, whatever the plan file still says
+      assert night_page =~ ~r/<li class="is-published">\s*<a href="orion-nebula.html">.*?<span class="state">Published<\/span>/s
+      assert night_page =~ ~r/<a href="crab-nebula.html">.*?Being photographed now: 12 of 40 frames/s
+      assert night_page =~ ~r/<a href="cigar-galaxy.html">.*?<span class="state">Planned<\/span>/s
+      assert night_page =~ "Skipped: cloud"
+
+      # the picture's own page is the picture's; the others say where they stand, and never a clock time
+      assert page(dir, "2026-10-03/orion-nebula.html") =~ "What you are looking at"
+      crab = page(dir, "2026-10-03/crab-nebula.html")
+      assert crab =~ "<h1>The Crab Nebula</h1>"
+      assert crab =~ "What is left of a star."
+      assert crab =~ "photographing this one now"
+      assert page(dir, "2026-10-03/cigar-galaxy.html") =~ "has not been photographed yet"
+      assert page(dir, "2026-10-03/messier-78.html") =~ "was skipped this night: cloud"
+      for f <- ~w(index.html crab-nebula.html cigar-galaxy.html messier-78.html), do: refute(page(dir, "2026-10-03/" <> f) =~ "UTC")
+    end
+
+    test "a night with a plan and no picture yet still builds: the menu is the page", %{tmp_dir: dir, night: night} do
+      File.write!(Path.join(night, "objects.json"), Jason.encode!(%{credit: "Brad Gessler", made_with: "Nothing generated.", objects: []}))
+      File.write!(Path.join(night, "plan.json"), Jason.encode!(%{targets: [%{slug: "crab-nebula", title: "The Crab Nebula", sub: "Messier 1", what: "What is left of a star.", state: "planned"}]}))
+      build(dir, ["--ogplus", ""])
+      assert page(dir, "2026-10-03/index.html") =~ "On the menu"
+      assert page(dir, "2026-10-03/crab-nebula.html") =~ "has not been photographed yet"
+    end
+
     test "a picture's page: the plain picture, then the labelled one with its facts, then the part for photographers", %{tmp_dir: dir} do
       build(dir, ["--ogplus", ""])
       html = page(dir, "2026-10-03/orion-nebula.html")

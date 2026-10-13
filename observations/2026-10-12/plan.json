@@ -1,0 +1,84 @@
+{
+ "targets": [
+  {
+   "slug": "triangulum-galaxy",
+   "title": "The Triangulum Galaxy",
+   "sub": "Messier 33, a spiral galaxy",
+   "what": "The third largest galaxy of our local group, after Andromeda and the Milky Way, seen nearly face on.",
+   "state": "processing",
+   "note": "66 frames"
+  },
+  {
+   "slug": "almach",
+   "title": "Almach",
+   "sub": "Gamma Andromedae, a gold and blue double star",
+   "what": "Two stars that look like one to the eye. A telescope splits them into a gold star and a smaller blue one.",
+   "state": "processing",
+   "note": "13 frames"
+  },
+  {
+   "slug": "ngc-891",
+   "title": "NGC 891",
+   "sub": "A spiral galaxy seen edge on, in Andromeda",
+   "what": "A galaxy much like our own, seen exactly from the side, with a dark lane of dust down its middle.",
+   "state": "processing",
+   "note": "30 frames"
+  },
+  {
+   "slug": "messier-77",
+   "title": "Messier 77",
+   "sub": "A spiral galaxy with a brilliant core, in Cetus",
+   "what": "A galaxy whose centre outshines the rest of it: gas falling toward a giant black hole there glows as it goes.",
+   "state": "observing"
+  },
+  {
+   "slug": "ngc-1535",
+   "title": "NGC 1535",
+   "sub": "A small blue planetary nebula in Eridanus",
+   "what": "The shell a dying star has thrown off, lit by the hot core it left behind.",
+   "state": "planned"
+  },
+  {
+   "slug": "crab-nebula",
+   "title": "The Crab Nebula",
+   "sub": "Messier 1, the remains of a star that exploded",
+   "what": "What is left of a star whose explosion was seen from Earth in the year 1054, still spreading outward.",
+   "state": "planned"
+  },
+  {
+   "slug": "messier-78",
+   "title": "Messier 78",
+   "sub": "A cloud of dust lit by young stars, in Orion",
+   "what": "Dust that does not glow by itself: it shines blue with the light of the young stars inside it.",
+   "state": "planned"
+  },
+  {
+   "slug": "hubbles-variable-nebula",
+   "title": "Hubble's Variable Nebula",
+   "sub": "NGC 2261, a fan of dust lit by one young star, in Monoceros",
+   "what": "A small fan of dust lit by a single young star. Shadows cast near the star change its look over weeks.",
+   "state": "planned"
+  },
+  {
+   "slug": "ngc-2392",
+   "title": "NGC 2392",
+   "sub": "A planetary nebula in Gemini",
+   "what": "A bright, compact shell of gas around a dying star, with a second, fainter shell around the first.",
+   "state": "planned"
+  },
+  {
+   "slug": "ngc-2419",
+   "title": "NGC 2419",
+   "sub": "A globular cluster far out in the galaxy's halo, in Lynx",
+   "what": "A ball of hundreds of thousands of old stars, so far from the centre of the Milky Way that it was once thought to be adrift between galaxies.",
+   "state": "planned"
+  },
+  {
+   "slug": "cigar-galaxy",
+   "title": "The Cigar Galaxy",
+   "sub": "Messier 82, in Ursa Major",
+   "what": "A galaxy seen from the side that is making new stars at a furious rate after a close pass by its neighbour.",
+   "state": "planned"
+  }
+ ]
+}

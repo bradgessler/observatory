@@ -114,7 +114,8 @@ defmodule Controller.Layouts do
             <span class="now-id">{@now.id}</span>
             <span :if={@now.where} class="now-where">{@now.where}</span>
           </.link>
-          <button :if={@now.state in [:slewing, :moving]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
+          <%!-- STOP is here whenever there is something to stop: a slew, a move, a hold --%>
+          <button :if={@now.state in [:slewing, :moving, :tracking]} type="button" class="stop-mini now-stop" phx-click="scope_stop" aria-label={"stop #{@now.id}"}>STOP</button>
         </div>
         {render_slot(@inner_block)}
       </div>

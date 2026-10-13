@@ -215,7 +215,7 @@ defmodule Controller.LineupLive do
     <.page id="lineup" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Align by Stars</.title>
+        <.title>Stars</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions><.help href={~p"/docs/align"} label="star alignment" /><.stop click="estop" /></.actions>

@@ -40,11 +40,12 @@ defmodule Controller.Nav do
          page("Status", ~p"/alignment", "How well the telescope is aligned, and the steps from plugging in to looking", ~p"/docs/start", "play", also: ["/setup"]),
          page("Location", ~p"/location", "Where the telescope stands: latitude and longitude for the sky and Go To, the time for a hand controller", ~p"/docs/location", "compass")
        ]},
+      # (the group says "Alignment": its pages are named by what does the aligning, not "Align by" three times)
       {"Alignment", "Ways to tell a mount that was set down anyhow where it points: by pictures, or by eye",
        [
-         page("Align with the Camera", ~p"/align/camera", "The camera on the telescope takes a few pictures and plate solves them, step by step: no star names, no eye at the eyepiece", ~p"/docs/align-camera", "camera"),
-         page("Align by Stars", ~p"/controls/align", "Center a few stars in the eyepiece; each one is an alignment point", ~p"/docs/align", "star"),
-         page("Align by Phone Photo", ~p"/align/photo", "Your phone held to the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap")
+         page("Camera", ~p"/align/camera", "The camera on the telescope takes a few pictures and plate solves them, step by step: no star names, no eye at the eyepiece", ~p"/docs/align-camera", "camera"),
+         page("Stars", ~p"/controls/align", "Center a few stars in the eyepiece; each one is an alignment point", ~p"/docs/align", "star"),
+         page("Phone", ~p"/align/photo", "Your phone held to the eyepiece, plate solved: alignment points, and which bolt to turn for the polar axis", ~p"/docs/align-photo", "snap")
        ]},
       {"Sky", "What's up from here, and Go To",
        [

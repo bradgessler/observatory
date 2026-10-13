@@ -773,4 +773,29 @@ defmodule Controller.Sky.Lineup do
       true -> "polar axis #{:erlang.float_to_binary(off, decimals: 1)}° from the pole (#{side})"
     end
   end
+
+  # -- asked from another machine ----------------------------------------------------------
+  #
+  # A telescope's alignment is in the settings of the machine its mount is plugged into. From
+  # another machine of the cluster each of these is answered there (`Controller.Machine`, #143);
+  # on its own machine they are the functions above.
+
+  alias Controller.Machine
+
+  @nothing %{n: 0, stale?: false, rms_arcmin: nil, worst_arcmin: nil, residuals_arcmin: [], axis_off_deg: nil, axis_words: nil, good_for: [], signs_corrected?: false, counterweight: nil, solved?: false}
+
+  defoverridable status: 1, model: 1, samples: 1, stale?: 2, counterweight: 1, set_aside: 1, restore: 2, clear: 1, drop: 2, set_counterweight: 3, add: 3, replace: 3
+
+  def status(id), do: Machine.route(id, {__MODULE__, :status, [id]}, @nothing, fn -> super(id) end)
+  def model(id), do: Machine.route(id, {__MODULE__, :model, [id]}, nil, fn -> super(id) end)
+  def samples(id), do: Machine.route(id, {__MODULE__, :samples, [id]}, [], fn -> super(id) end)
+  def stale?(id, e), do: Machine.route(id, {__MODULE__, :stale?, [id, e]}, false, fn -> super(id, e) end)
+  def counterweight(id) when is_binary(id), do: Machine.route(id, {__MODULE__, :counterweight, [id]}, nil, fn -> super(id) end)
+  def set_aside(id), do: Machine.route(id, {__MODULE__, :set_aside, [id]}, [], fn -> super(id) end)
+  def restore(id, index), do: Machine.route(id, {__MODULE__, :restore, [id, index]}, {:error, :nothing}, fn -> super(id, index) end)
+  def clear(id), do: Machine.route(id, {__MODULE__, :clear, [id]}, :ok, fn -> super(id) end)
+  def drop(id, index), do: Machine.route(id, {__MODULE__, :drop, [id, index]}, @nothing, fn -> super(id, index) end)
+  def set_counterweight(id, snap, where), do: Machine.route(id, {__MODULE__, :set_counterweight, [id, snap, where]}, {:error, :not_lined_up}, fn -> super(id, snap, where) end)
+  def add(%{id: id} = snap, obj, now), do: Machine.route(id, {__MODULE__, :add, [snap, obj, now]}, @nothing, fn -> super(snap, obj, now) end)
+  def replace(id, samples, home_at), do: Machine.route(id, {__MODULE__, :replace, [id, samples, home_at]}, @nothing, fn -> super(id, samples, home_at) end)
 end

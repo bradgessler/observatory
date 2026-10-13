@@ -569,4 +569,47 @@ defmodule Controller.Sky.Pointing do
       :exit, _ -> {:error, :unreachable}
     end
   end
+
+  # -- asked from another machine ----------------------------------------------------------
+  #
+  # Where a telescope points is worked out from its own machine's alignment, site and axis
+  # signs, and a Go To is flown and then held by that machine. From another machine of the
+  # cluster both happen there (`Controller.Machine`, #143).
+
+  alias Controller.Machine
+
+  defoverridable context: 2, slew: 5, home_leg: 3
+
+  def context(now, id) when is_binary(id), do: Machine.route(id, {__MODULE__, :context, [now, id]}, nil, fn -> super(now, id) end) || super(now, nil)
+  def context(now, id), do: super(now, id)
+
+  def slew(ref, snap, obj, ctx, opts) do
+    case Machine.away(ref) do
+      nil -> super(ref, snap, obj, ctx, opts)
+      node -> Machine.ask(node, __MODULE__, :slew_here, [id_of(ref), obj, opts], {:error, :unreachable})
+    end
+  end
+
+  def home_leg(ref, snap, ctx) do
+    case Machine.away(ref) do
+      nil -> super(ref, snap, ctx)
+      node -> Machine.ask(node, __MODULE__, :home_leg_here, [id_of(ref)], {:error, :unreachable})
+    end
+  end
+
+  @doc false
+  # a Go To asked from another machine: with this machine's own snapshot and alignment
+  def slew_here(id, obj, opts) do
+    ref = Enum.find(Mount.list(), &(&1.id == id))
+    if ref, do: slew(ref, Mount.snapshot(id), obj, context(DateTime.utc_now(), id), opts), else: {:error, :not_connected}
+  end
+
+  @doc false
+  def home_leg_here(id) do
+    ref = Enum.find(Mount.list(), &(&1.id == id))
+    if ref, do: home_leg(ref, Mount.snapshot(id), context(DateTime.utc_now(), id)), else: {:error, :not_connected}
+  end
+
+  defp id_of(%{id: id}), do: id
+  defp id_of(id), do: id
 end

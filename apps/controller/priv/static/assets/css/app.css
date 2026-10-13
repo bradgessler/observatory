@@ -2042,8 +2042,16 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
   .scope-now .now-id { display: none; }
   .scope-now.now-slewing .now-where, .scope-now.now-moving .now-where { display: none; }
 }
-/* while the bar has its own STOP (a slew, a move), it is the one STOP on the screen: the header's steps aside */
-.shell-main:has(> .scope-now .now-stop) .page-header .stop-mini { display: none; }
+/* With the bar on the page, STOP is the bar's, there whenever there is something to stop (a slew,
+   a move, a hold) and gone when the telescope is still. The header's own steps aside. */
+.shell-main:has(> .scope-now) .page-header .stop-mini { display: none; }
+.scope-now:has(.now-stop) { --now-h: 52px; }
+.shell-main:has(> .scope-now .now-stop) .page-header { top: calc(52px + env(safe-area-inset-top, 0px)); }
+/* a wide screen has the sidebar saying which page and which telescope: the header is one slim row */
+@media (min-width: 1100px) {
+  .shell-main:has(> .scope-now) .page-header { min-height: 0; padding-top: 6px; padding-bottom: 6px; grid-template-rows: 0 minmax(32px, auto); }
+  .shell-main:has(> .scope-now) .page-header > .tb-over { display: none; }
+}
 
 /* the telescope in the night path's key, drawn as on the chart */
 .np-key-scope .scope { stroke: var(--warn); stroke-width: 1.4; fill: none; }
@@ -2060,3 +2068,27 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .now-slew progress { width: 100%; height: 8px; accent-color: var(--amber); }
 .scope-now .now-pct { flex: none; font-variant-numeric: tabular-nums; color: var(--amber); }
 
+/* the help key: a document, and in a header the word with it */
+.help.help-icon { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; }
+.help.help-icon .icon { width: 18px; height: 18px; flex: none; }
+.help.help-icon .help-word { display: none; }
+.page-header .actions .help-icon { padding: 0 12px; border-radius: 12px; background: var(--key); box-shadow: var(--bevel); color: var(--text); font-weight: 500; font-size: var(--fs-2); }
+.page-header .actions .help-icon .help-word { display: inline; }
+
+/* the Now page, second pass: one caption line that holds still, the chart and the mount side by side */
+.now-caption { display: flex; flex-wrap: wrap; gap: 4px var(--s2); margin: var(--s1) 0 0; min-height: 22px; font-size: var(--fs-2); }
+.now-caption a { margin-left: auto; }
+.now-under { display: grid; gap: var(--s3); }
+@media (min-width: 960px) { .now-under { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; } }
+.now-under .scope-hero { width: 100%; max-width: 280px; height: auto; }
+.now-axes { margin: 0; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+/* the picture being taken: words and bar on one line, so nothing under it moves as stages come and go */
+.shot-now { display: flex; align-items: center; gap: var(--s2); min-height: 22px; }
+.shot-now progress { flex: 1; max-width: 240px; }
+.shot-slot { min-height: 22px; }
+.shot-slot .shot-now { margin: 0; }
+/* the Now page's log: the time, then the words across the rest of the column */
+.now-part .events li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s2); }
+.page-header .actions .help-icon { min-height: 44px; }
+
+.now-part .events .ev-what { grid-column: auto; }

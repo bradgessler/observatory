@@ -42,7 +42,8 @@ defmodule Controller.Components.Pictures do
       <p :if={picture?(@last)} class="dim">
         <span>Taken {age_words(@last, @now_ms)}</span><span :if={facts(@last) != ""}> · </span><span role="status">{facts(@last)}</span>
       </p>
-      <.taking :if={@busy} shot={@shot} now_ms={@now_ms} />
+      <%!-- its room is kept whether or not a picture is being taken: nothing under it moves --%>
+      <div class="shot-slot"><.taking :if={@busy} shot={@shot} now_ms={@now_ms} /></div>
     </section>
     """
   end

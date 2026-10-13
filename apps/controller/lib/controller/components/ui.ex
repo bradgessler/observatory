@@ -179,7 +179,8 @@ defmodule Controller.Components.UI do
     assigns = assign_new(assigns, :name, fn -> "help: " <> (assigns.label || Path.basename(assigns.href)) end)
 
     ~H"""
-    <.link href={@href} class="help help-icon" aria-label={@name}>?</.link>
+    <%!-- a document, and in a header the word: a bare "?" read as something broken --%>
+    <.link href={@href} class="help help-icon" aria-label={@name}><Controller.Components.Icons.icon name="doc" /><span class="help-word" aria-hidden="true">Docs</span></.link>
     """
   end
 

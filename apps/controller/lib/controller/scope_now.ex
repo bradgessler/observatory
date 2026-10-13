@@ -21,7 +21,15 @@ defmodule Controller.ScopeNow do
   The target's name comes from the tracker on the machine the mount is
   plugged into, so a Mac in the cluster names a box's target too.
 
-  It follows every mount's four-a-second snapshots and says something
+  **One machine speaks for a telescope: the one its mount is plugged into.**
+  The summaries are broadcast across the cluster, so a Mac's pages show a
+  box's telescope from the box's own word; the Mac works out nothing about it
+  (it has neither its alignment nor its hold), only keeps what it hears, and
+  asks the box once for a telescope it has not heard about yet. On 13 October
+  2026 both machines published for the box's mount and its pages said "Still"
+  under a hold, from the Mac.
+
+  It follows its own mounts' four-a-second snapshots and says something
   (`{:scope_now, id, summary}` on `"scope_now"`) only when the state or the
   words change, and for the position at most once a second: a page is not
   redrawn four times a second for a toolbar.
@@ -89,9 +97,11 @@ defmodule Controller.ScopeNow do
   @impl true
   def init(_) do
     Telescope.Events.subscribe()
+    # what other machines say about their own telescopes
+    subscribe()
     send(self(), :rescan)
     # gotos: each Go To in flight, by mount and axis: where the axis stood and how far it was sent
-    {:ok, %{now: %{}, subscribed: MapSet.new(), looked: %{}, known: %{}, axes: %{}, gotos: %{}}}
+    {:ok, %{now: %{}, subscribed: MapSet.new(), looked: %{}, known: %{}, axes: %{}, gotos: %{}, mine: MapSet.new()}}
   end
 
   @impl true
@@ -101,18 +111,38 @@ defmodule Controller.ScopeNow do
   def handle_info(:rescan, s) do
     Process.send_after(self(), :rescan, @rescan_ms)
     refs = safe(fn -> Mount.list() end) || []
+    # which machine each telescope is on, for everything that asks it (`Controller.Machine`)
+    Controller.Machine.note(refs)
+
+    # this machine's own mounts are followed and spoken for; another machine's are only listened to
+    mine = for(ref <- refs, ref.node == node(), into: MapSet.new(), do: ref.id)
 
     subscribed =
       Enum.reduce(refs, s.subscribed, fn ref, acc ->
-        if MapSet.member?(acc, ref.id), do: acc, else: (safe(fn -> Mount.subscribe(ref) end); MapSet.put(acc, ref.id))
+        if ref.node != node() or MapSet.member?(acc, ref.id), do: acc, else: (safe(fn -> Mount.subscribe(ref) end); MapSet.put(acc, ref.id))
       end)
+
+    # a telescope on another machine that has said nothing yet (a steady hold changes nothing): ask once
+    heard = for ref <- refs, ref.node != node(), not Map.has_key?(s.now, ref.id), now = Controller.Machine.ask(ref.node, __MODULE__, :get, [ref.id]), is_map(now), into: %{}, do: {ref.id, now}
+    s = %{s | now: Map.merge(s.now, heard), mine: mine}
 
     # a mount that has gone is no longer on any page's bar
     ids = MapSet.new(refs, & &1.id)
     gone = for {id, _} <- s.now, not MapSet.member?(ids, id), do: id
-    for id <- gone, do: Telescope.broadcast(@topic, {:scope_now, id, nil})
+    for id <- gone, MapSet.member?(s.mine, id) or not Enum.any?(refs, &(&1.id == id)), do: Telescope.broadcast(@topic, {:scope_now, id, nil})
     {:noreply, %{s | subscribed: subscribed, now: Map.drop(s.now, gone), known: Map.drop(s.known, gone), looked: Map.drop(s.looked, gone)}}
   end
+
+  # another machine's word about its own telescope: kept, never spoken over
+  def handle_info({:scope_now, id, now}, s) do
+    cond do
+      MapSet.member?(s.mine, id) -> {:noreply, s}
+      is_nil(now) -> {:noreply, %{s | now: Map.delete(s.now, id)}}
+      true -> {:noreply, %{s | now: Map.put(s.now, id, now)}}
+    end
+  end
+
+  def handle_info({:mount, %{id: id} = snap}, s) when is_map_key(snap, :node) and :erlang.map_get(:node, snap) != node(), do: (_ = id; {:noreply, s})
 
   def handle_info({:mount, %{id: id} = snap}, s) do
     now = System.monotonic_time(:millisecond)

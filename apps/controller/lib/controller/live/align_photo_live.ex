@@ -309,7 +309,7 @@ defmodule Controller.AlignPhotoLive do
     <.page id="align-photo" night={@night} class={@nested && "nested"}>
       <:header :if={!@nested}>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Align by Phone Photo</.title>
+        <.title>Phone</.title>
         <%!-- the Alignment section's status: how well this telescope is aligned, the same as the sidebar's --%>
         <.status label="Alignment"><Controller.Components.AlignmentStatus.bar summary={(assigns[:alignments] || %{})[@selected]} /></.status>
         <.actions><.help href={~p"/docs/align-photo"} label="align by phone photo" /><.stop click="estop" /></.actions>

@@ -106,6 +106,7 @@ defmodule Controller.Components.Icons do
   defp path("back"), do: ~S|<path d="M14.5 5.5L8 12l6.5 6.5"/>|
   defp path("search"), do: ~S|<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>|
   defp path("close"), do: ~S|<path d="M6 6l12 12M18 6L6 18"/>|
+  defp path("doc"), do: ~S|<path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/><path d="M9.800 12.500h4.400M9.800 16h4.400"/>|
   defp path("help"), do: ~S|<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7"/><path d="M12 17h.01"/>|
   defp path("kind-" <> _), do: path("kind-star")
   defp path(_), do: ~S|<circle cx="12" cy="12" r="2.5"/>|

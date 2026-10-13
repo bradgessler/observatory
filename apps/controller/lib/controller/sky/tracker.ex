@@ -448,4 +448,21 @@ defmodule Controller.Sky.Tracker do
       :exit, _ -> nil
     end
   end
+
+  # -- asked from another machine ----------------------------------------------------------
+  #
+  # A hold runs on the machine the mount is plugged into. From another machine of the cluster
+  # these are answered, and done, there (`Controller.Machine`, #143).
+
+  alias Controller.Machine
+
+  defoverridable status: 1, ended: 1, interrupted: 1, forget_interrupted: 1, stop: 2, track: 2, track: 3
+
+  def status(id), do: Machine.route(id, {__MODULE__, :status, [id]}, nil, fn -> super(id) end)
+  def ended(id), do: Machine.route(id, {__MODULE__, :ended, [id]}, nil, fn -> super(id) end)
+  def interrupted(id), do: Machine.route(id, {__MODULE__, :interrupted, [id]}, nil, fn -> super(id) end)
+  def forget_interrupted(id), do: Machine.route(id, {__MODULE__, :forget_interrupted, [id]}, :ok, fn -> super(id) end)
+  def stop(id, opts), do: Machine.route(id, {__MODULE__, :stop, [id, opts]}, :ok, fn -> super(id, opts) end)
+  def track(id, obj), do: Machine.route(id, {__MODULE__, :track, [id, obj]}, :ok, fn -> super(id, obj) end)
+  def track(id, here, target), do: Machine.route(id, {__MODULE__, :track, [id, here, target]}, :ok, fn -> super(id, here, target) end)
 end

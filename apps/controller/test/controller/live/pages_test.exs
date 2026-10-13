@@ -242,7 +242,7 @@ defmodule Controller.PagesTest do
 
     test "everything else lists every group with one line each", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
-      for name <- ["Alignment", "Sky", "Controls", "Cameras", "Mount", "System", "All Cameras", "Observatory Camera", "Status", "Align by Stars", "Orb", "Events"], do: assert(html =~ name)
+      for name <- ["Telescope", "Alignment", "Sky", "Controls", "Cameras", "Mount", "System", "All Cameras", "Observatory Camera", "Now", "Status", "Stars", "Phone", "Orb", "Events"], do: assert(html =~ name)
       assert html =~ "Center a few stars"
     end
   end

@@ -309,7 +309,7 @@ defmodule Controller.AlignCameraLive do
     <.page id="align-camera" night={@night} class="flow">
       <:header>
         <.back navigate={~p"/"} label="Home" section={Controller.Words.section("Alignment", @selected)} />
-        <.title>Align with the Camera</.title>
+        <.title>Camera</.title>
         <.actions><.help href={~p"/docs/align-camera"} label="align with the camera" /><.stop click="estop" /></.actions>
       </:header>
 

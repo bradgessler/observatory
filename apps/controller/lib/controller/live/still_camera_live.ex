@@ -249,7 +249,7 @@ defmodule Controller.StillCameraLive do
         <span>Taken {Pictures.age_words(@last, @now_ms)}</span><span :if={caption(@last) != ""}> · </span><span role="status">{caption(@last)}</span>
       </p>
       <%!-- the picture being taken, stage by stage, while this one stays on the screen --%>
-      <Pictures.taking :if={@cam.busy} shot={@cam[:shot]} now_ms={@now_ms} />
+      <div class="shot-slot"><Pictures.taking :if={@cam.busy} shot={@cam[:shot]} now_ms={@now_ms} /></div>
       <%!-- why the last picture isn't counted as a good one, a line each; gone with the next good picture --%>
       <p :for={line <- uncounted(@last)} class="hint" role="status">{line}</p>
       <%!-- the number to focus by, on a line of its own; under it what to do, with its ? at the row's end (UI.setting's layout) --%>

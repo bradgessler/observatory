@@ -37,12 +37,14 @@ defmodule Controller.AlignCameraLiveTest do
   defp step(view), do: view |> element(~s(.flow-steps li[aria-current="step"])) |> render() |> LazyHTML.from_fragment() |> LazyHTML.text()
 
   test "it is a page under Alignment, listed with the other ways to align" do
-    page = Enum.find(Controller.Nav.pages(), &(&1.title == "Align with the Camera"))
+    # the group is Alignment, so its pages are named by what does the aligning: Camera, Stars, Phone
+    page = Enum.find(Controller.Nav.pages(), &(&1.path == "/align/camera"))
+    assert page.title == "Camera"
     assert page.path == "/align/camera"
     {group, _, pages} = Enum.find(Controller.Nav.groups(), fn {_, _, pages} -> page in pages end)
     assert group == "Alignment"
     titles = Enum.map(pages, & &1.title)
-    assert "Align by Stars" in titles and "Align by Phone Photo" in titles
+    assert titles == ["Camera", "Stars", "Phone"]
   end
 
   test "no camera: it says so, the key is greyed, and it points to the two other ways", %{conn: conn, id: id} do

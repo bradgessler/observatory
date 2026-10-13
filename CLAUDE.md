@@ -45,8 +45,16 @@ line, help and icon, in one place; the sidebar, a phone's Home and Search
 (⌘K, or the search key on a phone) all draw from it through
 `Controller.Components.Menu` and `Controller.Search`. A page has one
 address, never a hand-made list of other pages or a second shell around it
-(the old Bench was both), and every page has STOP (`Controller.Stop.all/0`
-when it isn't about one mount).
+(the old Bench was both).
+
+**The bar says what the telescope is doing, and STOP lives in it.** Every
+page has the bar (`Controller.ScopeNow`, drawn by the shell): still,
+tracking, moving or slewing, with the target and where it points. A slew is
+loud. STOP is in the bar whenever there is something to stop (a slew, a
+move, a hold) and is not shown when the telescope is still. A page keeps a
+`<.stop />` in its header for when there is no bar (no telescope chosen);
+the shell hides it under the bar. Only the machine a mount is plugged into
+speaks for it; other machines of the cluster show what it says.
 
 **Modes are loud.** Anything persistent that changes where the scope goes
 (sync offset, flipped axis sign, reversed tracking, auto-track off, site
@@ -95,8 +103,8 @@ crammed onto one. One type scale: 12, 14, 16, 20, 28 px. No em dashes in
 the UI, no red except STOP and a real warning.
 
 **Safety in the driver, not the UI.** Held slews self-stop unless refreshed
-(`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. Every
-page has STOP. The driver exits and restarts on a lost serial link, and stops
+(`hold: true` + 900 ms deadman). Soft limits are armed by `set_home`. STOP is
+on every page whenever the telescope moves or holds. The driver exits and restarts on a lost serial link, and stops
 both axes on every (re)connect and in `terminate/2`, so a restart can never
 inherit motion.
 

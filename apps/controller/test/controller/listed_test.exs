@@ -164,11 +164,7 @@ defmodule Controller.ListedTest do
 
       # its picture and its keys go to the machine it is on
       assert StillCamera.remote?(stills(@box, a6000(false))) 
-      # (its picture: fetched by the browser from the box itself over HTTP, never as a message between the machines, #160)
-      assert StillCamera.src(stills(@box, a6000(false)), 7) == "http://observatory.local/cameras/stills/latest.png?t=7"
-      assert StillCamera.src_of(stills(@box, a6000(false)), 7) == "http://observatory.local/cameras/stills/latest.png?seq=7"
-      # a camera on a machine that is not a box still comes through this one
-      assert StillCamera.src(stills(:"observatory@other-mac.local", a6000(false)), 7) == "/cameras/stills/latest.png?t=7&node=#{URI.encode_www_form("observatory@other-mac.local")}"
+      assert StillCamera.src(stills(@box, a6000(false)), 7) == "/cameras/stills/latest.png?t=7&node=#{URI.encode_www_form(to_string(@box))}"
       assert StillCamera.src(stills(node(), a6000(true)), 7) == "/cameras/stills/latest.png?t=7"
 
       # and a real stills camera is the telescope's camera before a simulated video camera is

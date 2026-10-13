@@ -179,16 +179,12 @@ defmodule Controller.StillCamera do
   @doc "Where a page gets a camera's latest picture (`seq` makes each new one a new address)."
   def src(status, seq), do: picture_address(status, t: seq)
 
-  # A picture of a camera on another machine is fetched by the browser from that machine, over
-  # HTTP, when it is a box (it serves its own pages on port 80 under the name the cluster knows it
-  # by). It used to be asked for through this machine, as a message between the two: megabytes
-  # on the link the mount's news travels on (13 October 2026, #160). Only a camera on a machine
-  # that is not a box still comes that way.
+  # Through this machine, whichever machine the camera is on. (Fetching a box's pictures straight
+  # from the box over HTTP was tried on 13 October 2026 and every picture came up broken on the
+  # terminal's page; it needs the page's image policy and the box's name to resolve in the
+  # browser first. #160.)
   defp picture_address(status, query) do
-    case remote?(status) && box_address(status.node) do
-      "http" <> _ = base -> base <> "/cameras/stills/latest.png?" <> URI.encode_query(query)
-      _ -> "/cameras/stills/latest.png?" <> URI.encode_query(query ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
-    end
+    "/cameras/stills/latest.png?" <> URI.encode_query(query ++ if(remote?(status), do: [node: to_string(status.node)], else: []))
   end
 
   @doc false

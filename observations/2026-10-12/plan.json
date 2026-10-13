@@ -61,22 +61,23 @@
    "title": "Hubble's Variable Nebula",
    "sub": "NGC 2261, a fan of dust lit by one young star, in Monoceros",
    "what": "A small fan of dust lit by a single young star. Shadows cast near the star change its look over weeks.",
-   "state": "processing",
-   "note": "28 frames"
+   "state": "published",
+   "note": "25 frames"
   },
   {
    "slug": "ngc-2392",
    "title": "NGC 2392",
    "sub": "A planetary nebula in Gemini",
    "what": "A bright, compact shell of gas around a dying star, with a second, fainter shell around the first.",
-   "state": "observing"
+   "state": "processing",
+   "note": "30 frames"
   },
   {
    "slug": "ngc-2419",
    "title": "NGC 2419",
    "sub": "A globular cluster far out in the galaxy's halo, in Lynx",
    "what": "A ball of hundreds of thousands of old stars, so far from the centre of the Milky Way that it was once thought to be adrift between galaxies.",
-   "state": "planned"
+   "state": "observing"
   },
   {
    "slug": "cigar-galaxy",

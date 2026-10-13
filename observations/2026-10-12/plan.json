@@ -29,22 +29,23 @@
    "title": "Messier 77",
    "sub": "A spiral galaxy with a brilliant core, in Cetus",
    "what": "A galaxy whose centre outshines the rest of it: gas falling toward a giant black hole there glows as it goes.",
-   "state": "processing",
-   "note": "30 frames"
+   "state": "published",
+   "note": "29 frames"
   },
   {
    "slug": "ngc-1535",
    "title": "NGC 1535",
    "sub": "A small blue planetary nebula in Eridanus",
    "what": "The shell a dying star has thrown off, lit by the hot core it left behind.",
-   "state": "observing"
+   "state": "processing",
+   "note": "30 frames"
   },
   {
    "slug": "crab-nebula",
    "title": "The Crab Nebula",
    "sub": "Messier 1, the remains of a star that exploded",
    "what": "What is left of a star whose explosion was seen from Earth in the year 1054, still spreading outward.",
-   "state": "planned"
+   "state": "observing"
   },
   {
    "slug": "messier-78",

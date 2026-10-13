@@ -45,14 +45,15 @@
    "title": "The Crab Nebula",
    "sub": "Messier 1, the remains of a star that exploded",
    "what": "What is left of a star whose explosion was seen from Earth in the year 1054, still spreading outward.",
-   "state": "observing"
+   "state": "published",
+   "note": "37 frames"
   },
   {
    "slug": "messier-78",
    "title": "Messier 78",
    "sub": "A cloud of dust lit by young stars, in Orion",
    "what": "Dust that does not glow by itself: it shines blue with the light of the young stars inside it.",
-   "state": "planned"
+   "state": "observing"
   },
   {
    "slug": "hubbles-variable-nebula",

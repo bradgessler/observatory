@@ -21,7 +21,7 @@
    "title": "NGC 891",
    "sub": "A spiral galaxy seen edge on, in Andromeda",
    "what": "A galaxy much like our own, seen exactly from the side, with a dark lane of dust down its middle.",
-   "state": "processing",
+   "state": "published",
    "note": "30 frames"
   },
   {
@@ -29,14 +29,15 @@
    "title": "Messier 77",
    "sub": "A spiral galaxy with a brilliant core, in Cetus",
    "what": "A galaxy whose centre outshines the rest of it: gas falling toward a giant black hole there glows as it goes.",
-   "state": "observing"
+   "state": "processing",
+   "note": "30 frames"
   },
   {
    "slug": "ngc-1535",
    "title": "NGC 1535",
    "sub": "A small blue planetary nebula in Eridanus",
    "what": "The shell a dying star has thrown off, lit by the hot core it left behind.",
-   "state": "planned"
+   "state": "observing"
   },
   {
    "slug": "crab-nebula",

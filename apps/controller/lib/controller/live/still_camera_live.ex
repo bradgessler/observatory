@@ -431,11 +431,13 @@ defmodule Controller.StillCameraLive do
   defp camera(assigns) do
     ~H"""
     <%!-- the roll: the picture in flight on top, in a slot that keeps its size; then the last few, newest
-          first. Tap one to look at it again. --%>
+          first. Tap one for its own page. --%>
     <section class="roll" aria-labelledby="roll-h">
       <h2 id="roll-h" class="now-h">Pictures</h2>
       <div class="roll-now">
         <strong role="status">{if @cam.busy, do: Pictures.shot_words(@cam[:shot]), else: "Ready"}</strong>
+        <%!-- the picture being taken has its page already: open it and watch it go through --%>
+        <.link :if={@cam.busy && is_map(@cam[:shot]) && @cam.shot[:seq]} navigate={~p"/cameras/stills/pictures/#{@cam.shot.seq}"} class="roll-follow" aria-label={"Picture #{@cam.shot.seq}: follow it"}>Picture {@cam.shot.seq} ›</.link>
         <span class="dim">{if @cam.busy, do: flight_words(@cam[:shot], @settings), else: idle_words(@cam, @settings)}</span>
         <span class="shot-bar" aria-hidden="true">
           <i :if={@bar && @cam.busy && match?(%{stage: :exposing}, @cam[:shot])} id={"shot-bar-#{@bar.key}"} style={"animation-duration: #{@bar.ms}ms; animation-delay: -#{@bar.in_ms}ms"}></i>
@@ -443,10 +445,12 @@ defmodule Controller.StillCameraLive do
       </div>
       <ol :if={(@cam[:recent] || []) != []} class="roll-list" aria-label="the last pictures, newest first">
         <li :for={r <- @cam[:recent] || []}>
-          <button type="button" class={["roll-pic", @picked == r.seq && "picked"]} phx-click="pick" phx-value-seq={r.seq} aria-pressed={to_string(@picked == r.seq)} aria-label={"Look at picture #{r.seq}"}>
+          <%!-- a picture's row opens its own page: everything known about it (13 October 2026) --%>
+          <.link navigate={~p"/cameras/stills/pictures/#{r.seq}"} class="roll-pic" aria-label={"Picture #{r.seq}: everything about it"}>
             <img src={StillCamera.src_of(@cam, r.seq)} alt="" loading="lazy" />
             <span class="roll-text"><strong>Picture {r.seq}</strong><small>{roll_words(r)}<span :if={solve_mark(@cam, r)} class={["roll-solve", solve_mark(@cam, r) != "solved" && "is-not"]}> · {solve_mark(@cam, r)}</span></small></span>
-          </button>
+            <Controller.Components.Icons.icon name="chevron" class="icon roll-open" />
+          </.link>
         </li>
       </ol>
     </section>

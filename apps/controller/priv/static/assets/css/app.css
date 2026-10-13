@@ -2281,3 +2281,28 @@ button.target { width: 100%; font: inherit; color: var(--text); box-shadow: none
 .scope-now .now-top .now-dot { align-self: center; margin-right: 2px; }
 @media (max-width: 1099px) { .scope-now .now-sub { padding-left: 16px; } }
 .cam-note:empty { min-height: 0; }
+
+/* ---- one picture's page: its steps through the box, and what was recorded with it ---- */
+.roll-pic { text-decoration: none; color: inherit; }
+.roll-pic .roll-open { flex: none; width: 16px; height: 16px; margin-left: auto; color: var(--dim); }
+.roll-now { position: relative; }
+.roll-follow { position: absolute; top: var(--s2); right: var(--s2); min-height: 44px; margin-top: -10px; display: inline-flex; align-items: center; font-size: var(--fs-2); color: var(--dim); text-decoration: none; }
+.roll-follow:hover { color: var(--text); }
+.pic-caption { margin: var(--s1) 0 0; font-size: var(--fs-2); min-height: 22px; }
+.pic-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.pic-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--s2); align-items: start; padding: var(--s2) 0; border-top: 1px solid var(--edge); min-height: 44px; }
+.pic-steps li:first-child { border-top: 0; }
+.pic-mark { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: var(--fs-2); line-height: 1; color: var(--dim); border: 1px solid var(--key-edge); }
+.pic-steps .is-done .pic-mark { color: var(--on); border-color: transparent; background: var(--lit-on); }
+.pic-steps .is-now .pic-mark { color: var(--amber); border-color: var(--amber); }
+.pic-steps .is-failed .pic-mark { color: var(--amber); border-color: var(--amber); }
+.pic-step { display: grid; gap: 2px; min-width: 0; }
+.pic-step strong { font-weight: 600; }
+.pic-step small { font-size: var(--fs-2); color: var(--dim); overflow-wrap: anywhere; }
+.pic-steps .is-waiting .pic-step strong, .pic-steps .is-skipped .pic-step strong { color: var(--dim); font-weight: 500; }
+.pic-when { font-size: var(--fs-1); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 4px; }
+.pic-facts { margin: 0; display: grid; }
+.pic-facts > div { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--s2); padding: 6px 0; border-top: 1px solid var(--edge); }
+.pic-facts > div:first-child { border-top: 0; }
+.pic-facts dt { color: var(--dim); font-size: var(--fs-2); }
+.pic-facts dd { margin: 0; font-size: var(--fs-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }

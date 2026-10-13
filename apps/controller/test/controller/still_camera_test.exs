@@ -208,10 +208,11 @@ defmodule Controller.StillCameraTest do
     assert redirected_to(get(conn, "/cameras/stills/exposure"), 301) == "/cameras/stills"
   end
 
-  # the same day: "we see these pictures taken and they're just getting pushed down... if you click on
-  # one of these pictures it shows that picture"
+  # The roll is the last pictures, newest first. On 13 October 2026 a tap on one changed the picture
+  # shown and nothing else; Brad: "it should take us to a page for that picture... shit tons of
+  # information about that image... the progression of metadata that is being added to this image".
   @tag timeout: 60_000
-  test "the roll: the last pictures newest first, any of them looked at again, and back to the latest", %{conn: conn} do
+  test "the roll: the last pictures newest first, and each opens its own page", %{conn: conn} do
     first = picture()
     second = picture()
     assert [%{seq: s2}, %{seq: s1} | _] = StillCamera.status().recent
@@ -222,16 +223,49 @@ defmodule Controller.StillCameraTest do
     {:ok, view, _html} = live(conn, ~p"/cameras/stills")
     assert view |> element(".roll-list") |> render() |> String.split("roll-pic") |> length() >= 3
     assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?t=#{second.seq}"]))
+    assert has_element?(view, ~s(a.roll-pic[href="/cameras/stills/pictures/#{first.seq}"]), "Picture #{first.seq}")
 
-    view |> element(~s(button.roll-pic[phx-value-seq="#{first.seq}"])) |> render_click()
-    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?seq=#{first.seq}"]))
-    assert has_element?(view, ~s(button.roll-pic.picked[aria-pressed="true"]), "Picture #{first.seq}")
+    assert {:error, {:live_redirect, %{to: to}}} = view |> element(~s(a.roll-pic[href="/cameras/stills/pictures/#{first.seq}"])) |> render_click()
+    assert to == "/cameras/stills/pictures/#{first.seq}"
+  end
 
-    # a new picture arrives: the one being looked at stays
-    third = picture()
-    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?seq=#{first.seq}"]))
-    view |> element("button", "Latest") |> render_click()
-    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?t=#{third.seq}"]))
+  @tag timeout: 60_000
+  test "a picture's page: its steps through the box, and what was recorded with it", %{conn: conn, cam: cam} do
+    last = picture()
+    record = Controller.StillCamera.Record.read(last.seq)
+    assert %{seq: seq, name: name, night: night, sidecar: %{"camera" => %{"id" => ^cam}}, files: [_ | _] = files} = record
+    assert seq == last.seq and night =~ ~r/^\d{4}-\d{2}-\d{2}$/
+    assert Enum.all?(files, & &1.here)
+    assert Enum.any?(files, &(&1.format == "arw")) and Enum.all?(files, &(String.starts_with?(&1.name, name) and byte_size(&1.sha256) == 64))
+
+    {:ok, view, html} = live(conn, ~p"/cameras/stills/pictures/#{last.seq}")
+    assert html =~ ~s(<h1 class="page-title">Picture #{last.seq}</h1>)
+    assert has_element?(view, ~s(a[aria-label="Back to Telescope Camera"]))
+    assert has_element?(view, ~s(.scope-frame img[src^="/cameras/stills/latest.png?seq=#{last.seq}"]))
+
+    # the six steps, in order, each said in words as well as a mark
+    steps = view |> element(".pic-steps") |> render()
+    for label <- ["Exposure", "The camera finished the picture", "Files saved on the box", "Stars measured", "Plate solve", "Collected from the box"], do: assert(steps =~ label)
+    assert has_element?(view, ".pic-steps li.is-done", "Files saved on the box")
+    assert has_element?(view, ".pic-steps li.is-done .pic-when", "UTC")
+    # nothing has collected it in a test: it waits on the card, and says so
+    assert has_element?(view, ".pic-steps li.is-waiting", "waiting to be collected")
+    assert steps =~ "(done)" and steps =~ "(still to come)"
+
+    # what was recorded with it
+    for title <- ["Camera", "Box", "Files"], do: assert(has_element?(view, ".now-h", title))
+    assert has_element?(view, ".pic-facts dd", "on the box")
+    assert html =~ name
+
+    # collected: its files are gone from the card, and within a few seconds the page says so
+    for f <- last.files, do: File.rm!(f)
+    for _ <- 1..3, do: send(view.pid, :tick)
+    assert has_element?(view, ".pic-steps li.is-done", "Collected from the box")
+    assert has_element?(view, ".pic-facts dd", "collected")
+
+    # a number nothing was written for says so, plainly
+    {:ok, none, _} = live(conn, ~p"/cameras/stills/pictures/999999")
+    assert has_element?(none, ~s([role="status"]), "Nothing has been written for picture 999999")
   end
 
   # #117, 12 October: "The targets have known magnitudes. Saturn's bright. You could work out what

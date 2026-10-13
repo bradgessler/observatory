@@ -49,8 +49,10 @@ address, never a hand-made list of other pages or a second shell around it
 
 **The bar says what the telescope is doing, and STOP lives in it.** Every
 page has the bar (`Controller.ScopeNow`, drawn by the shell): still,
-tracking, moving or slewing, with the target and where it points. A slew is
-loud. STOP is in the bar whenever there is something to stop (a slew, a
+tracking, moving or slewing, with the target and how well it is aligned. It
+is one key and carries only the essentials: it opens Now, where the position,
+the axes and the log are. The page's title is top left, the telescope top
+right; a page's Docs are at the foot of the sidebar. A slew is loud. STOP is in the bar whenever there is something to stop (a slew, a
 move, a hold) and is not shown when the telescope is still. A page keeps a
 `<.stop />` in its header for when there is no bar (no telescope chosen);
 the shell hides it under the bar. Only the machine a mount is plugged into

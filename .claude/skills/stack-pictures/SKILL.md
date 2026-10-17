@@ -225,3 +225,25 @@ reaches 12.1 arcmin instead of 11.1; star colours match Gaia instead of leaning 
   level, which reads about 5 DN under 512 at ISO 400 and is not yet measured at 3200.
 - **Prove faint outer structure against the flat's own uncertainty** (rebuild it leaving one run out), not
   only against odd and even halves.
+
+## Combining frames (`tools/coadd.py`, 17 October 2026)
+
+Zackay and Ofek's proper coaddition: each frame filtered by its own measured PSF, weighted by
+(transparency / sky noise) squared, summed and whitened. Linear once the outlier mask is fixed; nothing is
+deconvolved. Pipelines: `hack/stacks/2026-10-12/{ngc891,ngc2261}-coadd/`, which also rebuild the published
+stacks byte for byte as a control.
+
+- **What it bought on 15 s frames in 3.6 to 7 arcsec seeing: little.** Point-source S/N +1.4 percent (NGC
+  891) and +4.1 percent (NGC 2261); nothing visible, star size the same, nothing new in the half stacks.
+  Most of that is not the PSF weighting (+0.3 and +1.5 percent): it is dropping the 3 sigma clip about the
+  median, which costs 1 to 3 percent and clips sharp frames' stars when the seeing varies.
+- **Default combine:** `coadd.outlier_mask` (with the PSFs and a 1/flat noise map) and
+  `proper_coadd(keep_phase='mean')`, with the old combine kept as a control in the same pass for a few
+  nights. One PSF per frame and plane, from 150 to 200 isolated unsaturated stars: the PSF changes 40
+  percent across this field, but every frame changes the same way. Keep the mean phase: the paper's
+  zero-phase image drew dark crescents beside bright stars.
+- **Do not deliver** the version convolved to the mean's PSF for its lower per-pixel noise: that is
+  smoothing, and smoothing belongs in the finish.
+- **Thin-cloud frames** help point sources but add noise on large scales; keep the 0.9 transparency cut for
+  faint extended objects.
+- The real gains this week came from calibration (above) and from more light per night, not from combining.

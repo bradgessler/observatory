@@ -200,3 +200,28 @@ than the frame).
   and its central star flatten.
 - **Prove structure by correlating band-passed odd and even stacks against blank-sky places** (the Crab: 9 to 16
   sigma where 8 October's four frames gave 1.4). A colour that does not repeat is not drawn (its red filaments).
+
+## Calibration tools (`tools/`, from the frames of 12 and 13 October)
+
+Proven on NGC 891 and M77 against the published stacks, which the same pipelines rebuild bit for bit with
+the old flat: the sky pattern left after a plane fell from 0.5 to 0.8 percent to 0.2 to 0.3; M77 is followed
+5.9 arcmin across instead of 2.5, part of its outer disc now passes the half-stack test; NGC 891's disc
+reaches 12.1 arcmin instead of 11.1; star colours match Gaia instead of leaning green. The pipelines are
+`hack/stacks/2026-10-12/{ngc891,m77}-calibrated/`.
+
+- **The flat is the night's sky for the large scale, times the twilight flats' dust.** `twilight_flat.py`
+  builds the dust from twilight frames (1,000 to 8,000 DN; ISO does not matter for dust). `skyflat.py` builds
+  the large scale from the open sky of the night's other runs (leave the target's own run out) and multiplies
+  in the dust. Check any flat on the run's own sky before stacking with `flatcheck.py`. A twilight flat taken
+  parked at the pole carries the wrong large scale (13 October: the light centred 880 px off the middle).
+  A flat fitted from one target's sky reads 1 to 1.5 percent high in the middle and hides faint outer light.
+  What looked like a sky slope in every run is the optics: keep it in the flat.
+- **Star colours from the catalogue.** `star_colour.py` on the linear stack, before finishing: Gaia DR3 for
+  the field through `catalogue.py` (cached under `~/.observatory/catalogs/`, the query written beside it).
+  Expect red x1.0 and blue x1.14 to 1.16 over the camera's daylight balance. A colour term of about -0.18 mag
+  per mag remains and is not applied.
+- **Darks.** `darks.subtract` in a pipeline's plane loading: with no master dark it changes nothing and says
+  so; with darks (`drive-the-box/darks.exs`, cap on, the lights' exposures and ISOs) it also fixes the black
+  level, which reads about 5 DN under 512 at ISO 400 and is not yet measured at 3200.
+- **Prove faint outer structure against the flat's own uncertainty** (rebuild it leaving one run out), not
+  only against odd and even halves.

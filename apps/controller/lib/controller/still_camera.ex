@@ -204,6 +204,8 @@ defmodule Controller.StillCamera do
   Take one picture now (ignored while one is being taken). Options, for this picture (those given
   to `continuous/3` stand for the rest):
 
+    * `frame:` `:dark` or `:flat` for a calibration frame taken on purpose; its sidecar says so and
+      the stacking tools find it by that (nothing said: a light frame of the sky);
     * `settle_ms:` how long after a slew a picture is still the mount settling (2000). A picture
       whose shutter opened sooner than that is marked `settling: true` and not counted;
     * `slew_deg_s:` how fast an axis must turn for it to be a slew and not tracking, in degrees a
@@ -424,7 +426,13 @@ defmodule Controller.StillCamera do
        clock_wait: nil,
        # no new picture before this (monotonic ms): `pause/2`, for an upgrade
        paused_until: nil,
+       # the picture whose camera part is under way (capture and download), or nil
        task: nil,
+       # pictures already off the camera, still being saved, measured and handed to the solver:
+       # %{task ref => seq}. In a run the next picture starts as soon as one is off the camera, and
+       # these finish behind it (13 October: 10 s a picture of the camera standing idle while the
+       # box measured the last one)
+       background: %{},
        shot: nil,
        # the pictures' numbers carry on where they left off, and the last one is still the last one
        seq: roll.seq,
@@ -676,9 +684,28 @@ defmodule Controller.StillCamera do
     {:noreply, finished(%{s | task: nil, shot: nil}, result)}
   end
 
+  # a picture that was finishing behind the next one
+  def handle_info({ref, result}, %{background: bg} = s) when is_map_key(bg, ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, finished(%{s | background: Map.delete(bg, ref)}, result)}
+  end
+
   def handle_info({:DOWN, ref, :process, _, reason}, %{task: %Task{ref: ref}} = s) do
     {:noreply, finished(%{s | task: nil, shot: nil}, {:error, {:crashed, reason}})}
   end
+
+  def handle_info({:DOWN, ref, :process, _, reason}, %{background: bg} = s) when is_map_key(bg, ref) do
+    {:noreply, finished(%{s | background: Map.delete(bg, ref)}, {:error, {:crashed, reason}})}
+  end
+
+  # The picture in flight is off the camera: its files are down and the camera is free. In a run, the
+  # next picture starts now and this one is saved, measured and solved behind it. A single picture (a
+  # finder's, a Take Picture) is not overtaken: whoever asked for it waits for all of it.
+  def handle_info({:camera_free, seq}, %{task: %Task{ref: ref}, seq: seq, continuous: true, finder: nil} = s) do
+    {:noreply, announce(arm(%{s | task: nil, shot: nil, background: Map.put(s.background, ref, seq)}, s.interval_ms))}
+  end
+
+  def handle_info({:camera_free, _seq}, s), do: {:noreply, s}
 
   # Where the picture being taken has got to: the camera's own stages (`Camera.capture/2`), then
   # this module's (saving its files, measuring it). Only for the shot in flight.
@@ -749,6 +776,12 @@ defmodule Controller.StillCamera do
     watch = Sidecar.watch(mount_id)
     result = Camera.capture(id, progress: ctx[:tell])
     samples = Sidecar.stop(watch)
+    # the camera as it was for this picture, asked now: once the next picture is under way the camera
+    # is busy with it for half a minute and would not answer
+    camera = safe(fn -> Camera.status(id) end)
+
+    # off the camera: the process may start the next picture while this one is saved and measured
+    with {:ok, _} <- result, {pid, _} <- ctx[:tell], do: send(pid, {:camera_free, seq})
 
     with {:ok, files} <- result do
       tell(ctx, %{stage: :saving, files: length(files)})
@@ -804,7 +837,6 @@ defmodule Controller.StillCamera do
           }
 
       base = "#{stamp}-#{Path.rootname(hd(files).name)}"
-      camera = safe(fn -> Camera.status(id) end)
       exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
       settle = mount_id && settle(ctx.moved[mount_id], samples, pressed, hd(files)[:pressed_mono] || started, exposure_s, ctx.opts)
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
@@ -827,7 +859,8 @@ defmodule Controller.StillCamera do
             lock: LockOn.status(),
             calibration: mount_id && safe(fn -> LockOn.calibration(mount_id) end),
             measured: measured,
-            plate: plate
+            plate: plate,
+            frame: ctx.opts[:frame]
           }
           |> Sidecar.build()
           |> then(&Sidecar.write(night, base, &1))
@@ -1249,7 +1282,8 @@ defmodule Controller.StillCamera do
       seen: s.seen,
       shooting: s.continuous,
       interval_ms: s.interval_ms,
-      busy: s.task != nil,
+      # a picture under way: being taken, or off the camera and still being saved and measured
+      busy: s.task != nil or s.background != %{},
       # the picture being taken, stage by stage (nil between pictures): `%{stage, since_ms, seq}`
       # and what the stage carries (`exposure_ms`; a file's `name` and `bytes`)
       shot: s.shot,

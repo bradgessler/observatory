@@ -3,7 +3,10 @@
 # refuses to start if an axis is running or a hold is on. It runs on the box by itself (so the ssh session ending
 # does not stop it), waits for the Sun to reach 9.5 degrees below the horizon, and stops at half a degree below (FLATS_UNTIL) or after 24
 # good frames, whichever comes first. Progress is in the log ("flats: ..."). Stop it with send(:flats_runner, :stop).
-# The frames land in the night's folder like any others, at ISO 100, pointing at the pole.
+# The frames land in the night's folder like any others, at ISO 100, pointing at the pole, each marked a flat.
+# What they are good for (13 October): the dust. Taken parked at the pole their large-scale shape came out wrong
+# (the light centred 880 px off the sensor's middle), so the stacking tools take only the dust from them and the
+# large scale from the night's own open sky (`stack-pictures/tools/twilight_flat.py`, `skyflat.py`).
 alias Controller.StillCamera
 if pid = Process.whereis(:flats_runner), do: Process.exit(pid, :kill)
 
@@ -36,7 +39,7 @@ runner = fn ->
 
   take = fn ->
     before = (StillCamera.status().last || %{})[:seq] || 0
-    StillCamera.shoot()
+    StillCamera.shoot(frame: :flat)
     Enum.find_value(1..150, fn _ ->
       Process.sleep(1000)
       s = StillCamera.status()

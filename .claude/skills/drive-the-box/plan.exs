@@ -5,13 +5,24 @@
 # PLAN="m76:28,m57:30,sol-saturn:40:800:1/40,sol-saturn:10:3200:10" ISO=3200 SHUTTER=15 (a step's own ISO and
 # shutter after its count; a step on the same target as the one before is not centred again; planets by their
 # ephemeris id; NAME@RA/DEC in J2000 degrees for anything the catalogue lacks); FIRST_SKIP_CENTRE=1 when the first target is already centred.
+# a step's count is pictures ("30"), minutes of light ("90m": as many good pictures as add up to 90 minutes of
+# exposure at the step's shutter speed) or hours by the clock ("2.5h": pictures for two and a half hours from when
+# the step starts shooting, however many that is: how a night's windows are planned). Fewer targets, longer on
+# each, is where the detail is (13 October).
+count = fn n ->
+  cond do
+    String.ends_with?(n, "m") -> {:minutes, String.to_integer(String.trim_trailing(n, "m"))}
+    String.ends_with?(n, "h") -> {:clock_s, round(elem(Float.parse(String.trim_trailing(n, "h")), 0) * 3600)}
+    true -> String.to_integer(n)
+  end
+end
 plan =
   (System.get_env("PLAN") || "m57:30")
   |> String.split(",", trim: true)
   |> Enum.map(fn s ->
     case String.split(s, ":") do
-      [t, n] -> {t, String.to_integer(n), nil, nil}
-      [t, n, i, sh] -> {t, String.to_integer(n), String.to_integer(i), sh}
+      [t, n] -> {t, count.(n), nil, nil}
+      [t, n, i, sh] -> {t, count.(n), String.to_integer(i), sh}
     end
   end)
 
@@ -83,6 +94,15 @@ runner = fn ->
   end
 
   shoot = fn name, n, iso, shutter ->
+    # minutes of light become pictures at this step's shutter speed
+    {n, until} =
+      case n do
+        {:clock_s, secs} -> {1_000_000, System.monotonic_time(:second) + secs}
+        {:minutes, m} ->
+          secs = case String.split(to_string(shutter), "/") do [a, b] -> String.to_integer(a) / String.to_integer(b); [a] -> elem(Float.parse(a), 0) end
+          {max(ceil(m * 60 / secs), 1), nil}
+        n -> {n, nil}
+      end
     say.("#{name}: waiting for the hold to settle: #{inspect(steady.(steady, 0, 60))}")
     StillCamera.set(iso: iso, shutter: shutter)
     start = StillCamera.status().good
@@ -90,9 +110,10 @@ runner = fn ->
     watch = fn watch ->
       s = StillCamera.status()
       done = s.good - start
-      progress.(%{target: name, phase: :shooting, good: done, of: n, last: s.last && Path.basename(s.last.base)})
+      progress.(%{target: name, phase: :shooting, good: done, of: if(until, do: "until the step's time is up", else: n), last: s.last && Path.basename(s.last.base)})
       cond do
         done >= n -> :done
+        is_integer(until) and System.monotonic_time(:second) >= until -> :done
         not s.shooting -> {:stopped, s[:why]}
         Tracker.status(id) == nil -> {:no_hold, Tracker.ended(id)}
         stopped?.() -> :asked

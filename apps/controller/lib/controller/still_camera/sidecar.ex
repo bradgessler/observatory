@@ -115,6 +115,10 @@ defmodule Controller.StillCamera.Sidecar do
     plain(%{
       schema: @schema,
       seq: shot[:seq],
+      # what kind of frame: light (the sky, nothing said) or a calibration frame taken on purpose:
+      # "dark" (the cap on, the light's own exposure and ISO) or "flat" (an evenly lit sky). The stacking
+      # tools find calibration frames by this (`stack-pictures/tools/darks.py`)
+      frame: shot[:frame] && %{type: to_string(shot[:frame])},
       time: %{
         shutter_pressed: pressed,
         exposure_end: ended,

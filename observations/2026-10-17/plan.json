@@ -1,0 +1,7 @@
+{
+ "targets": [
+  {"slug": "saturn", "title": "Saturn", "sub": "The ringed planet, in Pisces", "what": "A planet ten times as far from the Sun as the Earth, with rings of ice wider than the planet itself. Hundreds of short pictures, and only the sharpest moments kept.", "state": "planned"},
+  {"slug": "triangulum-galaxy", "title": "The Triangulum Galaxy", "sub": "Messier 33, a spiral galaxy, going deeper", "what": "A spiral galaxy 2.7 million light-years away, photographed on 13 October for 16 minutes. Tonight adds two hours.", "state": "planned"},
+  {"slug": "orion-nebula", "title": "The Orion Nebula", "sub": "Messier 42, where stars are being born", "what": "A cloud of gas lit from inside by newborn stars, 1,300 light-years away and bright enough to see with the eye. The longest look of the night.", "state": "planned"}
+ ]
+}

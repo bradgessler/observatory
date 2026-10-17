@@ -701,8 +701,12 @@ defmodule Controller.StillCamera do
   # The picture in flight is off the camera: its files are down and the camera is free. In a run, the
   # next picture starts now and this one is saved, measured and solved behind it. A single picture (a
   # finder's, a Take Picture) is not overtaken: whoever asked for it waits for all of it.
+  # Its off switch, for a camera that misbehaves when asked for a picture while the last is being saved:
+  # `Application.put_env(:controller, :overlap_pictures, false)` on the box, no flash needed.
   def handle_info({:camera_free, seq}, %{task: %Task{ref: ref}, seq: seq, continuous: true, finder: nil} = s) do
-    {:noreply, announce(arm(%{s | task: nil, shot: nil, background: Map.put(s.background, ref, seq)}, s.interval_ms))}
+    if Application.get_env(:controller, :overlap_pictures, true),
+      do: {:noreply, announce(arm(%{s | task: nil, shot: nil, background: Map.put(s.background, ref, seq)}, s.interval_ms))},
+      else: {:noreply, s}
   end
 
   def handle_info({:camera_free, _seq}, s), do: {:noreply, s}

@@ -17,13 +17,14 @@ defmodule Mix.Tasks.Site.Build do
   carries its own share card, a `<template id="ogplus">` that OpenGraph+
   photographs in place of the page.
 
-  Two audiences, two layers. The night's page and the picture pages are for
-  people who came for the sky: pictures and plain words, and one link,
-  "Technical details", at the foot. That link opens the night's
-  `technical.html`, which is for photographers, programmers and astronomers:
-  the night's equipment, then every target (its anchor is its slug) with how
-  it was taken and processed, a "Copy for Reddit" block in the plain Markdown
-  r/astrophotography posts use, the night's technical notes, and the source.
+  Two audiences, two layers, one page. A night's page and each picture's page
+  lead with what people came for: the pictures and plain words. Under the title
+  a link, "Photography notes", goes to the foot of the same page (#photography),
+  which is for photographers, programmers and astronomers: on a picture's page
+  how it was taken and processed, and a "Copy photographer's notes" button that
+  copies them as Markdown for a forum post (from `<slug>-notes.txt`); on the
+  night's page the equipment, each picture's notes, the night's technical
+  notes and the source.
 
       mix site.build            # into _site
       mix site.build --out docs # somewhere else
@@ -520,7 +521,7 @@ defmodule Mix.Tasks.Site.Build do
 
       File.write!(Path.join(to, "index.html"), session_page(night, site))
       File.write!(Path.join(to, "technical.html"), technical_page(night, site))
-      # each picture's Copy for Reddit text as a file of its own: the button copies it, the link opens it
+      # each picture's photographer's notes as a Markdown file of its own: the button copies it, the link opens it
       # (a byte-order mark first: a server that sends .txt without a charset would show "×" as "Ã—";
       # fetch's text() drops it, so it never reaches the clipboard)
       for o <- night.objects, do: File.write!(Path.join(to, reddit_file(o["slug"])), "\uFEFF" <> reddit(night, o, site) <> "\n")
@@ -605,8 +606,9 @@ defmodule Mix.Tasks.Site.Build do
     <article class="night-notes">
       #{night.html}
     </article>
-    <section class="technical-details" id="technical" aria-labelledby="technical-h">
-      <h2 id="technical-h">Technical details</h2>
+    <section class="technical-details" id="photography" aria-labelledby="photography-h">
+      <span id="technical"></span>
+      <h2 id="photography-h">Photography notes</h2>
       <p class="lede">The equipment for the whole night, what went wrong at the telescope and what we did about it, and the software. Each picture's exposures and processing are at the foot of its own page.</p>
       #{spec_list(night.rows)}
       #{picture_index(night)}
@@ -618,9 +620,10 @@ defmodule Mix.Tasks.Site.Build do
   end
 
   # Everyone reads the pictures and the facts; photographers, programmers and astronomers want the
-  # rest, which is at the foot of the same page under #technical, so one link can go straight there.
+  # rest, which is at the foot of the same page under #photography (Brad: "photography notes, so it's not
+  # so generic"), so one link can go straight there. #technical, its first name, still lands there.
   @source "https://github.com/bradgessler/observatory"
-  defp jump, do: ~s(<p class="jump"><a href="#technical">Technical details</a></p>)
+  defp jump, do: ~s(<p class="jump"><a href="#photography">Photography notes</a></p>)
 
   defp source do
     """
@@ -635,7 +638,7 @@ defmodule Mix.Tasks.Site.Build do
     rows =
       Enum.map_join(targets(night), "\n", fn
         {:plan, t} -> ~s(<li><span class="note-title">#{esc(t["title"])}</span><span class="note-summary">#{esc(plan_words(Map.put(t, "state", t["state"] || "planned")))}</span></li>)
-        o -> ~s(<li><a href="#{esc(o["slug"])}.html#technical"><span class="note-title">#{esc(o["title"])}</span><span class="note-summary">#{esc(o["made"] || o["subtitle"] || "")}</span></a></li>)
+        o -> ~s(<li><a href="#{esc(o["slug"])}.html#photography"><span class="note-title">#{esc(o["title"])}</span><span class="note-summary">#{esc(o["made"] || o["subtitle"] || "")}</span></a></li>)
       end)
 
     ~s(<h3>Each picture</h3><ul class="notes">#{rows}</ul>)
@@ -677,11 +680,11 @@ defmodule Mix.Tasks.Site.Build do
   defp technical_page(_night, _site) do
     """
     <!doctype html>
-    <html lang="en"><head><meta charset="utf-8"><title>Technical details</title>
+    <html lang="en"><head><meta charset="utf-8"><title>Photography notes</title>
     <meta name="robots" content="noindex">
-    <meta http-equiv="refresh" content="0; url=./#technical">
-    <script>location.replace(location.hash.length > 1 ? location.hash.slice(1) + ".html#technical" : "./#technical");</script>
-    </head><body><p><a href="./#technical">Technical details</a></p></body></html>
+    <meta http-equiv="refresh" content="0; url=./#photography">
+    <script>location.replace(location.hash.length > 1 ? location.hash.slice(1) + ".html#photography" : "./#photography");</script>
+    </head><body><p><a href="./#photography">Photography notes</a></p></body></html>
     """
   end
 
@@ -713,17 +716,16 @@ defmodule Mix.Tasks.Site.Build do
       #{group.("Acquisition", acquisition)}
       #{group.("Processing", processing)}
       #{group.("What the picture shows", results)}
-      <h3 id="#{esc(slug)}-reddit">Copy for Reddit</h3>
-      <p class="hint">Everything above, in the Markdown r/astrophotography posts use. Paste it into the post's text in Markdown mode.</p>
       <div class="copy">
-        <button type="button" class="copy" data-src="#{esc(reddit_file(slug))}" aria-describedby="#{esc(slug)}-reddit" hidden>Copy</button>
+        <button type="button" class="copy" data-src="#{esc(reddit_file(slug))}" data-label="Copy photographer's notes" aria-describedby="#{esc(slug)}-copy-hint" hidden>Copy photographer's notes</button>
         <a class="copy-text" href="#{esc(reddit_file(slug))}">Open as text</a>
       </div>
+      <p class="hint" id="#{esc(slug)}-copy-hint">Everything above as Markdown, ready to paste into a forum post.</p>
     """
   end
 
-  @doc "The file beside a night's technical page that holds a target's Copy for Reddit text."
-  def reddit_file(slug), do: "#{slug}-reddit.txt"
+  @doc "The file beside a night's pages that holds a target's photographer's notes as Markdown, for the Copy button."
+  def reddit_file(slug), do: "#{slug}-notes.txt"
 
   @doc """
   A target's write-up as an r/astrophotography post: Markdown with a bold line per part and a
@@ -768,7 +770,7 @@ defmodule Mix.Tasks.Site.Build do
       bullets("Acquisition", acquisition),
       bullets("Processing", processing),
       "Full write-up: #{page}#{o["slug"]}.html",
-      "All the technical details: #{page}#{o["slug"]}.html#technical"
+      "All the photography notes: #{page}#{o["slug"]}.html#photography"
     ]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join("\n\n")
@@ -823,7 +825,7 @@ defmodule Mix.Tasks.Site.Build do
       b.addEventListener("click", function () {
         var url = b.dataset.src;
         var open = function () { location.href = url; };
-        var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 2000); };
+        var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = b.dataset.label || "Copy"; }, 2000); };
         var text = fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.text(); });
         var plain = function () { return text.then(function (t) { return navigator.clipboard.writeText(t); }); };
         try {
@@ -878,8 +880,9 @@ defmodule Mix.Tasks.Site.Build do
       #{hint}
       #{spec_list(o["facts"], "facts")}
     </section>
-    <section class="technical-details" id="technical" aria-labelledby="technical-h">
-      <h2 id="technical-h">Technical details</h2>
+    <section class="technical-details" id="photography" aria-labelledby="photography-h">
+      <span id="technical"></span>
+      <h2 id="photography-h">Photography notes</h2>
       #{target_details(night, o)}
     </section>
     <p class="credit">#{esc(night.credit)}</p>

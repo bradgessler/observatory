@@ -183,18 +183,18 @@ defmodule Mix.Tasks.Site.BuildTest do
       assert night =~ "Thin cloud all night."
       # the equipment is for photographers: at the foot of the same page under #technical, after the pictures
       # and the story, with a link to it under the title
-      assert night =~ ~s(<p class="jump"><a href="#technical">Technical details</a></p>)
+      assert night =~ ~s(<p class="jump"><a href="#photography">Photography notes</a></p>)
       {story, _} = :binary.match(night, "Thin cloud all night.")
-      {foot, _} = :binary.match(night, ~s(<section class="technical-details" id="technical"))
+      {foot, _} = :binary.match(night, ~s(<section class="technical-details" id="photography"))
       assert story < foot
-      assert night =~ ~s(<a href="orion-nebula.html#technical">)
+      assert night =~ ~s(<a href="orion-nebula.html#photography">)
 
       # the night's facts keep the order and the labels the file gives them, and a value may hold a colon
       assert night =~ ~r{<dt>Location</dt><dd>San Francisco Bay Area</dd></div>\s*<div><dt>Camera</dt><dd>Sony a6000, stock: APS-C</dd>}
       refute night =~ "<dt>title</dt>"
 
       # the old technical page sends a link to where its part now is
-      assert page(dir, "2026-10-03/technical.html") =~ ~s{location.hash.slice(1) + ".html#technical"}
+      assert page(dir, "2026-10-03/technical.html") =~ ~s{location.hash.slice(1) + ".html#photography"}
     end
 
     # 13 October 2026: "the plan gets published... each page could just be a placeholder... and then as
@@ -249,9 +249,9 @@ defmodule Mix.Tasks.Site.BuildTest do
       [plain, labels] = for stem <- ~w(orion-nebula orion-nebula-labels), do: elem(:binary.match(html, ~s(<a href="images/#{stem}.jpg">)), 0)
       assert plain < labels
       {facts, _} = :binary.match(html, ~s(<dl class="facts">))
-      {foot, _} = :binary.match(html, ~s(<section class="technical-details" id="technical"))
+      {foot, _} = :binary.match(html, ~s(<section class="technical-details" id="photography"))
       assert labels < facts and facts < foot
-      assert html =~ ~s(<p class="jump"><a href="#technical">Technical details</a></p>)
+      assert html =~ ~s(<p class="jump"><a href="#photography">Photography notes</a></p>)
 
       # how it was made is at the foot of the same page, under #technical
       {frames, _} = :binary.match(html, ~s(<a href="images/orion-nebula-frames.jpg">))
@@ -292,21 +292,22 @@ defmodule Mix.Tasks.Site.BuildTest do
 
       # the text is a file of its own beside the page, not shown on it
       refute tech =~ "**Equipment**"
-      block = page(dir, "2026-10-03/orion-nebula-reddit.txt")
+      block = page(dir, "2026-10-03/orion-nebula-notes.txt")
       assert block =~ "**The Orion Nebula**: Messier 42\n\nNight of 3 October 2026, San Francisco Bay Area"
       assert block =~ "**Equipment**\n\n* Telescope: Celestron 8SE\n* Camera: Sony a6000, stock: APS-C"
       assert block =~ "* Lights: 39 × 20 s at ISO 3200 (13 minutes)\n* Frames: 69 taken, 39 kept\n* Dithering: Every 3 frames, 12 px"
       assert block =~ "* Stacking: Sigma-clipped mean\n* Software: Nothing generated"
       assert block =~ "Full write-up: #{@site}/observations/2026-10-03/orion-nebula.html"
-      assert block =~ "All the technical details: #{@site}/observations/2026-10-03/orion-nebula.html#technical"
+      assert block =~ "All the photography notes: #{@site}/observations/2026-10-03/orion-nebula.html#photography"
       # a line the files do not have is left out, never filled in
       refute block =~ "Mount"
       refute block =~ "Darks"
 
       # the copy button reads the file with the script; without it, a link opens the file
-      assert tech =~ ~s(<button type="button" class="copy" data-src="orion-nebula-reddit.txt")
-      assert tech =~ "hidden>Copy</button>"
-      assert tech =~ ~s(<a class="copy-text" href="orion-nebula-reddit.txt">Open as text</a>)
+      assert tech =~ ~s(<button type="button" class="copy" data-src="orion-nebula-notes.txt")
+      assert tech =~ "hidden>Copy photographer's notes</button>"
+      refute tech =~ ~r/reddit/i
+      assert tech =~ ~s(<a class="copy-text" href="orion-nebula-notes.txt">Open as text</a>)
       assert tech =~ "fetch(url)"
       assert tech =~ "ClipboardItem"
       refute tech =~ ~r{<script[^>]+src=}
@@ -314,7 +315,7 @@ defmodule Mix.Tasks.Site.BuildTest do
       # the night lists each picture's details, and where a target still to come stands, with no block
       night_page = page(dir, "2026-10-03/index.html")
       assert night_page =~ ~r{The Crab Nebula</span><span class="note-summary">Being photographed now}
-      refute File.exists?(Path.join([dir, "_site/observations/2026-10-03/crab-nebula-reddit.txt"]))
+      refute File.exists?(Path.join([dir, "_site/observations/2026-10-03/crab-nebula-notes.txt"]))
       assert night_page =~ "https://github.com/bradgessler/observatory"
     end
 

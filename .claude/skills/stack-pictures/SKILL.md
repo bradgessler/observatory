@@ -247,3 +247,33 @@ stacks byte for byte as a control.
 - **Thin-cloud frames** help point sources but add noise on large scales; keep the 0.9 transparency cut for
   faint extended objects.
 - The real gains this week came from calibration (above) and from more light per night, not from combining.
+
+## What the night of 17 October 2026 added
+
+Four targets, one agent each, reproducible from `hack/stacks/2026-10-17/<target>/run_all.sh`. Templates now: `m42` (a
+bright core joined from short frames, proper coaddition, dithered), `m33` (two nights and three turns, framed for
+the area most frames cover), `saturn` (lucky imaging with moons matched to JPL Horizons), `m27` (a small object,
+undithered, dust measured on its own sky).
+
+- **Dust moves between nights.** The 13 October hybrid flat still had the right large scale, but a new crescent
+  12 percent deep had appeared. Every run measured its own dust on its own sky (each shadow seen in both halves
+  of the run alone) and divided it out after the flat. A dithered run measures dust far better: frame against
+  the first stack, put back on the sensor grid, so the object cancels.
+- **Is a dark spot dust?** Compare the same sensor pixels in two different targets. Dust is in both; a dust lane
+  is in one. `tools/dustcheck.py "<target A JPEGs>" "<target B JPEGs>" out.png` does it and draws the proof
+  (each spot from both targets side by side; `--at x,y` for a spot someone saw on the screen); the box's sensor
+  map runs the same rule live (`Controller.StillCamera.SensorMap`).
+- **Dithered runs:** frame for the area at least half the frames cover and say what the edges get. The picture
+  can still come out smaller than one frame (M33: 36 x 21 against 39 x 26 arcmin); don't call it wider without
+  measuring.
+- **Proper coaddition again bought 1.5 to 2.3 percent** point-source S/N on 30 s frames: the default, nothing a
+  viewer sees. When the nebula fills the frame, read each frame's noise at its own median level, not the noise
+  model's zero term (which fell to 0 and weighted M42 as 75 frames of 165).
+- **Joining short and long exposures:** the measured ratio was 62.65 on M42's nebula (65.2 on stars) against the
+  60 the exposures and ISOs give. The join uses the measured value; the cause (ISO or shutter not nominal) is
+  unverified. Measure it every time and say it.
+- **Labels:** check every one at full size against the plate solve. NGC 592's search radius landed on a Gaia
+  foreground star; a 6 px radius found the cloud. Fail the annotate step when a label box leaves the picture.
+- **Planet moons need their own frames.** Tonight's moons came from the two 2 s ISO 6400 centring shots; their
+  cores clipped, so each moon showed a flat white dot in a halo (not focus: one peak, no ring; a star in the same
+  frame was 4.5"). Shoot about 30 frames at 1 s, ISO 800, on the planet's turn (`drive-the-box`).

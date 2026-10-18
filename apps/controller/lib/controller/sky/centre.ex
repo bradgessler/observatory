@@ -208,7 +208,9 @@ defmodule Controller.Sky.Centre do
 
     with {b_ra, b_dec} <- Pointing.scope_radec(snap, ctx),
          aim = %{name: t.name, ra_deg: norm360(t.ra_deg + Astro.norm180(b_ra - ra)), dec_deg: t.dec_deg + (b_dec - dec)},
-         {ra_a, dec_a} <- Pointing.axes_for(aim, ctx, near: cur) do
+         # stay on the side the tube is on: plain `near:` prefers the normal side, and after a flip that read a
+         # 68' nudge as a 179 degree turn (Vega, 17 October)
+         {ra_a, dec_a} <- Pointing.axes_for(aim, ctx, near: {:stay, cur}) do
       d_ra = Astro.norm180(ra_a - elem(cur, 0))
       d_dec = Astro.norm180(dec_a - elem(cur, 1))
 

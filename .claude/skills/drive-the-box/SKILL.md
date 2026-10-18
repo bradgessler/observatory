@@ -91,9 +91,15 @@ First done on 12 October 2026: ten targets, 263 pictures, parked before dawn, op
 - **`plan.exs`** runs on the box, detached: Go To and Centre, wait for the hold to settle, N pictures, next. It
   stops a camera run left going and sets the camera for centring before every target (both learned the hard
   way). A reflash kills it: restart from the target it was on with the remaining count and `FIRST_SKIP_CENTRE=1`.
+  **Always start it with `PARK_AT=hh:mm` (UTC).** The box then parks itself at that time, whatever is running,
+  or as soon as the plan finishes if that is sooner. The plan prints "park NOT armed" without it. 18 October
+  2026: the plan finished at 05:17, the park was left to a session that wasn't awake, and the telescope stood
+  unparked into daylight. A flash kills the timer with the plan: restart both together. `DITHER=1.5` (arcmin)
+  or `DITHER=auto` (sized from the sensor map) with `DITHER_EVERY=3` for exposures of 2 s and longer.
 - **`park.exs`** stops the plan and the camera, ends the hold, and sends the mount home: counterweight down, tube
   at the mount's own pole, tracking off. The tube then reads a few degrees under Dec 90 when the polar axis is
-  off. **Park twice over:** the operator at the deadline, and a timer on the Mac a few minutes later.
+  off. **Park three times over:** the box's own `PARK_AT` timer, the operator at the deadline, and a scheduled
+  wake-up for the session a few minutes later to check `plan.json` says `parked`.
 - **`flats.exs`** takes twilight flats at dawn with the camera only, parked. At f/10 and ISO 100 the useful
   window is the Sun 3 to 0.5 degrees down.
 - **The main session stacks, annotates and publishes each target as the telescope leaves it** (`stack-pictures`,

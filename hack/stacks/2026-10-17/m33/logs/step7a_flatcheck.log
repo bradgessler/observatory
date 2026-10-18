@@ -1,0 +1,48 @@
+flatcheck on 78 dithered frames of tonight (every 2 of turns 1b and 2), M33 masked 700 px round the centre
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:77: RuntimeWarning: All-NaN slice encountered
+  big = np.nanmedian(np.stack([r[0] for r in res]), axis=0)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:78: RuntimeWarning: All-NaN slice encountered
+  cube = np.stack([r[1] for r in res]); small = np.nanmedian(cube, axis=0); n = np.isfinite(cube).sum(0)
+hybrid13   large (G1, galaxy included): after plane 0.0133 | dust: 24 shadows left (24 deeper than 2%, deepest 0.065), correlation 0.31, shift [0.02, -0.03] | depth sky/flat {'R': 0.834, 'G1': 0.738, 'G2': 0.89, 'B': 0.856}
+     left: plane px (2982, 1956) = sensor (5965, 3912), 0.065 deep, r 26 px
+     left: plane px (2225, 1815) = sensor (4450, 3631), 0.055 deep, r 19 px
+     left: plane px (2917, 2000) = sensor (5834, 4000), 0.048 deep, r 20 px
+     left: plane px (123, 519) = sensor (247, 1037), 0.045 deep, r 23 px
+     left: plane px (891, 7) = sensor (1782, 14), 0.043 deep, r 9 px
+     left: plane px (2139, 1928) = sensor (4278, 3857), 0.037 deep, r 21 px
+     left: plane px (3003, 1080) = sensor (6006, 2160), 0.036 deep, r 9 px
+     left: plane px (391, 1996) = sensor (782, 3993), 0.036 deep, r 17 px
+twilight13 large (G1, galaxy included): after plane 0.0280 | dust: 22 shadows left (22 deeper than 2%, deepest 0.067), correlation 0.30, shift [0.02, -0.03] | depth sky/flat {'R': 0.86, 'G1': 0.767, 'G2': 0.858, 'B': 0.732}
+     left: plane px (2980, 1955) = sensor (5959, 3910), 0.067 deep, r 28 px
+     left: plane px (2225, 1816) = sensor (4450, 3631), 0.054 deep, r 19 px
+     left: plane px (2921, 2001) = sensor (5842, 4003), 0.048 deep, r 18 px
+     left: plane px (124, 519) = sensor (247, 1038), 0.046 deep, r 23 px
+     left: plane px (891, 6) = sensor (1783, 12), 0.041 deep, r 8 px
+     left: plane px (2139, 1929) = sensor (4278, 3858), 0.037 deep, r 21 px
+     left: plane px (3003, 1080) = sensor (6006, 2159), 0.036 deep, r 9 px
+     left: plane px (961, 11) = sensor (1921, 23), 0.035 deep, r 14 px
+done7a

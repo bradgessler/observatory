@@ -1,0 +1,29 @@
+ 0 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+ 2 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+ 4 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+ 6 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+ 8 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+10 rounds: false rim on the model 0.0000 without noise, up to 0.0000 with the stack's grain
+12 rounds: false rim on the model 0.0000 without noise, up to 0.0010 with the stack's grain
+14 rounds: false rim on the model 0.0033 without noise, up to 0.0046 with the stack's grain
+16 rounds: false rim on the model 0.0059 without noise, up to 0.0072 with the stack's grain
+18 rounds: false rim on the model 0.0077 without noise, up to 0.0092 with the stack's grain
+20 rounds: false rim on the model 0.0091 without noise, up to 0.0124 with the stack's grain
+22 rounds: false rim on the model 0.0128 without noise, up to 0.0164 with the stack's grain
+24 rounds: false rim on the model 0.0159 without noise, up to 0.0196 with the stack's grain
+26 rounds: false rim on the model 0.0183 without noise, up to 0.0222 with the stack's grain
+28 rounds: false rim on the model 0.0202 without noise, up to 0.0242 with the stack's grain
+30 rounds: false rim on the model 0.0217 without noise, up to 0.0258 with the stack's grain
+32 rounds: false rim on the model 0.0228 without noise, up to 0.0271 with the stack's grain
+34 rounds: false rim on the model 0.0236 without noise, up to 0.0280 with the stack's grain
+36 rounds: false rim on the model 0.0242 without noise, up to 0.0287 with the stack's grain
+38 rounds: false rim on the model 0.0245 without noise, up to 0.0292 with the stack's grain
+40 rounds: false rim on the model 0.0247 without noise, up to 0.0295 with the stack's grain
+grain 0.0059 of the globe per fine px; blur 3.20 x 2.97 arcsec; rounds chosen: 24 (rim under 0.02)
+Cassini division (ring level at 1.985 Re below both B at 1.8 and A at 2.15, as a fraction of B):
+  plain     {'one end': -0.2547, 'other end': -0.286}
+  restored  {'one end': -0.2695, 'other end': -0.3098}
+  half0     {'one end': -0.2904, 'other end': -0.3007}
+  half1     {'one end': -0.2464, 'other end': -0.3196}
+seen in both halves on both sides: False
+restored: polar limb 7.565", ansa 2.291", gap contrast 0.3590 (plain 7.675", 4.159", 0.1269)

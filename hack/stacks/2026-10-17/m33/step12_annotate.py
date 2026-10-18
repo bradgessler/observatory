@@ -1,0 +1,228 @@
+"""Step 12: the share set for Messier 33, the Triangulum Galaxy (night of 17 October 2026): three JPEGs, as the annotate-pictures skill says.
+
+  <name>.jpg            the picture as it is, nothing on it
+  <name>-annotated.jpg  names, a scale bar and north on the picture; underneath, what it is, how far, how big
+  <name>-how.jpg        for photographers: exposures, frames kept and lost, sampling, calibration, stacking and finishing
+
+The caption band is added underneath; it never covers the picture. All drawing is plain text and lines.
+JPEGs are full resolution, quality 93, no chroma subsampling, no metadata.
+
+Usage: annotate.py [name ...]           (no names: all) -> share/
+       annotate.py --site <folder>      the same pictures and words for the website: <folder>/images and <folder>/objects.json
+
+ADDING A PICTURE: add one entry to targets(), keyed by its website slug, and run both lines again. The page shows the
+pictures in the order of the entries. Nothing else in this file changes.
+
+Copied from hack/stacks/2026-10-12/annotate.py (itself from the 8 October 2026 script (itself from .claude/skills/annotate-pictures/tools/annotate.py) with tonight's
+targets() table. Four changes for tonight:
+  - a finished picture and its stack no longer share a name: final/<file>.json is the finish recipe only, and each
+    stack's own recipe is <folder>/recipe.json, so an entry reads both (finish(), stack());
+  - an entry may give the words under its scale bar (bar_sub): a double star's bar is a round angle, with what that
+    angle is at the star's distance underneath, where a nebula's bar is a round length with its angle underneath;
+  - an entry may say how far short of a thing its leaders stop (gap, in drawing units): a bright star's glow is wider
+    than the 0.9 that suits a nebula; and one label may carry its own as a fifth value (a dust lane is a thin thing, and
+    a leader that stops 0.9 short of it ends on the light beside it); and a label with no words draws only its leader,
+    so that one set of words can point at two things (the two stars of Messier 78) when both leaders end at one place;
+  - the page order is the order of the entries.
+Small pictures (a 640 px crop at the sensor's own scale, never enlarged) are handled as on 8 October: the drawing unit
+has a floor (UMIN) and the share versions sit at their own size in the middle of a band wide enough for the words.
+Every number in targets() is copied from that picture's recipe files; the arithmetic for the facts is beside them.
+
+Nothing here gives a clock time, and never the measured altitude: together with the object they would place the
+telescope. The words carry the part of the night ("after midnight") and "nearly overhead" or an altitude rounded to
+the nearest ten degrees, nothing finer.
+"""
+import json, math, os, re, sys
+import numpy as np, cv2
+from PIL import Image, ImageDraw, ImageFont
+
+HERE = os.path.dirname(os.path.abspath(__file__)); os.chdir(HERE); os.makedirs("share", exist_ok=True)   # m33/: reads final/m33.png, final/m27.json, final/recipe.json; writes share/
+AVENIR = "/System/Library/Fonts/Avenir Next.ttc"
+def font(size, weight="regular"): return ImageFont.truetype(AVENIR, max(8, int(round(size))), index={"bold": 0, "demi": 2, "medium": 5, "regular": 7}[weight])
+INK, SOFT, DIM, BAND, RULE = (244, 244, 240), (198, 198, 194), (140, 140, 138), (10, 10, 12), (62, 62, 64)
+# f/10.3: every stack's plate solve tonight gives 2,084 to 2,089 mm on 203 mm of aperture (10.27 to 10.29); each picture's own focal length is in its rows
+GEAR = "© 2026 Brad Gessler  ·  Celestron 8SE (8 inch, f/10.3) and Sony a6000 on an EQ6-R  ·  San Francisco Bay Area  ·  nights of 12 and 17 October 2026"
+TRUE = "Stacked from the camera's RAW frames. Nothing generated."
+CAMERA = ("CAMERA", "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW")
+MOUNT = ("MOUNT", "Sky-Watcher EQ6-R, unguided. Set down about 10 degrees off the pole; aligned from plate-solved photos, both axes driven from that model. Dithered between frames for most of tonight")
+MADE = "Capture and mount: Observatory (Elixir on a Raspberry Pi 3).  Stacking: numpy, OpenCV, rawpy.  Plate solving: astrometry.net.  " + TRUE
+STACK = "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation (each frame first placed by its own plate solve), a 3-sigma clipped mean weighted by each frame's clarity and noise"
+UMIN = 10.0     # px. The drawing unit is a hundredth of the picture's width, but never under this: names on a 600 px picture would be set at 9 px
+
+def finish(name): return json.load(open("final/%s.json" % name))             # the finish recipe of final/<name>.png
+def stack(folder): return json.load(open("%s/recipe.json" % folder))          # the stack's own recipe
+def step(r, name): return [s for s in r["steps"] if s["step"] == name][0]
+def mm(fl): whole, _, frac = ("%.1f" % fl).rstrip("0").rstrip(".").partition("."); return format(int(whole), ",") + ("." + frac if frac else "")
+def optics(fl): return ("TELESCOPE", "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, %s mm focal length by plate solve of this stack, f/%.1f" % (mm(fl), fl / 203))
+def span(ly, arcmin): return ly * arcmin * 2.909e-4                     # light-years across = distance x angle (arcmin x 2.909e-4 rad)
+def bar(ly, dist, scale): return ly / (dist * 2.909e-4) * 60 / scale   # a round length on the sky, in picture pixels
+
+def peak(img, near, radius, blur):
+    """The brightest spot near a place, so a name sits on the thing itself and not on a guess."""
+    g = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.float32), (0, 0), blur)
+    x0, y0 = max(int(near[0] - radius), 0), max(int(near[1] - radius), 0); t = g[y0:y0 + 2 * radius, x0:x0 + 2 * radius]
+    y, x = np.unravel_index(np.argmax(t), t.shape); return (x0 + x, y0 + y)
+
+def targets():
+    T = {}
+    rec = json.load(open("final/recipe.json")); fin = finish("m33"); sm = rec["summary"]
+    s9 = step(rec, "9 coverage, plate solve of the stack, star colours, render")["numbers"]["solve"]
+    S = s9["pixscale_arcsec"]; FL = s9["focal_length_mm"]; NORTH = s9["north_angle_from_up_deg_clockwise"]
+    # -- Messier 33 (final/m33.png, final/m33.json, final/recipe.json) ------------------------------------------------
+    # picture 2804 x 1652 at 0.7764 arcsec/px = 36.3 x 21.4 arcmin, not turned: north 64.4 deg anticlockwise of up.
+    # Catalogue places through the stack's own plate solution (work/solve/stack.wcs, wcs-rd2xy), then peak() finds the
+    # bright thing within 15 px; each looked at in a full-size crop:
+    #   nucleus  (1451, 680)   NGC 604 (630, 1060)   NGC 595 (1440, 360)   NGC 592 (1784, 128)
+    #   NGC 588 and IC 133 fall outside the picture; not labelled.
+    # Distance 2.73 million ly (840 kpc; published values 2.6 to 3.0 million), a soft number.
+    # Spans 2.73e6 x 36.3 x 2.909e-4 = 28,800 ly ("about 29,000"). One pixel: 2.73e6 x 0.7764 x 4.848e-6 = 10.3 ly.
+    # NGC 604: about 1,500 ly across (published), 40 times the Orion Nebula's span.
+    # Light left 2.7 million years ago: about when the first stone tools were made in East Africa (2.6 million years).
+    # Bar: 5,000 ly = 5000 / (2.73e6 x 2.909e-4) = 6.30 arcmin = 487 px.
+    D = 2.73e6
+    used = sm["turns"]; nU = sum(v["used"] for v in used.values()); nT = sum(v["taken"] for v in used.values())
+    T["m33"] = dict(src="final/m33.png", scale=S, north=-NORTH, title="The Triangulum Galaxy", sub="Messier 33, a spiral galaxy in Triangulum",
+        what="A whole galaxy of about 40 billion stars, the third largest in our Local Group after Andromeda and our own Milky Way. It is bigger on the sky than the camera sees: this is its middle and inner arms. The bright knots along the arms are clouds where new stars are being born; the biggest, NGC 604, is one of the largest star-forming clouds known.",
+        facts=[("DISTANCE", "about 2.7 million light-years (estimates run 2.6 to 3.0 million)"),
+               ("THIS PICTURE SPANS", "about 29,000 light-years; one pixel is about 10 light-years, and NGC 604 alone is about 1,500 light-years across"),
+               ("THE LIGHT LEFT", "about 2.7 million years ago, around when the first stone tools were made in East Africa"),
+               ("HONEST NOTE", "the galaxy fills every frame, so there is no empty sky to set black by: the darkest part of the picture is still galaxy. The outer arms that deep pictures show reach past the edges")],
+        bar=(bar(5000, D, S), "5,000 light-years"), frames="%d of %d frames of 15 s, from two nights" % (nU, nT),
+        labels=lambda im: [(peak(im, (1451, 680), 15, 2.0), "The core", 10, -9),
+                           (peak(im, (630, 1060), 15, 3.0), "NGC 604, a giant star-forming cloud", 6, 10),
+                           (peak(im, (1440, 360), 15, 3.0), "NGC 595, a star-forming cloud", -10, -7),
+                           (peak(im, (1784, 128), 15, 3.0), "NGC 592, a star-forming cloud", 9, 4)],
+        how_sub="%.1f hours of light from two nights, the camera moved a little between frames" % (nU * 15 / 3600.0),
+        tech=[("EXPOSURES", sm["integration"].replace("x 15 s", "x 15 s at ISO 3200")),
+              ("FRAMES", "%d taken on M33, %d kept. Tonight: held still %d of %d, dithered %d of %d, after Saturn %d of %d; 13 October %d of %d (that night the tracking let go now and then). Dropped: smeared (every star stretched the same way), stars too wide, the first frame after each slew" % (nT, nU, used["1a"]["used"], used["1a"]["taken"], used["1b"]["used"], used["1b"]["taken"], used["2"]["used"], used["2"]["taken"], used["13oct"]["used"], used["13oct"]["taken"])),
+              ("SAMPLING", "%.3f arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars %.1f arcsec wide (half-flux) in the stack" % (S, float(sm["star_size"].split(" arcsec in the stack")[0].split(": ")[-1]))),
+              ("FIELD", "%.1f x %.1f arcmin, wider than one frame (39 x 26 at another angle): the dithers spread the frames. Every frame covers %.0f%% of the picture, three quarters of them %.0f%%, at least half everywhere" % (s9["field_arcmin"][0], s9["field_arcmin"][1], 100 * s9["fraction_inside_with_every_frame"], 100 * s9["fraction_inside_with_three_quarters"])),
+              ("WHEN", "The nights of 12 and 17 October 2026. 46 to 86 degrees up"),
+              ("REGISTRATION", "Each frame placed first by its own plate solve, then rotation and shift on the stars; the field turned 10 degrees between the nights and the turns (the mount is 10 degrees off the pole)"),
+              ("CALIBRATION", "No darks or flat frames. The 13 October flat (large scale from that night's open sky, dust from its twilight frames); dust that moved since was measured on each night's own frames against the stack and divided out: tonight %d shadows, a new crescent %.0f percent deep left at %.0f, 13 October %d shallow ones. Hot pixels from the frames" % (len(step(rec, "7 canvas and dust")["numbers"]["nights"]["18oct"]["divided_out"]), 100 * step(rec, "7 canvas and dust")["numbers"]["nights"]["18oct"]["named_shadows"][0]["left_by_the_13oct_flat"], 100 * step(rec, "7 canvas and dust")["numbers"]["nights"]["18oct"]["named_shadows"][0]["left_after_own_correction"], len(step(rec, "7 canvas and dust")["numbers"]["nights"]["13oct"]["divided_out"]))),
+              ("STACKING", STACK + ". One constant per colour per frame, set where the galaxy is faintest; nothing fitted over it"),
+              ("WHAT IS REAL", "The arms and clusters repeat in the odd and the even frames alone in every 3 arcmin tile, out to the corners, and between tonight's frames and 13 October's"),
+              ("NOT SEEN", "The galaxy's far outer arms: they lie beyond the frame. The true sky level: there is none in the frame"),
+              ("COLOUR", "The camera's colour matrix with its white balance set by %d Gaia stars in the field (red x %.2f, blue x %.2f). Colour only where the light is bright enough to carry it; the faint disc is grey" % (step(rec, "9 coverage, plate solve of the stack, star colours, render")["numbers"]["colour"]["used"], step(rec, "9 coverage, plate solve of the stack, star colours, render")["numbers"]["colour"]["factors"]["R"], step(rec, "9 coverage, plate solve of the stack, star colours, render")["numbers"]["colour"]["factors"]["B"])),
+              ("FINISH", "Arcsinh stretch; black at the faintest part's own level, gamma 0.9, S-curve 0.3, saturation x 1.25; the dark parts smoothed (bilateral 3 px)"),
+              optics(FL), CAMERA, MOUNT])
+    return T
+
+def sent(text): return text[:1].upper() + text[1:]
+
+def wrap(d, text, f, width):
+    lines, cur = [], ""
+    for w in text.split():
+        t = (cur + " " + w).strip()
+        if d.textlength(t, font=f) <= width or not cur: cur = t
+        else: lines.append(cur); cur = w
+    return lines + [cur]
+
+def band_layout(W, u, title, sub, what, items, cols, credit, small):
+    """Everything under the picture, laid out before drawing so the band is exactly as tall as it needs."""
+    pad = 3.2 * u; k = 0.86 if small else 1.0
+    fT, fS, fW = font(3.0 * u, "demi"), font(1.45 * u, "medium"), font(1.5 * u)
+    fL, fV, fC = font(1.05 * u, "demi"), font(1.5 * u * (0.8 if small else 1.0), "medium" if not small else "regular"), font(0.98 * u)
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8))); gap = 2.4 * u; colw = (W - 2 * pad - gap * (cols - 1)) / cols; vh = 2.1 * u * (0.82 if small else 1.0)
+    ops = []; y = pad
+    for l in wrap(probe, title, fT, W - 2 * pad): ops.append((pad, y, l, fT, INK)); y += 3.7 * u
+    ops.append((pad, y - 0.3 * u, sub, fS, DIM)); y += 2.6 * u + 0.6 * u
+    if what:
+        for l in wrap(probe, what, fW, min(W - 2 * pad, 78 * u)): ops.append((pad, y, l, fW, SOFT)); y += 2.15 * u
+        y += 1.2 * u
+    rules = []
+    for r in range(0, len(items), cols):
+        row = items[r:r + cols]; lines = [wrap(probe, sent(v), fV, colw) for _, v in row]; y += 0.9 * u
+        for c, ((lab, _), ls) in enumerate(zip(row, lines)):
+            x = pad + c * (colw + gap); rules.append((x, y - 0.7 * u, x + colw)); ops.append((x, y, lab.capitalize(), fL, DIM))
+            for i, l in enumerate(ls): ops.append((x, y + 1.6 * u + i * vh, l, fV, INK if not small else SOFT))
+        y += 1.6 * u + max(len(l) for l in lines) * vh + 1.3 * u
+    y += 0.4 * u
+    for i, l in enumerate(credit):
+        for cl in wrap(probe, l, fC, W - 2 * pad): ops.append((pad, y, cl, fC, SOFT if i == 0 else DIM)); y += 1.6 * u
+    return int(math.ceil(y + pad * 0.7)), ops, rules
+
+def load(src): return cv2.cvtColor(cv2.imread(src, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+
+def render(name, t, kind, caption=True):
+    rgb = load(t["src"]); H, W = rgb.shape[:2]; u = max(W / 100.0, UMIN); pad = 3.2 * u
+    # a small picture keeps its own size; its share versions put it in the middle of a band as wide as the words need
+    Wc = max(W, int(round(100 * u))) if caption else W; ox = (Wc - W) // 2
+    if kind == "story":
+        band, ops, rules = band_layout(Wc, u, t["title"], t["sub"], t["what"], t["facts"], len(t["facts"]), [GEAR, t["frames"][0].upper() + t["frames"][1:] + ".  " + TRUE], False)
+    else:
+        band, ops, rules = band_layout(Wc, u, "How it was made: " + re.sub("^The ", "the ", t["title"].split(":")[0]), t["how_sub"][0].upper() + t["how_sub"][1:], None, t["tech"], 3, [GEAR, MADE], True)
+    if not caption: band, ops, rules = 0, [], []
+    sky = BAND                                                    # a small picture sits on the band's colour, as on a mat: a near match to grainy sky shows its edge anyway
+    canvas = Image.new("RGB", (Wc, H + band), sky); canvas.paste(Image.fromarray(rgb), (ox, 0)); d = ImageDraw.Draw(canvas, "RGBA")
+    fN, fC = font(1.5 * u, "medium"), font(0.98 * u); lw = max(2, int(round(u / 9)))
+    def words(tx, ty, text, f=fN, fill=INK):
+        tw = d.textlength(text, font=f); th = f.size * 1.25
+        d.rounded_rectangle([tx - 0.45 * u, ty - 0.1 * u, tx + tw + 0.45 * u, ty + th + 0.1 * u], radius=0.35 * u, fill=(0, 0, 0, 150 if kind == "story" else 235)); d.text((tx, ty), text, font=f, fill=fill)
+    def label(pt, text, dx, dy, leader=True, gap=None):
+        pt = (pt[0] + ox, pt[1]); tw = d.textlength(text, font=fN); th = fN.size * 1.25
+        if dx == 0 and dy == 0: return words(pt[0] - tw / 2, pt[1] - th / 2, text)
+        ax, ay = pt[0] + dx * u, pt[1] + dy * u
+        tx = ax + 0.4 * u if dx > 0 else (ax - tw - 0.4 * u if dx < 0 else ax - tw / 2); ty = ay - th / 2 if dx != 0 else (ay - th - 0.3 * u if dy < 0 else ay + 0.3 * u)
+        if leader:
+            L = math.hypot(dx, dy) * u; g0 = min((t.get("gap", 0.9) if gap is None else gap) * u, L * 0.25)   # how far short of the thing a leader stops
+            p0 = (pt[0] + dx * u * g0 / L, pt[1] + dy * u * g0 / L); p1 = (ax, ay)
+            d.line([p0, p1], fill=(0, 0, 0, 120), width=lw + 2); d.line([p0, p1], fill=(238, 238, 234, 240), width=lw)
+        if text: words(tx, ty, text)                              # no words: a second leader to the label before it
+    if kind == "story":
+        for pt, text, dx, dy, *gap in t["labels"](rgb):           # a label may carry its own gap as a fifth value
+            if 0 <= pt[0] < W and 0 <= pt[1] < H: label(pt, text, dx, dy, leader=text not in t.get("plain", ()), gap=gap[0] if gap else None)
+    bl, btxt = t["bar"]; ang = bl * t["scale"]; angtxt = "%.1f arcminutes" % (ang / 60) if ang >= 90 else "%.0f arcseconds" % ang
+    angtxt = t.get("bar_sub", angtxt)                             # a bar that is already a round angle says underneath what that angle is out there
+    if kind == "how": bl = round(ang / 60 if ang >= 90 else ang) * (60 if ang >= 90 else 1) / t["scale"]; ang = bl * t["scale"]; btxt = ("%.0f arcminutes" % (ang / 60) if ang >= 90 else "%.0f arcseconds" % ang); btxt = re.sub(r"^1 (arcminute|arcsecond)s$", r"1 \1", btxt); angtxt = "%.3g arcsec per pixel" % t["scale"]
+    bx, by = ox + pad, H - pad
+    d.line([(bx, by), (bx + bl, by)], fill=(0, 0, 0, 120), width=lw + 3); d.line([(bx, by), (bx + bl, by)], fill=INK, width=lw + 1)
+    for xx in (bx, bx + bl): d.line([(xx, by - 0.5 * u), (xx, by + 0.5 * u)], fill=INK, width=lw + 1)
+    tw = d.textlength(btxt, font=fN); words(max(bx, bx + bl / 2 - tw / 2), by - 3.3 * u, btxt)
+    tw = d.textlength(angtxt, font=fC); words(max(bx, bx + bl / 2 - tw / 2), by + 0.7 * u, angtxt, f=fC, fill=SOFT)
+    if t.get("compass", True):
+        a = math.radians(t["north"]); cx, cy, r = ox + W - pad - 4 * u, H - pad - 1.5 * u, 4.2 * u
+        nx, ny = -math.sin(a), -math.cos(a); ex, ey = -math.cos(a), math.sin(a)            # north is `north` deg counter-clockwise of up; east is to its left
+        for (vx, vy, txt, k) in ((nx, ny, "N", 1.0), (ex, ey, "E", 0.62)):
+            tip = (cx + vx * r * k, cy + vy * r * k); d.line([(cx, cy), tip], fill=(0, 0, 0, 120), width=lw + 2); d.line([(cx, cy), tip], fill=INK, width=lw)
+            lx, ly = cx + vx * (r * k + 1.4 * u), cy + vy * (r * k + 1.4 * u); d.text((lx - d.textlength(txt, font=fC) / 2, ly - 0.7 * u), txt, font=fC, fill=INK)
+    if not caption: return canvas
+    d.rectangle([0, H, Wc, H + band], fill=BAND + (255,))
+    for x0, y0, x1 in rules: d.line([(x0, H + y0), (x1, H + y0)], fill=RULE, width=max(1, int(u / 14)))
+    for x, y, text, f, fill in ops: d.text((x, H + y), text, font=f, fill=fill)
+    out = "share/%s-%s.jpg" % (name, "annotated" if kind == "story" else "how"); canvas.save(out, quality=93, subsampling=0, optimize=True); return out
+
+# the order of the night's page is the order of the entries in targets() (ORDER is set from it below)
+THUMB = {}           # the part of a picture its small version shows: x, y, width, height (none tonight: all whole)
+CARD = {}            # the part a link preview shows, at the picture's own pixels (none tonight; the builder shows a small picture whole)
+CARD_TEXT = {}       # where a link preview's words go when the foot of the picture is the busy part (the nebula is in the middle)
+
+def site(out):
+    """The same set for the website: pictures at full size and 1600 wide, small ones for the grid, and the words as data
+    (objects.json) so the page sets them as text. Pictures carry no caption band here."""
+    os.makedirs(out + "/images", exist_ok=True); objects = []
+    def put(img, stem, q):
+        img.save("%s/images/%s.jpg" % (out, stem), quality=q, subsampling=0, optimize=True)
+        if img.width > 1600: img.resize((1600, round(img.height * 1600 / img.width)), Image.LANCZOS).save("%s/images/%s-1600.jpg" % (out, stem), quality=88, subsampling=0, optimize=True)
+    for name in ORDER:
+        t = T[name]; clean = Image.fromarray(load(t["src"])); put(clean, name, 93)
+        x, y, w, h = THUMB.get(name, (0, 0, clean.width, clean.height)); small = clean.crop((x, y, x + w, y + h)); small.thumbnail((900, 900), Image.LANCZOS)
+        small.save("%s/images/%s-thumb.jpg" % (out, name), quality=86, subsampling=0, optimize=True)
+        put(render(name, t, "story", caption=False), name + "-labels", 93)
+        frames = bool(t.get("outlines") or t.get("how_labels")); card = None
+        if name in CARD:
+            x, y, w, h = CARD[name]; card = name + "-card.jpg"; clean.crop((x, y, x + w, y + h)).save("%s/images/%s" % (out, card), quality=92, subsampling=0, optimize=True)
+        if frames: put(render(name, t, "how", caption=False), name + "-frames", 93)
+        objects.append(dict(slug=name, title=t["title"], subtitle=t["sub"], what=t["what"], facts=[[k.capitalize(), sent(v)] for k, v in t["facts"]],
+                            made=sent(t["frames"]), how=sent(t["how_sub"]), specs=[[k.capitalize(), sent(v)] for k, v in t["tech"]],
+                            width=clean.width, height=clean.height, thumb=[small.width, small.height], arcsec_per_px=t["scale"], frames=frames, card=card, card_text=CARD_TEXT.get(name, "bottom")))
+        print("site: %-18s %d x %d%s" % (name, clean.width, clean.height, ", with frames" if frames else ""))
+    json.dump(dict(credit=GEAR, made_with=MADE, objects=objects), open(out + "/objects.json", "w"), indent=1, ensure_ascii=False)
+
+T = targets(); ORDER = list(T)
+if len(sys.argv) > 2 and sys.argv[1] == "--site": site(sys.argv[2]); sys.exit(0)
+for name in (sys.argv[1:] or ORDER):
+    t = T[name]; rgb = load(t["src"])
+    Image.fromarray(rgb).save("share/%s.jpg" % name, quality=93, subsampling=0, optimize=True)
+    a, b = render(name, t, "story"), render(name, t, "how")
+    print("%-20s %5d x %-5d  clean %4.2f MB  annotated %4.2f MB  how %4.2f MB" % (name, rgb.shape[1], rgb.shape[0], os.path.getsize("share/%s.jpg" % name) / 1e6, os.path.getsize(a) / 1e6, os.path.getsize(b) / 1e6))

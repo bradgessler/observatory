@@ -1,0 +1,2 @@
+saturn-finished: black 0.7 white 255.0 gamma 1.00 curve 0.10 sat 1.15 | white-clipped 0.000% black-clipped 2.656%
+saturn-finished.png          darkest  0-10%: R   1.0 G   1.0 B   1.0 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R   1.6 G   1.6 B   1.6 (R-G  +0.0, B-G  -0.0)

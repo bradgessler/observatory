@@ -1,0 +1,247 @@
+API VERSION: 1.2
+API SOURCE: NASA/JPL Horizons API
+
+*******************************************************************************
+ Revised: Jan 26, 2022             Mimas / (Saturn)                         601
+                        http://ssd.jpl.nasa.gov/?sat_phys_par
+                         http://ssd.jpl.nasa.gov/?sat_elem
+
+ SATELLITE PHYSICAL PROPERTIES:
+  Mean Radius (km)        = 198.8   +- 1.5   Density (g/cm^3)  = 1.152 +- 0.027
+  Mass (10^19 kg)         =   3.75           Geometric Albedo  = 0.6 
+  GM (km^3/s^2)           =   2.503489       V(1,0)            = +3.3
+
+ SATELLITE ORBITAL DATA (mean elements referred to local Laplace plane):
+  Semi-major axis, a (km) = 185.54(10^3)    Orbital period     = 0.9424218 d
+  Eccentricity, e         = 0.0196          Rotational period  = Synchronous
+  Inclination, i  (deg)   = 1.572
+*******************************************************************************
+
+
+*******************************************************************************
+Ephemeris / API_USER Sun Oct 18 02:11:06 2026 Pasadena, USA      / Horizons    
+*******************************************************************************
+Target body name: Mimas (601)                     {source: sat441l}
+Center body name: Earth (399)                     {source: DE441}
+Center-site name: GEOCENTRIC
+*******************************************************************************
+Start time      : A.D. 2026-Oct-18 05:20:00.0000 UT      
+Stop  time      : A.D. 2026-Oct-18 07:26:00.0000 UT      
+Step-size       : 1 minutes
+*******************************************************************************
+Target pole/equ : IAU_MIMAS                       {West-longitude positive}
+Target radii    : 207.8, 196.7, 190.6 km          {Equator_a, b, pole_c}       
+Center geodetic : 0.0, 0.0, -6378.137             {E-lon(deg),Lat(deg),Alt(km)}
+Center cylindric: 0.0, 0.0, 0.0                   {E-lon(deg),Dxy(km),Dz(km)}
+Center pole/equ : ITRF93                          {East-longitude positive}
+Center radii    : 6378.137, 6378.137, 6356.752 km {Equator_a, b, pole_c}       
+Target primary  : Saturn
+Vis. interferer : MOON (R_eq= 1737.400) km        {source: DE441}
+Rel. light bend : Sun                             {source: DE441}
+Rel. lght bnd GM: 1.3271E+11 km^3/s^2                                          
+Atmos refraction: NO (AIRLESS)
+RA format       : DEG
+Time format     : CAL 
+Calendar mode   : Mixed Julian/Gregorian
+EOP file        : eop.261016.p270112                                           
+EOP coverage    : DATA-BASED 1962-JAN-20 TO 2026-OCT-16. PREDICTS-> 2027-JAN-11
+Units conversion: 1 au= 149597870.700 km, c= 299792.458 km/s, 1 day= 86400.0 s 
+Table cut-offs 1: Elevation (-90.0deg=NO ),Airmass (>38.000=NO), Daylight (NO )
+Table cut-offs 2: Solar elongation (  0.0,180.0=NO ),Local Hour Angle( 0.0=NO )
+Table cut-offs 3: RA/DEC angular rate (     0.0=NO )                           
+Table format    : Comma Separated Values (spreadsheet)
+*******************************************************************************
+ Date__(UT)__HR:MN, , , R.A.___(ICRF), DEC____(ICRF),
+*****************************************************
+$$SOE
+ 2026-Oct-18 05:20, , ,  10.132863500,   1.413325554,
+ 2026-Oct-18 05:21, , ,  10.132812042,   1.413310051,
+ 2026-Oct-18 05:22, , ,  10.132760408,   1.413294560,
+ 2026-Oct-18 05:23, , ,  10.132708599,   1.413279079,
+ 2026-Oct-18 05:24, , ,  10.132656614,   1.413263610,
+ 2026-Oct-18 05:25, , ,  10.132604455,   1.413248151,
+ 2026-Oct-18 05:26, , ,  10.132552121,   1.413232704,
+ 2026-Oct-18 05:27, , ,  10.132499612,   1.413217267,
+ 2026-Oct-18 05:28, , ,  10.132446928,   1.413201840,
+ 2026-Oct-18 05:29, , ,  10.132394070,   1.413186424,
+ 2026-Oct-18 05:30, , ,  10.132341037,   1.413171019,
+ 2026-Oct-18 05:31, , ,  10.132287831,   1.413155623,
+ 2026-Oct-18 05:32, , ,  10.132234450,   1.413140238,
+ 2026-Oct-18 05:33, , ,  10.132180895,   1.413124864,
+ 2026-Oct-18 05:34, , ,  10.132127167,   1.413109499,
+ 2026-Oct-18 05:35, , ,  10.132073265,   1.413094144,
+ 2026-Oct-18 05:36, , ,  10.132019190,   1.413078799,
+ 2026-Oct-18 05:37, , ,  10.131964942,   1.413063464,
+ 2026-Oct-18 05:38, , ,  10.131910520,   1.413048138,
+ 2026-Oct-18 05:39, , ,  10.131855926,   1.413032822,
+ 2026-Oct-18 05:40, , ,  10.131801158,   1.413017516,
+ 2026-Oct-18 05:41, , ,  10.131746219,   1.413002219,
+ 2026-Oct-18 05:42, , ,  10.131691107,   1.412986931,
+ 2026-Oct-18 05:43, , ,  10.131635823,   1.412971653,
+ 2026-Oct-18 05:44, , ,  10.131580367,   1.412956384,
+ 2026-Oct-18 05:45, , ,  10.131524739,   1.412941123,
+ 2026-Oct-18 05:46, , ,  10.131468939,   1.412925872,
+ 2026-Oct-18 05:47, , ,  10.131412969,   1.412910630,
+ 2026-Oct-18 05:48, , ,  10.131356827,   1.412895396,
+ 2026-Oct-18 05:49, , ,  10.131300514,   1.412880171,
+ 2026-Oct-18 05:50, , ,  10.131244030,   1.412864954,
+ 2026-Oct-18 05:51, , ,  10.131187376,   1.412849747,
+ 2026-Oct-18 05:52, , ,  10.131130552,   1.412834547,
+ 2026-Oct-18 05:53, , ,  10.131073558,   1.412819356,
+ 2026-Oct-18 05:54, , ,  10.131016393,   1.412804173,
+ 2026-Oct-18 05:55, , ,  10.130959059,   1.412788998,
+ 2026-Oct-18 05:56, , ,  10.130901556,   1.412773831,
+ 2026-Oct-18 05:57, , ,  10.130843884,   1.412758672,
+ 2026-Oct-18 05:58, , ,  10.130786043,   1.412743521,
+ 2026-Oct-18 05:59, , ,  10.130728033,   1.412728378,
+ 2026-Oct-18 06:00, , ,  10.130669854,   1.412713242,
+ 2026-Oct-18 06:01, , ,  10.130611508,   1.412698114,
+ 2026-Oct-18 06:02, , ,  10.130552993,   1.412682993,
+ 2026-Oct-18 06:03, , ,  10.130494311,   1.412667880,
+ 2026-Oct-18 06:04, , ,  10.130435462,   1.412652774,
+ 2026-Oct-18 06:05, , ,  10.130376445,   1.412637675,
+ 2026-Oct-18 06:06, , ,  10.130317262,   1.412622583,
+ 2026-Oct-18 06:07, , ,  10.130257912,   1.412607498,
+ 2026-Oct-18 06:08, , ,  10.130198395,   1.412592420,
+ 2026-Oct-18 06:09, , ,  10.130138713,   1.412577349,
+ 2026-Oct-18 06:10, , ,  10.130078865,   1.412562285,
+ 2026-Oct-18 06:11, , ,  10.130018851,   1.412547227,
+ 2026-Oct-18 06:12, , ,  10.129958672,   1.412532176,
+ 2026-Oct-18 06:13, , ,  10.129898328,   1.412517131,
+ 2026-Oct-18 06:14, , ,  10.129837820,   1.412502092,
+ 2026-Oct-18 06:15, , ,  10.129777147,   1.412487060,
+ 2026-Oct-18 06:16, , ,  10.129716310,   1.412472034,
+ 2026-Oct-18 06:17, , ,  10.129655310,   1.412457013,
+ 2026-Oct-18 06:18, , ,  10.129594146,   1.412441999,
+ 2026-Oct-18 06:19, , ,  10.129532818,   1.412426991,
+ 2026-Oct-18 06:20, , ,  10.129471329,   1.412411988,
+ 2026-Oct-18 06:21, , ,  10.129409676,   1.412396991,
+ 2026-Oct-18 06:22, , ,  10.129347862,   1.412382000,
+ 2026-Oct-18 06:23, , ,  10.129285885,   1.412367014,
+ 2026-Oct-18 06:24, , ,  10.129223747,   1.412352033,
+ 2026-Oct-18 06:25, , ,  10.129161448,   1.412337057,
+ 2026-Oct-18 06:26, , ,  10.129098988,   1.412322087,
+ 2026-Oct-18 06:27, , ,  10.129036367,   1.412307122,
+ 2026-Oct-18 06:28, , ,  10.128973586,   1.412292162,
+ 2026-Oct-18 06:29, , ,  10.128910646,   1.412277207,
+ 2026-Oct-18 06:30, , ,  10.128847545,   1.412262256,
+ 2026-Oct-18 06:31, , ,  10.128784286,   1.412247310,
+ 2026-Oct-18 06:32, , ,  10.128720867,   1.412232369,
+ 2026-Oct-18 06:33, , ,  10.128657291,   1.412217432,
+ 2026-Oct-18 06:34, , ,  10.128593556,   1.412202500,
+ 2026-Oct-18 06:35, , ,  10.128529663,   1.412187572,
+ 2026-Oct-18 06:36, , ,  10.128465613,   1.412172648,
+ 2026-Oct-18 06:37, , ,  10.128401405,   1.412157728,
+ 2026-Oct-18 06:38, , ,  10.128337042,   1.412142813,
+ 2026-Oct-18 06:39, , ,  10.128272521,   1.412127901,
+ 2026-Oct-18 06:40, , ,  10.128207845,   1.412112993,
+ 2026-Oct-18 06:41, , ,  10.128143013,   1.412098089,
+ 2026-Oct-18 06:42, , ,  10.128078026,   1.412083188,
+ 2026-Oct-18 06:43, , ,  10.128012884,   1.412068291,
+ 2026-Oct-18 06:44, , ,  10.127947588,   1.412053397,
+ 2026-Oct-18 06:45, , ,  10.127882137,   1.412038507,
+ 2026-Oct-18 06:46, , ,  10.127816533,   1.412023620,
+ 2026-Oct-18 06:47, , ,  10.127750776,   1.412008736,
+ 2026-Oct-18 06:48, , ,  10.127684866,   1.411993855,
+ 2026-Oct-18 06:49, , ,  10.127618803,   1.411978977,
+ 2026-Oct-18 06:50, , ,  10.127552588,   1.411964101,
+ 2026-Oct-18 06:51, , ,  10.127486222,   1.411949229,
+ 2026-Oct-18 06:52, , ,  10.127419704,   1.411934359,
+ 2026-Oct-18 06:53, , ,  10.127353035,   1.411919492,
+ 2026-Oct-18 06:54, , ,  10.127286216,   1.411904627,
+ 2026-Oct-18 06:55, , ,  10.127219247,   1.411889765,
+ 2026-Oct-18 06:56, , ,  10.127152128,   1.411874905,
+ 2026-Oct-18 06:57, , ,  10.127084860,   1.411860047,
+ 2026-Oct-18 06:58, , ,  10.127017443,   1.411845191,
+ 2026-Oct-18 06:59, , ,  10.126949878,   1.411830337,
+ 2026-Oct-18 07:00, , ,  10.126882164,   1.411815485,
+ 2026-Oct-18 07:01, , ,  10.126814304,   1.411800634,
+ 2026-Oct-18 07:02, , ,  10.126746296,   1.411785786,
+ 2026-Oct-18 07:03, , ,  10.126678142,   1.411770938,
+ 2026-Oct-18 07:04, , ,  10.126609841,   1.411756093,
+ 2026-Oct-18 07:05, , ,  10.126541395,   1.411741249,
+ 2026-Oct-18 07:06, , ,  10.126472803,   1.411726406,
+ 2026-Oct-18 07:07, , ,  10.126404066,   1.411711564,
+ 2026-Oct-18 07:08, , ,  10.126335185,   1.411696723,
+ 2026-Oct-18 07:09, , ,  10.126266161,   1.411681884,
+ 2026-Oct-18 07:10, , ,  10.126196992,   1.411667045,
+ 2026-Oct-18 07:11, , ,  10.126127681,   1.411652207,
+ 2026-Oct-18 07:12, , ,  10.126058227,   1.411637370,
+ 2026-Oct-18 07:13, , ,  10.125988630,   1.411622533,
+ 2026-Oct-18 07:14, , ,  10.125918892,   1.411607697,
+ 2026-Oct-18 07:15, , ,  10.125849013,   1.411592861,
+ 2026-Oct-18 07:16, , ,  10.125778994,   1.411578026,
+ 2026-Oct-18 07:17, , ,  10.125708833,   1.411563191,
+ 2026-Oct-18 07:18, , ,  10.125638534,   1.411548356,
+ 2026-Oct-18 07:19, , ,  10.125568094,   1.411533521,
+ 2026-Oct-18 07:20, , ,  10.125497517,   1.411518686,
+ 2026-Oct-18 07:21, , ,  10.125426800,   1.411503850,
+ 2026-Oct-18 07:22, , ,  10.125355946,   1.411489015,
+ 2026-Oct-18 07:23, , ,  10.125284955,   1.411474179,
+ 2026-Oct-18 07:24, , ,  10.125213826,   1.411459342,
+ 2026-Oct-18 07:25, , ,  10.125142562,   1.411444505,
+ 2026-Oct-18 07:26, , ,  10.125071161,   1.411429668,
+$$EOE
+*******************************************************************************
+Column meaning:
+ 
+TIME
+
+  Times PRIOR to 1962 are UT1, a mean-solar time closely related to the
+prior but now-deprecated GMT. Times AFTER 1962 are in UTC, the current
+civil or "wall-clock" time-scale. UTC is kept within 0.9 seconds of UT1
+using integer leap-seconds for 1972 and later years.
+
+  Conversion from the internal Barycentric Dynamical Time (TDB) of solar
+system dynamics to the non-uniform civil UT time-scale requested for output
+has not been determined for UTC times after the next July or January 1st.
+Therefore, the last known leap-second is used as a constant over future
+intervals.
+
+  Time tags refer to the UT time-scale conversion from TDB on Earth
+regardless of observer location within the solar system, although clock
+rates may differ due to the local gravity field and no analog to "UT"
+may be defined for that location.
+
+  Any 'b' symbol in the 1st-column denotes a B.C. date. First-column blank
+(" ") denotes an A.D. date.
+ 
+CALENDAR SYSTEM
+
+  Mixed calendar mode was active such that calendar dates after AD 1582-Oct-15
+(if any) are in the modern Gregorian system. Dates prior to 1582-Oct-5 (if any)
+are in the Julian calendar system, which is automatically extended for dates
+prior to its adoption on 45-Jan-1 BC.  The Julian calendar is useful for
+matching historical dates. The Gregorian calendar more accurately corresponds
+to the Earth's orbital motion and seasons. A "Gregorian-only" calendar mode is
+available if such physical events are the primary interest.
+
+  NOTE: "n.a." in output means quantity "not available" at the print-time.
+ 
+ 'R.A.___(ICRF), DEC____(ICRF),' =
+  Astrometric right ascension and declination of the target center with
+respect to the observing site (coordinate origin) in the reference frame of
+the planetary ephemeris (ICRF). Compensated for down-leg light-time delay
+aberration.
+
+  Units: RA  in decimal degrees,  ddd.fffff{ffff}
+         DEC in decimal degrees,  sdd.fffff{ffff}
+
+Computations by ...
+
+    Solar System Dynamics Group, Horizons On-Line Ephemeris System
+    4800 Oak Grove Drive, Jet Propulsion Laboratory
+    Pasadena, CA  91109   USA
+
+    General site: https://ssd.jpl.nasa.gov/
+    Mailing list: https://ssd.jpl.nasa.gov/email_list.html
+    System news : https://ssd.jpl.nasa.gov/horizons/news.html
+    User Guide  : https://ssd.jpl.nasa.gov/horizons/manual.html
+    Connect     : browser        https://ssd.jpl.nasa.gov/horizons/app.html#/x
+                  API            https://ssd-api.jpl.nasa.gov/doc/horizons.html
+                  command-line   telnet ssd.jpl.nasa.gov 6775
+                  e-mail/batch   https://ssd.jpl.nasa.gov/ftp/ssd/horizons_batch.txt
+                  scripts        https://ssd.jpl.nasa.gov/ftp/ssd/SCRIPTS
+    Inquiries   : Jon.D.Giorgini@jpl.nasa.gov
+
+*******************************************************************************

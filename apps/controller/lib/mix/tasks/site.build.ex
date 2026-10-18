@@ -695,7 +695,7 @@ defmodule Mix.Tasks.Site.Build do
     """
   end
 
-  defp target_section(night, o, site) do
+  defp target_section(night, o, _site) do
     slug = o["slug"]
     specs = Enum.map(o["specs"] || [], &List.to_tuple/1)
     {equipment, rest} = Enum.split_with(specs, fn {k, _} -> k in @equipment end)

@@ -1,0 +1,52 @@
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+sky plane taken off (green, DN): +3.23 at the origin, -4.12 across the width, -2.20 down the height; block rms after 0.59
+ring 2.0-3.0 arcmin, PA   0- 30: stack  24.52 DN | odd  24.66 even  24.53 | blank spread 0.59 (24 places) ->  41.5 /  41.3 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA  30- 60: stack  21.01 DN | odd  21.05 even  21.05 | blank spread 0.59 (24 places) ->  35.4 /  35.4 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA  60- 90: stack  19.85 DN | odd  19.92 even  19.93 | blank spread 0.59 (24 places) ->  33.5 /  33.5 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA  90-120: stack  11.57 DN | odd  11.68 even  11.50 | blank spread 0.59 (24 places) ->  19.7 /  19.4 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 120-150: stack  16.61 DN | odd  16.62 even  16.63 | blank spread 0.59 (24 places) ->  28.0 /  28.0 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 150-180: stack  21.48 DN | odd  21.54 even  21.41 | blank spread 0.59 (24 places) ->  36.2 /  36.0 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 180-210: stack  18.14 DN | odd  18.05 even  18.30 | blank spread 0.59 (24 places) ->  30.4 /  30.8 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 210-240: stack  11.12 DN | odd  11.17 even  11.27 | blank spread 0.59 (24 places) ->  18.8 /  19.0 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 240-270: stack  16.03 DN | odd  15.98 even  16.23 | blank spread 0.59 (24 places) ->  26.9 /  27.3 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 270-300: stack  14.52 DN | odd  14.44 even  14.72 | blank spread 0.59 (24 places) ->  24.3 /  24.8 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 300-330: stack  17.92 DN | odd  17.90 even  18.06 | blank spread 0.59 (24 places) ->  30.1 /  30.4 sigma SEEN in both halves
+ring 2.0-3.0 arcmin, PA 330-360: stack  25.09 DN | odd  25.11 even  25.08 | blank spread 0.59 (24 places) ->  42.2 /  42.2 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA   0- 30: stack   0.12 DN | odd   0.26 even   0.11 | blank spread 0.53 (24 places) ->   0.5 /   0.2 sigma 
+ring 3.0-4.0 arcmin, PA  30- 60: stack  -0.70 DN | odd  -0.67 even  -0.63 | blank spread 0.53 (24 places) ->  -1.3 /  -1.2 sigma 
+ring 3.0-4.0 arcmin, PA  60- 90: stack   1.25 DN | odd   1.26 even   1.34 | blank spread 0.53 (24 places) ->   2.4 /   2.5 sigma 
+ring 3.0-4.0 arcmin, PA  90-120: stack   6.33 DN | odd   6.39 even   6.40 | blank spread 0.53 (24 places) ->  12.1 /  12.1 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 120-150: stack   5.88 DN | odd   5.90 even   6.01 | blank spread 0.53 (24 places) ->  11.2 /  11.4 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 150-180: stack   2.93 DN | odd   3.03 even   3.10 | blank spread 0.53 (24 places) ->   5.7 /   5.9 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 180-210: stack  -0.16 DN | odd  -0.06 even  -0.13 | blank spread 0.53 (24 places) ->  -0.1 /  -0.2 sigma 
+ring 3.0-4.0 arcmin, PA 210-240: stack  -0.23 DN | odd  -0.20 even  -0.03 | blank spread 0.53 (24 places) ->  -0.4 /  -0.1 sigma 
+ring 3.0-4.0 arcmin, PA 240-270: stack   1.90 DN | odd   2.04 even   2.04 | blank spread 0.53 (24 places) ->   3.9 /   3.9 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 270-300: stack   6.51 DN | odd   6.60 even   6.54 | blank spread 0.53 (24 places) ->  12.5 /  12.4 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 300-330: stack   6.36 DN | odd   6.47 even   6.43 | blank spread 0.53 (24 places) ->  12.3 /  12.2 sigma SEEN in both halves
+ring 3.0-4.0 arcmin, PA 330-360: stack   2.54 DN | odd   2.57 even   2.62 | blank spread 0.53 (24 places) ->   4.9 /   5.0 sigma SEEN in both halves
+ring 4.0-5.0 arcmin, PA   0- 30: stack  -0.68 DN | odd  -0.54 even  -0.60 | blank spread 0.50 (24 places) ->  -1.1 /  -1.2 sigma 
+ring 4.0-5.0 arcmin, PA  30- 60: stack  -1.58 DN | odd  -1.51 even  -1.50 | blank spread 0.50 (24 places) ->  -3.0 /  -3.0 sigma 
+ring 4.0-5.0 arcmin, PA  60- 90: stack  -0.67 DN | odd  -0.61 even  -0.60 | blank spread 0.50 (24 places) ->  -1.2 /  -1.2 sigma 
+ring 4.0-5.0 arcmin, PA  90-120: stack   0.04 DN | odd   0.19 even  -0.03 | blank spread 0.50 (24 places) ->   0.4 /  -0.1 sigma 
+ring 4.0-5.0 arcmin, PA 120-150: stack   0.25 DN | odd   0.26 even   0.31 | blank spread 0.50 (24 places) ->   0.5 /   0.6 sigma 
+ring 4.0-5.0 arcmin, PA 150-180: stack  -0.45 DN | odd  -0.42 even  -0.19 | blank spread 0.50 (24 places) ->  -0.8 /  -0.4 sigma 
+ring 4.0-5.0 arcmin, PA 180-210: stack  -0.82 DN | odd  -0.75 even  -0.73 | blank spread 0.50 (24 places) ->  -1.5 /  -1.5 sigma 
+ring 4.0-5.0 arcmin, PA 210-240: stack  -0.75 DN | odd  -0.73 even  -0.58 | blank spread 0.50 (24 places) ->  -1.5 /  -1.2 sigma 
+ring 4.0-5.0 arcmin, PA 240-270: stack   0.09 DN | odd   0.16 even   0.24 | blank spread 0.50 (24 places) ->   0.3 /   0.5 sigma 
+ring 4.0-5.0 arcmin, PA 270-300: stack   0.35 DN | odd   0.36 even   0.43 | blank spread 0.50 (24 places) ->   0.7 /   0.9 sigma 
+ring 4.0-5.0 arcmin, PA 300-330: stack   0.14 DN | odd   0.17 even   0.24 | blank spread 0.50 (24 places) ->   0.3 /   0.5 sigma 
+ring 4.0-5.0 arcmin, PA 330-360: stack  -0.05 DN | odd  -0.02 even   0.16 | blank spread 0.50 (24 places) ->  -0.0 /   0.3 sigma 
+ring 5.0-6.5 arcmin, PA   0- 30: stack  -0.78 DN | odd  -0.70 even  -0.69 | blank spread 0.36 (24 places) ->  -2.0 /  -1.9 sigma 
+ring 5.0-6.5 arcmin, PA  30- 60: stack  -1.02 DN | odd  -1.05 even  -0.90 | blank spread 0.36 (24 places) ->  -2.9 /  -2.5 sigma 
+ring 5.0-6.5 arcmin, PA  60- 90: stack  -1.00 DN | odd  -0.93 even  -0.99 | blank spread 0.36 (24 places) ->  -2.6 /  -2.8 sigma 
+ring 5.0-6.5 arcmin, PA  90-120: stack  -0.51 DN | odd  -0.44 even  -0.51 | blank spread 0.36 (24 places) ->  -1.2 /  -1.4 sigma 
+ring 5.0-6.5 arcmin, PA 120-150: stack  -0.46 DN | odd  -0.46 even  -0.37 | blank spread 0.36 (24 places) ->  -1.3 /  -1.0 sigma 
+ring 5.0-6.5 arcmin, PA 150-180: stack  -0.66 DN | odd  -0.62 even  -0.59 | blank spread 0.36 (24 places) ->  -1.7 /  -1.6 sigma 
+ring 5.0-6.5 arcmin, PA 180-210: stack  -0.62 DN | odd  -0.46 even  -0.60 | blank spread 0.36 (24 places) ->  -1.3 /  -1.7 sigma 
+ring 5.0-6.5 arcmin, PA 210-240: stack  -0.56 DN | odd  -0.40 even  -0.54 | blank spread 0.36 (24 places) ->  -1.1 /  -1.5 sigma 
+ring 5.0-6.5 arcmin, PA 240-270: stack  -0.54 DN | odd  -0.44 even  -0.45 | blank spread 0.36 (24 places) ->  -1.2 /  -1.3 sigma 
+ring 5.0-6.5 arcmin, PA 270-300: stack   0.03 DN | odd   0.16 even   0.06 | blank spread 0.36 (24 places) ->   0.5 /   0.2 sigma 
+ring 5.0-6.5 arcmin, PA 300-330: stack   0.24 DN | odd   0.35 even   0.33 | blank spread 0.36 (24 places) ->   1.0 /   0.9 sigma 
+ring 5.0-6.5 arcmin, PA 330-360: stack  -0.63 DN | odd  -0.54 even  -0.55 | blank spread 0.36 (24 places) ->  -1.5 /  -1.5 sigma 
+the halo (4 to 5 arcmin from the star): seen in both halves in 0 of 12 sectors; 5 to 6.5 arcmin: 0 of 12.

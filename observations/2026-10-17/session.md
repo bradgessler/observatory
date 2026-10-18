@@ -8,7 +8,8 @@ Camera: Sony a6000, stock, at prime focus. APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.
 Field: 38.8 x 25.9 arcmin in one frame, 0.388 arcsec per pixel
 Mount: Sky-Watcher EQ6-R, set down without polar alignment. Aligned from plate-solved photos and driven from that model, unguided
 Computer: Raspberry Pi 3 running Observatory, in Elixir
-Processing: Stacked from the RAW frames with numpy, OpenCV and rawpy, calibrated with the night's own darks, a flat from the night's sky and the dawn's dust, and star colours from the Gaia catalogue. Plate solving by astrometry.net. Nothing generated
+Sky: Clear and still. A Moon a little under half lit, low in the southwest early on and soon behind the garage
+Processing: Stacked from the RAW frames with numpy, OpenCV and rawpy. No darks tonight: hot pixels found from each run itself. Flats from open sky and earlier twilight frames, with tonight's dust measured on each run's own sky and divided out. Star colours from the Gaia catalogue. Plate solving by astrometry.net. Nothing generated
 ---
 
 Last week the telescope worked through eleven targets in a night and got a few minutes of light on each. Tonight it goes the other way: a few targets, hours on each, and a camera that starts its next picture while the last one is still being saved.

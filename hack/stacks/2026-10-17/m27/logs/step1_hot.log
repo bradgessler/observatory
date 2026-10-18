@@ -1,0 +1,76 @@
+70 in window, 70 at 15 s ISO 3200 on M27
+hot-pixel cube (35, 4, 2012, 3012) 3.4 GB in memory
+{'plane': 'R', 'sigma_of_median': 11.860799789428711, 'fixed_hot': 21095, 'fraction': 0.0034809403868950968}
+{'plane': 'G1', 'sigma_of_median': 11.860799789428711, 'fixed_hot': 21490, 'fraction': 0.003546120356215958}
+{'plane': 'G2', 'sigma_of_median': 11.860799789428711, 'fixed_hot': 21299, 'fraction': 0.0035146029533291616}
+{'plane': 'B', 'sigma_of_median': 11.860799789428711, 'fixed_hot': 19996, 'fraction': 0.0032995915608606}
+20261018-034619 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 136, 92] ceiling [86, 218, 226, 131] since slew 52 s box star size 6.6
+20261018-034650 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 136, 100] ceiling [96, 226, 237, 141] since slew 83 s box star size None
+20261018-034721 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 96] ceiling [81, 209, 230, 134] since slew 114 s box star size 6.83
+20261018-034752 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 92] ceiling [90, 219, 236, 139] since slew 145 s box star size 6.17
+20261018-034823 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 136, 96] ceiling [81, 216, 237, 140] since slew 176 s box star size 6.81
+20261018-034854 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 140, 96] ceiling [84, 215, 233, 137] since slew 207 s box star size 6.74
+20261018-034925 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 136, 96] ceiling [85, 215, 233, 126] since slew 238 s box star size 6.43
+20261018-034956 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 136, 96] ceiling [77, 215, 223, 129] since slew 269 s box star size 6.48
+20261018-035027 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 136, 92] ceiling [86, 223, 232, 141] since slew 300 s box star size 6.65
+20261018-035059 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 132, 136, 92] ceiling [84, 213, 234, 139] since slew 331 s box star size 6.37
+20261018-035130 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [87, 210, 232, 134] since slew 362 s box star size 6.54
+20261018-035201 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 144, 96] ceiling [86, 212, 229, 130] since slew 393 s box star size 6.35
+20261018-035232 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 136, 96] ceiling [74, 218, 224, 126] since slew 424 s box star size 6.65
+20261018-035303 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 140, 96] ceiling [82, 212, 224, 129] since slew 455 s box star size 6.58
+20261018-035334 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 140, 96] ceiling [79, 215, 220, 120] since slew 486 s box star size 6.65
+20261018-035405 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 100] ceiling [81, 210, 225, 132] since slew 517 s box star size 6.35
+20261018-035436 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 92] ceiling [75, 203, 214, 122] since slew 548 s box star size 6.99
+20261018-035506 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 136, 92] ceiling [79, 208, 222, 129] since slew 579 s box star size 7.23
+20261018-035538 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 96] ceiling [77, 212, 229, 137] since slew 610 s box star size 6.3
+20261018-035609 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 92] ceiling [83, 217, 237, 129] since slew 641 s box star size 6.28
+20261018-035640 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 96] ceiling [75, 208, 220, 121] since slew 672 s box star size 6.92
+20261018-035711 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 92] ceiling [78, 215, 225, 127] since slew 704 s box star size 7.12
+20261018-035742 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 96] ceiling [74, 210, 219, 123] since slew 735 s box star size 7.5
+20261018-035813 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 136, 96] ceiling [77, 207, 215, 125] since slew 766 s box star size 7.2
+20261018-035844 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [64, 204, 217, 117] since slew 797 s box star size 8.03
+20261018-035915 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 92] ceiling [84, 217, 230, 130] since slew 828 s box star size 6.76
+20261018-035946 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [76, 212, 225, 135] since slew 859 s box star size 6.96
+20261018-040017 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [83, 215, 220, 135] since slew 890 s box star size 6.96
+20261018-040049 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 96] ceiling [72, 208, 223, 123] since slew 921 s box star size 7.08
+20261018-040119 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 140, 96] ceiling [77, 207, 224, 128] since slew 952 s box star size 7.06
+20261018-040151 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [82, 210, 223, 129] since slew 983 s box star size 4.47
+20261018-040222 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 100] ceiling [84, 222, 223, 137] since slew 1014 s box star size None
+20261018-040253 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 144, 144, 100] ceiling [73, 210, 229, 124] since slew 1046 s box star size 7.0
+20261018-040324 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 144, 96] ceiling [85, 214, 225, 124] since slew 1077 s box star size 6.9
+20261018-040355 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 96] ceiling [72, 209, 225, 117] since slew 1107 s box star size 6.82
+20261018-040426 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [83, 217, 233, 132] since slew 1138 s box star size 7.24
+20261018-040457 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 96] ceiling [76, 210, 214, 123] since slew 1170 s box star size 7.32
+20261018-040528 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 100] ceiling [82, 212, 218, 123] since slew 1201 s box star size 7.22
+20261018-040559 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 144, 100] ceiling [83, 219, 228, 129] since slew 1231 s box star size 7.67
+20261018-040630 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [76, 208, 221, 127] since slew 1263 s box star size 7.29
+20261018-040701 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [83, 209, 224, 126] since slew 1294 s box star size 7.36
+20261018-040732 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 100] ceiling [79, 214, 222, 134] since slew 1325 s box star size 7.26
+20261018-040803 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 144, 96] ceiling [85, 216, 230, 136] since slew 1356 s box star size 7.1
+20261018-040834 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 144, 96] ceiling [91, 220, 230, 131] since slew 1387 s box star size 7.31
+20261018-040905 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 100] ceiling [84, 219, 228, 130] since slew 1418 s box star size 6.94
+20261018-040936 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 140, 92] ceiling [90, 212, 224, 124] since slew 1449 s box star size 7.15
+20261018-041008 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 100] ceiling [75, 210, 223, 127] since slew 1480 s box star size 7.23
+20261018-041039 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 136, 140, 96] ceiling [72, 212, 220, 131] since slew 1511 s box star size 8.37
+20261018-041110 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 136, 144, 96] ceiling [84, 209, 217, 130] since slew 1542 s box star size 7.29
+20261018-041141 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 96] ceiling [86, 212, 222, 128] since slew 1573 s box star size 7.25
+20261018-041212 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 96] ceiling [85, 215, 230, 136] since slew 1604 s box star size 7.2
+20261018-041243 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 136, 92] ceiling [82, 213, 229, 123] since slew 1635 s box star size 7.02
+20261018-041314 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 144, 140, 96] ceiling [78, 208, 212, 126] since slew 1666 s box star size 7.05
+20261018-041345 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [88, 213, 226, 134] since slew 1697 s box star size 6.88
+20261018-041416 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 96] ceiling [63, 202, 212, 123] since slew 1728 s box star size 7.82
+20261018-041447 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 100] ceiling [87, 209, 228, 136] since slew 1759 s box star size 6.98
+20261018-041518 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 144, 140, 96] ceiling [86, 212, 224, 127] since slew 1790 s box star size 7.17
+20261018-041549 pixel sigma [41.5, 53.4, 53.4, 47.4] level [36, 136, 140, 96] ceiling [87, 210, 220, 126] since slew 1822 s box star size 7.37
+20261018-041620 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 144, 140, 96] ceiling [89, 217, 231, 134] since slew 1852 s box star size 7.27
+20261018-041651 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 144, 100] ceiling [89, 217, 225, 126] since slew 1883 s box star size 7.11
+20261018-041722 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 96] ceiling [84, 215, 228, 138] since slew 1914 s box star size 6.91
+20261018-041753 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 100] ceiling [86, 211, 231, 141] since slew 1945 s box star size 6.89
+20261018-041824 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [82, 210, 220, 131] since slew 1976 s box star size 7.12
+20261018-041855 pixel sigma [41.5, 53.4, 53.4, 47.4] level [44, 140, 140, 92] ceiling [87, 219, 224, 132] since slew 2007 s box star size 7.17
+20261018-041926 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 144, 144, 96] ceiling [85, 214, 229, 136] since slew 2038 s box star size 6.98
+20261018-041957 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 140, 96] ceiling [91, 216, 231, 131] since slew 2069 s box star size 6.92
+20261018-042028 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 96] ceiling [93, 220, 233, 134] since slew 2100 s box star size 7.2
+20261018-042059 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 144, 100] ceiling [95, 223, 237, 132] since slew 2131 s box star size 7.05
+20261018-042130 pixel sigma [41.5, 53.4, 53.4, 47.4] level [40, 140, 136, 96] ceiling [78, 215, 229, 129] since slew 2163 s box star size 7.08
+20261018-042201 pixel sigma [41.5, 53.4, 53.4, 47.4] level [48, 144, 144, 100] ceiling [84, 222, 230, 129] since slew 2194 s box star size 6.92

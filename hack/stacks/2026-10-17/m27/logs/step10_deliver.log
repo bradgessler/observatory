@@ -1,0 +1,31 @@
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+white balance: daylight R 2.8993 B 1.3482 x star colours kR 1.0128 kB 1.1530 -> R 2.9364 B 1.5544
+sky plane R : +0.17 DN at the middle, -1.26 DN across the width, -0.70 DN down the height; block rms after 0.51 DN
+sky plane G1: +0.29 DN at the middle, -3.18 DN across the width, -1.90 DN down the height; block rms after 0.76 DN
+sky plane G2: +0.16 DN at the middle, -3.01 DN across the width, -1.40 DN down the height; block rms after 0.77 DN
+sky plane B : +0.42 DN at the middle, -2.58 DN across the width, -0.72 DN down the height; block rms after 0.57 DN
+tif [2848, 1878] clipped low/high 0 0
+stretched [2848, 1878] | colour shown on 5.3% of the picture, ceiling px 168, at floor 0, at white 1107
+noise single -> stack (planes): [48.1, 60.7, 60.8, 52.7] -> [6.2, 8.2, 8.1, 6.9] improvement {'R': 7.75, 'G1': 7.45, 'G2': 7.47, 'B': 7.69} ideal 8.12
+luminance noise {'stack_unblurred': 5.16, 'single_unblurred': 37.61, 'stack_after_blur': 1.84, 'single_after_blur': 10.18} | green {'stack': 5.92, 'single': 43.26}
+star HFD: stack 5.76 px = 4.47", single 6.37 px = 4.94" (117 stars)
+core: highest RAW value around the nucleus in any frame {'R': 536.0, 'G1': 1764.0, 'G2': 1916.0, 'B': 1780.0} DN (ceiling 15488): 12% of the ceiling -> not clipped; the stack's green peak 1116 DN
+ring medians (green, DN; sky under it 155 DN):
+  r 0.27' ( 21 px): stack   71.04  odd   71.33  even   71.48  | blank sky +0.27 +- 0.60  -> 118.1 x the floor
+  r 0.50' ( 39 px): stack   78.13  odd   78.21  even   78.24  | blank sky -0.07 +- 0.61  -> 129.0 x the floor
+  r 0.74' ( 57 px): stack   77.29  odd   77.38  even   78.12  | blank sky -0.13 +- 0.63  -> 122.4 x the floor
+  r 1.01' ( 78 px): stack   70.50  odd   70.76  even   70.77  | blank sky +0.35 +- 0.19  -> 377.0 x the floor
+  r 1.32' (102 px): stack   61.56  odd   62.25  even   62.05  | blank sky +0.26 +- 0.40  -> 152.3 x the floor
+  r 1.48' (114 px): stack   55.97  odd   56.90  even   56.32  | blank sky +0.25 +- 0.40  -> 139.2 x the floor
+  r 1.79' (138 px): stack   43.57  odd   43.87  even   43.55  | blank sky +0.28 +- 0.28  -> 156.1 x the floor
+  r 1.94' (150 px): stack   35.83  odd   35.58  even   35.96  | blank sky +0.28 +- 0.23  -> 153.4 x the floor
+  r 2.25' (174 px): stack   23.33  odd   23.51  even   23.56  | blank sky +0.28 +- 0.38  -> 62.1 x the floor
+  r 2.56' (198 px): stack   17.51  odd   17.62  even   17.78  | blank sky +0.18 +- 0.26  -> 67.8 x the floor
+  r 2.72' (210 px): stack   13.98  odd   14.11  even   13.95  | blank sky +0.10 +- 0.25  -> 55.2 x the floor
+  r 3.03' (234 px): stack    6.25  odd    6.31  even    6.28  | blank sky +0.27 +- 0.46  -> 13.5 x the floor
+  r 3.18' (246 px): stack    4.13  odd    4.22  even    4.20  | blank sky +0.33 +- 0.36  -> 11.5 x the floor
+  r 3.49' (270 px): stack    2.49  odd    2.53  even    2.70  | blank sky +0.25 +- 0.33  -> 7.6 x the floor
+  r 3.81' (294 px): stack    1.52  odd    1.60  even    1.69  | blank sky +0.20 +- 0.36  -> 4.2 x the floor
+  r 3.96' (306 px): stack    0.89  odd    1.10  even    0.98  | blank sky +0.17 +- 0.26  -> 3.4 x the floor
+galaxy followed to 4.04 arcmin from the nucleus (8.1 arcmin across; catalogue 7.1 x 6.0); outer ring (2.2 to 3.6 arcmin): SEEN

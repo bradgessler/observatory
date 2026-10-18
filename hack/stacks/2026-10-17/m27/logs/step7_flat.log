@@ -1,0 +1,33 @@
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step7_flat.py:112: RuntimeWarning: All-NaN slice encountered
+  S = np.nanmedian(cube, axis=0); n_there = np.isfinite(cube).sum(0)
+own sky from 66 frames; sky level (DN above black) R 44.0 G1 144.0 G2 146.0 B 100.0; blocks with sky in at least 10 frames: 76.8%
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step7_flat.py:79: RuntimeWarning: All-NaN slice encountered
+  m = np.nanmedian(v, axis=2)
+R  / own   flat: remainder rms 0.0259 (1%..99%: 0.965..1.094); sky plane -0.044 across the long side, -0.039 across the short; after the plane rms 0.0185; rings - 0.980 0.996 0.999 1.001 1.011   <- used
+R  / green flat: remainder rms 0.0239 (1%..99%: 0.950..1.059); sky plane -0.025 across the long side, +0.002 across the short; after the plane rms 0.0229; rings - 0.983 1.001 1.000 1.003 0.992
+G1 / own   flat: remainder rms 0.0158 (1%..99%: 0.985..1.040); sky plane -0.031 across the long side, -0.019 across the short; after the plane rms 0.0062; rings - 0.992 0.997 1.000 1.001 1.004   <- used
+G1 / green flat: remainder rms 0.0123 (1%..99%: 0.986..1.031); sky plane -0.027 across the long side, -0.006 across the short; after the plane rms 0.0060; rings - 0.991 0.998 0.999 1.001 1.003
+G2 / own   flat: remainder rms 0.0146 (1%..99%: 0.985..1.036); sky plane -0.027 across the long side, -0.016 across the short; after the plane rms 0.0061; rings - 0.991 0.999 1.000 1.000 1.005   <- used
+G2 / green flat: remainder rms 0.0179 (1%..99%: 0.983..1.052); sky plane -0.031 across the long side, -0.029 across the short; after the plane rms 0.0086; rings - 0.991 0.998 0.999 1.000 1.006
+B  / own   flat: remainder rms 0.0162 (1%..99%: 0.980..1.041); sky plane -0.031 across the long side, -0.016 across the short; after the plane rms 0.0084; rings - 0.999 0.998 0.999 1.000 1.006   <- used
+B  / green flat: remainder rms 0.0207 (1%..99%: 0.982..1.076); sky plane -0.029 across the long side, -0.039 across the short; after the plane rms 0.0127; rings - 0.987 0.990 0.996 1.006 1.020
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step7_flat.py:142: RuntimeWarning: All-NaN slice encountered
+  Sg = np.nanmedian(gcube[idx], axis=0)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step7_flat.py:173: RuntimeWarning: All-NaN slice encountered
+  Sg = np.nanmedian(gcube, axis=0)
+dust left by the flat at (1779,  427): 0.152 deep over 128 blocks (even frames 0.061, odd 0.064), the flat has a shadow of 0.031 there -> divided out with this run's own measure
+dust left by the flat at (2226, 1809): 0.036 deep over 38 blocks (even frames 0.023, odd 0.021), not in the flat -> divided out with this run's own measure
+dust left by the flat at ( 678, 1223): 0.024 deep over 14 blocks (even frames 0.020, odd 0.016), the flat has a shadow of 0.147 there -> divided out with this run's own measure
+dust left by the flat at (1090,  401): 0.022 deep over 7 blocks (even frames 0.016, odd 0.020), the flat has a shadow of 0.095 there -> divided out with this run's own measure
+dust left by the flat at (1741,  803): 0.022 deep over 8 blocks (even frames 0.020, odd 0.013), the flat has a shadow of 0.014 there -> divided out with this run's own measure
+dust left by the flat at (  46, 1093): 0.020 deep over 9 blocks (even frames 0.017, odd 0.012), the flat has a shadow of 0.076 there -> divided out with this run's own measure
+dust left by the flat at (1734,  744): 0.019 deep over 8 blocks (even frames 0.008, odd 0.015), the flat has a shadow of 0.012 there -> divided out with this run's own measure
+dust left by the flat at (2096, 1932): 0.019 deep over 21 blocks (even frames 0.016, odd 0.017), not in the flat -> divided out with this run's own measure
+dust left by the flat at (1756,  854): 0.016 deep over 10 blocks (even frames 0.012, odd 0.015), the flat has a shadow of 0.012 there -> divided out with this run's own measure
+dust left by the flat at (1699,  685): 0.016 deep over 10 blocks (even frames 0.014, odd 0.014), not in the flat -> divided out with this run's own measure
+dust left by the flat at (1314, 1292): 0.016 deep over 10 blocks (even frames 0.011, odd 0.014), the flat has a shadow of 0.017 there -> divided out with this run's own measure
+named shadow crescent sensor (3534, 824): 0.1269 deep in this run's own sky before any flat, 0.1258 after the flat, 0.0171 after this run's own dust correction
+named shadow spot_a   sensor (1356, 2400): 0.0552 deep in this run's own sky before any flat, 0.0055 after the flat, 0.0013 after this run's own dust correction
+named shadow spot_b   sensor (5352, 3456): 0.0896 deep in this run's own sky before any flat, 0.0018 after the flat, 0.0018 after this run's own dust correction
+dust: 11 shadows left by the flat divided out (0.73% of the sensor, deepest factor 0.849), 39 candidates turned down; of the flat's 13 fitted shadows the worst was left 0.043 deep, after this run's own correction 0.043
+flat used: R own, G1 own, G2 own, B own

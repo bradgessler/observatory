@@ -1331,9 +1331,9 @@ defmodule Mix.Tasks.Site.Build do
     button.copy { margin:0 0 .75rem; min-height:44px; padding:0 1.5rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); font:inherit; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent; }
     button.copy:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
     button.copy[hidden] { display:none; }
-    div.copy { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
-    div.copy button.copy { margin:0; }
-    a.copy-text { min-height:44px; display:inline-flex; align-items:center; }
+    div.copy { display:flex; flex-wrap:nowrap; align-items:center; gap:.75rem; }
+    div.copy button.copy { margin:0; padding:0 .85rem; white-space:nowrap; font-size:.9rem; }
+    a.copy-text { min-height:44px; display:inline-flex; align-items:center; white-space:nowrap; font-size:.9rem; }
     .rights { color:var(--dim); font-size:.85rem; margin-top:3rem; }
     /* a phone: the pictures run edge to edge, the words keep their margin */
     @media (max-width:40rem) {

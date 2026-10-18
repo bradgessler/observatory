@@ -287,7 +287,9 @@ defmodule Mix.Tasks.Site.BuildTest do
       build(dir, ["--ogplus", ""])
       tech = page(dir, "2026-10-03/technical.html")
 
-      [_, block] = Regex.run(~r{<pre id="orion-nebula-text">(.*?)</pre>}s, tech)
+      # the text is a file of its own beside the page, not shown on it
+      refute tech =~ "**Equipment**"
+      block = page(dir, "2026-10-03/orion-nebula-reddit.txt")
       assert block =~ "**The Orion Nebula**: Messier 42\n\nNight of 3 October 2026, San Francisco Bay Area"
       assert block =~ "**Equipment**\n\n* Telescope: Celestron 8SE\n* Camera: Sony a6000, stock: APS-C"
       assert block =~ "* Lights: 39 × 20 s at ISO 3200 (13 minutes)\n* Frames: 69 taken, 39 kept\n* Dithering: Every 3 frames, 12 px"
@@ -297,10 +299,12 @@ defmodule Mix.Tasks.Site.BuildTest do
       refute block =~ "Mount"
       refute block =~ "Darks"
 
-      # the copy button needs the script; without it the block is plain text to select
-      assert tech =~ ~s(<button type="button" class="copy" data-copy="orion-nebula-text")
+      # the copy button reads the file with the script; without it, a link opens the file
+      assert tech =~ ~s(<button type="button" class="copy" data-src="orion-nebula-reddit.txt")
       assert tech =~ "hidden>Copy</button>"
-      assert tech =~ "navigator.clipboard.writeText"
+      assert tech =~ ~s(<a class="copy-text" href="orion-nebula-reddit.txt">Open as text</a>)
+      assert tech =~ "fetch(url)"
+      assert tech =~ "ClipboardItem"
       refute tech =~ ~r{<script[^>]+src=}
 
       assert tech =~ ~r{<section class="target" id="crab-nebula".*?Being photographed now}s

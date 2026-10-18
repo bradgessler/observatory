@@ -520,6 +520,10 @@ defmodule Mix.Tasks.Site.Build do
 
       File.write!(Path.join(to, "index.html"), session_page(night, site))
       File.write!(Path.join(to, "technical.html"), technical_page(night, site))
+      # each picture's Copy for Reddit text as a file of its own: the button copies it, the link opens it
+      # (a byte-order mark first: a server that sends .txt without a charset would show "×" as "Ã—";
+      # fetch's text() drops it, so it never reaches the clipboard)
+      for o <- night.objects, do: File.write!(Path.join(to, reddit_file(o["slug"])), "\uFEFF" <> reddit(night, o, site) <> "\n")
       for o <- night.objects, do: File.write!(Path.join(to, o["slug"] <> ".html"), object_page(night, o, site))
       # a target with no picture yet has a page saying where it stands
       for t <- night.plan, not published?(night, t), do: File.write!(Path.join(to, t["slug"] <> ".html"), placeholder_page(night, t, site))
@@ -723,14 +727,17 @@ defmodule Mix.Tasks.Site.Build do
       #{group.("Processing", processing)}
       #{group.("What the picture shows", results)}
       <h3 id="#{esc(slug)}-reddit">Copy for Reddit</h3>
-      <p class="hint">In the Markdown r/astrophotography posts use. Paste it into the post's text in Markdown mode.</p>
+      <p class="hint">Everything above, in the Markdown r/astrophotography posts use. Paste it into the post's text in Markdown mode.</p>
       <div class="copy">
-        <button type="button" class="copy" data-copy="#{esc(slug)}-text" aria-describedby="#{esc(slug)}-reddit" hidden>Copy</button>
-        <pre id="#{esc(slug)}-text">#{esc(reddit(night, o, site))}</pre>
+        <button type="button" class="copy" data-src="#{esc(reddit_file(slug))}" aria-describedby="#{esc(slug)}-reddit" hidden>Copy</button>
+        <a class="copy-text" href="#{esc(reddit_file(slug))}">Open as text</a>
       </div>
     </section>
     """
   end
+
+  @doc "The file beside a night's technical page that holds a target's Copy for Reddit text."
+  def reddit_file(slug), do: "#{slug}-reddit.txt"
 
   @doc """
   A target's write-up as an r/astrophotography post: Markdown with a bold line per part and a
@@ -817,19 +824,30 @@ defmodule Mix.Tasks.Site.Build do
   defp squash(nil), do: nil
   defp squash(text), do: text |> String.replace(~r/\s+/, " ") |> String.trim()
 
-  # The one script on the blog: the Copy buttons. Without it the blocks are plain text to select,
-  # and the buttons stay hidden. A browser that will not write to the clipboard gets the block
-  # selected instead, ready to copy by hand.
+  # The one script on the blog: the Copy buttons. Each copies its text file (`reddit_file/1`) without
+  # showing it. Safari only lets a page write the clipboard inside the tap, so the text goes in as a
+  # ClipboardItem holding the fetch's promise; elsewhere the text is fetched and written. Without the
+  # script the buttons stay hidden and "Open as text" is the way; a browser that refuses the
+  # clipboard is sent to the text file too.
   defp copy_script do
     """
     <script>
     document.querySelectorAll("button.copy").forEach(function (b) {
       b.hidden = false;
       b.addEventListener("click", function () {
-        var pre = document.getElementById(b.dataset.copy);
-        var select = function () { var r = document.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+        var url = b.dataset.src;
+        var open = function () { location.href = url; };
         var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 2000); };
-        try { navigator.clipboard.writeText(pre.textContent).then(done, select); } catch (e) { select(); }
+        var text = fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.text(); });
+        var plain = function () { return text.then(function (t) { return navigator.clipboard.writeText(t); }); };
+        try {
+          if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+            var item = new ClipboardItem({ "text/plain": text.then(function (t) { return new Blob([t], { type: "text/plain" }); }) });
+            navigator.clipboard.write([item]).then(done, function () { plain().then(done, open); });
+          } else {
+            plain().then(done, open);
+          }
+        } catch (e) { open(); }
       });
     });
     </script>
@@ -1319,6 +1337,9 @@ defmodule Mix.Tasks.Site.Build do
     button.copy { margin:0 0 .75rem; min-height:44px; padding:0 1.5rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); font:inherit; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent; }
     button.copy:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
     button.copy[hidden] { display:none; }
+    div.copy { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; }
+    div.copy button.copy { margin:0; }
+    a.copy-text { min-height:44px; display:inline-flex; align-items:center; }
     .rights { color:var(--dim); font-size:.85rem; margin-top:3rem; }
     /* a phone: the pictures run edge to edge, the words keep their margin */
     @media (max-width:40rem) {

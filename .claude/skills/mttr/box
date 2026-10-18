@@ -1,6 +1,14 @@
 #!/bin/sh
 # Run Elixir on the box:  box 'IO.puts(1 + 1)'   or code on stdin:  box - < file.exs
-# BOX names the box (default observatory.local, its mDNS name: DHCP moved it from .44 to .15 on 8 Oct 2026).
-# The key is the one Stamp a Box made.
+# BOX names the box (default observatory.local, its mDNS name: DHCP moved it from .44 to .15 on 8 Oct 2026, and
+# to .22 on 17 Oct; `dns-sd -G v4 observatory.local` finds it). The key is the one Stamp a Box made.
+#
+# The code is wrapped so its output arrives whole (17 October 2026: all night the first printed line came glued to
+# the shell's own output and the last line was lost when the session closed before it was flushed, so every script
+# padded itself and a watch that grepped for a line died): a newline first, then a pause before the session ends.
+# BOX_RAW=1 sends the code exactly as given.
 if [ "$1" = "-" ]; then code=$(cat); else code="$1"; fi
+if [ -z "$BOX_RAW" ]; then
+  code=$(printf 'IO.puts("")\n%s\nProcess.sleep(800)\n:ok\n' "$code")
+fi
 exec ssh -i "$HOME/.observatory/vm_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "nerves@${BOX:-observatory.local}" "$code"

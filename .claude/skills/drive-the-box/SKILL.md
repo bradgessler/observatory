@@ -96,6 +96,9 @@ First done on 12 October 2026: ten targets, 263 pictures, parked before dawn, op
   2026: the plan finished at 05:17, the park was left to a session that wasn't awake, and the telescope stood
   unparked into daylight. A flash kills the timer with the plan: restart both together. `DITHER=1.5` (arcmin)
   or `DITHER=auto` (sized from the sensor map) with `DITHER_EVERY=3` for exposures of 2 s and longer.
+  **A planet's turn shoots its moons too:** follow the planet's short frames with a second step on the same
+  target, which isn't centred again, e.g. `sol-saturn:2h:800:1/60,sol-saturn:30:800:1`. The moons need frames
+  of their own that don't clip (17 October: two 2 s ISO 6400 centring shots clipped every moon's core).
 - **`park.exs`** stops the plan and the camera, ends the hold, and sends the mount home: counterweight down, tube
   at the mount's own pole, tracking off. The tube then reads a few degrees under Dec 90 when the polar axis is
   off. **Park three times over:** the box's own `PARK_AT` timer, the operator at the deadline, and a scheduled
@@ -119,3 +122,8 @@ Each prints `S ...` lines; grep for them.
   Go To, wait for landing, one finder solve, the miss in arcminutes.
 - `centre.exs`: `Sky.Centre` with progress lines and the hold afterwards.
 - `plan.exs`, `park.exs`, `flats.exs`: a night's list, the end of the night, and dawn flats (see above).
+- `plan_check.exs`: read only, with the same `PLAN` and `PARK_AT`. Each step's altitude and hour angle at its
+  start and end, the pose of its Go To, a warning when the hold would reach its meridian limit before the step
+  ends (which stops the plan), and where the Sun is at the park. Run it before every plan and after any change.
+- `status.exs`: read only. One screen of the night: the plan and whether its park timer is armed, the camera, the
+  dither and the sensor map, the hold, the mount, and the last ten minutes' trouble.

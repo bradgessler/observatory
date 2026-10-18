@@ -147,3 +147,12 @@ If the plan finishes early, park as soon as it does.
 
 Last ledger line: targets done, pictures per target, every surprise. Then
 tell Brad the totals in three lines or fewer.
+
+## What actually ran (written afterwards)
+
+Focus first (12 to 5 arcsec on Vega), then, because M33 was behind a tree:
+`m27:0.6h,m33:1.0h,sol-saturn:2h:800:1/60,m33:1.5h,m42:2.9h:1600:30,m42:0.33h:400:2`, restarted several times
+around firmware flashes (the centring fix, dithering, the sensor map and its two-target rule). Dithering from
+05:00Z (1.5 arcmin; `auto` chose 4 on M33's second turn before the fix). The plan finished at 12:17Z and **the
+park never happened**: it was left to this runbook's Step 3 and nothing was awake to run it. Since then plan.exs
+takes `PARK_AT` and parks itself; start every plan with it.

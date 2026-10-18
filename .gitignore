@@ -24,3 +24,8 @@ _site/
 # the custom Nerves system: its build log and local artifact pointers stay local
 systems/*/build.log
 systems/*/.nerves/
+
+# compiled by each app's Makefile (elixir_make) for the machine it builds on: never committed
+/apps/camera/priv/usbport
+/apps/camera/priv/.usbport-cc
+/apps/input/priv/hidport

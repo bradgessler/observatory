@@ -598,20 +598,47 @@ defmodule Mix.Tasks.Site.Build do
     <header>
       <h1>#{esc(night.title)}</h1>
       <p class="lede">#{esc(night.summary)}</p>
+      #{jump()}
     </header>
     <ul class="sky">#{pictures}</ul>
     #{menu(night)}
     <article class="night-notes">
       #{night.html}
     </article>
-    #{technical_link("technical.html", "The equipment, how each picture was taken and processed, and what went wrong at the telescope.")}
+    <section class="technical-details" id="technical" aria-labelledby="technical-h">
+      <h2 id="technical-h">Technical details</h2>
+      <p class="lede">The equipment for the whole night, what went wrong at the telescope and what we did about it, and the software. Each picture's exposures and processing are at the foot of its own page.</p>
+      #{spec_list(night.rows)}
+      #{picture_index(night)}
+      #{night_notes(night)}
+      #{source()}
+    </section>
     #{rights(night.date.year)}
     """, "wide", "../../", "obs")
   end
 
-  # The one way from the pictures to the photographers' page: calm, at the foot.
-  defp technical_link(href, line) do
-    ~s(<p class="technical"><a href="#{href}">Technical details</a><span class="detail">#{esc(line)}</span></p>)
+  # Everyone reads the pictures and the facts; photographers, programmers and astronomers want the
+  # rest, which is at the foot of the same page under #technical, so one link can go straight there.
+  @source "https://github.com/bradgessler/observatory"
+  defp jump, do: ~s(<p class="jump"><a href="#technical">Technical details</a></p>)
+
+  defp source do
+    """
+    <h3>Source</h3>
+    <p>Observatory, the software that drove the mount, took the frames and published these pages, is open source: <a href="#{@source}">source on GitHub</a>.</p>
+    """
+  end
+
+  # each target's details are at the foot of its own page; the night lists them in its order, with
+  # where a target not yet published stands
+  defp picture_index(night) do
+    rows =
+      Enum.map_join(targets(night), "\n", fn
+        {:plan, t} -> ~s(<li><span class="note-title">#{esc(t["title"])}</span><span class="note-summary">#{esc(plan_words(Map.put(t, "state", t["state"] || "planned")))}</span></li>)
+        o -> ~s(<li><a href="#{esc(o["slug"])}.html#technical"><span class="note-title">#{esc(o["title"])}</span><span class="note-summary">#{esc(o["made"] || o["subtitle"] || "")}</span></a></li>)
+      end)
+
+    ~s(<h3>Each picture</h3><ul class="notes">#{rows}</ul>)
   end
 
   defp night_notes(%{notes: [_ | _] = notes}) do
@@ -634,7 +661,6 @@ defmodule Mix.Tasks.Site.Build do
   @equipment ["Telescope", "Camera", "Mount"]
   @acquisition ["Exposures", "Frames", "When", "Sampling", "Field", "Field rotation", "Dispersion", "Calibration"]
   @results ["What is real", "Not seen", "Not shown", "Not resolved", "Not claimed", "Known flaws", "Honest limits", "Compared", "The pair", "Moon names"]
-  @source "https://github.com/bradgessler/observatory"
   @reddit_processing ["Registration", "Mosaic", "Lucky imaging", "Planet stack", "Stacking", "High dynamic range", "Composite", "Restoration", "Finish"]
 
   defp acquisition?(k), do: k in @acquisition or k =~ ~r/dither|^darks|^flats|^bias/i
@@ -645,57 +671,21 @@ defmodule Mix.Tasks.Site.Build do
     planned ++ Enum.reject(night.objects, fn o -> Enum.any?(night.plan, &(&1["slug"] == o["slug"])) end)
   end
 
-  defp technical_page(night, site) do
-    share = %{
-      path: "observations/#{night.slug}/technical.html",
-      type: "article",
-      title: "Technical details, #{night.title}",
-      description: "How the pictures of the #{String.downcase(night.title)} were made: the equipment, the exposures and the processing.",
-      hero: cover(night),
-      hero_alt: cover_alt(night),
-      date: night.date,
-      card: nil
-    }
-
-    sections = night |> targets() |> Enum.map_join("\n", &target_section(night, &1, site))
-
-    layout("Technical details, #{night.title}", share_tags(share, site), """
-    <p class="back"><a href="./">‹ #{esc(night.title)}</a></p>
-    <header>
-      <h1>Technical details</h1>
-      <p class="sub">#{esc(night.title)}</p>
-      <p class="lede">The equipment, then each target: how it was taken, how it was processed, and what the picture does and does not show. Each published target has a block to copy into a forum post.</p>
-    </header>
-    <section aria-labelledby="setup-h">
-      <h2 id="setup-h">Session</h2>
-      #{spec_list(night.rows)}
-    </section>
-    #{sections}
-    #{night_notes(night)}
-    <section class="source" aria-labelledby="source-h">
-      <h2 id="source-h">Source</h2>
-      <p class="lede">Observatory, the software that drove the mount, took the frames and published these pages, is open source.</p>
-      <p><a href="#{@source}">Source on GitHub</a></p>
-    </section>
-    #{rights(night.date.year)}
-    #{copy_script()}
-    """, "wide", "../../", "obs tech")
-  end
-
-  # a target with no picture yet: what it is and where it stands, and nothing to copy
-  defp target_section(_night, {:plan, t}, _site) do
-    state = t["state"] || "planned"
-
+  # The technical details used to be a page of their own; they are now at the foot of each page
+  # (#technical). A link to the old page lands where its part now is: technical.html#<slug> on that
+  # picture's page, technical.html on the night's.
+  defp technical_page(_night, _site) do
     """
-    <section class="target" id="#{esc(t["slug"])}" aria-labelledby="#{esc(t["slug"])}-h">
-      <h2 id="#{esc(t["slug"])}-h"><a href="#{esc(t["slug"])}.html">#{esc(t["title"])}</a></h2>
-      <p class="sub">#{esc(t["sub"])}</p>
-      <p class="waiting" role="status">#{esc(plan_words(Map.put(t, "state", state)))}. Its technical details will be here when its picture is published.</p>
-    </section>
+    <!doctype html>
+    <html lang="en"><head><meta charset="utf-8"><title>Technical details</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="0; url=./#technical">
+    <script>location.replace(location.hash.length > 1 ? location.hash.slice(1) + ".html#technical" : "./#technical");</script>
+    </head><body><p><a href="./#technical">Technical details</a></p></body></html>
     """
   end
 
-  defp target_section(night, o, _site) do
+  defp target_details(night, o) do
     slug = o["slug"]
     specs = Enum.map(o["specs"] || [], &List.to_tuple/1)
     {equipment, rest} = Enum.split_with(specs, fn {k, _} -> k in @equipment end)
@@ -717,9 +707,6 @@ defmodule Mix.Tasks.Site.Build do
     end
 
     """
-    <section class="target" id="#{esc(slug)}" aria-labelledby="#{esc(slug)}-h">
-      <h2 id="#{esc(slug)}-h"><a href="#{esc(slug)}.html">#{esc(o["title"])}</a></h2>
-      <p class="sub">#{esc(o["subtitle"])}</p>
       #{if o["made"] || o["how"], do: ~s(<p class="lede">#{esc(Enum.reject([o["made"], o["how"]], &(&1 in [nil, ""])) |> Enum.map_join(". ", &String.trim_trailing(&1, ".")))}.</p>)}
       #{frames}
       #{group.("Equipment", equipment)}
@@ -732,7 +719,6 @@ defmodule Mix.Tasks.Site.Build do
         <button type="button" class="copy" data-src="#{esc(reddit_file(slug))}" aria-describedby="#{esc(slug)}-reddit" hidden>Copy</button>
         <a class="copy-text" href="#{esc(reddit_file(slug))}">Open as text</a>
       </div>
-    </section>
     """
   end
 
@@ -782,7 +768,7 @@ defmodule Mix.Tasks.Site.Build do
       bullets("Acquisition", acquisition),
       bullets("Processing", processing),
       "Full write-up: #{page}#{o["slug"]}.html",
-      "All the technical details: #{page}technical.html##{o["slug"]}"
+      "All the technical details: #{page}#{o["slug"]}.html#technical"
     ]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join("\n\n")
@@ -884,6 +870,7 @@ defmodule Mix.Tasks.Site.Build do
       <h1>#{esc(o["title"])}</h1>
       <p class="sub">#{esc(o["subtitle"])}</p>
       <p class="what">#{esc(o["what"])}</p>
+      #{jump()}
     </header>
     <section>
       <h2>What you are looking at</h2>
@@ -891,13 +878,17 @@ defmodule Mix.Tasks.Site.Build do
       #{hint}
       #{spec_list(o["facts"], "facts")}
     </section>
-    #{technical_link("technical.html##{slug}", "How this picture was made: the equipment, the exposures and the processing.")}
+    <section class="technical-details" id="technical" aria-labelledby="technical-h">
+      <h2 id="technical-h">Technical details</h2>
+      #{target_details(night, o)}
+    </section>
     <p class="credit">#{esc(night.credit)}</p>
     <nav class="prevnext">
       #{object_link(before, "earlier", "Previous")}
       #{object_link(next, "later", "Next")}
     </nav>
     #{rights(night.date.year)}
+    #{copy_script()}
     """, "wide", "../../", "obs")
   end
 
@@ -1320,9 +1311,9 @@ defmodule Mix.Tasks.Site.Build do
     dl.spec dd { font-size:.95rem; line-height:1.5; }
     .credit { color:var(--dim); font-size:.85rem; margin-top:4rem; }
     /* the one link from the pictures to the photographers' page */
-    p.technical { display:grid; gap:.1rem; margin:4rem 0 0; max-width:46rem; }
-    p.technical a { font-size:1.15rem; font-weight:600; padding:.55rem 0; justify-self:start; }
-    p.technical .detail { color:var(--dim); font-size:.9rem; }
+    p.jump { margin:.75rem 0 0; }
+    p.jump a { display:inline-flex; align-items:center; min-height:44px; font-weight:600; }
+    section.technical-details { margin-top:4rem; padding-top:2rem; border-top:1px solid var(--line); max-width:46rem; scroll-margin-top:1rem; }
     /* the technical page: one section per target, its specs in groups, a block to copy */
     .tech section.target { margin-top:5rem; padding-top:2rem; border-top:1px solid var(--line); scroll-margin-top:1rem; }
     .tech section.target > h2 a { color:inherit; text-decoration:none; }

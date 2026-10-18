@@ -38,6 +38,8 @@ defmodule Controller.StillCamera.SensorMap do
   @min_px 4
   # the large-scale glow a spot is judged against: a box this many shrunk pixels each way
   @glow_px 12
+  # a target's own map needs this many of its pictures
+  @per_target 4
   # pointings: two kept pictures count as different pointings when their dither steps are this far apart (arcmin)
   @apart_arcmin 1.0
 
@@ -118,12 +120,14 @@ defmodule Controller.StillCamera.SensorMap do
 
   defp look(%{frames: frames} = s) do
     n = pointings(frames)
+    # a map per target, each from enough pictures to take a median of
+    groups = frames |> Enum.group_by(& &1.target) |> Map.values() |> Enum.filter(&(length(&1) >= @per_target))
 
-    if n >= 2 and length(frames) >= 8 do
+    if length(groups) >= 2 do
       scale = hd(frames).scale
-      found = spots(Enum.map(frames, & &1.img), scale)
+      found = spots(Enum.map(groups, fn g -> Enum.map(g, & &1.img) end), scale)
       # the pictures it was made from, by name: the map can be made again from them and checked
-      map = Map.merge(found, %{frames: length(frames), pointings: n, at: DateTime.utc_now(), from: Enum.map(frames, & &1.name), method: %{shrink: @factor, dim: @dim, glow_px: @glow_px, min_px: @min_px}})
+      map = Map.merge(found, %{frames: length(frames), pointings: n, targets: length(groups), at: DateTime.utc_now(), from: Enum.map(frames, & &1.name), method: %{shrink: @factor, dim: @dim, glow_px: @glow_px, min_px: @min_px, rule: "dark in every target's own map"}})
       :persistent_term.put({__MODULE__, :map}, map)
       save(map)
       Logger.info("sensor map: #{length(map.spots)} spots, uptime #{Float.round(map.uptime * 100, 2)}%, dither #{inspect(map.dither_arcmin)}")
@@ -194,26 +198,23 @@ defmodule Controller.StillCamera.SensorMap do
   end
 
   @doc """
-  The spots: from normalised pictures (`normalise/1`) taken at different pointings, the median of each
-  pixel, divided by its own smoothed glow; connected pixels dimmer than `@dim` make a spot.
+  The spots, from groups of normalised pictures (`normalise/1`), one group per target. Each group's
+  median, divided by its own smoothed glow, is that target's map; a pixel is dust only where it is
+  dimmer than `@dim` in every target's map. A galaxy's dark lane is dark in its own target's pictures
+  and not in the others (18 October: one target alone, the Triangulum Galaxy filling the frame, gave
+  122 false spots and 86 percent uptime); dust is dark in all of them. Connected dust pixels make a spot.
   `%{spots: [%{x, y, diameter_arcsec, depth}], uptime, dither_arcmin}`, `x`/`y` as fractions of the sensor.
   """
-  def spots([%{w: w, h: h} | _] = imgs, scale) do
-    med =
-      for i <- 0..(w * h - 1) do
-        vals = for %{v: v} <- imgs, x = elem(v, i), x != nil, do: x
-        if length(vals) >= 3, do: median(vals), else: nil
-      end
-      |> List.to_tuple()
-
-    glow = smooth(med, w, h, @glow_px)
+  def spots([[%{w: w, h: h} | _] | _] = groups, scale) do
     # the telescope's own darkening towards the corners is steeper than the glow can follow within
     # its own width of the edge (17 October: a ring of false spots round the frame), so that border
     # is not judged
     m = @glow_px
     inside = fn i -> rem(i, w) >= m and rem(i, w) < w - m and div(i, w) >= m and div(i, w) < h - m end
-    rel = for i <- 0..(w * h - 1), do: if(inside.(i), do: ratio(elem(med, i), elem(glow, i)))
-    judged = Enum.count(0..(w * h - 1), inside)
+    maps = Enum.map(groups, &relative(&1, w, h, inside))
+    # the brightest a pixel reads in any target's map: dark only if dark everywhere; not judged where any map could not say
+    rel = for i <- 0..(w * h - 1), do: maps |> Enum.map(&elem(&1, i)) |> then(fn rs -> if Enum.any?(rs, &is_nil/1), do: nil, else: Enum.max(rs) end)
+    judged = Enum.count(rel, &(&1 != nil))
     dark = rel |> Enum.with_index() |> Enum.filter(fn {r, _} -> r != nil and r < 1 - @dim end) |> MapSet.new(fn {_, i} -> i end)
     rel = List.to_tuple(rel)
 
@@ -242,6 +243,19 @@ defmodule Controller.StillCamera.SensorMap do
       # a disc whose steps clear the biggest spot: its width and a quarter, in half arcminutes, at least 1'
       dither_arcmin: if(blobs == [], do: nil, else: max(1.0, Float.ceil(biggest * 1.25 / 60 * 2) / 2))
     }
+  end
+
+  # one target's map: each pixel's median over its pictures against the smoothed glow around it
+  defp relative(imgs, w, h, inside) do
+    med =
+      for i <- 0..(w * h - 1) do
+        vals = for %{v: v} <- imgs, x = elem(v, i), x != nil, do: x
+        if length(vals) >= 3, do: median(vals), else: nil
+      end
+      |> List.to_tuple()
+
+    glow = smooth(med, w, h, @glow_px)
+    for(i <- 0..(w * h - 1), do: if(inside.(i), do: ratio(elem(med, i), elem(glow, i)))) |> List.to_tuple()
   end
 
   defp ratio(nil, _), do: nil
@@ -304,13 +318,15 @@ defmodule Controller.StillCamera.SensorMap do
   end
 
   defp load do
-    with {:ok, raw} <- File.read(file()), {:ok, m} <- Jason.decode(raw) do
+    # a map from before the every-target rule is not trusted (18 October: one from a single target)
+    with {:ok, raw} <- File.read(file()), {:ok, %{"targets" => t} = m} when is_integer(t) and t >= 2 <- Jason.decode(raw) do
       %{
         spots: Enum.map(m["spots"] || [], fn s -> %{x: s["x"], y: s["y"], diameter_arcsec: s["diameter_arcsec"], depth: s["depth"]} end),
         uptime: m["uptime"],
         dither_arcmin: m["dither_arcmin"],
         frames: m["frames"],
         pointings: m["pointings"],
+        targets: m["targets"],
         at: m["at"],
         from: m["from"],
         method: m["method"]

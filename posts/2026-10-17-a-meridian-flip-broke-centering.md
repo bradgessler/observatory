@@ -1,27 +1,27 @@
 ---
-title: "After a meridian flip, my telescope thought a one degree nudge was a half turn"
+title: "After a meridian flip, my telescope thought a small nudge was a half turn"
 date: 2026-10-17
 kind: note
-summary: "My mount can point at any star two ways. After it flipped to the other side, the software that centers targets worked out its correction for the wrong side and gave up. The fix was one line."
+summary: "My mount can point at any star two ways. After it swung over to its other side, the software that centers targets did its math for the wrong side and gave up. The fix was one line."
 ---
 
-My telescope centers each target on its own. It does a Go To, takes a picture, plate solves it to find out exactly where it landed, and nudges the mount by the difference. It usually takes one or two pictures. Tonight, right after the mount flipped over, it took one picture and quit.
+My telescope centers each target by itself. It points at the target, takes a picture, works out from the stars exactly where it landed, and nudges itself by the difference. It usually takes one or two pictures. Tonight, right after the mount swung over to its other side, it took one picture and quit.
 
-## A German equatorial mount can point at any star two ways
+## First, how my mount points
 
-My mount is a Sky-Watcher EQ6-R. The tube sits on one end of a bar and a counterweight on the other, and the whole thing turns around an axis pointed at the pole. To point at a star, the tube can be on the east side of the mount with the counterweight on the west, or the other way around. Both see exactly the same sky.
+My mount is a Sky-Watcher EQ6-R. The telescope sits on one end of a bar and a heavy counterweight on the other, like a seesaw. The whole thing turns around an axis that points at the North Star, so it can follow the sky as the Earth turns.
 
-Which one you use depends on where the star is. As a star crosses the meridian, the north-south line overhead, the tube on one side would end up below the counterweight and run into the tripod. So the mount swings around to the other side. That's a meridian flip.
+Here's the part that matters. To point at any star, the telescope can be on the east side of the mount with the counterweight on the west, or the other way around. Both see exactly the same sky. As a star crosses the line straight overhead, the mount has to swing the telescope over to the other side, or the telescope would bump into the tripod. Astronomers call that a meridian flip.
 
-## The picture said one degree, the math said half a turn
+## The problem: one degree turned into half a turn
 
-The Moon was behind my garage, so Claude flipped the telescope over to Vega instead, high in the west. Vega wasn't in the picture. The plate solve found the picture was 68 arcminutes away from Vega, a little over a degree.
+The Moon was hidden behind my garage, so Claude swung the telescope over to Vega instead. Vega wasn't in the picture. The stars said the telescope was pointing a bit more than one degree away from it. That's a big miss, but an easy one to fix.
 
-That's a big miss but an easy one to fix. The centering software worked out the nudge and came back with 179 degrees on one axis and 99 on the other. It has a rule that a nudge bigger than 3 degrees isn't a nudge, so it refused, which is the only reason it didn't send the telescope on a half turn around the sky.
+The centering software worked out the nudge and came back with 179 degrees one way and 99 degrees the other. That's half a turn of the mount to fix a one degree miss. It has a safety rule that any nudge bigger than 3 degrees isn't really a nudge, so it refused and stopped. That rule is the only reason the telescope didn't go swinging around the sky.
 
-## Why it picked the wrong side
+## Why the math picked the wrong side
 
-To move the mount, the software has to turn a position in the sky into two motor positions. Because of the two-ways-to-point thing, there are always two answers, one for each side. Here's the function that picks between them:
+To move the mount, the software turns a spot in the sky into a position for each of the two motors. Because the mount can reach any star two ways, there are always two answers. The function that chooses between them prefers the mount's normal side first, and only looks at where the motors actually are when both answers are on the normal side. Here it is, with comments added:
 
 ```elixir
 # from Controller.Sky.Model: two motor positions reach any star, one for each side of the mount
@@ -39,19 +39,19 @@ def encoders(params, signs, alt, az, near) do
 end
 ```
 
-For a fresh Go To that's what you want: prefer the normal side. But a nudge isn't a fresh Go To. After a flip the telescope is on the other side on purpose, and the nudge should stay there. The function preferred the normal side first and only looked at where the motors actually were as a tiebreaker, so it planned the nudge from the wrong side.
+When you're choosing where to go for a brand new target, that's right: use the normal side. But a nudge isn't a new target. After a flip, the telescope is on the other side on purpose, and a small nudge should keep it there. So the software planned a nudge from the wrong side, and a small fix looked like a giant move.
 
-The tracking code had already run into this and has its own rule, `{:stay, near}`, that always takes the answer closest to where the motors are. The centering code just wasn't using it:
+## The fix: one line
+
+The code that keeps the telescope following the sky had hit this same problem before, and it already had its own rule, called `{:stay, near}`: always pick the answer closest to where the motors are right now. The centering code just wasn't using it. Now it does:
 
 ```elixir
-# from Controller.Sky.Centre: stay on the side the tube is on
+# from Controller.Sky.Centre: stay on the side the telescope is on
 {ra_a, dec_a} <- Pointing.axes_for(aim, ctx, near: {:stay, cur})
 ```
 
-## It worked on the next target
+Claude made the change and loaded the new software onto the little computer on the tripod, a Raspberry Pi, while the telescope sat still. That takes about a minute and a half. The next target on that side was the Dumbbell Nebula. The telescope landed about a degree off again, and two nudges brought it to within 2 arcminutes of the middle. An arcminute is 60 arcseconds, so that's a sliver of the camera's view.
 
-Claude made the change and rebuilt and reflashed the Raspberry Pi while the telescope sat still. That takes about a minute and a half. The next target on the flipped side was the Dumbbell Nebula. The Go To landed about a degree off again, and two nudges took it to within about 2 arcminutes.
+## Why it missed by a degree on that side at all
 
-## Why the Go To missed by a degree on that side
-
-That part isn't a bug, but it's worth knowing. The software builds its model of how the mount is sitting from four plate-solved pictures, and tonight all four were taken with the tube on the same side. Small errors, like the camera not sitting quite square to the mount's axes, add up one way on one side and the other way on the other side. So a model built on one side can be a degree off on the other. A plate solve after the flip measures that, which is why the centering step matters so much on a mount that isn't carefully set up.
+That part isn't a bug, but it's good to know. When I set up, the software takes four pictures to learn how my mount is tilted. Tonight all four were taken with the telescope on the same side. Tiny imperfections, like the camera not sitting perfectly square on the telescope, add up one way on one side and the opposite way on the other. So the setup can be a degree off on the side it never practiced on. Taking a picture and checking the stars after every flip catches that, and that's why the centering step matters so much.

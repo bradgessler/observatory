@@ -2,41 +2,41 @@
 title: "You can't plate solve the Moon, and you don't need to"
 date: 2026-10-17
 kind: note
-summary: "My telescope finds where it's pointing by matching stars. A photo of the Moon has no stars in it. Here's how the software would point at the Moon anyway, and how it worked out that my garage was in the way."
+summary: "My telescope finds where it's pointing by matching stars. A photo of the Moon has no stars in it. Here's how it would point at the Moon anyway, and how one grey photo showed my garage was in the way."
 hero: "images/2026-10-17-moon-behind-garage.jpg"
 hero_alt: "A flat grey photo with a few faint dust rings and no stars"
 ---
 
-The Moon was out early tonight, a little less than half lit, hanging low in the southwest. My focus was off and I wasn't home yet, so I asked Claude whether it could plate solve the Moon and shoot it while it waited for me.
+The Moon was out early tonight, a little less than half lit, low in the southwest. My telescope's focus was off and I wasn't home yet. So I asked Claude, the AI that runs my telescope with me, whether it could find the Moon by itself and take some pictures while it waited.
 
-## Plate solving needs stars
+## The problem: my telescope aims by looking at stars
 
-Everything my telescope does to aim itself starts with plate solving. It takes a photo, finds the stars in it, and matches their pattern against a catalog of millions of stars until it knows exactly where the photo was taken. Then it compares that to where it meant to point and nudges the mount by the difference.
+My telescope figures out where it's pointing with a trick called plate solving. It takes a photo, finds the stars in it, and compares their pattern to a map of millions of stars. When the pattern matches, it knows exactly which bit of sky it's looking at. Then it compares that with where it wanted to point and nudges itself the difference.
 
-The Moon breaks that. It's so bright that a photo exposed for it is a fraction of a second long, 1/250 of a second at ISO 200 tonight, and a photo that short has no stars in it at all. There's nothing to match.
+The Moon breaks this. It's so bright that a photo of it has to be very quick, 1/250 of a second tonight. A photo that quick doesn't catch any stars at all, so there's nothing to match.
 
-## It doesn't need to, because the Moon is bigger than the view
+## Why that's fine: the Moon is bigger than the view
 
-My camera on this telescope sees about two thirds of a degree by less than half a degree. The Moon is half a degree across. After a good alignment the mount points to within about an arcminute, a sixtieth of a degree, so a Go To to the Moon lands with the Moon filling the picture. From there the software can center on the bright edge of the Moon instead of on stars.
+My camera on this telescope sees a patch of sky about two thirds of a degree wide. The Moon is half a degree across, so it nearly fills the view. Once the telescope is set up, it points to within about one sixtieth of a degree. That's close enough for the Moon to land right in the picture without any stars to help.
 
-The part my software can't do yet is follow it. The Moon drifts east against the stars by about its own width every hour, so a telescope tracking the stars slowly loses it. For a few quick pictures that doesn't matter. For a mosaic of the whole Moon it would, and that's on the list.
+There's one thing my software can't do yet. The Moon slowly slides across the starry background, about its own width every hour. My telescope follows the stars, so it would slowly lose the Moon. For a few quick pictures that doesn't matter. For a big picture of the whole Moon it would, so it's on my list to fix.
 
-## The first photo came back black
+## What happened: the first photo came back black
 
-The Moon had already crossed the meridian, the north-south line overhead, so getting to it meant flipping the telescope over to the other side of the mount. Claude checked that the counterweight would end up below the tube, which it did, and sent it.
+The Moon had already crossed the line straight overhead, from east to west. My mount has to swing the telescope over to its other side to point there, which is called a meridian flip. Claude checked that the heavy counterweight would end up hanging below the telescope, where it's safe, and sent it.
 
-The first picture at Moon settings was completely black. The brightest pixel read 0 out of 255.
+The first picture was completely black. Not a single pixel had any light in it.
 
-## A grey photo with no stars told us it was the garage
+## One grey photo told us why
 
-So Claude took a 2 second picture at ISO 6400, about 16,000 times more light, to see what was in front of the telescope.
+Next Claude took a 2 second picture at the camera's most sensitive setting. That's about 16,000 times more light, enough to see whatever was in front of the telescope.
 
-![A flat grey photo with a few faint dust rings and no stars](images/2026-10-17-moon-behind-garage.jpg "Two seconds at ISO 6400 pointed at the Moon. Even grey from edge to edge, no stars, just the rings of dust on the camera sensor. Something lit was in front of the telescope.")
+![A flat grey photo with a few faint dust rings and no stars](images/2026-10-17-moon-behind-garage.jpg "Two seconds pointed at the Moon. Even grey from edge to edge, no stars, just the faint rings of dust on the camera. Something lit was in front of the telescope.")
 
-The reasoning went like this. If the Moon were just outside the picture, one side of it would be much brighter than the other, because the sky right next to the Moon glows. If the telescope were looking at open sky, there would be stars. Claude measured the brightness in a three by three grid. The middle read 150 and the corners about 137, which is the normal darkening at the edges of any telescope's view. No glow from one side, no stars. That's something solid and lit, and I'd already told Claude before it tried that the garage might be in the way. The Moon was behind it and getting lower.
+Here's how Claude worked it out. If the Moon were just outside the picture, one side would be much brighter, because the sky right next to the Moon glows. If the telescope were looking at open sky, there would be stars. It measured the brightness across the picture in a grid of nine squares. The middle read 150 out of 255 and the corners about 137. Telescopes are always a little darker at the edges, so that's normal. There was no bright side and no stars, so something solid was blocking the view. I'd already told Claude the garage might be in the way. The Moon was behind it and sinking lower.
 
-## A low Moon isn't worth chasing anyway
+## What I learned: a low Moon isn't worth chasing anyway
 
-Even without the garage, it wouldn't have been a good picture. Low in the sky you're looking through several times as much air as straight up, and the air shimmers. That shimmer smears out exactly the fine detail you want from the Moon, the edges of craters and the shadows along the line between day and night. In the winter, a Moon at this phase rides high in the evening sky, and that's when I'll go after it.
+Even without the garage it wouldn't have been a great picture. When something is low in the sky, you're looking at it through a lot more air, and air shimmers like the air over a hot road. That shimmer blurs the fine details you want on the Moon, like the edges of craters. In winter, the Moon at this phase climbs high in the evening sky, and that's when I'll try again.
 
 So Claude gave up on the Moon and pointed the telescope at Vega instead, a bright star high in the west, so I'd have something to focus on when I got home.

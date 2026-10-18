@@ -13,9 +13,17 @@ defmodule Mix.Tasks.Site.Build do
                                              and, for a mosaic, <slug>-frames.jpg
 
   A night's page is its pictures on black; each opens a page with the plain
-  picture first, then the labelled one with the facts, then the part for
-  photographers. Each of those pages carries its own share card, a
-  `<template id="ogplus">` that OpenGraph+ photographs in place of the page.
+  picture first, then the labelled one with the facts. Each of those pages
+  carries its own share card, a `<template id="ogplus">` that OpenGraph+
+  photographs in place of the page.
+
+  Two audiences, two layers. The night's page and the picture pages are for
+  people who came for the sky: pictures and plain words, and one link,
+  "Technical details", at the foot. That link opens the night's
+  `technical.html`, which is for photographers, programmers and astronomers:
+  the night's equipment, then every target (its anchor is its slug) with how
+  it was taken and processed, a "Copy for Reddit" block in the plain Markdown
+  r/astrophotography posts use, the night's technical notes, and the source.
 
       mix site.build            # into _site
       mix site.build --out docs # somewhere else
@@ -57,6 +65,10 @@ defmodule Mix.Tasks.Site.Build do
     private!(paths ++ nights ++ Path.wildcard(Path.join([root, "observations", "*", "objects.json"])) ++ Path.wildcard(Path.join([root, "observations", "*", "plan.json"])))
     posts = paths |> Enum.map(&read_post/1) |> Enum.sort_by(& &1.date, {:desc, Date})
     sessions = nights |> Enum.map(&read_session/1) |> Enum.sort_by(& &1.date, {:desc, Date})
+    # a night's technical notes, in the order they were written: what went wrong and what we did about it,
+    # beside the pictures it happened on; and each note links back to its night
+    sessions = Enum.map(sessions, fn n -> Map.put(n, :notes, posts |> Enum.filter(&(&1.kind == :note and &1.date == n.date)) |> Enum.reverse()) end)
+    posts = Enum.map(posts, fn p -> Map.put(p, :night, p.kind == :note && Enum.find(sessions, &(&1.date == p.date))) end)
 
     File.rm_rf!(out)
     File.mkdir_p!(Path.join(out, "images"))
@@ -349,7 +361,7 @@ defmodule Mix.Tasks.Site.Build do
     <template id="ogplus">#{share.card}</template>
     <p class="back"><a href="index.html">‹ Observatory</a></p>
     <article>
-      #{if post.kind == :note, do: ~s(<p class="kind">Technical note</p>)}
+      #{if post.kind == :note, do: ~s(<p class="kind">Technical note#{if post[:night], do: ~s( from the <a href="observations/#{post.night.slug}/">#{esc(post.night.title)}</a>)}</p>)}
       <h1>#{esc(post.title)}</h1>
       <time datetime="#{post.date}">#{pretty(post.date)}</time>
       #{post.html}
@@ -507,6 +519,7 @@ defmodule Mix.Tasks.Site.Build do
       end
 
       File.write!(Path.join(to, "index.html"), session_page(night, site))
+      File.write!(Path.join(to, "technical.html"), technical_page(night, site))
       for o <- night.objects, do: File.write!(Path.join(to, o["slug"] <> ".html"), object_page(night, o, site))
       # a target with no picture yet has a page saying where it stands
       for t <- night.plan, not published?(night, t), do: File.write!(Path.join(to, t["slug"] <> ".html"), placeholder_page(night, t, site))
@@ -587,9 +600,240 @@ defmodule Mix.Tasks.Site.Build do
     <article class="night-notes">
       #{night.html}
     </article>
-    #{spec_list(night.rows)}
+    #{technical_link("technical.html", "The equipment, how each picture was taken and processed, and what went wrong at the telescope.")}
     #{rights(night.date.year)}
     """, "wide", "../../", "obs")
+  end
+
+  # The one way from the pictures to the photographers' page: calm, at the foot.
+  defp technical_link(href, line) do
+    ~s(<p class="technical"><a href="#{href}">Technical details</a><span class="detail">#{esc(line)}</span></p>)
+  end
+
+  defp night_notes(%{notes: [_ | _] = notes}) do
+    rows =
+      Enum.map_join(notes, "\n", fn p ->
+        ~s(<li><a href="../../#{p.slug}.html"><span class="note-title">#{esc(p.title)}</span><span class="note-summary">#{esc(p.summary)}</span></a></li>)
+      end)
+
+    ~s(<section class="notes"><h2>Technical notes from the night</h2><p class="lede">What went wrong at the telescope, and what we did about it, as it happened.</p><ul class="notes">#{rows}</ul></section>)
+  end
+
+  defp night_notes(_), do: ""
+
+  # -- the technical page ------------------------------------------------------------------
+  # For photographers, programmers and astronomers, all in one place: the night's equipment, then
+  # every target with how it was taken and processed, the night's technical notes, and the source.
+  # A picture's specs are sorted into the parts a photographer looks for by their label; a label
+  # not listed here is processing, so nothing in objects.json is ever left off the page.
+
+  @equipment ["Telescope", "Camera", "Mount"]
+  @acquisition ["Exposures", "Frames", "When", "Sampling", "Field", "Field rotation", "Dispersion", "Calibration"]
+  @results ["What is real", "Not seen", "Not shown", "Not resolved", "Not claimed", "Known flaws", "Honest limits", "Compared", "The pair", "Moon names"]
+  @source "https://github.com/bradgessler/observatory"
+  @reddit_processing ["Registration", "Mosaic", "Lucky imaging", "Planet stack", "Stacking", "High dynamic range", "Composite", "Restoration", "Finish"]
+
+  defp acquisition?(k), do: k in @acquisition or k =~ ~r/dither|^darks|^flats|^bias/i
+
+  # every target in the night's order: the plan's when it has one, then any picture the plan does not list
+  defp targets(night) do
+    planned = Enum.map(night.plan, fn t -> Enum.find(night.objects, &(&1["slug"] == t["slug"])) || {:plan, t} end)
+    planned ++ Enum.reject(night.objects, fn o -> Enum.any?(night.plan, &(&1["slug"] == o["slug"])) end)
+  end
+
+  defp technical_page(night, site) do
+    share = %{
+      path: "observations/#{night.slug}/technical.html",
+      type: "article",
+      title: "Technical details, #{night.title}",
+      description: "How the pictures of the #{String.downcase(night.title)} were made: the equipment, the exposures and the processing.",
+      hero: cover(night),
+      hero_alt: cover_alt(night),
+      date: night.date,
+      card: nil
+    }
+
+    sections = night |> targets() |> Enum.map_join("\n", &target_section(night, &1, site))
+
+    layout("Technical details, #{night.title}", share_tags(share, site), """
+    <p class="back"><a href="./">‹ #{esc(night.title)}</a></p>
+    <header>
+      <h1>Technical details</h1>
+      <p class="sub">#{esc(night.title)}</p>
+      <p class="lede">The equipment, then each target: how it was taken, how it was processed, and what the picture does and does not show. Each published target has a block to copy into a forum post.</p>
+    </header>
+    <section aria-labelledby="setup-h">
+      <h2 id="setup-h">Session</h2>
+      #{spec_list(night.rows)}
+    </section>
+    #{sections}
+    #{night_notes(night)}
+    <section class="source" aria-labelledby="source-h">
+      <h2 id="source-h">Source</h2>
+      <p class="lede">Observatory, the software that drove the mount, took the frames and published these pages, is open source.</p>
+      <p><a href="#{@source}">Source on GitHub</a></p>
+    </section>
+    #{rights(night.date.year)}
+    #{copy_script()}
+    """, "wide", "../../", "obs tech")
+  end
+
+  # a target with no picture yet: what it is and where it stands, and nothing to copy
+  defp target_section(_night, {:plan, t}, _site) do
+    state = t["state"] || "planned"
+
+    """
+    <section class="target" id="#{esc(t["slug"])}" aria-labelledby="#{esc(t["slug"])}-h">
+      <h2 id="#{esc(t["slug"])}-h"><a href="#{esc(t["slug"])}.html">#{esc(t["title"])}</a></h2>
+      <p class="sub">#{esc(t["sub"])}</p>
+      <p class="waiting" role="status">#{esc(plan_words(Map.put(t, "state", state)))}. Its technical details will be here when its picture is published.</p>
+    </section>
+    """
+  end
+
+  defp target_section(night, o, site) do
+    slug = o["slug"]
+    specs = Enum.map(o["specs"] || [], &List.to_tuple/1)
+    {equipment, rest} = Enum.split_with(specs, fn {k, _} -> k in @equipment end)
+    {acquisition, rest} = Enum.split_with(rest, fn {k, _} -> acquisition?(k) end)
+    {results, processing} = Enum.split_with(rest, fn {k, _} -> k in @results end)
+    size = if o["width"] && o["height"], do: {"Picture size", "#{o["width"]} x #{o["height"]} pixels"}
+    processing = Enum.reject(processing ++ [size, {"Software", squash(night.made_with)}], &(is_nil(&1) or elem(&1, 1) in [nil, ""]))
+
+    pan = if o["height"] > o["width"] * 0.9, do: "pan tall", else: "pan"
+
+    frames =
+      if o["frames"],
+        do: plate(night, slug <> "-frames", "#{o["title"]}, with the frames that were joined outlined", o, pan) <> ~s(<p class="pan-hint">Swipe sideways to see the rest. Tap the picture for full size.</p>),
+        else: ""
+
+    group = fn
+      _, [] -> ""
+      title, rows -> "<h3>#{title}</h3>\n" <> spec_list(rows)
+    end
+
+    """
+    <section class="target" id="#{esc(slug)}" aria-labelledby="#{esc(slug)}-h">
+      <h2 id="#{esc(slug)}-h"><a href="#{esc(slug)}.html">#{esc(o["title"])}</a></h2>
+      <p class="sub">#{esc(o["subtitle"])}</p>
+      #{if o["made"] || o["how"], do: ~s(<p class="lede">#{esc(Enum.reject([o["made"], o["how"]], &(&1 in [nil, ""])) |> Enum.map_join(". ", &String.trim_trailing(&1, ".")))}.</p>)}
+      #{frames}
+      #{group.("Equipment", equipment)}
+      #{group.("Acquisition", acquisition)}
+      #{group.("Processing", processing)}
+      #{group.("What the picture shows", results)}
+      <h3 id="#{esc(slug)}-reddit">Copy for Reddit</h3>
+      <p class="hint">In the Markdown r/astrophotography posts use. Paste it into the post's text in Markdown mode.</p>
+      <div class="copy">
+        <button type="button" class="copy" data-copy="#{esc(slug)}-text" aria-describedby="#{esc(slug)}-reddit" hidden>Copy</button>
+        <pre id="#{esc(slug)}-text">#{esc(reddit(night, o, site))}</pre>
+      </div>
+    </section>
+    """
+  end
+
+  @doc """
+  A target's write-up as an r/astrophotography post: Markdown with a bold line per part and a
+  bullet per fact, every value from the night's files (a line the data does not have is left out,
+  nothing is made up), and links back to the picture and this page.
+  """
+  def reddit(night, o, site) do
+    specs = Map.new(o["specs"] || [], &List.to_tuple/1)
+    rows = Map.new(night.rows)
+    place = rows["Location"] && first_sentence(rows["Location"])
+
+    equipment =
+      [
+        {"Telescope", specs["Telescope"] || rows["Telescope"]},
+        {"Camera", specs["Camera"] || rows["Camera"]},
+        {"Mount", specs["Mount"] || rows["Mount"]},
+        {"Computer", rows["Computer"]}
+      ]
+
+    # dithering and calibration frames, when a picture's specs name them
+    frames = for [k, v] <- o["specs"] || [], k =~ ~r/dither|^darks|^flats|^bias/i, do: {k, v}
+
+    acquisition =
+      [lights(specs["Exposures"]), {"Frames", specs["Frames"] && frames_line(specs["Frames"])}, {"When", specs["When"]}, {"Sky", rows["Sky"]}] ++
+        frames ++
+        [
+          {"Calibration", specs["Calibration"]},
+          {"Field", specs["Field"] && before_colon(specs["Field"])},
+          {"Sampling", specs["Sampling"] && before_colon(specs["Sampling"])}
+        ]
+
+    # how the frames became the picture, in the order it was done; the measurements stay on the page
+    processing =
+      Enum.map(@reddit_processing, &{&1, specs[&1]}) ++ [{"Software", night.made_with && night.made_with |> squash() |> String.trim_trailing(".")}]
+
+    page = "#{site.url}/observations/#{night.slug}/"
+
+    [
+      "**#{o["title"]}**" <> if(o["subtitle"] not in [nil, ""], do: ": #{o["subtitle"]}", else: ""),
+      Enum.reject(["Night of #{pretty(night.date)}", place], &is_nil/1) |> Enum.join(", "),
+      bullets("Equipment", equipment),
+      bullets("Acquisition", acquisition),
+      bullets("Processing", processing),
+      "Full write-up: #{page}#{o["slug"]}.html",
+      "All the technical details: #{page}technical.html##{o["slug"]}"
+    ]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n\n")
+  end
+
+  # "29 x 15 s at ISO 3200: 7.25 minutes. The core did not clip..." is the line every post starts
+  # its acquisition with; an exposure written any other way is given as the file has it
+  defp lights(nil), do: {"Exposures", nil}
+
+  defp lights(text) do
+    case Regex.run(~r/^(\d+) x (\S+ s) at ISO (\d+)(?:: (.+?))?(?:\.\s|\.?$)/, text) do
+      [_, n, sub, iso] -> {"Lights", "#{n} × #{sub} at ISO #{iso}"}
+      [_, n, sub, iso, total] -> {"Lights", "#{n} × #{sub} at ISO #{iso} (#{total})"}
+      _ -> {"Exposures", text}
+    end
+  end
+
+  # "31 taken, 29 kept. The first frame..." is "31 taken, 29 kept"; a count in parts ("Planet: 61 taken...
+  # Moons: ...") is given whole, so no part is lost
+  defp frames_line(text) do
+    if text =~ ~r/^[A-Z][a-z]+: /, do: text, else: text |> first_sentence() |> before_colon()
+  end
+
+  defp bullets(title, rows) do
+    case for({k, v} <- rows, v not in [nil, ""], do: "* #{k}: #{v}") do
+      [] -> ""
+      lines -> "**#{title}**\n\n" <> Enum.join(lines, "\n")
+    end
+  end
+
+  defp first_sentence(text), do: text |> String.split(~r/\.\s/, parts: 2) |> hd() |> String.trim_trailing(".")
+  # "15.5 x 10.4 arcmin: a 1200 x 800 crop..." is "15.5 x 10.4 arcmin"; "Planet: 61 taken" stays whole
+  defp before_colon(text) do
+    case String.split(text, ": ", parts: 2) do
+      [head, _] -> if head =~ ~r/\d/, do: head, else: text
+      _ -> text
+    end
+  end
+  defp squash(nil), do: nil
+  defp squash(text), do: text |> String.replace(~r/\s+/, " ") |> String.trim()
+
+  # The one script on the blog: the Copy buttons. Without it the blocks are plain text to select,
+  # and the buttons stay hidden. A browser that will not write to the clipboard gets the block
+  # selected instead, ready to copy by hand.
+  defp copy_script do
+    """
+    <script>
+    document.querySelectorAll("button.copy").forEach(function (b) {
+      b.hidden = false;
+      b.addEventListener("click", function () {
+        var pre = document.getElementById(b.dataset.copy);
+        var select = function () { var r = document.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+        var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 2000); };
+        try { navigator.clipboard.writeText(pre.textContent).then(done, select); } catch (e) { select(); }
+      });
+    });
+    </script>
+    """
   end
 
   defp object_page(night, o, site) do
@@ -613,7 +857,6 @@ defmodule Mix.Tasks.Site.Build do
     # a picture with names on it is read, not glanced at: it may run taller than the screen, and a phone pans across it
     pan = if o["height"] > o["width"] * 0.9, do: "pan tall", else: "pan"
     hint = ~s(<p class="pan-hint">Swipe sideways to see the rest. Tap the picture for full size.</p>)
-    frames = if o["frames"], do: plate(night, slug <> "-frames", "#{o["title"]}, with the frames that were joined outlined", o, pan) <> hint, else: ""
 
     layout(o["title"], share_tags(share, site), """
     <template id="ogplus">#{card}</template>
@@ -630,13 +873,8 @@ defmodule Mix.Tasks.Site.Build do
       #{hint}
       #{spec_list(o["facts"], "facts")}
     </section>
-    <section>
-      <h2>For photographers</h2>
-      <p class="lede">#{esc(o["how"])}.</p>
-      #{frames}
-      #{spec_list(o["specs"])}
-    </section>
-    <p class="credit">#{esc(night.credit)}<br />#{esc(night.made_with)}</p>
+    #{technical_link("technical.html##{slug}", "How this picture was made: the equipment, the exposures and the processing.")}
+    <p class="credit">#{esc(night.credit)}</p>
     <nav class="prevnext">
       #{object_link(before, "earlier", "Previous")}
       #{object_link(next, "later", "Next")}
@@ -1063,6 +1301,24 @@ defmodule Mix.Tasks.Site.Build do
     dl.facts dd { font-size:1.35rem; line-height:1.35; font-weight:600; }
     dl.spec dd { font-size:.95rem; line-height:1.5; }
     .credit { color:var(--dim); font-size:.85rem; margin-top:4rem; }
+    /* the one link from the pictures to the photographers' page */
+    p.technical { display:grid; gap:.1rem; margin:4rem 0 0; max-width:46rem; }
+    p.technical a { font-size:1.15rem; font-weight:600; padding:.55rem 0; justify-self:start; }
+    p.technical .detail { color:var(--dim); font-size:.9rem; }
+    /* the technical page: one section per target, its specs in groups, a block to copy */
+    .tech section.target { margin-top:5rem; padding-top:2rem; border-top:1px solid var(--line); scroll-margin-top:1rem; }
+    .tech section.target > h2 a { color:inherit; text-decoration:none; }
+    .tech section.target > h2 a:hover { text-decoration:underline; }
+    .tech section.target > .lede { margin-top:1rem; }
+    .tech h3 { font-size:1.05rem; margin:2.5rem 0 0; }
+    .tech h3 + dl.spec { margin-top:1rem; }
+    .tech .hint { color:var(--dim); font-size:.9rem; margin:.25rem 0 0; max-width:46rem; }
+    .tech .waiting { margin:1.5rem 0 0; }
+    div.copy { margin-top:1rem; max-width:46rem; }
+    div.copy pre { margin:0; padding:1rem 1.1rem; background:var(--panel); border:1px solid var(--line); border-radius:10px; font-size:.85rem; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; -webkit-user-select:text; }
+    button.copy { margin:0 0 .75rem; min-height:44px; padding:0 1.5rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); font:inherit; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    button.copy:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+    button.copy[hidden] { display:none; }
     .rights { color:var(--dim); font-size:.85rem; margin-top:3rem; }
     /* a phone: the pictures run edge to edge, the words keep their margin */
     @media (max-width:40rem) {

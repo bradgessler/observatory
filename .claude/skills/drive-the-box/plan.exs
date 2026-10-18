@@ -31,7 +31,9 @@ iso = String.to_integer(System.get_env("ISO") || "3200")
 # one), so the sensor's dust and hot pixels land on different sky and stacking averages them away
 # (`Controller.Sky.Dither`; 17 October: dust shadows up to 70 arcseconds). Only for exposures of 2 s and longer: a
 # planet's short frames are picked for sharpness and moving between them only costs time.
-dither = case System.get_env("DITHER") do nil -> nil; d -> elem(Float.parse(d), 0) end
+# DITHER=auto sizes the moves from the sensor map (`Controller.StillCamera.SensorMap`): past its biggest dust spot,
+# none at all when the sensor is clean, small probing moves until there is a map.
+dither = case System.get_env("DITHER") do nil -> nil; "auto" -> :auto; d -> elem(Float.parse(d), 0) end
 dither_every = String.to_integer(System.get_env("DITHER_EVERY") || "1")
 shutter = System.get_env("SHUTTER") || "15"
 skip_first = System.get_env("FIRST_SKIP_CENTRE") == "1"

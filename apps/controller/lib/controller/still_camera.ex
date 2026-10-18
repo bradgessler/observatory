@@ -63,7 +63,7 @@ defmodule Controller.StillCamera do
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
   alias Controller.ScopeCamera.Header
-  alias Controller.StillCamera.{Cloud, Focus, Optics, Sidecar}
+  alias Controller.StillCamera.{Cloud, Focus, Optics, SensorMap, Sidecar}
 
   @topic "still_camera"
   @look_ms 3_000
@@ -766,7 +766,7 @@ defmodule Controller.StillCamera do
   # every `dither_every:` pictures (1), and only while a hold is running to move. `dither:` is the
   # disc's radius in arcminutes; it should be bigger than the dust on the sensor (`Controller.Sky.Dither`).
   defp next_or_dither(s) do
-    radius = s.shot_opts[:dither]
+    radius = dither_radius(s.shot_opts[:dither])
     every = s.shot_opts[:dither_every] || 1
     mount = s.shot_opts[:mount] || mount_id()
     hold = is_number(radius) and radius > 0 and s.task == nil and s.dither.shots >= every and mount && Controller.Sky.Tracker.status(mount)
@@ -784,6 +784,18 @@ defmodule Controller.StillCamera do
       if started.task != s.task, do: %{started | dither: %{started.dither | shots: started.dither.shots + 1}}, else: started
     end
   end
+
+  # `dither: :auto` steps past what the sensor map found: sized to its biggest spot, not at all when the
+  # sensor is clean, and small probing steps until there is a map (so one target all night still makes one)
+  @probe_arcmin 1.0
+  defp dither_radius(:auto) do
+    case SensorMap.dither_arcmin() do
+      :unknown -> @probe_arcmin
+      r -> r
+    end
+  end
+
+  defp dither_radius(r), do: r
 
   defp start_shot(s, opts, solve \\ nil)
 
@@ -848,6 +860,9 @@ defmodule Controller.StillCamera do
       jpeg = Enum.find(files, &(&1.format == :jpeg))
       tell(ctx, %{stage: :measuring})
       frame = jpeg && measure(jpeg.bytes)
+      # the grey copy goes to the sensor map, never into the record (it is 600 kB)
+      grey = frame && frame[:grey]
+      frame = frame && Map.delete(frame, :grey)
 
       # Cloud: this picture's stars against the same stars in the clearest picture of the field. The
       # field is this process's (handed over as the picture started, handed back in its record), and
@@ -941,6 +956,22 @@ defmodule Controller.StillCamera do
       }
 
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
+
+      # the sensor's dust, from pictures taken at different places in the sky (`SensorMap`)
+      star_size = record[:star_size]
+      exposure_s = settings && Sidecar.seconds(settings[:shutter])
+
+      SensorMap.add(grey, %{
+        name: Path.basename(base),
+        exposure_s: exposure_s,
+        frame: ctx.opts[:frame],
+        settling: record[:settling],
+        stars: record[:stars],
+        target: safe(fn -> (Controller.Sky.Tracker.status(mount_id) || %{})[:name] end),
+        dither: ctx.opts[:dither_at],
+        arcsec_per_px: is_map(star_size) && is_number(star_size[:arcsec_per_px]) && star_size[:arcsec_per_px] * (star_size[:w] || @copy_w) / @copy_w
+      })
+
       {:ok, record}
     end
   end
@@ -1075,7 +1106,7 @@ defmodule Controller.StillCamera do
   defp measure(jpeg) do
     with pgm when is_binary(pgm) <- grey(jpeg, lowres(jpeg_width(jpeg)), "scale=#{@copy_w}:-2,format=gray"),
          %{marks: %{stars: stars}} = frame <- ScopeCamera.analyse(pgm),
-         do: Map.put(frame, :light, Cloud.light(pgm, stars))
+         do: frame |> Map.put(:light, Cloud.light(pgm, stars)) |> Map.put(:grey, pgm)
   rescue
     _ -> nil
   end
@@ -1339,7 +1370,9 @@ defmodule Controller.StillCamera do
       why: s.why,
       solving: s.solving,
       # the run's dither: the offset pictures are being taken at now, the last move's result, a move under way
-      dither: Map.take(s.dither, [:at, :last, :busy]),
+      dither: Map.take(s.dither, [:at, :last, :busy]) |> Map.put(:every, s.shot_opts[:dither] && (s.shot_opts[:dither_every] || 1)),
+      # the sensor's dust as the night's pictures show it (`SensorMap`): read here so a page on another machine has it
+      sensor: SensorMap.summary(),
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
       # the card in numbers: `%{total_mb, pictures, pictures_mb}` (how big it is, and what of it is pictures)
@@ -1380,7 +1413,9 @@ defmodule Controller.StillCamera.Supervisor do
   @impl true
   def init(_) do
     Supervisor.init(
-      [{Task.Supervisor, name: Controller.StillCamera.Tasks}, Controller.StillCamera],
+      # the sensor map last: under rest_for_one a crash restarts what comes after it, and nothing comes
+      # after the map, so it can never take the camera down with it
+      [{Task.Supervisor, name: Controller.StillCamera.Tasks}, Controller.StillCamera, Controller.StillCamera.SensorMap],
       strategy: :rest_for_one,
       max_restarts: 5,
       max_seconds: 60

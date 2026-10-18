@@ -1,0 +1,20 @@
+14 points above 6 sigma; plate solves: up -60.25 deg east of north, 0.3883 arcsec per sensor px
+fit on the matched moons: 0.3885 arcsec per px, rms 0.07 arcsec
+  Mimas       30.2" from the planet: not found 
+  Enceladus   38.6" from the planet: found (snr 38, 0.04" off the catalogue)
+  Tethys       9.6" from the planet: inside the blown-out patch 
+  Dione       45.7" from the planet: found (snr 170, 0.01" off the catalogue)
+  Rhea        62.6" from the planet: found (snr 371, 0.12" off the catalogue)
+  Titan      139.4" from the planet: found (snr 1010, 0.05" off the catalogue)
+  Hyperion   165.4" from the planet: not found 
+  Iapetus    228.1" from the planet: found (snr 154, 0.06" off the catalogue)
+  not a moon: point at (816, 702), 39" from the planet, snr 26, flux 3.5635: Gaia G 11.9, 0.9" off
+  not a moon: point at (763, 1328), 206" from the planet, snr 12, flux 0.8862: Gaia G 13.0, 0.7" off
+  not a moon: point at (860, 697), 46" from the planet, snr 6, flux 0.5284: no catalogue star
+  not a moon: point at (866, 709), 44" from the planet, snr 6, flux 0.5068: no catalogue star
+  not a moon: point at (232, 103), 349" from the planet, snr 7, flux 0.4345: Gaia G 14.2, 0.6" off
+  not a moon: point at (782, 167), 246" from the planet, snr 8, flux 0.1766: no catalogue star
+  not a moon: point at (202, 1054), 252" from the planet, snr 6, flux 0.1460: no catalogue star
+  not a moon: point at (163, 908), 251" from the planet, snr 6, flux 0.1412: no catalogue star
+  not a moon: point at (1528, 570), 296" from the planet, snr 7, flux 0.1278: no catalogue star
+  brightest Gaia stars in the field: [{'g': 11.92, 'px': [817.8, 703.2]}, {'g': 12.98, 'px': [763.9, 1329.5]}, {'g': 14.17, 'px': [232.9, 104.3]}, {'g': 14.98, 'px': [1441.6, 1231.0]}, {'g': 15.31, 'px': [250.7, 107.0]}, {'g': 15.51, 'px': [234.3, 1146.9]}]

@@ -1,0 +1,9 @@
+well-covered rectangle (>= 53 of 66 frames): x 96..2944, y 62..1940 -> 2848 x 1878 px
+solved: 0.7766 arcsec/px (focal length 2082 mm for 3.92 um pixels in 2 x 2 cells), field 36.9 x 24.3 arcmin, centre RA 299.8947 Dec 22.7538; north is 116.2 deg clockwise from up, east 26.2; not mirrored (the sky as seen)
+M27 catalogue place (the central star) at pixel (1300.9, 845.7); green there (2 px blur) 448.1 DN above the sky; the nucleus's centroid is 0.7 arcsec away; catalogue major axis at -3.8 deg on the picture
+galaxy crop: x 701 y 346, 1200 x 1000 px; nucleus at (600.5, 500.4) in it; north is 116.2 degrees clockwise from up (east 26.2): in the picture north points to the lower right; the sky as seen, not mirrored
+  bright source {'pixel': [2286.3, 1741.8], 'ra_deg': 299.81498, 'dec_deg': 22.99704, 'green_flux_dn': 2224710, 'half_flux_radius_px': 4.89, 'touched_the_ceiling': True, 'from_the_nucleus_arcmin': 17.24}
+  bright source {'pixel': [1468.4, 334.4], 'ra_deg': 300.02601, 'dec_deg': 22.70478, 'green_flux_dn': 1189221, 'half_flux_radius_px': 3.61, 'touched_the_ceiling': True, 'from_the_nucleus_arcmin': 6.96}
+  bright source {'pixel': [661.5, 1173.6], 'ra_deg': 299.76696, 'dec_deg': 22.62851, 'green_flux_dn': 993986, 'half_flux_radius_px': 3.43, 'touched_the_ceiling': True, 'from_the_nucleus_arcmin': 9.3}
+  bright source {'pixel': [734.0, 877.5], 'ra_deg': 299.83649, 'dec_deg': 22.61438, 'green_flux_dn': 714999, 'half_flux_radius_px': 2.72, 'touched_the_ceiling': True, 'from_the_nucleus_arcmin': 7.35}
+  bright source {'pixel': [2199.3, 524.0], 'ra_deg': 300.06199, 'dec_deg': 22.86429, 'green_flux_dn': 616913, 'half_flux_radius_px': 6.62, 'touched_the_ceiling': False, 'from_the_nucleus_arcmin': 12.35}

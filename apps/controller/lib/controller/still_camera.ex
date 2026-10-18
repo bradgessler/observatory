@@ -63,7 +63,7 @@ defmodule Controller.StillCamera do
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
   alias Controller.ScopeCamera.Header
-  alias Controller.StillCamera.{Cloud, Focus, Optics, Sidecar}
+  alias Controller.StillCamera.{Cloud, Focus, Optics, SensorMap, Sidecar}
 
   @topic "still_camera"
   @look_ms 3_000
@@ -204,6 +204,8 @@ defmodule Controller.StillCamera do
   Take one picture now (ignored while one is being taken). Options, for this picture (those given
   to `continuous/3` stand for the rest):
 
+    * `frame:` `:dark` or `:flat` for a calibration frame taken on purpose; its sidecar says so and
+      the stacking tools find it by that (nothing said: a light frame of the sky);
     * `settle_ms:` how long after a slew a picture is still the mount settling (2000). A picture
       whose shutter opened sooner than that is marked `settling: true` and not counted;
     * `slew_deg_s:` how fast an axis must turn for it to be a slew and not tracking, in degrees a
@@ -424,7 +426,13 @@ defmodule Controller.StillCamera do
        clock_wait: nil,
        # no new picture before this (monotonic ms): `pause/2`, for an upgrade
        paused_until: nil,
+       # the picture whose camera part is under way (capture and download), or nil
        task: nil,
+       # pictures already off the camera, still being saved, measured and handed to the solver:
+       # %{task ref => seq}. In a run the next picture starts as soon as one is off the camera, and
+       # these finish behind it (13 October: 10 s a picture of the camera standing idle while the
+       # box measured the last one)
+       background: %{},
        shot: nil,
        # the pictures' numbers carry on where they left off, and the last one is still the last one
        seq: roll.seq,
@@ -444,6 +452,9 @@ defmodule Controller.StillCamera do
        watching: MapSet.new(),
        # the run's options for each picture (`shoot/1`'s)
        shot_opts: [],
+       # a run's dither (`continuous/3`'s `dither:`): pictures since the last move, the next offset's
+       # number, the aim the run started from, a move under way, the offset now and the last move's result
+       dither: %{shots: 0, k: 0, base: nil, busy: false, at: nil, last: nil},
        # the mounts whose reports are followed, and when each was last seen slewing (monotonic ms)
        mounts: MapSet.new(),
        moved: %{},
@@ -461,6 +472,8 @@ defmodule Controller.StillCamera do
   @impl true
   def handle_call({:continuous, on?, interval, opts}, _from, s) do
     s = persist(%{s | continuous: on?, interval_ms: interval, shot_opts: opts, failures: 0, why: nil})
+    # a new run dithers round its own middle, from its first picture
+    s = if on?, do: %{s | dither: %{s.dither | shots: 0, k: 0, base: nil, at: nil}}, else: s
     s = if on? and s.task == nil and not s.armed, do: arm(s, 0), else: s
     {:reply, :ok, announce(s)}
   end
@@ -665,10 +678,21 @@ defmodule Controller.StillCamera do
         s = arm(%{s | clock_wait: s.clock_wait || now}, 2_000)
         {:noreply, if(s.why == why, do: s, else: announce(%{s | why: why}))}
 
+      # a dither move under way: it asks for the next picture when the hold has settled
+      s.dither.busy ->
+        {:noreply, s}
+
       true ->
         s = if is_binary(s.why) and (s.why =~ "waiting for network time" or s.why =~ "paused for an upgrade"), do: %{s | why: nil, paused_until: nil}, else: s
-        {:noreply, start_shot(s)}
+        {:noreply, next_or_dither(s)}
     end
+  end
+
+  # The dither move is done (or gave up, bounded): the run carries on from wherever the hold is.
+  def handle_info({:dithered, result}, s) do
+    unless result == :ok, do: Logger.warning("still camera: dither move #{inspect(result)}; carrying on")
+    s = %{s | dither: %{s.dither | busy: false, shots: 0, last: result}}
+    {:noreply, announce(if s.continuous and not s.armed, do: arm(s, 0), else: s)}
   end
 
   def handle_info({ref, result}, %{task: %Task{ref: ref}} = s) do
@@ -676,9 +700,32 @@ defmodule Controller.StillCamera do
     {:noreply, finished(%{s | task: nil, shot: nil}, result)}
   end
 
+  # a picture that was finishing behind the next one
+  def handle_info({ref, result}, %{background: bg} = s) when is_map_key(bg, ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, finished(%{s | background: Map.delete(bg, ref)}, result)}
+  end
+
   def handle_info({:DOWN, ref, :process, _, reason}, %{task: %Task{ref: ref}} = s) do
     {:noreply, finished(%{s | task: nil, shot: nil}, {:error, {:crashed, reason}})}
   end
+
+  def handle_info({:DOWN, ref, :process, _, reason}, %{background: bg} = s) when is_map_key(bg, ref) do
+    {:noreply, finished(%{s | background: Map.delete(bg, ref)}, {:error, {:crashed, reason}})}
+  end
+
+  # The picture in flight is off the camera: its files are down and the camera is free. In a run, the
+  # next picture starts now and this one is saved, measured and solved behind it. A single picture (a
+  # finder's, a Take Picture) is not overtaken: whoever asked for it waits for all of it.
+  # Its off switch, for a camera that misbehaves when asked for a picture while the last is being saved:
+  # `Application.put_env(:controller, :overlap_pictures, false)` on the box, no flash needed.
+  def handle_info({:camera_free, seq}, %{task: %Task{ref: ref}, seq: seq, continuous: true, finder: nil} = s) do
+    if Application.get_env(:controller, :overlap_pictures, true),
+      do: {:noreply, announce(arm(%{s | task: nil, shot: nil, background: Map.put(s.background, ref, seq)}, s.interval_ms))},
+      else: {:noreply, s}
+  end
+
+  def handle_info({:camera_free, _seq}, s), do: {:noreply, s}
 
   # Where the picture being taken has got to: the camera's own stages (`Camera.capture/2`), then
   # this module's (saving its files, measuring it). Only for the shot in flight.
@@ -715,7 +762,42 @@ defmodule Controller.StillCamera do
     end)
   end
 
-  defp start_shot(s, opts \\ nil, solve \\ nil)
+  # The next picture of a run, or first a dither move: only with the camera free (no shutter open), only
+  # every `dither_every:` pictures (1), and only while a hold is running to move. `dither:` is the
+  # disc's radius in arcminutes; it should be bigger than the dust on the sensor (`Controller.Sky.Dither`).
+  defp next_or_dither(s) do
+    radius = dither_radius(s.shot_opts[:dither])
+    every = s.shot_opts[:dither_every] || 1
+    mount = s.shot_opts[:mount] || mount_id()
+    hold = is_number(radius) and radius > 0 and s.task == nil and s.dither.shots >= every and mount && Controller.Sky.Tracker.status(mount)
+    base = s.dither.base || (is_map(hold) && hold[:aim])
+
+    if is_map(hold) and is_map(base) and is_number(base[:ra_deg]) do
+      k = s.dither.k
+      {east, north} = offset = Controller.Sky.Dither.offset(k, radius)
+      me = self()
+      Task.Supervisor.start_child(Controller.StillCamera.Tasks, fn -> send(me, {:dithered, Controller.Sky.Dither.step(mount, base, offset)}) end)
+      at = %{k: k, east_arcmin: Float.round(east, 2), north_arcmin: Float.round(north, 2), radius_arcmin: radius}
+      announce(%{s | dither: %{s.dither | busy: true, k: k + 1, base: base, at: at}})
+    else
+      started = start_shot(s, if(s.dither.at, do: Keyword.put(s.shot_opts, :dither_at, s.dither.at)))
+      if started.task != s.task, do: %{started | dither: %{started.dither | shots: started.dither.shots + 1}}, else: started
+    end
+  end
+
+  # `dither: :auto` steps past what the sensor map found: sized to its biggest spot, not at all when the
+  # sensor is clean, and small probing steps until there is a map (so one target all night still makes one)
+  @probe_arcmin 1.0
+  defp dither_radius(:auto) do
+    case SensorMap.dither_arcmin() do
+      :unknown -> @probe_arcmin
+      r -> r
+    end
+  end
+
+  defp dither_radius(r), do: r
+
+  defp start_shot(s, opts, solve \\ nil)
 
   defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s, opts, solve) do
     if is_integer(s.free) and s.free < floor_bytes() + pair_bytes(s) do
@@ -749,6 +831,12 @@ defmodule Controller.StillCamera do
     watch = Sidecar.watch(mount_id)
     result = Camera.capture(id, progress: ctx[:tell])
     samples = Sidecar.stop(watch)
+    # the camera as it was for this picture, asked now: once the next picture is under way the camera
+    # is busy with it for half a minute and would not answer
+    camera = safe(fn -> Camera.status(id) end)
+
+    # off the camera: the process may start the next picture while this one is saved and measured
+    with {:ok, _} <- result, {pid, _} <- ctx[:tell], do: send(pid, {:camera_free, seq})
 
     with {:ok, files} <- result do
       tell(ctx, %{stage: :saving, files: length(files)})
@@ -772,6 +860,9 @@ defmodule Controller.StillCamera do
       jpeg = Enum.find(files, &(&1.format == :jpeg))
       tell(ctx, %{stage: :measuring})
       frame = jpeg && measure(jpeg.bytes)
+      # the grey copy goes to the sensor map, never into the record (it is 600 kB)
+      grey = frame && frame[:grey]
+      frame = frame && Map.delete(frame, :grey)
 
       # Cloud: this picture's stars against the same stars in the clearest picture of the field. The
       # field is this process's (handed over as the picture started, handed back in its record), and
@@ -804,7 +895,6 @@ defmodule Controller.StillCamera do
           }
 
       base = "#{stamp}-#{Path.rootname(hd(files).name)}"
-      camera = safe(fn -> Camera.status(id) end)
       exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
       settle = mount_id && settle(ctx.moved[mount_id], samples, pressed, hd(files)[:pressed_mono] || started, exposure_s, ctx.opts)
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
@@ -827,7 +917,9 @@ defmodule Controller.StillCamera do
             lock: LockOn.status(),
             calibration: mount_id && safe(fn -> LockOn.calibration(mount_id) end),
             measured: measured,
-            plate: plate
+            plate: plate,
+            frame: ctx.opts[:frame],
+            dither: ctx.opts[:dither_at]
           }
           |> Sidecar.build()
           |> then(&Sidecar.write(night, base, &1))
@@ -864,6 +956,22 @@ defmodule Controller.StillCamera do
       }
 
       record = if frame, do: Map.merge(record, Map.merge(Map.drop(measured, [:copy]), %{marks: frame.marks, png: frame.png})), else: record
+
+      # the sensor's dust, from pictures taken at different places in the sky (`SensorMap`)
+      star_size = record[:star_size]
+      exposure_s = settings && Sidecar.seconds(settings[:shutter])
+
+      SensorMap.add(grey, %{
+        name: Path.basename(base),
+        exposure_s: exposure_s,
+        frame: ctx.opts[:frame],
+        settling: record[:settling],
+        stars: record[:stars],
+        target: safe(fn -> (Controller.Sky.Tracker.status(mount_id) || %{})[:name] end),
+        dither: ctx.opts[:dither_at],
+        arcsec_per_px: is_map(star_size) && is_number(star_size[:arcsec_per_px]) && star_size[:arcsec_per_px] * (star_size[:w] || @copy_w) / @copy_w
+      })
+
       {:ok, record}
     end
   end
@@ -998,7 +1106,7 @@ defmodule Controller.StillCamera do
   defp measure(jpeg) do
     with pgm when is_binary(pgm) <- grey(jpeg, lowres(jpeg_width(jpeg)), "scale=#{@copy_w}:-2,format=gray"),
          %{marks: %{stars: stars}} = frame <- ScopeCamera.analyse(pgm),
-         do: Map.put(frame, :light, Cloud.light(pgm, stars))
+         do: frame |> Map.put(:light, Cloud.light(pgm, stars)) |> Map.put(:grey, pgm)
   rescue
     _ -> nil
   end
@@ -1249,7 +1357,8 @@ defmodule Controller.StillCamera do
       seen: s.seen,
       shooting: s.continuous,
       interval_ms: s.interval_ms,
-      busy: s.task != nil,
+      # a picture under way: being taken, or off the camera and still being saved and measured
+      busy: s.task != nil or s.background != %{},
       # the picture being taken, stage by stage (nil between pictures): `%{stage, since_ms, seq}`
       # and what the stage carries (`exposure_ms`; a file's `name` and `bytes`)
       shot: s.shot,
@@ -1260,6 +1369,10 @@ defmodule Controller.StillCamera do
       good: s.good,
       why: s.why,
       solving: s.solving,
+      # the run's dither: the offset pictures are being taken at now, the last move's result, a move under way
+      dither: Map.take(s.dither, [:at, :last, :busy]) |> Map.put(:every, s.shot_opts[:dither] && (s.shot_opts[:dither_every] || 1)),
+      # the sensor's dust as the night's pictures show it (`SensorMap`): read here so a page on another machine has it
+      sensor: SensorMap.summary(),
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
       # the card in numbers: `%{total_mb, pictures, pictures_mb}` (how big it is, and what of it is pictures)
@@ -1300,7 +1413,9 @@ defmodule Controller.StillCamera.Supervisor do
   @impl true
   def init(_) do
     Supervisor.init(
-      [{Task.Supervisor, name: Controller.StillCamera.Tasks}, Controller.StillCamera],
+      # the sensor map last: under rest_for_one a crash restarts what comes after it, and nothing comes
+      # after the map, so it can never take the camera down with it
+      [{Task.Supervisor, name: Controller.StillCamera.Tasks}, Controller.StillCamera, Controller.StillCamera.SensorMap],
       strategy: :rest_for_one,
       max_restarts: 5,
       max_seconds: 60

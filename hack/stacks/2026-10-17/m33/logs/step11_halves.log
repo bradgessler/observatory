@@ -1,0 +1,12 @@
+odd vs even: 84 of 84 tiles (3 arcmin) repeat (corr > 0.210, null -0.003 +- 0.043)
+    0- 6 arcmin from the nucleus: 13 of 13 tiles pass, median correlation 0.99
+    6-10 arcmin from the nucleus: 22 of 22 tiles pass, median correlation 0.96
+   10-14 arcmin from the nucleus: 23 of 23 tiles pass, median correlation 0.98
+   14-18 arcmin from the nucleus: 22 of 22 tiles pass, median correlation 0.96
+   18-30 arcmin from the nucleus: 4 of 4 tiles pass, median correlation 0.94
+tonight vs oct13: 84 of 84 tiles (3 arcmin) repeat (corr > 0.210, null -0.003 +- 0.043)
+    0- 6 arcmin from the nucleus: 13 of 13 tiles pass, median correlation 0.96
+    6-10 arcmin from the nucleus: 22 of 22 tiles pass, median correlation 0.95
+   10-14 arcmin from the nucleus: 23 of 23 tiles pass, median correlation 0.96
+   14-18 arcmin from the nucleus: 22 of 22 tiles pass, median correlation 0.93
+   18-30 arcmin from the nucleus: 4 of 4 tiles pass, median correlation 0.72

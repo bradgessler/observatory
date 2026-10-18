@@ -1,0 +1,6 @@
+m33: black 35.4 white 189.8 gamma 0.90 curve 0.30 sat 1.25 | white-clipped 0.029% black-clipped 0.248%
+odd-finished: black 35.1 white 189.8 gamma 0.90 curve 0.30 sat 1.25 | white-clipped 0.028% black-clipped 0.115%
+even-finished: black 35.1 white 189.7 gamma 0.90 curve 0.30 sat 1.25 | white-clipped 0.028% black-clipped 0.118%
+tonight-finished: black 34.7 white 189.9 gamma 0.90 curve 0.30 sat 1.25 | white-clipped 0.028% black-clipped 0.287%
+oct13-finished: black 35.1 white 188.7 gamma 0.90 curve 0.30 sat 1.25 | white-clipped 0.032% black-clipped 0.019%
+m33.png                      darkest  0-10%: R   4.8 G   4.8 B   4.8 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R  19.1 G  19.1 B  19.1 (R-G  +0.0, B-G  -0.0)

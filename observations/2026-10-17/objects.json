@@ -1,0 +1,450 @@
+{
+ "credit": "© 2026 Brad Gessler  ·  Celestron 8SE (8 inch, f/10.3) and Sony a6000 on an EQ6-R  ·  San Francisco Bay Area  ·  night of 17 October 2026",
+ "made_with": "Capture and mount: Observatory (Elixir on a Raspberry Pi 3).  Stacking: numpy, OpenCV, rawpy.  Plate solving: astrometry.net.  Stacked from the camera's RAW frames. Nothing generated.",
+ "objects": [
+  {
+   "slug": "dumbbell-nebula",
+   "title": "The Dumbbell Nebula",
+   "subtitle": "Messier 27, a planetary nebula in Vulpecula",
+   "what": "This is what a star like the Sun does at the end: it puffs its outer layers off into space, and the bare, hot core left behind, one of the hottest stars known, makes them glow. The cloud has been growing for about 10,000 years. Charles Messier found it in 1764: the first nebula of its kind anyone saw.",
+   "facts": [
+    [
+     "Distance",
+     "Roughly 1,300 light-years (not exactly known: 1,200 to 1,400)"
+    ],
+    [
+     "This picture spans",
+     "About 6 light-years; the nebula with its faint outer lobes is about 3 across, and one pixel is about 300 times the distance from the Earth to the Sun"
+    ],
+    [
+     "The light left",
+     "Around the year 700, while the Maya were raising the great temples of Tikal"
+    ],
+    [
+     "Honest note",
+     "The glow from oxygen is a blue-green purer than any screen can show, so the screen's nearest colour stands in for it. The faint halo deep pictures show further out is not reached in 16 minutes from a suburban sky"
+    ]
+   ],
+   "made": "66 of 70 frames of 15 s",
+   "how": "16.5 minutes of light on a clear evening, the first target of the night",
+   "specs": [
+    [
+     "Exposures",
+     "66 x 15 s at ISO 3200: 16.5 minutes. Nothing clipped on the nebula: its brightest pixel reached 12 percent of the sensor's range in a frame"
+    ],
+    [
+     "Frames",
+     "70 taken, 66 kept. The first after the slew was dropped by rule; three were smeared (every star stretched the same way, ellipticity 0.20 to 0.21). No cloud: every frame's stars within 2 percent of the run's typical brightness"
+    ],
+    [
+     "Sampling",
+     "0.777 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 4.47 arcsec wide (half-flux, 117 stars) in the stack, 4.94 in one frame"
+    ],
+    [
+     "Field",
+     "15.5 x 12.9 arcmin: a 1200 x 1000 crop from a stack of 36.9 x 24.3 arcmin, nothing resampled after the stack, not turned (north 116 degrees clockwise of up)"
+    ],
+    [
+     "When",
+     "The evening of 17 October 2026, over 36 minutes. About 60 degrees up"
+    ],
+    [
+     "Registration",
+     "Rotation and shift on the stars; the field drifted 3.7 arcmin across the sensor and turned 0.05 degrees. Red and blue star images sat 0.3 sensor px off green (the air's prism): measured and taken out in the one resampling"
+    ],
+    [
+     "Darks",
+     "None taken tonight. Hot pixels found from the run itself, about 20,000 to 21,500 per colour plane, and repaired by the 3 x 3 median of their colour plane"
+    ],
+    [
+     "Flats",
+     "No flat frames tonight. The hybrid flat of 13 October: its large scale from that night's open sky, its dust from the 13 October twilight frames. Picked over two others on this run's own sky: it leaves 0.57 percent in green after a plane, against 0.80 and 1.98 for the others"
+    ],
+    [
+     "Calibration",
+     "Dust that moved since 13 October, measured on this run's own sky, seen in the odd and the even frames alone, and divided out: 11 shadows, 0.73 percent of the sensor. Among them a new crescent 12.7 percent deep, which the 13 October flat does not have, left at 1.7 percent"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation, proper coaddition (Zackay and Ofek: each frame weighted by its own measured blur and noise). One sky constant per colour per frame; in the picture only, a sky plane per colour, about 3 DN across it. Noise 7.5 to 7.8 times lower than one frame (8.1 expected from the weights). The old sigma-clipped mean was made beside it as a control"
+    ],
+    [
+     "What is real",
+     "The bright body and the faint outer lobes that fill it out to its apple shape: 3 to 4 arcmin from the star they stand 11 to 12 times above blank sky in the odd and the even frames each alone. The nebula is followed 8.1 arcmin across"
+    ],
+    [
+     "Not seen",
+     "The faint outer halo of deep pictures: beyond 4 arcmin from the star nothing passes the half-stack test. Nor the fine knots inside the nebula: the stars are 4.5 arcsec wide"
+    ],
+    [
+     "Colour",
+     "The camera's colour matrix with its white balance set by the colours of 93 Gaia stars in the field (red x 1.01, blue x 1.15). The oxygen glow is outside what a screen shows; the faint lobes are grey, because their colour there is set by sky and flat, not the nebula"
+    ],
+    [
+     "Finish",
+     "Star colours from Gaia, the camera's colour matrix. Arcsinh stretch; black at the 50th percentile, S-curve 0.15, saturation x 1.2; the dark sky smoothed (bilateral 4 px) and set near black, by choice: 4.0 percent of the picture is exactly black"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,082.4 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided, not dithered on this target. Set down about 10 degrees off the pole; aligned from four plate-solved photos (under 1 arcminute), both axes driven from that model"
+    ]
+   ],
+   "width": 1200,
+   "height": 1000,
+   "thumb": [
+    900,
+    750
+   ],
+   "arcsec_per_px": 0.776578639761,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "triangulum-galaxy",
+   "title": "The Triangulum Galaxy",
+   "subtitle": "Messier 33, a spiral galaxy in Triangulum",
+   "what": "A whole galaxy of about 40 billion stars, the third largest in our Local Group after Andromeda and our own Milky Way. It is bigger on the sky than the camera sees: this is its middle and inner arms. The bright knots along the arms are clouds where new stars are being born; the biggest, NGC 604, is one of the largest star-forming clouds known.",
+   "facts": [
+    [
+     "Distance",
+     "About 2.7 million light-years (estimates run 2.6 to 3.0 million)"
+    ],
+    [
+     "This picture spans",
+     "About 29,000 light-years; one pixel is about 10 light-years, and NGC 604 alone is about 1,500 light-years across"
+    ],
+    [
+     "The light left",
+     "About 2.7 million years ago, around when the first stone tools were made in East Africa"
+    ],
+    [
+     "Honest note",
+     "The galaxy fills every frame, so there is no empty sky to set black by: the darkest part of the picture is still galaxy. The outer arms that deep pictures show reach past the edges"
+    ]
+   ],
+   "made": "267 of 342 frames of 15 s, from two nights",
+   "how": "1.1 hours of light from two nights, the camera moved a little between frames",
+   "specs": [
+    [
+     "Exposures",
+     "267 x 15 s at ISO 3200: 66.8 minutes. Tonight 208 frames, 52.0 minutes in three turns; 13 October 59 frames, 14.8 minutes"
+    ],
+    [
+     "Frames",
+     "342 taken, 267 kept. Tonight, held still: 53 of 63; dithered: 26 of 30; after Saturn, dithered: 129 of 143. 13 October: 59 of 106. Dropped tonight: 21 smeared (every star stretched the same way; 7 of them the first frame after a dither move, one when someone was at the telescope), 2 with soft stars, 3 the first frame after a slew, 2 taken too soon after a move. Dropped on 13 October: 43 trailed or soft (the tracking let go now and then until it was fixed during that run), 3 the first frame after a slew, 1 too soon after a move"
+    ],
+    [
+     "Dithering",
+     "Tonight's first turn held still (the field drifted about 2.5 arcmin). The second moved between frames in a spiral up to 1.5 arcmin. The turn after Saturn moved every 3 frames, small probe steps and then up to 4 arcmin from the start (the last place nearly 5): a bug in the sensor map chose the 4, and it was kept because it widened the field the frames cover. 13 October was not dithered"
+    ],
+    [
+     "Sampling",
+     "0.776 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 4.5 arcsec wide (half-flux) in the stack, 4.9 in the reference frame; the frames' median 4.2 tonight, 3.6 on 13 October"
+    ],
+    [
+     "Field",
+     "36.3 x 21.4 arcmin: the area that at least half the frames cover. Inside it 63 percent of the pixels have every frame and 94 percent at least three quarters of them; at the edges it falls to 50 to 53 percent. Not turned (north 64 degrees anticlockwise of up)"
+    ],
+    [
+     "When",
+     "The night of 17 October 2026, in the evening and after midnight, either side of Saturn; and 13 October 2026, after midnight. About 50 degrees up in the evening, about 80 after midnight"
+    ],
+    [
+     "Registration",
+     "Each frame placed first by its own plate solve (all within 9 sensor px of the star solution), then rotation and shift on the stars, weighted rms at most 0.84 px. The field turned 10.2 degrees across all the frames, 8.7 of it over tonight's turns, because the mount stood about 10 degrees off the pole"
+    ],
+    [
+     "Darks",
+     "None taken. Hot pixels found from the frames, one map per night (about 20,000 to 22,600 per colour plane tonight, 5,000 to 6,900 on 13 October), repaired by the 3 x 3 median of their colour plane"
+    ],
+    [
+     "Flats",
+     "No flat frames. The hybrid flat of 13 October (large scale from that night's open sky, dust from its twilight frames), the flat tonight's Dumbbell Nebula run chose. On this run's dithered sky, the galaxy's middle masked, it leaves less than the twilight flat alone: 1.3 against 2.8 percent in green after a plane, galaxy light included. The galaxy fills the frame, so no large scale could be built or judged from these frames"
+    ],
+    [
+     "Calibration",
+     "Dust that moved since 13 October, measured on each night's own frames (each frame against the first stack put back on its sensor grid, so the galaxy cancels) and divided out. Tonight 10 shadows, each seen in the first turn and the turn after Saturn alone, 0.77 percent of the sensor; among them the new crescent, 11.6 percent deep after the 13 October flat, left at 0.95 percent. 13 October: 19 shallow ones (1.5 to 3 percent), from its odd and even frames, a weaker test because those frames were not dithered"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered with rotation, then a 3-sigma clipped mean weighted by each frame's clarity and noise. Not done, for the time limit: proper coaddition (1 to 4 percent more signal to noise on stars from 15 s frames), and lining red and blue up with green against the air's prism. One constant per colour per frame, set on the darkest 30 percent of the area every frame covers: the galaxy's faintest level, not the true sky; no surface fitted. Noise 13.7 times lower than one frame (green); with 13 October's frames 10 percent lower than tonight's alone"
+    ],
+    [
+     "What is real",
+     "The arms and clusters at every distance from the core: the odd and the even frames, each stacked alone, agree in 84 of 84 tiles of 3 arcmin, out to the corners 18 to 30 arcmin from the core; and tonight's frames against 13 October's, two nights with two dust corrections, agree in 84 of 84"
+    ],
+    [
+     "Not seen",
+     "The galaxy's far outer arms: they lie beyond the frame. The true sky level: there is none in the frame"
+    ],
+    [
+     "Honest limits",
+     "The tests compare structure at the scale of arms and clusters, not the smooth glow of the disc; with no blank sky in the frame they cannot say how far the faintest light stands above the true sky"
+    ],
+    [
+     "Colour",
+     "The camera's colour matrix with its white balance set by 44 Gaia stars in the field (red x 1.01, blue x 1.14). Colour only where the light is bright enough to carry it, 0.5 percent of the picture; the faint disc is grey"
+    ],
+    [
+     "Finish",
+     "Star colours from Gaia, the camera's colour matrix. Arcsinh stretch; black at the faintest part's own level, gamma 0.9, S-curve 0.3, saturation x 1.25; the dark parts smoothed (bilateral 3 px). 0.2 percent of the picture is exactly black"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,082.9 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down about 10 degrees off the pole tonight; aligned from plate-solved photos, both axes driven from that model. Dithered between frames for most of tonight"
+    ]
+   ],
+   "width": 2804,
+   "height": 1652,
+   "thumb": [
+    900,
+    530
+   ],
+   "arcsec_per_px": 0.776365212153,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "saturn",
+   "title": "Saturn and five of its moons",
+   "subtitle": "The ringed planet, in Pisces",
+   "what": "A planet ten times as far from the Sun as the Earth, with rings of ice wider than the planet itself. Two hours of short pictures around its highest point in the sky, and only the sharpest moments kept.",
+   "facts": [
+    [
+     "How far",
+     "Saturn was 1,266 million km away; its light took 70 minutes to get here."
+    ],
+    [
+     "How big",
+     "The globe is about 120,000 km across, nine Earths side by side; the rings span about 270,000 km and are mostly less than a kilometre thick. Here the globe is 20 arcseconds wide, about 50 pixels."
+    ],
+    [
+     "The moons",
+     "Five of its moons, named from where JPL's orbits put them at that moment; each name sits on a point found in the picture. Titan, the largest, has a thick atmosphere. Tethys and Mimas were lost in the planet's glare, Hyperion was too faint."
+    ],
+    [
+     "Honest note",
+     "The air was soft that night. The rings, the dark gap inside them and the globe show; the Cassini division in the rings does not. The planet and the moons are shown at different brightness: the moons are hundreds to thousands of times fainter than the planet."
+    ]
+   ],
+   "made": "25 of 488 frames of 1/60 s for the planet, 2 frames of 2 s for the moons",
+   "how": "The sharpest 25 of 488 short frames for the planet, two longer ones for the moons, set together at the sensor's own scale",
+   "specs": [
+    [
+     "Exposures",
+     "488 x 1/60 s at ISO 800 for the planet; 2 x 2 s at ISO 6400 for the moons, the two framing shots taken just before, in which the planet is blown out (960 times the exposure)"
+    ],
+    [
+     "Frames",
+     "488 taken for the planet, all usable, the sharpest 25 kept. No cloud: every frame's light within 7 percent of the median. Each frame graded by sharpness, its ring line measured to follow the field's turn. Moons: both frames"
+    ],
+    [
+     "When",
+     "The night of 17 October 2026, from late in the evening to just after midnight, over two hours; 24 of the 25 kept frames from its first hour. About 50 degrees up"
+    ],
+    [
+     "Sampling",
+     "0.388 arcsec per pixel, the sensor's own scale, never enlarged: the planet is stacked on a grid 3 times finer for the arithmetic, then binned back"
+    ],
+    [
+     "Field",
+     "6.2 x 3.3 arcmin, north up and east left: both parts turned 120 degrees in one resampling each, at their own scale"
+    ],
+    [
+     "Calibration",
+     "No darks or flats. Each frame's sky, one constant per colour plane, taken off. The two moon frames averaged, and where they disagree by more than 6 sigma the lower kept, so a hot pixel or a cosmic ray in one drops out (the field moved 4.6 arcmin across the sensor between them)"
+    ],
+    [
+     "Lucky imaging",
+     "Plain stacks of the sharpest 5 up to all 488 compared on the polar limb, the ring's width and the gap between rings and globe: 8 to 25 frames sit on one plateau, more are softer, and 5 is sharper by the gap (0.145 against 0.127), so the rule chose 5. 25 were kept, because restored, 25 beat 5 (gap 0.359 against 0.313) with less than half the grain and Titan measured at 18 sigma instead of 8: the blur is known better"
+    ],
+    [
+     "Registration",
+     "Each colour plane laid at its own place on a grid 3 times finer than the sensor (0.129 arcsec), no demosaic; the field's turn (0.026 degrees a minute) taken out; registered to 0.04 sensor px rms. The air's prism: red sat 0.31, 0.36 and blue -0.52, -0.54 sensor px from green, the same in each half of the frames, and were slid back onto it"
+    ],
+    [
+     "Planet stack",
+     "The 25 frames each turned back to the moons' moment and laid down in one Lanczos resampling with their colour places and shift, then averaged; two half stacks (odd and even ranks) made the same way for the tests"
+    ],
+    [
+     "Restoration",
+     "Blur measured on Titan in the same 25 frames: 3.20 x 2.97 arcsec (Titan's own disc, 0.8 arcsec, adds about 1 percent). Divided out with 24 rounds of Richardson-Lucy on brightness, each colour scaled alike. The rounds were set on a model Saturn blurred the same way with the stack's own grain: stopped before its false bright rim passes 2 percent of the globe"
+    ],
+    [
+     "Composite",
+     "The planet set into the moon field where the 2 s frames are blown out, grown 28 px and feathered over 8. The planet's glare taken off the moon field ring by ring. Each part has its own white: the moons are lifted hundreds to thousands of times against the planet"
+    ],
+    [
+     "Finish",
+     "Planet: white at its brightest 0.05 percent, gamma 1.25. Moons: an arcsinh stretch so Titan and Iapetus both show. Then the dark sky set neutral and to black at its own level (60th percentile), smoothed (bilateral 4 px), saturation x 1.15"
+    ],
+    [
+     "Moon names",
+     "Every point 6 sigma above the glare listed and matched to JPL Horizons for the frames' moment: Titan, Rhea, Dione, Iapetus and Enceladus each within 0.12 arcsec of its predicted place, 0.07 arcsec rms. The point beside Dione is the star Gaia DR3 2549423661270534784 (G 11.9), not a moon"
+    ],
+    [
+     "Not seen",
+     "The Cassini division: at its place the light lies between ring B's and ring A's at both ends, in the plain stack, the restored one and each half alone, with no dip. Mimas (30 arcsec out) not found; Tethys (10 arcsec out) inside the blown-out patch; Hyperion too faint. Seven faint points (6 to 8 sigma) match no moon; one is a Gaia star, the others are not named"
+    ],
+    [
+     "Compared",
+     "Not as sharp as 4 October: Titan's blur 3.2 x 3.0 arcsec against 2.7 x 2.2 then, and by the same measures the plain stack's gap contrast 0.13 against 0.32 and the ring's width 4.2 against 3.8 arcsec"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,084 mm focal length by plate solve, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided, not dithered"
+    ]
+   ],
+   "width": 964,
+   "height": 514,
+   "thumb": [
+    900,
+    480
+   ],
+   "arcsec_per_px": 0.3884544959539717,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  },
+  {
+   "slug": "orion-nebula",
+   "title": "The Orion Nebula",
+   "subtitle": "Messier 42 and Messier 43, a star nursery in the sword of Orion",
+   "what": "The nearest big nursery of stars to us: a cloud of gas and dust lit from inside by the young, hot stars of the Trapezium, which formed out of it in the last million years or so. Their light carves the cloud into ridges and bays; the dark lanes are dust in front of the glowing gas. The smaller round nebula beside it, Messier 43, is the same cloud lit by one star.",
+   "facts": [
+    [
+     "Distance",
+     "About 1,350 light-years (measurements run 1,270 to 1,400)"
+    ],
+    [
+     "This picture spans",
+     "About 14 light-years; one pixel is about 320 times the distance from the Earth to the Sun"
+    ],
+    [
+     "The light left",
+     "About 1,350 years ago, around the year 680"
+    ],
+    [
+     "Honest note",
+     "The middle is far too bright for the long frames, so it comes from 44 frames of 2 seconds; the glow fills the whole frame, so the darkest part is still nebula, not empty sky"
+    ]
+   ],
+   "made": "165 frames of 30 s and 44 of 2 s, from one night",
+   "how": "82 minutes of 30 s frames for the nebula and 44 frames of 2 s for its bright middle",
+   "specs": [
+    [
+     "Exposures",
+     "165 x 30 s at ISO 1600: 82.5 minutes; and 44 x 2 s at ISO 400, 88 s, for the bright middle"
+    ],
+    [
+     "Frames",
+     "241 taken, 209 kept. Long: 165 of 193; short: 44 of 48 (a 49th left a sidecar but no RAW on disk). Long frames dropped: 21 smeared (every star stretched the same way; 8 of them also with wide stars), 4 with soft stars, 2 dimmed by haze, and the one frame taken before a firmware flash, as the first after the slew. Short: 2 smeared, 1 soft, 1 taken 2 s after a move"
+    ],
+    [
+     "Dithering",
+     "Every 3 frames, the long and the short alike: a spiral of steps up to 1.5 arcmin from the start (the first steps up to 1)"
+    ],
+    [
+     "Sampling",
+     "0.777 arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 6.41 arcsec wide (half-flux) in the joined stack, 6.46 in the reference frame; the long frames' median 6.19, the short 6.50"
+    ],
+    [
+     "Field",
+     "36.5 x 25.2 arcmin: the largest upright rectangle where at least half the long frames have data; inside it 65 percent of the pixels have every long frame and 86 percent at least three quarters. Not turned (north 61 degrees anticlockwise of up)"
+    ],
+    [
+     "When",
+     "The night of 17 October 2026, before dawn. 30 to 50 degrees up"
+    ],
+    [
+     "Registration",
+     "Each frame placed first by its own plate solve, then rotation and shift on the stars onto one long frame, the short frames too; weighted rms at most 0.64 px for the long frames, 1.62 for the short. The field turned 5.4 degrees over the run. The air's prism: red sat 0.36, 0.51 and blue -0.61, -0.76 sensor px from green, measured and taken out in the one resampling"
+    ],
+    [
+     "Darks",
+     "None taken. Hot pixels found from the frames themselves, one map for the long frames and one for the short, repaired by the 3 x 3 median of their colour plane"
+    ],
+    [
+     "Flats",
+     "No flat frames. The hybrid flat of 13 October (large scale from that night's open sky, dust from its twilight frames), as the Dumbbell Nebula and the Triangulum Galaxy used tonight. Its large scale cannot be judged on this run: the nebula's glow is in every frame. The short frames get the same flat"
+    ],
+    [
+     "Calibration",
+     "Dust that moved since 13 October, measured on this run's own dithered long frames (each frame against the first stack put back on its sensor grid, so the nebula cancels; each shadow seen in the first and the second half of the run alone) and divided out: 12 shadows, 0.96 percent of the sensor. Among them the new crescent, 12.2 percent deep after the 13 October flat, left at 1.1 percent. Nothing judged within 5 arcmin of the Trapezium, where the nebula is too bright and structured"
+    ],
+    [
+     "High dynamic range",
+     "The 2 s stack replaces the 30 s one wherever any 30 s frame came within 7 percent of clipping, in any colour: 1.76 square arcmin round the Trapezium, grown one colour cell, with a smooth ramp in brightness so there is no step. 751 pixels are white, where even the 2 s frames clipped. The scale between the two is measured, not assumed: 62.65 on the nebula (each colour 62.6 to 63.3, the same at every brightness) against the 60 the exposures and ISOs give, and 65.2 on 66 stars. Neither difference is explained: the camera's ISO or shutter not being exactly nominal is a guess, not checked. The join uses the measured 62.65"
+    ],
+    [
+     "Stacking",
+     "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation. The long frames by proper coaddition (Zackay and Ofek: each frame weighted by its own measured blur and noise); the old 3-sigma clipped weighted mean made beside it from the same frames gives 1.5 to 2.3 percent less point-source signal to noise and stars 0.5 percent wider: nothing a viewer can see. Noise 12.9 times under one frame, as the square root of 165 says. The short frames by the 3-sigma clipped weighted mean. One constant per colour per frame, set on the darkest 30 percent of the area every long frame covers: the faintest nebula, not the true sky"
+    ],
+    [
+     "What is real",
+     "The nebula's loops repeat in the odd and the even 30 s frames, each stacked alone: 76 of 76 tiles of 3 arcmin, and 26 of the 26 faintest; 14 of 14 at 18 to 30 arcmin from the Trapezium. The faint outer loops are real. Tiles touching the joined middle are left out"
+    ],
+    [
+     "Honest limits",
+     "The test compares structure at the scale of loops and ridges, not smooth glow, and with the nebula filling the frame there is no blank sky to say how far the faintest light stands above the true sky. The fish's mouth is named from the bay's known position, not a catalogue entry, then put on the darkest point near it"
+    ],
+    [
+     "Colour",
+     "The camera's colour matrix with its white balance set by 13 Gaia stars in the field (red x 0.99, blue x 1.17). Colour only where the light carries it; where even the 2 s frames came near clipping, white"
+    ],
+    [
+     "Finish",
+     "Star colours from Gaia, the camera's colour matrix. Arcsinh stretch (soft 12 DN, white 250,000 DN: one curve from the faint loops to the core); black at the faintest part's own level, S-curve 0.25, saturation x 1.2; the dark parts smoothed (bilateral 3 px). 5.8 percent of the picture is exactly black"
+    ],
+    [
+     "Telescope",
+     "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,081.7 mm focal length by plate solve of this stack, f/10.3"
+    ],
+    [
+     "Camera",
+     "Sony a6000, stock, at prime focus: APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW"
+    ],
+    [
+     "Mount",
+     "Sky-Watcher EQ6-R, unguided. Set down about 10 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model. Dithered every three frames"
+    ]
+   ],
+   "width": 2820,
+   "height": 1948,
+   "thumb": [
+    900,
+    622
+   ],
+   "arcsec_per_px": 0.776810854268,
+   "frames": false,
+   "card": null,
+   "card_text": "bottom"
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+colour offsets in the frames (sensor px): red - green (-0.280, +0.051), blue - green (+0.320, -0.186), scatter [0.3082, 0.3024, 0.2578, 0.259], 2978 measures
+common area 83.2% of the grid; sky region 2113005 px
+PSF stars (reference frame list): 317; run median HFD 6.63 plane px -> PSF radius 17 px
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step8_coadd.py:73: RuntimeWarning: All-NaN slice encountered
+  pk = np.nanmax(cube[:, yi - 3:yi + 4, xi - 3:xi + 4], axis=(1, 2))
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/../../../../.claude/skills/stack-pictures/tools/coadd.py:225: RuntimeWarning: All-NaN slice encountered
+  med[a:b] = np.nanmedian(cube[:, a:b] / flux[:, None, None].astype(np.float32), axis=0)
+R: constants 42.56..52.93; control dropped 0.669% (10s) | coadd: 274 PSF stars r=17, PSF HFD 5.83..7.49 px (P_R 6.37), field HFD spread 87% (varies: True), flagged 0.479% (sky region 0.474%, beta 0.50), theory gain 1.0068 (vs the control's weights 1.0110); 55s
+G1: constants 149.86..161.65; control dropped 0.599% (10s) | coadd: 269 PSF stars r=17, PSF HFD 5.91..7.54 px (P_R 6.47), field HFD spread 98% (varies: True), flagged 0.279% (sky region 0.282%, beta 0.50), theory gain 1.0065 (vs the control's weights 1.0100); 61s
+    separable: the frames' PSFs change together across the field (correlation 0.97; the bands differ by 1.1% rms against a frame-to-frame spread of 4.7%); one PSF per frame
+G2: constants 150.93..163.21; control dropped 0.585% (10s) | coadd: 269 PSF stars r=17, PSF HFD 5.92..7.56 px (P_R 6.47), field HFD spread 97% (varies: True), flagged 0.245% (sky region 0.243%, beta 0.50), theory gain 1.0065 (vs the control's weights 1.0103); 55s
+B: constants 100.92..110.76; control dropped 0.683% (10s) | coadd: 273 PSF stars r=17, PSF HFD 5.86..7.57 px (P_R 6.47), field HFD spread 87% (varies: True), flagged 0.385% (sky region 0.385%, beta 0.50), theory gain 1.0069 (vs the control's weights 1.0094); 55s
+colour offsets left in the stack (sensor px): red - green (+0.036, +0.034), blue - green (+0.020, +0.019), 125 stars
+delivered as stack_mean.npy: proper; 279 s in all

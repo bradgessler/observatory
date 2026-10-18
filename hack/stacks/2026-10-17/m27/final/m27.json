@@ -1,0 +1,55 @@
+{
+ "what": "levels and colour",
+ "source": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-crop.png",
+ "steps": [
+  {
+   "step": "sky to neutral",
+   "sky_is_percentiles": [
+    0.0,
+    40.0
+   ],
+   "sky_mean_rgb_before": [
+    75.73,
+    75.73,
+    75.74
+   ],
+   "subtracted_rgb": [
+    0.0,
+    0.0,
+    0.01
+   ]
+  },
+  {
+   "step": "levels",
+   "black_point": 82.66,
+   "white_point": 255.0,
+   "from_percentiles": [
+    50.0,
+    null
+   ],
+   "white_given": 1.0,
+   "sky_set_to": 5.1
+  },
+  {
+   "step": "midtones",
+   "gamma": 1.0,
+   "s_curve": 0.15,
+   "how": "brightness changed, each pixel's colour ratios kept"
+  },
+  {
+   "step": "grain",
+   "brightness": "bilateral filter, sigma 4.0 px, 7 L units",
+   "colour": "Gaussian sigma 4.0 px",
+   "where": "full below L 8, none above L 30 (brightness judged on a blurred copy)"
+  },
+  {
+   "step": "saturation",
+   "factor": 1.2,
+   "space": "CIELAB chroma",
+   "left_alone": "below L 14 (fading in to L 30) and above L 93",
+   "sky_without_colour": "colour fades to grey below L 8 (full colour from L 18): the dark sky's colour is noise"
+  }
+ ],
+ "clipped_to_white_pct": 0.009,
+ "clipped_to_black_pct": 3.99
+}

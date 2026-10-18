@@ -157,7 +157,9 @@ defmodule Controller.StillCameraTest do
 
     # the clock is set (the network, a phone, another machine of the cluster): the run goes on
     Application.put_env(:controller, :clock_synced, true)
-    assert_receive {:still_camera, %{busy: false, why: nil, last: %{seq: seq}}} when seq > before, 15_000
+    # (in a run the next picture starts before the last is finished, so the camera is busy throughout)
+    assert_receive {:still_camera, %{why: nil, last: %{seq: seq}}} when seq > before, 15_000
+    StillCamera.continuous(false)
   end
 
   # 13 October: after a flash the page said "No picture yet" over a card full of pictures
@@ -206,6 +208,35 @@ defmodule Controller.StillCameraTest do
     assert has_element?(view, ~s(select[name="iso"] option[value="800"][selected]))
     # the screen it used to be on lands here
     assert redirected_to(get(conn, "/cameras/stills/exposure"), 301) == "/cameras/stills"
+  end
+
+  # 13 October 2026: a 15 s picture took 41 s, and for 10 of them the camera stood idle while the box
+  # saved and measured the picture before. In a run the next picture now starts as soon as the last
+  # one's files are off the camera.
+  @tag timeout: 90_000
+  test "in a run, the next picture starts while the last one is still being saved and measured" do
+    before = (StillCamera.status().last || %{})[:seq] || 0
+    StillCamera.continuous(true)
+
+    # a picture under way whose number is ahead of a finished one still to come: two in flight at once
+    overlapped =
+      Enum.find_value(1..600, fn _ ->
+        receive do
+          {:still_camera, %{shot: %{seq: taking}, busy: true} = st} when taking > before + 1 ->
+            last = (st.last || %{})[:seq] || 0
+            if last < taking - 1, do: {taking, last}
+        after
+          100 -> nil
+        end
+      end)
+
+    StillCamera.continuous(false)
+    assert {taking, last} = overlapped, "every picture waited for the one before to be finished"
+    # and the one overtaken still finishes, in order, with its record
+    assert_receive {:still_camera, %{last: %{seq: seq}}} when seq >= taking - 1, 30_000
+    assert last < taking - 1
+    Enum.find(1..300, fn _ -> not StillCamera.status().busy or (Process.sleep(50) && false) end)
+    refute StillCamera.status().busy
   end
 
   # The roll is the last pictures, newest first. On 13 October 2026 a tap on one changed the picture

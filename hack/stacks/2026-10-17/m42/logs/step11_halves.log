@@ -1,0 +1,7 @@
+odd vs even: 76 of 76 tiles (3 arcmin) repeat (corr > 0.501, null -0.001 +- 0.100)
+   the faintest third of the tiles (smoothed green <= 3.1 DN): 26 of 26 pass, median correlation 0.80
+    0- 6 arcmin from the Trapezium: 5 of 5 tiles pass, median correlation 1.00
+    6-10 arcmin from the Trapezium: 19 of 19 tiles pass, median correlation 0.99
+   10-14 arcmin from the Trapezium: 22 of 22 tiles pass, median correlation 0.97
+   14-18 arcmin from the Trapezium: 16 of 16 tiles pass, median correlation 0.92
+   18-30 arcmin from the Trapezium: 14 of 14 tiles pass, median correlation 0.78

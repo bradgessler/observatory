@@ -1,0 +1,5434 @@
+{
+ "target": "Messier 27 (NGC 6853), the Dumbbell Nebula, a planetary nebula in Vulpecula",
+ "night": "2026-10-17 (frames of 18 October UTC, 03:46 to 04:22)",
+ "made": "2026-10-18T05:58:55+00:00",
+ "reproduce": "hack/stacks/2026-10-17/m27/run_all.sh (hooks M27_*, see common.py); with none set it reproduces this run. RAWs ~/.observatory/stills/2026-10-18/ read in place, never written",
+ "template": "hack/stacks/2026-10-12/m77-calibrated (calibrated flat, Gaia star colours, darks.subtract) with the combine of hack/stacks/2026-10-12/ngc891-coadd (proper coaddition, keep_phase=\"mean\"; the old sigma-clipped weighted mean made from the same cube as a control, work/control_*.npy)",
+ "files": {
+  "picture": [
+   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.png",
+   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.jpg",
+   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.json"
+  ],
+  "stack_linear_tif": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-stack.tif",
+  "full_field": [
+   "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-field.png",
+   "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-field.jpg"
+  ],
+  "share": "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/share",
+  "logs": "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/logs"
+ },
+ "summary": {
+  "frames": "70 taken in the run (15 s, ISO 3200 by the RAW's own EXIF; every one plate-solved on M27 by its sidecar); 66 used, 4 dropped",
+  "dropped": {
+   "20261018-034619": "the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000",
+   "20261018-035059": "smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35",
+   "20261018-035232": "smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32",
+   "20261018-041416": "smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32"
+  },
+  "not_in_the_run": "before 03:46 UTC: centring frames (2 s at ISO 6400, a 1/60 s frame) and the focusing frames on Vega (2 s, 03:06 to 03:25); from 04:23 UTC, M33 (another target, used only for a candidate flat). None of these is in the stack",
+  "integration_s": 990.0,
+  "integration": "66 x 15 s = 16.5 minutes",
+  "transparency": "0.980 to 1.009 of the run's typical star flux: no cloud",
+  "star_size": "half-flux diameter, green, 117 compact unsaturated stars: 4.47 arcsec in the stack, 4.94 in the reference frame alone; the run's frames 4.64 (median, step 4). The box's own figure (the 960 px JPEG preview) read 6.2 to 7.3 arcsec for the same frames: a coarser measure of the same stars",
+  "flat": "the 13 October hybrid flat (~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77: large scale from that night's open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), chosen over two others on this run's own sky (step 7a), times this run's own measure of the dust that moved since (step 7)",
+  "dust": "three shadows named for tonight, their depth in this run's own sky before any flat / after the 13 October flat / after this run's own correction: crescent at sensor (3534, 824): 12.7% / 12.6% / 1.7%; spot_a at sensor (1356, 2400): 5.5% / 0.5% / 0.1%; spot_b at sensor (5352, 3456): 9.0% / 0.2% / 0.2%. The crescent is new since 13 October (the twilight flat has only a 3% shadow there) and is taken out by this run's own measure; the two spots were already in the 13 October flat. 11 shadows in all were measured on this run's sky (seen in the odd and in the even frames alone) and divided out, 0.73% of the sensor",
+  "darks": "none taken tonight: darks.subtract changed nothing and said so; hot pixels found from the run itself and repaired by the 3 x 3 median of their colour plane",
+  "combine": "proper coaddition (Zackay & Ofek 2017; tools/coadd.py, keep_phase=\"mean\"), 269 PSF stars per plane, one PSF per frame and plane; theory S/N gain over the old weighted mean 1.0100 (green). The old combine is made from the same cube as a control",
+  "noise": "sky noise per stack pixel 6.2 to 8.2 DN against 48.1 to 60.8 for one frame: 7.45 to 7.75 times lower (8.12 expected from the weights)",
+  "is_it_the_thing": "yes: the reference frame and the stack plate-solved (astrometry.net); M27's central star's catalogue place falls 0.7 arcsec from the light's centroid in the stack",
+  "ears": "the faint outer lobes (\"ears\", filling the nebula out along its long axis, position angle about 90 to 150 and 270 to 330 degrees) are real: 3 to 4 arcmin from the star they are 12/12, 11/11, 6/6, 4/4, 12/12, 12/12, 5/5 sigma above blank sky in the odd and in the even frames alone (step 12). Beyond 4 arcmin no sector passes in either half: the faint outer halo seen in deep pictures (out to about 7 arcmin) is NOT seen in 16.5 minutes from this sky",
+  "followed": "the nebula followed (ring median of green above 3 x the blank-sky spread, unbroken from the star) to 4.04 arcmin from the star, 8.1 arcmin across",
+  "colour": "the camera's daylight white balance times Gaia DR3 star colours (kR 1.0128, kB 1.1530 from 93 stars), the camera's own colour matrix. The nebula's blue-green (doubly ionised oxygen, 501 nm) is outside sRGB; colour shown only above 8 DN, grey below. No saturation beyond x 1.2",
+  "picture": "a 1200 x 1000 px cut at the stack's own pixels (0.777 arcsec per px, 15.5 x 12.9 arcmin), nothing resampled after the stack, never enlarged; north 116.2 degrees clockwise from up (the camera's orientation)",
+  "sky": "dark sky neutral: m27.png                      darkest  0-10%: R   1.0 G   1.0 B   1.0 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R   2.8 G   2.8 B   2.8 (R-G  +0.0, B-G  -0.0)",
+  "jpeg_metadata_free": true,
+  "altitude": "about 60 to 70 degrees up during the run (sidecars: 60 to 66); no clock time goes with it anywhere published"
+ },
+ "steps": [
+  {
+   "step": "1 frames and hot pixels",
+   "numbers": {
+    "window": [
+     "034600",
+     "042230"
+    ],
+    "left_out": [],
+    "hot": [
+     {
+      "plane": "R",
+      "sigma_of_median": 11.860799789428711,
+      "fixed_hot": 21095,
+      "fraction": 0.0034809403868950968
+     },
+     {
+      "plane": "G1",
+      "sigma_of_median": 11.860799789428711,
+      "fixed_hot": 21490,
+      "fraction": 0.003546120356215958
+     },
+     {
+      "plane": "G2",
+      "sigma_of_median": 11.860799789428711,
+      "fixed_hot": 21299,
+      "fraction": 0.0035146029533291616
+     },
+     {
+      "plane": "B",
+      "sigma_of_median": 11.860799789428711,
+      "fixed_hot": 19996,
+      "fraction": 0.0032995915608606
+     }
+    ],
+    "hot_from_frames": 35
+   }
+  },
+  {
+   "step": "2-3 stars and registration (rotation + shift on the stars)",
+   "numbers": {
+    "reference": "20261018-040355",
+    "rotation_deg_range": [
+     -0.004023689120646252,
+     0.04662790042227538
+    ],
+    "wrms_px_max": 0.4870814708478738
+   }
+  },
+  {
+   "step": "4-5 quality and selection",
+   "numbers": {
+    "limits": {
+     "hfd_max_rel": 1.2,
+     "smear_max": 0.2,
+     "transparency_min": 0.9,
+     "registration_wrms_max_px": 1.0,
+     "since_slew_min_s": 10.0,
+     "drop_first_frame_after_slew": true
+    },
+    "hfd_run_median_arcsec": 4.6382798184325305,
+    "effective_frames": 65.86941192021456,
+    "used": {
+     "20261018-034650": {
+      "transparency": 0.9800350872000236,
+      "weight": 0.8989521006553354,
+      "hfd_arcsec": 4.2675602350154795,
+      "smear": 0.15612012533608075
+     },
+     "20261018-034721": {
+      "transparency": 0.9962695440214963,
+      "weight": 0.9351499237750093,
+      "hfd_arcsec": 4.858538662232362,
+      "smear": 0.08806015167868542
+     },
+     "20261018-034752": {
+      "transparency": 0.9930924728305247,
+      "weight": 0.9836063105091964,
+      "hfd_arcsec": 4.3577157778790205,
+      "smear": 0.15217115500394737
+     },
+     "20261018-034823": {
+      "transparency": 0.9968856071320409,
+      "weight": 0.9377308162483232,
+      "hfd_arcsec": 4.710661488233092,
+      "smear": 0.0763683898418171
+     },
+     "20261018-034854": {
+      "transparency": 1.0037783584440634,
+      "weight": 1.0601773448804954,
+      "hfd_arcsec": 4.713909104641086,
+      "smear": 0.13175250534125807
+     },
+     "20261018-034925": {
+      "transparency": 0.9950193892955619,
+      "weight": 0.9695853870837606,
+      "hfd_arcsec": 4.679538789625133,
+      "smear": 0.0873067696645025
+     },
+     "20261018-034956": {
+      "transparency": 1.0000625400262875,
+      "weight": 0.9572310041722707,
+      "hfd_arcsec": 4.8546565518148626,
+      "smear": 0.18497621049168145
+     },
+     "20261018-035027": {
+      "transparency": 1.0007894950514036,
+      "weight": 0.9643741064398429,
+      "hfd_arcsec": 4.442459184597639,
+      "smear": 0.11904334669891481
+     },
+     "20261018-035130": {
+      "transparency": 1.0087255082562925,
+      "weight": 1.033721960234992,
+      "hfd_arcsec": 4.549326350612655,
+      "smear": 0.07761979939687104
+     },
+     "20261018-035201": {
+      "transparency": 0.9972752952971188,
+      "weight": 0.957125727852026,
+      "hfd_arcsec": 4.52601447236044,
+      "smear": 0.05859890000644318
+     },
+     "20261018-035303": {
+      "transparency": 0.997072305677781,
+      "weight": 1.0011074238165112,
+      "hfd_arcsec": 4.465785678444801,
+      "smear": 0.11407653533461304
+     },
+     "20261018-035334": {
+      "transparency": 0.9990124995904078,
+      "weight": 1.0297503089512758,
+      "hfd_arcsec": 4.897301296254047,
+      "smear": 0.19977655374546832
+     },
+     "20261018-035405": {
+      "transparency": 1.0027043784243495,
+      "weight": 1.0479755964745576,
+      "hfd_arcsec": 4.531263791358674,
+      "smear": 0.11595161389516492
+     },
+     "20261018-035436": {
+      "transparency": 0.9991949521297625,
+      "weight": 1.0056872590806405,
+      "hfd_arcsec": 4.955714314540447,
+      "smear": 0.11577110135535676
+     },
+     "20261018-035506": {
+      "transparency": 0.9961965378700154,
+      "weight": 0.9833323282342539,
+      "hfd_arcsec": 4.765483297015264,
+      "smear": 0.1048571626293365
+     },
+     "20261018-035538": {
+      "transparency": 0.9987784131868703,
+      "weight": 0.995485188685888,
+      "hfd_arcsec": 4.692066646355331,
+      "smear": 0.15509189029728704
+     },
+     "20261018-035609": {
+      "transparency": 1.002021506974085,
+      "weight": 0.9889715394928491,
+      "hfd_arcsec": 4.446852313731411,
+      "smear": 0.08685121471517511
+     },
+     "20261018-035640": {
+      "transparency": 0.996799719380309,
+      "weight": 0.9084789575780475,
+      "hfd_arcsec": 4.887903798067169,
+      "smear": 0.05672509597474413
+     },
+     "20261018-035711": {
+      "transparency": 1.0073280110748628,
+      "weight": 0.9836201605558844,
+      "hfd_arcsec": 4.819217941276085,
+      "smear": 0.11259486278044976
+     },
+     "20261018-035742": {
+      "transparency": 1.0012003824760602,
+      "weight": 1.0383587002391041,
+      "hfd_arcsec": 4.916509120619251,
+      "smear": 0.06952094221095585
+     },
+     "20261018-035813": {
+      "transparency": 1.0014203281862528,
+      "weight": 1.0260593026724478,
+      "hfd_arcsec": 5.00039067140661,
+      "smear": 0.09433352003233035
+     },
+     "20261018-035844": {
+      "transparency": 1.0004296323008477,
+      "weight": 1.0416522138450368,
+      "hfd_arcsec": 5.529572586599747,
+      "smear": 0.19971649701028804
+     },
+     "20261018-035915": {
+      "transparency": 0.9992013948117627,
+      "weight": 0.9750172494422547,
+      "hfd_arcsec": 4.5762170295172035,
+      "smear": 0.1312215039879189
+     },
+     "20261018-035946": {
+      "transparency": 1.004989779960536,
+      "weight": 0.9906009671378226,
+      "hfd_arcsec": 4.915723257663972,
+      "smear": 0.1912932622245603
+     },
+     "20261018-040017": {
+      "transparency": 0.9980953476688432,
+      "weight": 0.9727107009710786,
+      "hfd_arcsec": 4.556802210645631,
+      "smear": 0.09530297296899241
+     },
+     "20261018-040049": {
+      "transparency": 1.0012110025691796,
+      "weight": 1.01902078589704,
+      "hfd_arcsec": 4.957823399005241,
+      "smear": 0.152199470738921
+     },
+     "20261018-040119": {
+      "transparency": 1.0012589489131913,
+      "weight": 0.9897370225078493,
+      "hfd_arcsec": 4.667095770316468,
+      "smear": 0.049488866259678896
+     },
+     "20261018-040151": {
+      "transparency": 1.0011468664665775,
+      "weight": 1.0369535172779445,
+      "hfd_arcsec": 4.641731643182758,
+      "smear": 0.13984611050581103
+     },
+     "20261018-040222": {
+      "transparency": 0.9934510590286341,
+      "weight": 0.972224367264604,
+      "hfd_arcsec": 4.476256391051341,
+      "smear": 0.09128455492991773
+     },
+     "20261018-040253": {
+      "transparency": 1.0002592680989917,
+      "weight": 1.0477922287759625,
+      "hfd_arcsec": 4.991409680597066,
+      "smear": 0.07686348894031902
+     },
+     "20261018-040324": {
+      "transparency": 0.9999077049883469,
+      "weight": 1.0198854252990246,
+      "hfd_arcsec": 4.701373449700558,
+      "smear": 0.17918083490472653
+     },
+     "20261018-040355": {
+      "transparency": 1.0020008962927747,
+      "weight": 1.0453698613626743,
+      "hfd_arcsec": 5.056478734652385,
+      "smear": 0.11912802227605852
+     },
+     "20261018-040426": {
+      "transparency": 1.000034481498107,
+      "weight": 0.9776896380357352,
+      "hfd_arcsec": 4.498269336818547,
+      "smear": 0.11613492767460754
+     },
+     "20261018-040457": {
+      "transparency": 1.001932689835052,
+      "weight": 1.1130142179029496,
+      "hfd_arcsec": 5.039286008355286,
+      "smear": 0.07025132966774465
+     },
+     "20261018-040528": {
+      "transparency": 1.0008364885020749,
+      "weight": 0.9935566401074789,
+      "hfd_arcsec": 4.5040875074939155,
+      "smear": 0.07569637463216396
+     },
+     "20261018-040559": {
+      "transparency": 1.0061978393883024,
+      "weight": 1.019483476023159,
+      "hfd_arcsec": 4.585884139257599,
+      "smear": 0.09081646651097874
+     },
+     "20261018-040630": {
+      "transparency": 0.9927882788650156,
+      "weight": 1.090520584885192,
+      "hfd_arcsec": 4.9825483993550375,
+      "smear": 0.12648168664944395
+     },
+     "20261018-040701": {
+      "transparency": 0.9958404745381464,
+      "weight": 0.9533418282860584,
+      "hfd_arcsec": 4.661220849423155,
+      "smear": 0.08721844568918953
+     },
+     "20261018-040732": {
+      "transparency": 0.9991706829453605,
+      "weight": 0.9958344155494228,
+      "hfd_arcsec": 4.748866327383052,
+      "smear": 0.07766326694952916
+     },
+     "20261018-040803": {
+      "transparency": 1.0014020983918892,
+      "weight": 0.9893308473582323,
+      "hfd_arcsec": 4.677461641406317,
+      "smear": 0.15610432166913035
+     },
+     "20261018-040834": {
+      "transparency": 1.0040202165254073,
+      "weight": 1.0032747487906974,
+      "hfd_arcsec": 4.513670366110427,
+      "smear": 0.10112534376974981
+     },
+     "20261018-040905": {
+      "transparency": 1.001655953627784,
+      "weight": 1.0627889247486824,
+      "hfd_arcsec": 4.505581731495041,
+      "smear": 0.1388505161785987
+     },
+     "20261018-040936": {
+      "transparency": 0.9993564892383414,
+      "weight": 0.9992018856060289,
+      "hfd_arcsec": 4.614281683481567,
+      "smear": 0.06599264417093503
+     },
+     "20261018-041008": {
+      "transparency": 0.9999103684465517,
+      "weight": 1.0372864366044945,
+      "hfd_arcsec": 4.695428943963209,
+      "smear": 0.0897996989108711
+     },
+     "20261018-041039": {
+      "transparency": 0.9982720672535913,
+      "weight": 0.9909500759113342,
+      "hfd_arcsec": 4.802446259314593,
+      "smear": 0.14877309370996752
+     },
+     "20261018-041110": {
+      "transparency": 1.004149936807515,
+      "weight": 1.0154545930549874,
+      "hfd_arcsec": 4.59395791705052,
+      "smear": 0.053834043213261996
+     },
+     "20261018-041141": {
+      "transparency": 1.001789671359105,
+      "weight": 1.0750363046399587,
+      "hfd_arcsec": 4.705004807078558,
+      "smear": 0.13461840287762616
+     },
+     "20261018-041212": {
+      "transparency": 1.0026585343223329,
+      "weight": 1.0260255271071324,
+      "hfd_arcsec": 4.509966276491432,
+      "smear": 0.11526744716029036
+     },
+     "20261018-041243": {
+      "transparency": 1.0063703891852396,
+      "weight": 1.0257332087873963,
+      "hfd_arcsec": 4.682078046448546,
+      "smear": 0.1011178455671514
+     },
+     "20261018-041314": {
+      "transparency": 1.0007645115221708,
+      "weight": 1.1001638030222596,
+      "hfd_arcsec": 4.6382798184325305,
+      "smear": 0.09999679140041538
+     },
+     "20261018-041345": {
+      "transparency": 1.0013200546069423,
+      "weight": 0.9809447853269021,
+      "hfd_arcsec": 4.347701997832393,
+      "smear": 0.06100411268253235
+     },
+     "20261018-041447": {
+      "transparency": 0.9980541239888475,
+      "weight": 1.0575145537643593,
+      "hfd_arcsec": 4.449118727923635,
+      "smear": 0.07844411320318213
+     },
+     "20261018-041518": {
+      "transparency": 1.0024084556182653,
+      "weight": 1.0945457016558273,
+      "hfd_arcsec": 4.47849725093891,
+      "smear": 0.1266472562112365
+     },
+     "20261018-041549": {
+      "transparency": 0.9989739532282869,
+      "weight": 1.0321226373550114,
+      "hfd_arcsec": 4.444124730456794,
+      "smear": 0.09664908794782344
+     },
+     "20261018-041620": {
+      "transparency": 0.9978891797615621,
+      "weight": 1.0732327146513807,
+      "hfd_arcsec": 4.3738329728559115,
+      "smear": 0.06577539294796471
+     },
+     "20261018-041651": {
+      "transparency": 0.9993350179046292,
+      "weight": 1.1138360891389147,
+      "hfd_arcsec": 4.334491727395798,
+      "smear": 0.10810079443830226
+     },
+     "20261018-041722": {
+      "transparency": 1.0038394767921868,
+      "weight": 0.9940883560283901,
+      "hfd_arcsec": 4.702908372912286,
+      "smear": 0.048856961708937795
+     },
+     "20261018-041753": {
+      "transparency": 0.9998650684414119,
+      "weight": 1.0126210643657019,
+      "hfd_arcsec": 4.443399567514643,
+      "smear": 0.13560689633410594
+     },
+     "20261018-041824": {
+      "transparency": 1.0058376988727522,
+      "weight": 1.0112149895724099,
+      "hfd_arcsec": 4.675114270830771,
+      "smear": 0.06475600216217922
+     },
+     "20261018-041855": {
+      "transparency": 0.9998930246810367,
+      "weight": 1.0181561065824465,
+      "hfd_arcsec": 4.379283267768831,
+      "smear": 0.11002407926580536
+     },
+     "20261018-041926": {
+      "transparency": 1.0012864468924483,
+      "weight": 1.0419898044434162,
+      "hfd_arcsec": 4.43499772982555,
+      "smear": 0.06736531294144797
+     },
+     "20261018-041957": {
+      "transparency": 0.9988473293618707,
+      "weight": 1.058759080290527,
+      "hfd_arcsec": 4.376557432365932,
+      "smear": 0.09950627936578142
+     },
+     "20261018-042028": {
+      "transparency": 0.9874598254606778,
+      "weight": 0.9640059927574067,
+      "hfd_arcsec": 4.133115432206175,
+      "smear": 0.10267937608768274
+     },
+     "20261018-042059": {
+      "transparency": 0.997045744890565,
+      "weight": 0.985160662879984,
+      "hfd_arcsec": 4.171129983364821,
+      "smear": 0.05905644090853087
+     },
+     "20261018-042130": {
+      "transparency": 1.0034023666891194,
+      "weight": 0.9952878868117054,
+      "hfd_arcsec": 4.82019459561354,
+      "smear": 0.08064696655615053
+     },
+     "20261018-042201": {
+      "transparency": 1.0069952824418644,
+      "weight": 1.05015353012702,
+      "hfd_arcsec": 4.325109692817986,
+      "smear": 0.020802276822663803
+     }
+    },
+    "rejected": [
+     {
+      "stamp": "20261018-034619",
+      "why": "the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000",
+      "transparency": 1.0002366267112301,
+      "hfd_arcsec": 4.637252855778428,
+      "smear": 0.07172316705670678,
+      "step_from_previous_px": null
+     },
+     {
+      "stamp": "20261018-035059",
+      "why": "smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35",
+      "transparency": 0.994476796056611,
+      "hfd_arcsec": 4.709016510442939,
+      "smear": 0.21138937621286144,
+      "step_from_previous_px": 18.27265987546806
+     },
+     {
+      "stamp": "20261018-035232",
+      "why": "smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32",
+      "transparency": 0.99713379517661,
+      "hfd_arcsec": 5.024944398044773,
+      "smear": 0.20085277116061687,
+      "step_from_previous_px": 8.069546613584315
+     },
+     {
+      "stamp": "20261018-041416",
+      "why": "smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32",
+      "transparency": 0.9967221760845866,
+      "hfd_arcsec": 5.436429899655591,
+      "smear": 0.21427858427661653,
+      "step_from_previous_px": 7.567436969621651
+     }
+    ]
+   }
+  },
+  {
+   "step": "6 is it the thing (reference frame plate solve)",
+   "numbers": {
+    "solved": true,
+    "pixscale_arcsec": 0.776179319034,
+    "field_arcmin": [
+     38.9642018155068,
+     26.0278798316068
+    ],
+    "centre_ra_dec": [
+     299.8921153817,
+     22.7515236802
+    ],
+    "orientation_wcsinfo": -63.821925,
+    "parity": 1.0,
+    "north_angle_from_up_deg_clockwise": 116.19043813234624,
+    "east_angle_from_up_deg_clockwise": 26.191549630304586,
+    "mirrored": false,
+    "focal_length_mm": 2083.431031185673,
+    "frame": "20261018-040355",
+    "target": {
+     "name": "M27",
+     "ra_deg": 299.901579,
+     "dec_deg": 22.721056
+    },
+    "galaxy_ellipse": {
+     "centre_px": [
+      1397.0999798004,
+      907.3354139205
+     ],
+     "semi_major_px": 695.7155218617023,
+     "semi_minor_px": 695.7155218617023,
+     "major_axis_angle_deg": -3.7980581802366005
+    },
+    "mask_semi_axes_arcmin": [
+     9.0,
+     9.0
+    ],
+    "target_inside_frame": true,
+    "offset_from_frame_centre_arcmin": 1.9009754568422172,
+    "green_at_catalogue_place_dn": 296.87506103515625,
+    "green_sky_median_dn": 139.95706176757812,
+    "light_centroid_px": [
+     1400.117910968011,
+     913.6305131551494
+    ],
+    "light_centroid_from_catalogue_arcsec": 5.418609109154993,
+    "light_major_axis_angle_deg": -2.330243590415597,
+    "catalogue_major_axis_angle_deg": -3.7980581802366005,
+    "angle_difference_deg": 1.4678145898210033
+   }
+  },
+  {
+   "step": "7a candidate flats on this run's own sky (flatcheck.py)",
+   "numbers": {
+    "m27_sky": {
+     "object": [
+      {
+       "centre_px": [
+        1397.0999798004,
+        907.3354139205
+       ],
+       "semi_major_px": 695.7155218617023,
+       "semi_minor_px": 695.7155218617023,
+       "major_axis_angle_deg": 0.0
+      }
+     ],
+     "grow_px": 149.0,
+     "sky_level_dn": {
+      "R": 41.3,
+      "G1": 138.5,
+      "G2": 139.32,
+      "B": 95.62
+     },
+     "masked_fraction_median": 0.48036135774991484
+    },
+    "m33_run": {
+     "halves": [
+      63,
+      29
+     ],
+     "mask": [
+      {
+       "centre_px": [
+        1506.0,
+        1006.0
+       ],
+       "semi_major_px": 700.0,
+       "semi_minor_px": 700.0,
+       "major_axis_angle_deg": 0.0
+      }
+     ],
+     "sky_level_dn": {
+      "R": 42.88,
+      "G1": 143.71,
+      "G2": 143.65,
+      "B": 98.52
+     }
+    },
+    "on_m27_sky": [
+     {
+      "flat": "hybrid13",
+      "large": {
+       "R": {
+        "rms": 0.023339712992310524,
+        "after_plane": 0.015214003384946214
+       },
+       "G1": {
+        "rms": 0.015000869520008564,
+        "after_plane": 0.005737136040759606
+       },
+       "G2": {
+        "rms": 0.013874066062271595,
+        "after_plane": 0.005772002931269136
+       },
+       "B": {
+        "rms": 0.01607217639684677,
+        "after_plane": 0.0077248380848428935
+       }
+      },
+      "dust_left": {
+       "shadows": 5,
+       "deepest": 0.0611,
+       "correlation": 0.3517318069497087
+      },
+      "depth_sky_over_flat": {
+       "R": 0.657,
+       "G1": 0.74,
+       "G2": 0.76,
+       "B": 0.73
+      }
+     },
+     {
+      "flat": "twilight13",
+      "large": {
+       "R": {
+        "rms": 0.10136206448078156,
+        "after_plane": 0.03486037899823764
+       },
+       "G1": {
+        "rms": 0.09971997886896133,
+        "after_plane": 0.019822372531574706
+       },
+       "G2": {
+        "rms": 0.10590975731611252,
+        "after_plane": 0.018733606965122024
+       },
+       "B": {
+        "rms": 0.08771705627441406,
+        "after_plane": 0.017109688790389804
+       }
+      },
+      "dust_left": {
+       "shadows": 5,
+       "deepest": 0.0622,
+       "correlation": 0.3519536783762135
+      },
+      "depth_sky_over_flat": {
+       "R": 0.647,
+       "G1": 0.672,
+       "G2": 0.666,
+       "B": 0.747
+      }
+     },
+     {
+      "flat": "m33",
+      "large": {
+       "R": {
+        "rms": 0.014822804369032383,
+        "after_plane": 0.012663049372830543
+       },
+       "G1": {
+        "rms": 0.011568672955036163,
+        "after_plane": 0.007961971379951908
+       },
+       "G2": {
+        "rms": 0.010968642309308052,
+        "after_plane": 0.008081049952575534
+       },
+       "B": {
+        "rms": 0.011717488057911396,
+        "after_plane": 0.009118410446437599
+       }
+      },
+      "dust_left": {
+       "shadows": 5,
+       "deepest": 0.0617,
+       "correlation": 0.3535015787707281
+      },
+      "depth_sky_over_flat": {
+       "R": 0.697,
+       "G1": 0.732,
+       "G2": 0.786,
+       "B": 0.733
+      }
+     }
+    ]
+   },
+   "said": "hybrid13 leaves the least on this sky after a plane (green 0.57%, against 0.80% for the M33 flat and 1.98% for the twilight flat as measured). M33 is bigger than the frame, so its run is not open sky; its flat is kept as a candidate only. Every flat leaves this run's dust about 70% as deep as it carries it (correlation 0.35): the dust moved since 13 October, so step 7 measures it here"
+  },
+  {
+   "step": "7 flat check and this run's own dust",
+   "numbers": {
+    "flat_from": {
+     "dir": "/Users/bradgessler/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77",
+     "files": [
+      "flat_planes.npz",
+      "flat.json",
+      "README.txt"
+     ],
+     "made_from": "the night's own open sky (ngc891, ngc2261, ngc2419, m1) for the large scale; twilight flats (/Users/bradgessler/.observatory/nights/2026-10-12-a6000/flat-twilight) for dust and pixel response",
+     "their_sky_dn": {
+      "R": 27.4,
+      "G1": 94.0,
+      "G2": 94.6,
+      "B": 61.2
+     },
+     "formula": "flat[p] = large[p] x twilight small scale[p], 1 at the sensor centre; divide plane p (black subtracted) by it"
+    },
+    "own_sky": {
+     "block_px": 8,
+     "sky_level_dn_median": {
+      "R": 44.0,
+      "G1": 144.0,
+      "G2": 146.0,
+      "B": 100.0
+     },
+     "coverage": 0.7677269644824956
+    },
+    "planes": {
+     "R": {
+      "own": {
+       "blocks": 4463,
+       "robust_rms": 0.02591693215072155,
+       "range_1_99_pct": [
+        0.9648106932640076,
+        1.0937888240814209
+       ],
+       "sky_plane": {
+        "at_centre": 1.0167930216806433,
+        "across_the_long_side": -0.04427598347277355,
+        "across_the_short_side": -0.0389629516522115
+       },
+       "robust_rms_after_plane": 0.018451390553529713,
+       "rms_after_plane": 0.018780645676821247,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9834,
+         "after_plane": 0.9799
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0068,
+         "after_plane": 0.9956
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0148,
+         "after_plane": 0.9987
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.017,
+         "after_plane": 1.0014
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.0257,
+         "after_plane": 1.0112
+        }
+       ]
+      },
+      "green": {
+       "blocks": 4463,
+       "robust_rms": 0.023923484608530998,
+       "range_1_99_pct": [
+        0.949806878566742,
+        1.0588792872428894
+       ],
+       "sky_plane": {
+        "at_centre": 1.0027499063184835,
+        "across_the_long_side": -0.02492944756994293,
+        "across_the_short_side": 0.0018501778388280256
+       },
+       "robust_rms_after_plane": 0.022895318535885913,
+       "rms_after_plane": 0.022583220264943853,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9834,
+         "after_plane": 0.9829
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0021,
+         "after_plane": 1.0008
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0029,
+         "after_plane": 1.0001
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0045,
+         "after_plane": 1.0034
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 0.9938,
+         "after_plane": 0.9917
+        }
+       ]
+      },
+      "used": "own"
+     },
+     "G1": {
+      "own": {
+       "blocks": 4463,
+       "robust_rms": 0.01580583117902279,
+       "range_1_99_pct": [
+        0.9853641593456268,
+        1.0395743608474732
+       ],
+       "sky_plane": {
+        "at_centre": 1.0094521173376423,
+        "across_the_long_side": -0.030788250120986595,
+        "across_the_short_side": -0.0188145252065122
+       },
+       "robust_rms_after_plane": 0.006240397678217291,
+       "rms_after_plane": 0.006370078368738891,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9947,
+         "after_plane": 0.9916
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0028,
+         "after_plane": 0.9974
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0102,
+         "after_plane": 0.9996
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0131,
+         "after_plane": 1.001
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.0137,
+         "after_plane": 1.0042
+        }
+       ]
+      },
+      "green": {
+       "blocks": 4463,
+       "robust_rms": 0.012341202236711979,
+       "range_1_99_pct": [
+        0.9859719979763031,
+        1.0312098813056947
+       ],
+       "sky_plane": {
+        "at_centre": 1.0073407875834082,
+        "across_the_long_side": -0.026891522516139202,
+        "across_the_short_side": -0.0059279676674274745
+       },
+       "robust_rms_after_plane": 0.006030846547355223,
+       "rms_after_plane": 0.006119166947560876,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9946,
+         "after_plane": 0.9914
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.003,
+         "after_plane": 0.9981
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0064,
+         "after_plane": 0.9993
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.009,
+         "after_plane": 1.0012
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.0109,
+         "after_plane": 1.0028
+        }
+       ]
+      },
+      "used": "own"
+     },
+     "G2": {
+      "own": {
+       "blocks": 4463,
+       "robust_rms": 0.014623088762164116,
+       "range_1_99_pct": [
+        0.9851621055603027,
+        1.0355230641365052
+       ],
+       "sky_plane": {
+        "at_centre": 1.0080334212929043,
+        "across_the_long_side": -0.027179928409943942,
+        "across_the_short_side": -0.01605054467078304
+       },
+       "robust_rms_after_plane": 0.006094689735691954,
+       "rms_after_plane": 0.006392734315984225,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9933,
+         "after_plane": 0.9912
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0028,
+         "after_plane": 0.9985
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0087,
+         "after_plane": 0.9995
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0113,
+         "after_plane": 1.0004
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.0137,
+         "after_plane": 1.0046
+        }
+       ]
+      },
+      "green": {
+       "blocks": 4463,
+       "robust_rms": 0.017943231388926506,
+       "range_1_99_pct": [
+        0.9827605509757995,
+        1.0523628616333007
+       ],
+       "sky_plane": {
+        "at_centre": 1.010248015665429,
+        "across_the_long_side": -0.031137347186223123,
+        "across_the_short_side": -0.028650706297671833
+       },
+       "robust_rms_after_plane": 0.008636628271332348,
+       "rms_after_plane": 0.008751442380164566,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9938,
+         "after_plane": 0.9913
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0023,
+         "after_plane": 0.9983
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0103,
+         "after_plane": 0.9991
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0131,
+         "after_plane": 1.0001
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.017,
+         "after_plane": 1.0062
+        }
+       ]
+      },
+      "used": "own"
+     },
+     "B": {
+      "own": {
+       "blocks": 4463,
+       "robust_rms": 0.01615842618048191,
+       "range_1_99_pct": [
+        0.980030152797699,
+        1.0412976980209352
+       ],
+       "sky_plane": {
+        "at_centre": 1.0075882106768377,
+        "across_the_long_side": -0.030809726614596106,
+        "across_the_short_side": -0.016471774441070782
+       },
+       "robust_rms_after_plane": 0.008384306668083343,
+       "rms_after_plane": 0.008665298094142286,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 1.0003,
+         "after_plane": 0.9987
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0021,
+         "after_plane": 0.9977
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0076,
+         "after_plane": 0.9993
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0093,
+         "after_plane": 1.0
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.013,
+         "after_plane": 1.0059
+        }
+       ]
+      },
+      "green": {
+       "blocks": 4463,
+       "robust_rms": 0.020748533308506012,
+       "range_1_99_pct": [
+        0.9819393348693848,
+        1.0756683373451235
+       ],
+       "sky_plane": {
+        "at_centre": 1.0194803700274189,
+        "across_the_long_side": -0.028931565369908187,
+        "across_the_short_side": -0.03905715326753531
+       },
+       "robust_rms_after_plane": 0.012741401091314575,
+       "rms_after_plane": 0.013527100194316776,
+       "rings": [
+        {
+         "r_sensor_px": [
+          0,
+          600
+         ],
+         "blocks": 0,
+         "remainder": null,
+         "after_plane": null
+        },
+        {
+         "r_sensor_px": [
+          600,
+          1200
+         ],
+         "blocks": 93,
+         "remainder": 0.9971,
+         "after_plane": 0.9872
+        },
+        {
+         "r_sensor_px": [
+          1200,
+          1800
+         ],
+         "blocks": 1033,
+         "remainder": 1.0033,
+         "after_plane": 0.9895
+        },
+        {
+         "r_sensor_px": [
+          1800,
+          2400
+         ],
+         "blocks": 1551,
+         "remainder": 1.0151,
+         "after_plane": 0.9959
+        },
+        {
+         "r_sensor_px": [
+          2400,
+          3000
+         ],
+         "blocks": 1314,
+         "remainder": 1.0257,
+         "after_plane": 1.006
+        },
+        {
+         "r_sensor_px": [
+          3000,
+          3700
+         ],
+         "blocks": 472,
+         "remainder": 1.0391,
+         "after_plane": 1.0198
+        }
+       ]
+      },
+      "used": "own"
+     }
+    },
+    "choice_rule": "auto",
+    "dust": {
+     "what": "this run's own green sky over the flat, over its own 160 px scale, Gaussian 1 block (8 px): a shadow the flat left is where that is below 1 - 0.012 over at least 6 blocks and at least 0.006 deep in the even and in the odd frames alone. There the flat is multiplied by the measured remainder (bilinear from the blocks, never above 1); it is the night's flat everywhere else. The same factor for all four colours.",
+     "why": "the night's flat left every one of its own shadows 1 to 5% deep under this run's sky (it carries them shallower than they are here)",
+     "applied": true,
+     "divided_out": [
+      {
+       "plane_px": [
+        1778.7,
+        427.1
+       ],
+       "blocks": 128,
+       "left_by_the_flat": 0.1522,
+       "in_even_frames": 0.0608,
+       "in_odd_frames": 0.0635,
+       "in_the_flat_as": {
+        "plane_px": [
+         1794.3,
+         463.2
+        ],
+        "depth": 0.0314
+       }
+      },
+      {
+       "plane_px": [
+        1089.7,
+        400.6
+       ],
+       "blocks": 7,
+       "left_by_the_flat": 0.0222,
+       "in_even_frames": 0.0157,
+       "in_odd_frames": 0.0204,
+       "in_the_flat_as": {
+        "plane_px": [
+         1101.9,
+         388.6
+        ],
+        "depth": 0.0951
+       }
+      },
+      {
+       "plane_px": [
+        1699.2,
+        684.8
+       ],
+       "blocks": 10,
+       "left_by_the_flat": 0.016,
+       "in_even_frames": 0.0144,
+       "in_odd_frames": 0.0136,
+       "in_the_flat_as": null
+      },
+      {
+       "plane_px": [
+        1734.0,
+        744.0
+       ],
+       "blocks": 8,
+       "left_by_the_flat": 0.0195,
+       "in_even_frames": 0.008,
+       "in_odd_frames": 0.0145,
+       "in_the_flat_as": {
+        "plane_px": [
+         1751.7,
+         768.1
+        ],
+        "depth": 0.0121
+       }
+      },
+      {
+       "plane_px": [
+        1741.0,
+        803.0
+       ],
+       "blocks": 8,
+       "left_by_the_flat": 0.0218,
+       "in_even_frames": 0.0203,
+       "in_odd_frames": 0.0125,
+       "in_the_flat_as": {
+        "plane_px": [
+         1772.8,
+         789.2
+        ],
+        "depth": 0.0139
+       }
+      },
+      {
+       "plane_px": [
+        1756.0,
+        854.4
+       ],
+       "blocks": 10,
+       "left_by_the_flat": 0.0164,
+       "in_even_frames": 0.0119,
+       "in_odd_frames": 0.0149,
+       "in_the_flat_as": {
+        "plane_px": [
+         1743.5,
+         857.5
+        ],
+        "depth": 0.0122
+       }
+      },
+      {
+       "plane_px": [
+        45.8,
+        1092.9
+       ],
+       "blocks": 9,
+       "left_by_the_flat": 0.0197,
+       "in_even_frames": 0.0168,
+       "in_odd_frames": 0.0118,
+       "in_the_flat_as": {
+        "plane_px": [
+         46.8,
+         1081.9
+        ],
+        "depth": 0.0756
+       }
+      },
+      {
+       "plane_px": [
+        677.7,
+        1222.9
+       ],
+       "blocks": 14,
+       "left_by_the_flat": 0.0237,
+       "in_even_frames": 0.0196,
+       "in_odd_frames": 0.0162,
+       "in_the_flat_as": {
+        "plane_px": [
+         693.9,
+         1208.6
+        ],
+        "depth": 0.1471
+       }
+      },
+      {
+       "plane_px": [
+        1314.4,
+        1292.0
+       ],
+       "blocks": 10,
+       "left_by_the_flat": 0.0157,
+       "in_even_frames": 0.0114,
+       "in_odd_frames": 0.0142,
+       "in_the_flat_as": {
+        "plane_px": [
+         1303.1,
+         1310.1
+        ],
+        "depth": 0.0169
+       }
+      },
+      {
+       "plane_px": [
+        2225.7,
+        1808.8
+       ],
+       "blocks": 38,
+       "left_by_the_flat": 0.0357,
+       "in_even_frames": 0.0233,
+       "in_odd_frames": 0.0209,
+       "in_the_flat_as": null
+      },
+      {
+       "plane_px": [
+        2095.8,
+        1932.4
+       ],
+       "blocks": 21,
+       "left_by_the_flat": 0.0192,
+       "in_even_frames": 0.0163,
+       "in_odd_frames": 0.0174,
+       "in_the_flat_as": null
+      }
+     ],
+     "turned_down": [
+      {
+       "plane_px": [
+        3000.0,
+        4.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0128,
+       "in_even_frames": 0.0118,
+       "in_odd_frames": 0.0149
+      },
+      {
+       "plane_px": [
+        2340.0,
+        68.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0121,
+       "in_even_frames": 0.0064,
+       "in_odd_frames": 0.017
+      },
+      {
+       "plane_px": [
+        2330.4,
+        96.8
+       ],
+       "blocks": 5,
+       "left_by_the_flat": 0.02,
+       "in_even_frames": 0.0137,
+       "in_odd_frames": 0.0175
+      },
+      {
+       "plane_px": [
+        28.0,
+        364.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0122,
+       "in_even_frames": 0.0112,
+       "in_odd_frames": 0.0093
+      },
+      {
+       "plane_px": [
+        1588.0,
+        404.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.012,
+       "in_even_frames": 0.0055,
+       "in_odd_frames": 0.015
+      },
+      {
+       "plane_px": [
+        512.0,
+        540.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0143,
+       "in_even_frames": 0.0029,
+       "in_odd_frames": 0.0142
+      },
+      {
+       "plane_px": [
+        940.0,
+        548.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0126,
+       "in_even_frames": 0.0122,
+       "in_odd_frames": 0.0087
+      },
+      {
+       "plane_px": [
+        1646.7,
+        622.7
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0168,
+       "in_even_frames": 0.0099,
+       "in_odd_frames": 0.0137
+      },
+      {
+       "plane_px": [
+        1804.0,
+        896.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0123,
+       "in_even_frames": 0.0121,
+       "in_odd_frames": 0.0151
+      },
+      {
+       "plane_px": [
+        1760.0,
+        932.0
+       ],
+       "blocks": 4,
+       "left_by_the_flat": 0.0152,
+       "in_even_frames": 0.014,
+       "in_odd_frames": 0.0115
+      },
+      {
+       "plane_px": [
+        900.0,
+        956.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0121,
+       "in_even_frames": 0.0088,
+       "in_odd_frames": 0.0144
+      },
+      {
+       "plane_px": [
+        1732.0,
+        972.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0126,
+       "in_even_frames": 0.0103,
+       "in_odd_frames": 0.0187
+      },
+      {
+       "plane_px": [
+        1684.0,
+        1104.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0125,
+       "in_even_frames": 0.0149,
+       "in_odd_frames": 0.0126
+      },
+      {
+       "plane_px": [
+        2120.0,
+        1136.0
+       ],
+       "blocks": 4,
+       "left_by_the_flat": 0.0143,
+       "in_even_frames": 0.0103,
+       "in_odd_frames": 0.0144
+      },
+      {
+       "plane_px": [
+        6.0,
+        1252.0
+       ],
+       "blocks": 4,
+       "left_by_the_flat": 0.0194,
+       "in_even_frames": 0.0134,
+       "in_odd_frames": 0.0151
+      },
+      {
+       "plane_px": [
+        780.0,
+        1244.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0121,
+       "in_even_frames": 0.0079,
+       "in_odd_frames": 0.0107
+      },
+      {
+       "plane_px": [
+        892.0,
+        1244.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0122,
+       "in_even_frames": 0.0094,
+       "in_odd_frames": 0.0117
+      },
+      {
+       "plane_px": [
+        924.0,
+        1280.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0144,
+       "in_even_frames": 0.012,
+       "in_odd_frames": 0.0121
+      },
+      {
+       "plane_px": [
+        1412.0,
+        1284.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0129,
+       "in_even_frames": 0.0099,
+       "in_odd_frames": 0.0162
+      },
+      {
+       "plane_px": [
+        276.0,
+        1332.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0128,
+       "in_even_frames": 0.0083,
+       "in_odd_frames": 0.013
+      },
+      {
+       "plane_px": [
+        1937.3,
+        1534.7
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0125,
+       "in_even_frames": 0.0107,
+       "in_odd_frames": 0.0142
+      },
+      {
+       "plane_px": [
+        1964.0,
+        1548.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0121,
+       "in_even_frames": 0.0119,
+       "in_odd_frames": 0.0141
+      },
+      {
+       "plane_px": [
+        2676.0,
+        1564.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0122,
+       "in_even_frames": 0.0162,
+       "in_odd_frames": 0.0093
+      },
+      {
+       "plane_px": [
+        2022.0,
+        1724.0
+       ],
+       "blocks": 4,
+       "left_by_the_flat": 0.0181,
+       "in_even_frames": 0.0169,
+       "in_odd_frames": 0.0079
+      },
+      {
+       "plane_px": [
+        2662.7,
+        1737.3
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0147,
+       "in_even_frames": 0.0153,
+       "in_odd_frames": 0.008
+      },
+      {
+       "plane_px": [
+        2700.0,
+        1748.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0122,
+       "in_even_frames": 0.0109,
+       "in_odd_frames": 0.011
+      },
+      {
+       "plane_px": [
+        1062.7,
+        1801.3
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0146,
+       "in_even_frames": 0.0148,
+       "in_odd_frames": 0.0138
+      },
+      {
+       "plane_px": [
+        1952.8,
+        1842.4
+       ],
+       "blocks": 5,
+       "left_by_the_flat": 0.0143,
+       "in_even_frames": 0.0109,
+       "in_odd_frames": 0.0148
+      },
+      {
+       "plane_px": [
+        2372.0,
+        1840.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0126,
+       "in_even_frames": 0.0204,
+       "in_odd_frames": 0.0088
+      },
+      {
+       "plane_px": [
+        2492.0,
+        1876.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.013,
+       "in_even_frames": 0.0182,
+       "in_odd_frames": 0.0097
+      },
+      {
+       "plane_px": [
+        140.0,
+        1896.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0126,
+       "in_even_frames": 0.0138,
+       "in_odd_frames": 0.0128
+      },
+      {
+       "plane_px": [
+        2901.4,
+        1994.1
+       ],
+       "blocks": 17,
+       "left_by_the_flat": 0.0161,
+       "in_even_frames": 0.0135,
+       "in_odd_frames": 0.0148
+      },
+      {
+       "plane_px": [
+        584.0,
+        2000.0
+       ],
+       "blocks": 4,
+       "left_by_the_flat": 0.0159,
+       "in_even_frames": 0.0126,
+       "in_odd_frames": 0.0191
+      },
+      {
+       "plane_px": [
+        716.0,
+        2000.0
+       ],
+       "blocks": 2,
+       "left_by_the_flat": 0.0136,
+       "in_even_frames": 0.0057,
+       "in_odd_frames": 0.0106
+      },
+      {
+       "plane_px": [
+        2158.7,
+        2001.3
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0135,
+       "in_even_frames": 0.0157,
+       "in_odd_frames": 0.0121
+      },
+      {
+       "plane_px": [
+        2438.7,
+        2001.3
+       ],
+       "blocks": 3,
+       "left_by_the_flat": 0.0137,
+       "in_even_frames": 0.0098,
+       "in_odd_frames": 0.0188
+      },
+      {
+       "plane_px": [
+        2984.3,
+        1998.5
+       ],
+       "blocks": 13,
+       "left_by_the_flat": 0.02,
+       "in_even_frames": 0.0136,
+       "in_odd_frames": 0.0232
+      },
+      {
+       "plane_px": [
+        1820.0,
+        2004.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0127,
+       "in_even_frames": 0.0124,
+       "in_odd_frames": 0.0148
+      },
+      {
+       "plane_px": [
+        2196.0,
+        2004.0
+       ],
+       "blocks": 1,
+       "left_by_the_flat": 0.0124,
+       "in_even_frames": 0.0176,
+       "in_odd_frames": 0.0109
+      }
+     ],
+     "sensor_fraction_changed": 0.007257748330732735,
+     "deepest_factor": 0.848924458026886,
+     "worst_left_by_the_nights_flat": 0.0432,
+     "worst_left_after_own_correction": 0.0432,
+     "named_shadows": [
+      {
+       "name": "crescent",
+       "sensor_px": [
+        3534,
+        824
+       ],
+       "plane_px": [
+        1767.0,
+        412.0
+       ],
+       "depth_in_own_sky_no_flat": 0.1269,
+       "left_by_the_flat": 0.1258,
+       "left_after_own_correction": 0.0171
+      },
+      {
+       "name": "spot_a",
+       "sensor_px": [
+        1356,
+        2400
+       ],
+       "plane_px": [
+        678.0,
+        1200.0
+       ],
+       "depth_in_own_sky_no_flat": 0.0552,
+       "left_by_the_flat": 0.0055,
+       "left_after_own_correction": 0.0013
+      },
+      {
+       "name": "spot_b",
+       "sensor_px": [
+        5352,
+        3456
+       ],
+       "plane_px": [
+        2676.0,
+        1728.0
+       ],
+       "depth_in_own_sky_no_flat": 0.0896,
+       "left_by_the_flat": 0.0018,
+       "left_after_own_correction": 0.0018
+      }
+     ],
+     "blind": "within 390 plane px (5.0 arcmin) of the nucleus, in every frame's own place, no dust can be judged from these frames (the galaxy's bright middle)"
+    },
+    "flat_range": [
+     0.5530718564987183,
+     1.055965781211853
+    ]
+   }
+  },
+  {
+   "step": "8 combine (proper coadd) and air dispersion",
+   "numbers": {
+    "stack": {
+     "faint_region": {
+      "what": "the sky region",
+      "percentile": 60.0,
+      "pixels": 2113005,
+      "smoothed_green_max_dn": 154.43214416503906,
+      "centroid_xy": [
+       2108.4255721117556,
+       1174.322397249415
+      ],
+      "box": [
+       135,
+       2868,
+       75,
+       1919
+      ]
+     },
+     "air_dispersion": {
+      "measured_in_the_frames": {
+       "measures": 2978,
+       "red_minus_green_sensor_px": [
+        -0.2801,
+        0.0515
+       ],
+       "blue_minus_green_sensor_px": [
+        0.32,
+        -0.1861
+       ],
+       "scatter_sensor_px": [
+        0.3082,
+        0.3024,
+        0.2578,
+        0.259
+       ],
+       "error_of_the_median_sensor_px": [
+        0.0071,
+        0.0069,
+        0.0059,
+        0.0059
+       ]
+      },
+      "taken_out_sensor_px": {
+       "R": [
+        -0.2801,
+        0.0515
+       ],
+       "B": [
+        0.32,
+        -0.1861
+       ]
+      },
+      "left_in_the_stack": {
+       "measures": 125,
+       "red_minus_green_sensor_px": [
+        0.0362,
+        0.0338
+       ],
+       "blue_minus_green_sensor_px": [
+        0.0203,
+        0.0194
+       ],
+       "scatter_sensor_px": [
+        0.0521,
+        0.0513,
+        0.0778,
+        0.0606
+       ],
+       "error_of_the_median_sensor_px": [
+        0.0058,
+        0.0057,
+        0.0087,
+        0.0068
+       ]
+      },
+      "picture_px": "1 picture px = 2 sensor px",
+      "how": "red and blue sampled at green's place plus their offset, in the one Lanczos-4 resampling"
+     },
+     "subsets": {
+      "odd": 33,
+      "even": 33
+     },
+     "control_planes": [
+      {
+       "plane": "R",
+       "frame_noise_in_faint_region": "66 values (see work/)",
+       "sigma_floor": 18.899696350097656,
+       "samples_in_coverage": 383438083,
+       "samples_dropped_by_the_clip": 2563841,
+       "dropped_fraction": 0.006686453729219171
+      },
+      {
+       "plane": "G1",
+       "frame_noise_in_faint_region": "66 values (see work/)",
+       "sigma_floor": 24.256711959838867,
+       "samples_in_coverage": 383426985,
+       "samples_dropped_by_the_clip": 2297604,
+       "dropped_fraction": 0.005992285597739033
+      },
+      {
+       "plane": "G2",
+       "frame_noise_in_faint_region": "66 values (see work/)",
+       "sigma_floor": 24.33985137939453,
+       "samples_in_coverage": 383441616,
+       "samples_dropped_by_the_clip": 2243774,
+       "dropped_fraction": 0.005851670518726377
+      },
+      {
+       "plane": "B",
+       "frame_noise_in_faint_region": "66 values (see work/)",
+       "sigma_floor": 20.80339813232422,
+       "samples_in_coverage": 383430260,
+       "samples_dropped_by_the_clip": 2619211,
+       "dropped_fraction": 0.006830997115355475
+      }
+     ]
+    },
+    "coadd": {
+     "R": {
+      "method": "proper image coaddition",
+      "paper": "Zackay B. & Ofek E. O. 2017, ApJ 836, 188 (arXiv:1512.06879)",
+      "tool": "coadd.py 1.1 (2026-10-17): mean PSF phase kept, measured outlier thresholds, two-pass refill",
+      "formula": "R_hat = sum_j (F_j/s_j^2) conj(P_hat_j) M_hat_j / sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2); S = R / F_R, F_R = sqrt(sum_j F_j^2/s_j^2); PSF of S: P_R_hat = sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2) / F_R",
+      "linear": "given the outlier mask, S is linear in the frames; the weights and filters come from the PSFs and the noise only",
+      "phase": "mean",
+      "F_R": 0.17240025298074985,
+      "noise_per_pixel_flux_units": 5.800455525501228,
+      "fft_shape": [
+       2160,
+       3125
+      ],
+      "pad_px": 35,
+      "pixels_without_data": 78,
+      "outliers": {
+       "rule": "flag |X_j - m| > kappa sqrt(r_j^2 + (beta m)^2) per pixel, or |B(X_j - m)| > kappa_smooth sqrt(b_j^2 + (beta B(m))^2) with B a 3 x 3 box mean; grow 1 px; X_j = frame / F_j, m the per-pixel median of all frames that have the pixel, r_j and b_j the robust (1.4826 MAD) spread of X_j - m and of B(X_j - m) over the frame, times noise_map",
+       "kappa": 5.0,
+       "beta": 0.5,
+       "beta_why": "from the PSFs: the largest peak ratio to the median is 1.292; beta = max(0.50, 2 x 0.292 / kappa)",
+       "noise_map": {
+        "min": 0.84812331199646,
+        "max": 1.6192998886108398
+       },
+       "kappa_smooth": 4.0,
+       "smooth_box_px": 3,
+       "grow_px": 1,
+       "per_frame": "66 values (see work/)",
+       "flagged_fraction": 0.0047946802404601006,
+       "flagged_fraction_in_sky_region": 0.004740620370256836
+      },
+      "target": {
+       "target": "mean-psf: |sum_j w_j P_hat_j| / sum_j w_j, w_j = F_j^2 / s_j^2 (a weighted mean's PSF, its phase dropped)",
+       "max_gain_wanted": 1.0000000000000002,
+       "cap": 1.0,
+       "capped_fraction_of_frequencies": 0.0,
+       "capped_fraction_of_psf_power": 0.0,
+       "phase": "the coadd's own",
+       "psf": {
+        "hfd_px": 6.410016885063304,
+        "fwhm_px": 5.046265044040321,
+        "ellipticity": 0.07251223865279222,
+        "angle_deg": 65.69023373890664,
+        "centroid_px": [
+         0.5000682421915084,
+         0.6625619217982857
+        ],
+        "sum": 1.0,
+        "sum_sq": 0.011154335662053486
+       },
+       "noise_per_pixel_white": 2.659101305380176
+      },
+      "theory": {
+       "snr_proper": 0.018331470688129813,
+       "snr_weighted_mean": 0.018207895553178328,
+       "gain": 1.0067868982766608,
+       "effective_frames_proper": 65.0044716619712
+      },
+      "psf_stars": 274,
+      "psf_radius_px": 17,
+      "field_variation": {
+       "zones": [
+        {
+         "zone": [
+          0,
+          0
+         ],
+         "stars": 41,
+         "hfd_px": 3.9998007557755124,
+         "fwhm_px": 3.385137501286538,
+         "ellipticity": 0.005142747440582629,
+         "angle_deg": 21.372642488184415,
+         "hfd_halves_px": [
+          4.0472414782364075,
+          3.957035682784584
+         ],
+         "e_halves": [
+          0.017088639022266316,
+          0.04286751998219285
+         ]
+        },
+        {
+         "zone": [
+          0,
+          1
+         ],
+         "stars": 19,
+         "hfd_px": 4.505139434409986,
+         "fwhm_px": 3.5682482323055424,
+         "ellipticity": 0.06670270175699633,
+         "angle_deg": -3.976724600086339,
+         "hfd_halves_px": [
+          4.438700455510588,
+          5.252798854213534
+         ],
+         "e_halves": [
+          0.06663899275056884,
+          0.07342517902489043
+         ]
+        },
+        {
+         "zone": [
+          0,
+          2
+         ],
+         "stars": 33,
+         "hfd_px": 6.740419083564879,
+         "fwhm_px": 4.918490759365935,
+         "ellipticity": 0.14690377664372412,
+         "angle_deg": 5.251099576122267,
+         "hfd_halves_px": [
+          6.713906601115553,
+          6.775704924967479
+         ],
+         "e_halves": [
+          0.154349756613405,
+          0.14586509938685988
+         ]
+        },
+        {
+         "zone": [
+          1,
+          0
+         ],
+         "stars": 34,
+         "hfd_px": 4.777985223330156,
+         "fwhm_px": 4.222008245644752,
+         "ellipticity": 0.09804449605225629,
+         "angle_deg": -59.9065776770874,
+         "hfd_halves_px": [
+          4.712398186986817,
+          4.877094169172675
+         ],
+         "e_halves": [
+          0.08175604274887638,
+          0.11469002721602362
+         ]
+        },
+        {
+         "zone": [
+          1,
+          1
+         ],
+         "stars": 0
+        },
+        {
+         "zone": [
+          1,
+          2
+         ],
+         "stars": 39,
+         "hfd_px": 6.881620516370567,
+         "fwhm_px": 5.170882945826411,
+         "ellipticity": 0.1301502143987432,
+         "angle_deg": 28.768906969767556,
+         "hfd_halves_px": [
+          6.876794289473876,
+          6.86864920875365
+         ],
+         "e_halves": [
+          0.1356223826739914,
+          0.13148240364702968
+         ]
+        },
+        {
+         "zone": [
+          2,
+          0
+         ],
+         "stars": 51,
+         "hfd_px": 6.110513616875574,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.1432588361565149,
+         "angle_deg": -75.10476262375239,
+         "hfd_halves_px": [
+          6.073140535039627,
+          6.289271069150355
+         ],
+         "e_halves": [
+          0.149098223043179,
+          0.14695723096274693
+         ]
+        },
+        {
+         "zone": [
+          2,
+          1
+         ],
+         "stars": 34,
+         "hfd_px": 6.2819078727507724,
+         "fwhm_px": 4.918490759365935,
+         "ellipticity": 0.1214990107177717,
+         "angle_deg": 71.26655740320616,
+         "hfd_halves_px": [
+          6.2369812122471195,
+          6.333913854077245
+         ],
+         "e_halves": [
+          0.12402445215314362,
+          0.13412253216014003
+         ]
+        },
+        {
+         "zone": [
+          2,
+          2
+         ],
+         "stars": 23,
+         "hfd_px": 7.491180918951959,
+         "fwhm_px": 5.753627391751592,
+         "ellipticity": 0.13476705184036497,
+         "angle_deg": 37.44754821305327,
+         "hfd_halves_px": [
+          7.391774346752585,
+          7.7598579293112975
+         ],
+         "e_halves": [
+          0.13548731817682036,
+          0.14335385177137971
+         ]
+        }
+       ],
+       "hfd_spread": 0.8728885202931842,
+       "hfd_zone_noise_px": 0.06540715600399594,
+       "ellipticity_range": 0.1417610292031415,
+       "ellipticity_zone_noise": 0.004087797705276119,
+       "varies": true,
+       "rule": "varies if the zones differ by > 3 x the halves' noise and by > 3% in HFD or > 0.05 in ellipticity"
+      },
+      "separable": null,
+      "halves": {
+       "odd": {
+        "F_R": 0.12215156563909066,
+        "common_psf": {
+         "hfd_px": 6.401602013143014,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.0767499569805088,
+         "angle_deg": 67.97370598967798,
+         "centroid_px": [
+          0.5021505156130461,
+          0.6626253523463658
+         ],
+         "sum": 0.9999377983779414,
+         "sum_sq": 0.011152399183952947
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "even": {
+        "F_R": 0.12165871214074835,
+        "common_psf": {
+         "hfd_px": 6.401602013143014,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.07674995698050735,
+         "angle_deg": 67.97370598967797,
+         "centroid_px": [
+          0.502150515613046,
+          0.6626253523463658
+         ],
+         "sum": 0.9999377983779414,
+         "sum_sq": 0.011152399183952947
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "full_at_the_common_psf": {
+        "psf": {
+         "hfd_px": 6.401602013143014,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.07674995698050735,
+         "angle_deg": 67.97370598967797,
+         "centroid_px": [
+          0.502150515613046,
+          0.6626253523463658
+         ],
+         "sum": 0.9999377983779414,
+         "sum_sq": 0.011152399183952947
+        },
+        "noise_white": 5.515517652009027,
+        "noise_S": 5.800455525501228
+       }
+      },
+      "theory_with_the_control_weights": {
+       "snr_weighted_mean": 0.018132291776427972,
+       "gain_of_proper": 1.010984762111581
+      }
+     },
+     "G1": {
+      "method": "proper image coaddition",
+      "paper": "Zackay B. & Ofek E. O. 2017, ApJ 836, 188 (arXiv:1512.06879)",
+      "tool": "coadd.py 1.1 (2026-10-17): mean PSF phase kept, measured outlier thresholds, two-pass refill",
+      "formula": "R_hat = sum_j (F_j/s_j^2) conj(P_hat_j) M_hat_j / sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2); S = R / F_R, F_R = sqrt(sum_j F_j^2/s_j^2); PSF of S: P_R_hat = sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2) / F_R",
+      "linear": "given the outlier mask, S is linear in the frames; the weights and filters come from the PSFs and the noise only",
+      "phase": "mean",
+      "F_R": 0.13374874634939757,
+      "noise_per_pixel_flux_units": 7.476705593842781,
+      "fft_shape": [
+       2160,
+       3125
+      ],
+      "pad_px": 35,
+      "pixels_without_data": 91,
+      "outliers": {
+       "rule": "flag |X_j - m| > kappa sqrt(r_j^2 + (beta m)^2) per pixel, or |B(X_j - m)| > kappa_smooth sqrt(b_j^2 + (beta B(m))^2) with B a 3 x 3 box mean; grow 1 px; X_j = frame / F_j, m the per-pixel median of all frames that have the pixel, r_j and b_j the robust (1.4826 MAD) spread of X_j - m and of B(X_j - m) over the frame, times noise_map",
+       "kappa": 5.0,
+       "beta": 0.5,
+       "beta_why": "from the PSFs: the largest peak ratio to the median is 1.273; beta = max(0.50, 2 x 0.273 / kappa)",
+       "noise_map": {
+        "min": 0.8792679309844971,
+        "max": 1.4297072887420654
+       },
+       "kappa_smooth": 4.0,
+       "smooth_box_px": 3,
+       "grow_px": 1,
+       "per_frame": "66 values (see work/)",
+       "flagged_fraction": 0.002787409446416506,
+       "flagged_fraction_in_sky_region": 0.0028159092396990554
+      },
+      "target": {
+       "target": "mean-psf: |sum_j w_j P_hat_j| / sum_j w_j, w_j = F_j^2 / s_j^2 (a weighted mean's PSF, its phase dropped)",
+       "max_gain_wanted": 0.9999999999999997,
+       "cap": 1.0,
+       "capped_fraction_of_frequencies": 0.0,
+       "capped_fraction_of_psf_power": 0.0,
+       "phase": "the coadd's own",
+       "psf": {
+        "hfd_px": 6.517329025937999,
+        "fwhm_px": 5.046265044040321,
+        "ellipticity": 0.07809087421057725,
+        "angle_deg": 25.347434372822672,
+        "centroid_px": [
+         0.7622347587501921,
+         0.5225796407209544
+        ],
+        "sum": 0.9999999999999998,
+        "sum_sq": 0.010930841561544159
+       },
+       "noise_per_pixel_white": 3.6185370748766483
+      },
+      "theory": {
+       "snr_proper": 0.014073817810945272,
+       "snr_weighted_mean": 0.01398352037988758,
+       "gain": 1.006457417631941,
+       "effective_frames_proper": 64.96177078856178
+      },
+      "psf_stars": 269,
+      "psf_radius_px": 17,
+      "field_variation": {
+       "zones": [
+        {
+         "zone": [
+          0,
+          0
+         ],
+         "stars": 41,
+         "hfd_px": 3.9016640318750913,
+         "fwhm_px": 3.385137501286538,
+         "ellipticity": 0.009612977969691072,
+         "angle_deg": -46.260132410698574,
+         "hfd_halves_px": [
+          3.911605529245203,
+          3.896729593672494
+         ],
+         "e_halves": [
+          0.007834537763086735,
+          0.036359773155579145
+         ]
+        },
+        {
+         "zone": [
+          0,
+          1
+         ],
+         "stars": 19,
+         "hfd_px": 4.492643338342625,
+         "fwhm_px": 3.5682482323055424,
+         "ellipticity": 0.07285863736018416,
+         "angle_deg": -2.9104990055708595,
+         "hfd_halves_px": [
+          4.384984874278927,
+          5.14922922563638
+         ],
+         "e_halves": [
+          0.0697901791319161,
+          0.10845435182747454
+         ]
+        },
+        {
+         "zone": [
+          0,
+          2
+         ],
+         "stars": 33,
+         "hfd_px": 6.667030597725491,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.15683252815117155,
+         "angle_deg": 7.729394461765207,
+         "hfd_halves_px": [
+          6.6519233259830965,
+          6.69663642356687
+         ],
+         "e_halves": [
+          0.16341082635024085,
+          0.15222565040986735
+         ]
+        },
+        {
+         "zone": [
+          1,
+          0
+         ],
+         "stars": 34,
+         "hfd_px": 4.766225376338547,
+         "fwhm_px": 4.222008245644752,
+         "ellipticity": 0.0942200042038337,
+         "angle_deg": -65.57008010649838,
+         "hfd_halves_px": [
+          4.688648923412838,
+          4.876706008542928
+         ],
+         "e_halves": [
+          0.08735022110479829,
+          0.12740845097273557
+         ]
+        },
+        {
+         "zone": [
+          1,
+          1
+         ],
+         "stars": 0
+        },
+        {
+         "zone": [
+          1,
+          2
+         ],
+         "stars": 38,
+         "hfd_px": 6.9655958405174,
+         "fwhm_px": 5.4115163798060095,
+         "ellipticity": 0.14105213520461257,
+         "angle_deg": 19.094667579685375,
+         "hfd_halves_px": [
+          6.781191162934661,
+          7.343659121194547
+         ],
+         "e_halves": [
+          0.1362482014736357,
+          0.14363769706772445
+         ]
+        },
+        {
+         "zone": [
+          2,
+          0
+         ],
+         "stars": 50,
+         "hfd_px": 6.251625584394285,
+         "fwhm_px": 5.170882945826411,
+         "ellipticity": 0.1615381114269393,
+         "angle_deg": -87.85378475001002,
+         "hfd_halves_px": [
+          6.3622047851872905,
+          6.025317531629443
+         ],
+         "e_halves": [
+          0.15569640768485338,
+          0.14591551762682464
+         ]
+        },
+        {
+         "zone": [
+          2,
+          1
+         ],
+         "stars": 32,
+         "hfd_px": 6.925990242823003,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.14687173577469936,
+         "angle_deg": 57.97009266967351,
+         "hfd_halves_px": [
+          7.069184565134651,
+          6.649514317554416
+         ],
+         "e_halves": [
+          0.15741931060021908,
+          0.12538424982534457
+         ]
+        },
+        {
+         "zone": [
+          2,
+          2
+         ],
+         "stars": 22,
+         "hfd_px": 7.715841373785746,
+         "fwhm_px": 5.863230142835039,
+         "ellipticity": 0.14360740839990205,
+         "angle_deg": 31.280590114694746,
+         "hfd_halves_px": [
+          7.719056460435085,
+          7.719483200387188
+         ],
+         "e_halves": [
+          0.14367383129870648,
+          0.1438581281462985
+         ]
+        }
+       ],
+       "hfd_spread": 0.9775770826883852,
+       "hfd_zone_noise_px": 0.13123608467198422,
+       "ellipticity_range": 0.15192513345724823,
+       "ellipticity_zone_noise": 0.009927602833216476,
+       "varies": true,
+       "rule": "varies if the zones differ by > 3 x the halves' noise and by > 3% in HFD or > 0.05 in ellipticity"
+      },
+      "separable": {
+       "stars": {
+        "middle": 51,
+        "outer": 218
+       },
+       "frame_to_frame_spread": {
+        "middle": 0.046911904982395065,
+        "outer": 0.0479512555335953
+       },
+       "correlation": 0.9714630479534646,
+       "rms_difference": 0.011378362187533572,
+       "verdict": "separable: the frames' PSFs change together across the field (correlation 0.97; the bands differ by 1.1% rms against a frame-to-frame spread of 4.7%); one PSF per frame"
+      },
+      "halves": {
+       "odd": {
+        "F_R": 0.09379983705181652,
+        "common_psf": {
+         "hfd_px": 6.517671500437268,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.073531555133722,
+         "angle_deg": 28.190283647627407,
+         "centroid_px": [
+          0.759763971775165,
+          0.5229791516842834
+         ],
+         "sum": 1.0000869332415796,
+         "sum_sq": 0.0108899382635659
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "even": {
+        "F_R": 0.09534315769413217,
+        "common_psf": {
+         "hfd_px": 6.517671500437268,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.073531555133722,
+         "angle_deg": 28.190283647627407,
+         "centroid_px": [
+          0.759763971775165,
+          0.5229791516842834
+         ],
+         "sum": 1.0000869332415796,
+         "sum_sq": 0.0108899382635659
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "full_at_the_common_psf": {
+        "psf": {
+         "hfd_px": 6.517671500437268,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.073531555133722,
+         "angle_deg": 28.19028364762741,
+         "centroid_px": [
+          0.759763971775165,
+          0.5229791516842837
+         ],
+         "sum": 1.0000869332415796,
+         "sum_sq": 0.0108899382635659
+        },
+        "noise_white": 7.072147133388617,
+        "noise_S": 7.476705593842781
+       }
+      },
+      "theory_with_the_control_weights": {
+       "snr_weighted_mean": 0.013933879587135899,
+       "gain_of_proper": 1.0100430194573067
+      }
+     },
+     "G2": {
+      "method": "proper image coaddition",
+      "paper": "Zackay B. & Ofek E. O. 2017, ApJ 836, 188 (arXiv:1512.06879)",
+      "tool": "coadd.py 1.1 (2026-10-17): mean PSF phase kept, measured outlier thresholds, two-pass refill",
+      "formula": "R_hat = sum_j (F_j/s_j^2) conj(P_hat_j) M_hat_j / sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2); S = R / F_R, F_R = sqrt(sum_j F_j^2/s_j^2); PSF of S: P_R_hat = sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2) / F_R",
+      "linear": "given the outlier mask, S is linear in the frames; the weights and filters come from the PSFs and the noise only",
+      "phase": "mean",
+      "F_R": 0.13385195802877267,
+      "noise_per_pixel_flux_units": 7.470940393602917,
+      "fft_shape": [
+       2160,
+       3125
+      ],
+      "pad_px": 35,
+      "pixels_without_data": 72,
+      "outliers": {
+       "rule": "flag |X_j - m| > kappa sqrt(r_j^2 + (beta m)^2) per pixel, or |B(X_j - m)| > kappa_smooth sqrt(b_j^2 + (beta B(m))^2) with B a 3 x 3 box mean; grow 1 px; X_j = frame / F_j, m the per-pixel median of all frames that have the pixel, r_j and b_j the robust (1.4826 MAD) spread of X_j - m and of B(X_j - m) over the frame, times noise_map",
+       "kappa": 5.0,
+       "beta": 0.5,
+       "beta_why": "from the PSFs: the largest peak ratio to the median is 1.275; beta = max(0.50, 2 x 0.275 / kappa)",
+       "noise_map": {
+        "min": 0.8765332102775574,
+        "max": 1.3864816427230835
+       },
+       "kappa_smooth": 4.0,
+       "smooth_box_px": 3,
+       "grow_px": 1,
+       "per_frame": "66 values (see work/)",
+       "flagged_fraction": 0.0024457256616610963,
+       "flagged_fraction_in_sky_region": 0.002425663637302985
+      },
+      "target": {
+       "target": "mean-psf: |sum_j w_j P_hat_j| / sum_j w_j, w_j = F_j^2 / s_j^2 (a weighted mean's PSF, its phase dropped)",
+       "max_gain_wanted": 0.9999999999999999,
+       "cap": 1.0,
+       "capped_fraction_of_frequencies": 0.0,
+       "capped_fraction_of_psf_power": 0.0,
+       "phase": "the coadd's own",
+       "psf": {
+        "hfd_px": 6.513638144125806,
+        "fwhm_px": 5.046265044040321,
+        "ellipticity": 0.07823203687805214,
+        "angle_deg": 25.61655502243765,
+        "centroid_px": [
+         0.7647029137659624,
+         0.5182238153126316
+        ],
+        "sum": 1.0,
+        "sum_sq": 0.01094986546029907
+       },
+       "noise_per_pixel_white": 3.5636887998585602
+      },
+      "theory": {
+       "snr_proper": 0.01409743436971501,
+       "snr_weighted_mean": 0.014006483697065808,
+       "gain": 1.0064934693543572,
+       "effective_frames_proper": 65.03300143414717
+      },
+      "psf_stars": 269,
+      "psf_radius_px": 17,
+      "field_variation": {
+       "zones": [
+        {
+         "zone": [
+          0,
+          0
+         ],
+         "stars": 41,
+         "hfd_px": 3.9079229101449653,
+         "fwhm_px": 3.385137501286538,
+         "ellipticity": 0.012776412353828981,
+         "angle_deg": -10.885550858258904,
+         "hfd_halves_px": [
+          3.9230116174554643,
+          3.8928078015611907
+         ],
+         "e_halves": [
+          0.014002704038586056,
+          0.032920455243777624
+         ]
+        },
+        {
+         "zone": [
+          0,
+          1
+         ],
+         "stars": 19,
+         "hfd_px": 4.516160867676314,
+         "fwhm_px": 3.5682482323055424,
+         "ellipticity": 0.07441237727330807,
+         "angle_deg": -2.238807915995756,
+         "hfd_halves_px": [
+          4.406528289226691,
+          5.1388666225775665
+         ],
+         "e_halves": [
+          0.05404532782329585,
+          0.10244183193822787
+         ]
+        },
+        {
+         "zone": [
+          0,
+          2
+         ],
+         "stars": 33,
+         "hfd_px": 6.664917927392813,
+         "fwhm_px": 4.918490759365935,
+         "ellipticity": 0.15608742848275103,
+         "angle_deg": 7.892964766274348,
+         "hfd_halves_px": [
+          6.6524562514041135,
+          6.693234699730231
+         ],
+         "e_halves": [
+          0.16129460561807407,
+          0.15290620112259656
+         ]
+        },
+        {
+         "zone": [
+          1,
+          0
+         ],
+         "stars": 34,
+         "hfd_px": 4.76434626065176,
+         "fwhm_px": 4.222008245644752,
+         "ellipticity": 0.09471779598665298,
+         "angle_deg": -65.46307271374427,
+         "hfd_halves_px": [
+          4.7030656653410885,
+          4.84398910225939
+         ],
+         "e_halves": [
+          0.09048509744495437,
+          0.12581263579724422
+         ]
+        },
+        {
+         "zone": [
+          1,
+          1
+         ],
+         "stars": 0
+        },
+        {
+         "zone": [
+          1,
+          2
+         ],
+         "stars": 38,
+         "hfd_px": 6.955991509738288,
+         "fwhm_px": 5.4115163798060095,
+         "ellipticity": 0.14048186728537904,
+         "angle_deg": 19.429321362945476,
+         "hfd_halves_px": [
+          6.769810843319566,
+          7.339281821806802
+         ],
+         "e_halves": [
+          0.1357528639632768,
+          0.14188174632031214
+         ]
+        },
+        {
+         "zone": [
+          2,
+          0
+         ],
+         "stars": 50,
+         "hfd_px": 6.24570016562771,
+         "fwhm_px": 5.170882945826411,
+         "ellipticity": 0.16092209421329506,
+         "angle_deg": -87.6250939394961,
+         "hfd_halves_px": [
+          6.357907820617016,
+          6.018927585430498
+         ],
+         "e_halves": [
+          0.1552432491414878,
+          0.14506243167076704
+         ]
+        },
+        {
+         "zone": [
+          2,
+          1
+         ],
+         "stars": 32,
+         "hfd_px": 6.904883622371459,
+         "fwhm_px": 5.170882945826411,
+         "ellipticity": 0.1500375926064309,
+         "angle_deg": 57.86187571406619,
+         "hfd_halves_px": [
+          7.052933880123375,
+          6.624378571084233
+         ],
+         "e_halves": [
+          0.15732065020619657,
+          0.12567154572138006
+         ]
+        },
+        {
+         "zone": [
+          2,
+          2
+         ],
+         "stars": 22,
+         "hfd_px": 7.708208222089571,
+         "fwhm_px": 5.863230142835039,
+         "ellipticity": 0.14444820421665538,
+         "angle_deg": 31.384844216965444,
+         "hfd_halves_px": [
+          7.704847840636171,
+          7.721926206370471
+         ],
+         "e_halves": [
+          0.14388068133449095,
+          0.14653425791179497
+         ]
+        }
+       ],
+       "hfd_spread": 0.9724565707473571,
+       "hfd_zone_noise_px": 0.11997591802620478,
+       "ellipticity_range": 0.14814568185946608,
+       "ellipticity_zone_noise": 0.007274642168978079,
+       "varies": true,
+       "rule": "varies if the zones differ by > 3 x the halves' noise and by > 3% in HFD or > 0.05 in ellipticity"
+      },
+      "separable": null,
+      "halves": {
+       "odd": {
+        "F_R": 0.09549858164026856,
+        "common_psf": {
+         "hfd_px": 6.512073138854142,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.0726516740095462,
+         "angle_deg": 27.89667770115038,
+         "centroid_px": [
+          0.7626059232658947,
+          0.5181623818864441
+         ],
+         "sum": 1.000060549395195,
+         "sum_sq": 0.010922304209836626
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "even": {
+        "F_R": 0.0937889522962768,
+        "common_psf": {
+         "hfd_px": 6.512073138854142,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.0726516740095462,
+         "angle_deg": 27.89667770115038,
+         "centroid_px": [
+          0.7626059232658947,
+          0.5181623818864441
+         ],
+         "sum": 1.000060549395195,
+         "sum_sq": 0.010922304209836626
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "full_at_the_common_psf": {
+        "psf": {
+         "hfd_px": 6.512073138854142,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.0726516740095462,
+         "angle_deg": 27.89667770115038,
+         "centroid_px": [
+          0.7626059232658946,
+          0.5181623818864441
+         ],
+         "sum": 1.000060549395195,
+         "sum_sq": 0.010922304209836626
+        },
+        "noise_white": 7.115018151202482,
+        "noise_S": 7.470940393602917
+       }
+      },
+      "theory_with_the_control_weights": {
+       "snr_weighted_mean": 0.01395347223894646,
+       "gain_of_proper": 1.0103172979673638
+      }
+     },
+     "B": {
+      "method": "proper image coaddition",
+      "paper": "Zackay B. & Ofek E. O. 2017, ApJ 836, 188 (arXiv:1512.06879)",
+      "tool": "coadd.py 1.1 (2026-10-17): mean PSF phase kept, measured outlier thresholds, two-pass refill",
+      "formula": "R_hat = sum_j (F_j/s_j^2) conj(P_hat_j) M_hat_j / sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2); S = R / F_R, F_R = sqrt(sum_j F_j^2/s_j^2); PSF of S: P_R_hat = sqrt(sum_j (F_j^2/s_j^2) |P_hat_j|^2) / F_R",
+      "linear": "given the outlier mask, S is linear in the frames; the weights and filters come from the PSFs and the noise only",
+      "phase": "mean",
+      "F_R": 0.15573954642049526,
+      "noise_per_pixel_flux_units": 6.4209767074832085,
+      "fft_shape": [
+       2160,
+       3125
+      ],
+      "pad_px": 35,
+      "pixels_without_data": 88,
+      "outliers": {
+       "rule": "flag |X_j - m| > kappa sqrt(r_j^2 + (beta m)^2) per pixel, or |B(X_j - m)| > kappa_smooth sqrt(b_j^2 + (beta B(m))^2) with B a 3 x 3 box mean; grow 1 px; X_j = frame / F_j, m the per-pixel median of all frames that have the pixel, r_j and b_j the robust (1.4826 MAD) spread of X_j - m and of B(X_j - m) over the frame, times noise_map",
+       "kappa": 5.0,
+       "beta": 0.5,
+       "beta_why": "from the PSFs: the largest peak ratio to the median is 1.290; beta = max(0.50, 2 x 0.290 / kappa)",
+       "noise_map": {
+        "min": 0.8719253540039062,
+        "max": 1.387022614479065
+       },
+       "kappa_smooth": 4.0,
+       "smooth_box_px": 3,
+       "grow_px": 1,
+       "per_frame": "66 values (see work/)",
+       "flagged_fraction": 0.0038461935685514233,
+       "flagged_fraction_in_sky_region": 0.003845528624930472
+      },
+      "target": {
+       "target": "mean-psf: |sum_j w_j P_hat_j| / sum_j w_j, w_j = F_j^2 / s_j^2 (a weighted mean's PSF, its phase dropped)",
+       "max_gain_wanted": 1.0000000000000002,
+       "cap": 1.0,
+       "capped_fraction_of_frequencies": 0.0,
+       "capped_fraction_of_psf_power": 0.0,
+       "phase": "the coadd's own",
+       "psf": {
+        "hfd_px": 6.5135449508813865,
+        "fwhm_px": 5.170882945826411,
+        "ellipticity": 0.07219466426150134,
+        "angle_deg": 43.61210559347481,
+        "centroid_px": [
+         0.7024527127513176,
+         0.6460886052030578
+        ],
+        "sum": 1.0,
+        "sum_sq": 0.011007312756607365
+       },
+       "noise_per_pixel_white": 3.0324432832822974
+      },
+      "theory": {
+       "snr_proper": 0.016453013168022997,
+       "snr_weighted_mean": 0.016339529950615137,
+       "gain": 1.0069453171389173,
+       "effective_frames_proper": 65.09164411031664
+      },
+      "psf_stars": 273,
+      "psf_radius_px": 17,
+      "field_variation": {
+       "zones": [
+        {
+         "zone": [
+          0,
+          0
+         ],
+         "stars": 41,
+         "hfd_px": 3.9026409599692022,
+         "fwhm_px": 3.385137501286538,
+         "ellipticity": 0.013132516239915737,
+         "angle_deg": -39.121375605871215,
+         "hfd_halves_px": [
+          3.9053015838318945,
+          3.901264669291644
+         ],
+         "e_halves": [
+          0.011378245957195499,
+          0.04760437748218849
+         ]
+        },
+        {
+         "zone": [
+          0,
+          1
+         ],
+         "stars": 20,
+         "hfd_px": 4.055860303294969,
+         "fwhm_px": 3.385137501286538,
+         "ellipticity": 0.053536319193102755,
+         "angle_deg": -0.4767764186397275,
+         "hfd_halves_px": [
+          3.98678008351127,
+          4.356986632863122
+         ],
+         "e_halves": [
+          0.07107160879704155,
+          0.03979406342850722
+         ]
+        },
+        {
+         "zone": [
+          0,
+          2
+         ],
+         "stars": 33,
+         "hfd_px": 6.593396928704761,
+         "fwhm_px": 5.292567428401227,
+         "ellipticity": 0.15026364920643953,
+         "angle_deg": 6.995135245280484,
+         "hfd_halves_px": [
+          6.5954764376388315,
+          6.593818650177948
+         ],
+         "e_halves": [
+          0.1550436946360344,
+          0.14689241128207187
+         ]
+        },
+        {
+         "zone": [
+          1,
+          0
+         ],
+         "stars": 34,
+         "hfd_px": 4.829582922645745,
+         "fwhm_px": 4.222008245644752,
+         "ellipticity": 0.10086643376323656,
+         "angle_deg": -69.65547970437244,
+         "hfd_halves_px": [
+          4.778350449955746,
+          4.899712998509647
+         ],
+         "e_halves": [
+          0.10049188922406316,
+          0.1331233378506851
+         ]
+        },
+        {
+         "zone": [
+          1,
+          1
+         ],
+         "stars": 0
+        },
+        {
+         "zone": [
+          1,
+          2
+         ],
+         "stars": 38,
+         "hfd_px": 6.812064378558138,
+         "fwhm_px": 5.170882945826411,
+         "ellipticity": 0.13007732368214087,
+         "angle_deg": 20.038200788106995,
+         "hfd_halves_px": [
+          6.6793109181807715,
+          7.316821260533648
+         ],
+         "e_halves": [
+          0.13033798743869318,
+          0.14706823268940683
+         ]
+        },
+        {
+         "zone": [
+          2,
+          0
+         ],
+         "stars": 50,
+         "hfd_px": 6.304474519365546,
+         "fwhm_px": 5.292567428401227,
+         "ellipticity": 0.16555264407325077,
+         "angle_deg": -89.24823891043835,
+         "hfd_halves_px": [
+          6.428854080114415,
+          6.020019470656691
+         ],
+         "e_halves": [
+          0.16917825137034048,
+          0.1533943988764449
+         ]
+        },
+        {
+         "zone": [
+          2,
+          1
+         ],
+         "stars": 34,
+         "hfd_px": 6.179044985387873,
+         "fwhm_px": 4.918490759365935,
+         "ellipticity": 0.13526938638977626,
+         "angle_deg": 71.30136505749785,
+         "hfd_halves_px": [
+          6.225818242031293,
+          6.121765796890687
+         ],
+         "e_halves": [
+          0.1421354570864104,
+          0.12354616908951377
+         ]
+        },
+        {
+         "zone": [
+          2,
+          2
+         ],
+         "stars": 23,
+         "hfd_px": 7.309920373806459,
+         "fwhm_px": 5.641895835477563,
+         "ellipticity": 0.14158791504805712,
+         "angle_deg": 39.11063320696204,
+         "hfd_halves_px": [
+          7.232090829207779,
+          7.672572213985721
+         ],
+         "e_halves": [
+          0.1395763305189902,
+          0.14187027205318914
+         ]
+        }
+       ],
+       "hfd_spread": 0.8730701719135714,
+       "hfd_zone_noise_px": 0.12289227447643813,
+       "ellipticity_range": 0.15242012783333503,
+       "ellipticity_zone_noise": 0.00882988331190257,
+       "varies": true,
+       "rule": "varies if the zones differ by > 3 x the halves' noise and by > 3% in HFD or > 0.05 in ellipticity"
+      },
+      "separable": null,
+      "halves": {
+       "odd": {
+        "F_R": 0.11032653109969574,
+        "common_psf": {
+         "hfd_px": 6.509494348321009,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.07213336453915797,
+         "angle_deg": 47.01259736033384,
+         "centroid_px": [
+          0.7026517598983668,
+          0.646874429346742
+         ],
+         "sum": 1.000017108694048,
+         "sum_sq": 0.01098775326611285
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "even": {
+        "F_R": 0.10992207628483669,
+        "common_psf": {
+         "hfd_px": 6.509494348321009,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.07213336453915797,
+         "angle_deg": 47.01259736033384,
+         "centroid_px": [
+          0.7026517598983669,
+          0.646874429346742
+         ],
+         "sum": 1.000017108694048,
+         "sum_sq": 0.01098775326611285
+        },
+        "to_common": {
+         "target": "the minimum of the full set's and both halves' P_R_hat, with the full set's phase",
+         "max_gain_wanted": 1.0,
+         "cap": 1.0,
+         "capped_fraction_of_frequencies": 0.0,
+         "capped_fraction_of_psf_power": 0.0,
+         "phase": "replaced"
+        }
+       },
+       "full_at_the_common_psf": {
+        "psf": {
+         "hfd_px": 6.509494348321009,
+         "fwhm_px": 5.046265044040321,
+         "ellipticity": 0.07213336453915797,
+         "angle_deg": 47.01259736033384,
+         "centroid_px": [
+          0.7026517598983669,
+          0.646874429346742
+         ],
+         "sum": 1.000017108694048,
+         "sum_sq": 0.01098775326611285
+        },
+        "noise_white": 6.060783071548203,
+        "noise_S": 6.4209767074832085
+       }
+      },
+      "theory_with_the_control_weights": {
+       "snr_weighted_mean": 0.01630054298406107,
+       "gain_of_proper": 1.0093536874269167
+      }
+     }
+    }
+   }
+  },
+  {
+   "step": "9 plate solve of the stack and the crop",
+   "numbers": {
+    "solved": true,
+    "pixscale_arcsec": 0.776578639761,
+    "field_arcmin": [
+     36.86159943398879,
+     24.3069114245193
+    ],
+    "centre_ra_dec": [
+     299.8947076156,
+     22.7537615133
+    ],
+    "orientation_wcsinfo": -63.842295,
+    "parity": 1.0,
+    "north_angle_from_up_deg_clockwise": 116.19246230379831,
+    "east_angle_from_up_deg_clockwise": 26.187408627582524,
+    "mirrored": false,
+    "corners_ra_dec": {
+     "top_left": [
+      299.9444331162,
+      22.3888144366
+     ],
+     "top_right": [
+      300.2391792452,
+      22.9396731859
+     ],
+     "bottom_left": [
+      299.5515265222,
+      22.5673029427
+     ],
+     "bottom_right": [
+      299.8444625225,
+      23.1184332594
+     ],
+     "centre": [
+      299.8947076156,
+      22.7537615133
+     ]
+    },
+    "focal_length_mm": 2082.359720243766,
+    "crop_on_reference_grid": {
+     "x0": 96,
+     "y0": 62,
+     "x1": 2944,
+     "y1": 1940,
+     "width": 2848,
+     "height": 1878,
+     "cover_min_frames": 53
+    },
+    "catalogue": {
+     "M27": {
+      "ra_deg": 299.901579,
+      "dec_deg": 22.721056,
+      "pixel": [
+       1300.9,
+       845.7
+      ],
+      "inside": true,
+      "smoothed_green_there_dn": 448.15,
+      "nucleus_centroid_within_12px": [
+       1301.5,
+       846.4
+      ],
+      "offset_arcsec": 0.7
+     }
+    },
+    "galaxy_ellipse_catalogue": {
+     "centre_px": [
+      1300.9014238301,
+      845.6763358533
+     ],
+     "semi_major_px": 309.0479028290843,
+     "semi_minor_px": 216.33353198035903,
+     "major_axis_angle_deg": -3.801302985958668
+    },
+    "galaxy_crop": {
+     "x": 701,
+     "y": 346,
+     "w": 1200,
+     "h": 1000,
+     "why": "the field is 39 x 26 arcmin and the nebula's bright body 8 x 5.6 inside a halo about 15 across: a 1200 x 1000 px cut around the central star's catalogue place at the stack's own pixels (15.5 x 12.9 arcmin), nothing resampled"
+    },
+    "agrees_with_reference_frame_solve": {
+     "pixscale_ref": 0.776179319034,
+     "north_ref": 116.19043813234624
+    },
+    "brightest_sources_of_the_reference_frame": [
+     {
+      "pixel": [
+       2286.3,
+       1741.8
+      ],
+      "ra_deg": 299.81498,
+      "dec_deg": 22.99704,
+      "green_flux_dn": 2224710,
+      "half_flux_radius_px": 4.89,
+      "touched_the_ceiling": true,
+      "from_the_nucleus_arcmin": 17.24
+     },
+     {
+      "pixel": [
+       1468.4,
+       334.4
+      ],
+      "ra_deg": 300.02601,
+      "dec_deg": 22.70478,
+      "green_flux_dn": 1189221,
+      "half_flux_radius_px": 3.61,
+      "touched_the_ceiling": true,
+      "from_the_nucleus_arcmin": 6.96
+     },
+     {
+      "pixel": [
+       661.5,
+       1173.6
+      ],
+      "ra_deg": 299.76696,
+      "dec_deg": 22.62851,
+      "green_flux_dn": 993986,
+      "half_flux_radius_px": 3.43,
+      "touched_the_ceiling": true,
+      "from_the_nucleus_arcmin": 9.3
+     },
+     {
+      "pixel": [
+       734.0,
+       877.5
+      ],
+      "ra_deg": 299.83649,
+      "dec_deg": 22.61438,
+      "green_flux_dn": 714999,
+      "half_flux_radius_px": 2.72,
+      "touched_the_ceiling": true,
+      "from_the_nucleus_arcmin": 7.35
+     },
+     {
+      "pixel": [
+       2199.3,
+       524.0
+      ],
+      "ra_deg": 300.06199,
+      "dec_deg": 22.86429,
+      "green_flux_dn": 616913,
+      "half_flux_radius_px": 6.62,
+      "touched_the_ceiling": false,
+      "from_the_nucleus_arcmin": 12.35
+     }
+    ],
+    "nucleus_in_the_galaxy_crop_px": [
+     600.5,
+     500.4
+    ],
+    "north_in_words": "north is 116.2 degrees clockwise from up (east 26.2): in the picture north points to the lower right; the sky as seen, not mirrored"
+   }
+  },
+  {
+   "step": "9b star colours (Gaia DR3)",
+   "numbers": {
+    "factors": {
+     "R": 1.0127918223643255,
+     "G": 1.0,
+     "B": 1.152965379486836
+    },
+    "factor_errors": {
+     "R": 0.005221976072838365,
+     "B": 0.004817954204460239
+    },
+    "candidates": 172,
+    "in_fit_range": 100,
+    "used": 93,
+    "clipped": 7,
+    "fit_range_bp_rp": [
+     0.55,
+     1.15
+    ],
+    "residual_before": {
+     "median_mag_R_over_G": -0.0895,
+     "median_mag_B_over_G": -0.2983,
+     "rms_mag_R_over_G": 0.0726,
+     "rms_mag_B_over_G": 0.0518,
+     "robust_rms_mag_R_over_G": 0.0677,
+     "robust_rms_mag_B_over_G": 0.0489
+    },
+    "residual_after": {
+     "median_mag_R_over_G": -0.0023,
+     "median_mag_B_over_G": 0.0024,
+     "rms_mag_R_over_G": 0.0733,
+     "rms_mag_B_over_G": 0.0514,
+     "robust_rms_mag_R_over_G": 0.0704,
+     "robust_rms_mag_B_over_G": 0.0499
+    },
+    "residual_all_stars_before": {
+     "median_mag_R_over_G": -0.0857,
+     "median_mag_B_over_G": -0.3099,
+     "rms_mag_R_over_G": 0.079,
+     "rms_mag_B_over_G": 0.0576,
+     "robust_rms_mag_R_over_G": 0.0752,
+     "robust_rms_mag_B_over_G": 0.068
+    },
+    "residual_all_stars_after": {
+     "median_mag_R_over_G": -0.0019,
+     "median_mag_B_over_G": -0.0087,
+     "rms_mag_R_over_G": 0.0788,
+     "rms_mag_B_over_G": 0.0559,
+     "robust_rms_mag_R_over_G": 0.0757,
+     "robust_rms_mag_B_over_G": 0.068
+    },
+    "sun_like_stars": {
+     "rule": "BP - RP 0.72 to 0.92, linear sRGB through the camera matrix; white is 1, 1",
+     "before": {
+      "stars": 38,
+      "median_srgb_R_over_G": 0.9336,
+      "median_srgb_B_over_G": 0.7568
+     },
+     "after": {
+      "stars": 38,
+      "median_srgb_R_over_G": 1.0164,
+      "median_srgb_B_over_G": 0.9977
+     }
+    },
+    "colour_term": {
+     "per": "mag of residual per mag of BP - RP, all measured stars 0.3 to 2.0 not clipped",
+     "stars": 118,
+     "R_over_G": {
+      "slope_mag": 0.0598,
+      "slope_error_mag": 0.0338,
+      "significance_sigma": 1.8
+     },
+     "B_over_G": {
+      "slope_mag": -0.1596,
+      "slope_error_mag": 0.0193,
+      "significance_sigma": 8.3
+     }
+    },
+    "radial_term": {
+     "per": "mag of residual per 1000 sensor px from the sensor centre (stars of the fit)",
+     "R_over_G": {
+      "slope_mag": 0.0118,
+      "slope_error_mag": 0.0133,
+      "significance_sigma": 0.9
+     },
+     "B_over_G": {
+      "slope_mag": 0.028,
+      "slope_error_mag": 0.0089,
+      "significance_sigma": 3.1
+     }
+    },
+    "catalogue": {
+     "name": "Gaia DR3",
+     "table": "I/355/gaiadr3 (VizieR, CDS)",
+     "url": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=I%2F355%2Fgaiadr3&-c=299.894708+%2B22.753762&-c.rd=0.3880&-out=Source%2CRA_ICRS%2CDE_ICRS%2CpmRA%2CpmDE%2CGmag%2CBPmag%2CRPmag%2CBP-RP%2CE%28BP%2FRP%29&Gmag=%3C17.00&-out.max=unlimited",
+     "fetched_utc": "2026-10-18T05:44:00+00:00",
+     "cache_file": "/Users/bradgessler/.observatory/catalogs/gaia-dr3/gaiadr3_ra299.8947_dec+22.7538_r0.388_G17.0.tsv",
+     "rows": 7184,
+     "columns": [
+      "Source",
+      "RA_ICRS",
+      "DE_ICRS",
+      "pmRA",
+      "pmDE",
+      "Gmag",
+      "BPmag",
+      "RPmag",
+      "BP-RP",
+      "E(BP/RP)"
+     ],
+     "cone": {
+      "ra": 299.89470761560165,
+      "dec": 22.7537615133319,
+      "radius_deg": 0.38795261770664374,
+      "gmax": 17.0
+     },
+     "epoch": "positions at 2016.0 (ICRS); move them with the proper motions to the night",
+     "used_from_cache": true,
+     "rows_used": 7183
+    },
+    "reference_white": "the Sun's colour (Gaia BP - RP 0.82) is white",
+    "model": "BP - RP -> T (Mucciarelli & Bellazzini 2020, dwarfs) -> black body -> CIE 1931 (Wyman et al. 2013 fits) -> linear sRGB; measured: camera RGB x (kR, 1, kB) -> render.py camera matrix -> linear sRGB",
+    "aperture": {
+     "radius_px": 10.0,
+     "annulus_px": [
+      16.0,
+      26.0
+     ],
+     "centroid_max_offset_px": 2.5,
+     "snr_min": 20.0,
+     "colour_range_bp_rp": [
+      0.3,
+      2.0
+     ],
+     "ceiling_rule": "peak / wb + sky (RAW DN) under 60% of 15488"
+    },
+    "selection": {
+     "in_field": 3483,
+     "left_out": {
+      "edge_or_mask": 272,
+      "neighbour": 1068,
+      "colour": 926,
+      "bp_rp_doubtful": 111,
+      "not_measured": 0,
+      "offset": 0,
+      "ceiling": 10,
+      "snr": 924,
+      "negative": 0
+     }
+    },
+    "white_balance_before": [
+     2.8993100086646706,
+     1.0,
+     1.3481568882319597
+    ],
+    "white_balance_after": [
+     2.9363974672746203,
+     1.0,
+     1.5543782182481534
+    ],
+    "catalogue_to_stack_offset_px": {
+     "median": [
+      0.1,
+      0.249
+     ],
+     "rms": 0.5300038833702814
+    },
+    "epoch_year": 2026.7944421629022,
+    "stars": "172 values (see work/)",
+    "applied_in_step_10": true,
+    "input": {
+     "what": "step 8 stack_mean planes cut to step 9's rectangle (x 96..2944, y 62..1940 of the reference grid); camera R, mean of G1 and G2, B, times the daylight balance; sky at zero",
+     "wcs": "work/solve/stack.wcs (step 9)",
+     "nebula_left_out": "the catalogue ellipse of step 9 (the bright body, 8 x 5.6 arcmin), semi-axes x 1.3 (+30 px across)"
+    }
+   }
+  },
+  {
+   "step": "10 deliver: TIF, stretch, sky plane in the picture only, measures",
+   "numbers": {
+    "tif": {
+     "size_px": [
+      2848,
+      1878
+     ],
+     "pedestal": 1000.0,
+     "units": "DN of the 14-bit raw scale, white-balanced (R x 2.9364, B x 1.5544), per 15 s frame at the sensor centre",
+     "clipped_low_px": 0,
+     "clipped_high_px": 0,
+     "colour": "camera RGB, daylight white balance, no colour matrix",
+     "origin_on_reference_grid": [
+      96,
+      62
+     ],
+     "compression": "zlib, lossless"
+    },
+    "white_balance_daylight": {
+     "R": 2.8993100086646706,
+     "G": 1.0,
+     "B": 1.3481568882319597,
+     "from_matrix": [
+      2.899304982039694,
+      1.0,
+      1.3482206372431125
+     ]
+    },
+    "white_balance_applied": {
+     "R": 2.9363974672746203,
+     "G": 1.0,
+     "B": 1.5543782182481534,
+     "star_colour_factors": {
+      "R": 1.0127918223643255,
+      "G": 1.0,
+      "B": 1.152965379486836
+     }
+    },
+    "as_shot_white_balance_median": [
+     3294.0,
+     1024.0,
+     1400.0,
+     1024.0
+    ],
+    "render_params": {
+     "LUM_BLUR": 1.2,
+     "CHROMA_BLUR": 8.0,
+     "COLOUR_FROM": 8.0,
+     "COLOUR_FULL": 30.0,
+     "BLACK": 0.0,
+     "SOFT": 10.0,
+     "WHITE": 2500.0,
+     "PEDESTAL": 0.1,
+     "CEIL_GROW": 8
+    },
+    "render_info": {
+     "luminance_weights": {
+      "R": 0.0718,
+      "G1": 0.3584,
+      "G2": 0.3599,
+      "B": 0.21
+     },
+     "colour_shown_fraction": 0.05347960117744194,
+     "ceiling_pixels": 168,
+     "at_floor_px": 0,
+     "at_white_px": 1107
+    },
+    "single_render_info": {
+     "luminance_weights": {
+      "R": 0.0718,
+      "G1": 0.3584,
+      "G2": 0.3599,
+      "B": 0.21
+     },
+     "colour_shown_fraction": 0.05525746820069163,
+     "ceiling_pixels": 190,
+     "at_floor_px": 1112757,
+     "at_white_px": 854
+    },
+    "stretched_size_px": [
+     2848,
+     1878
+    ],
+    "noise_faint_region": {
+     "units": "DN per stack pixel, 3-sigma clipped std in the faint region (step 7)",
+     "planes_stack": {
+      "R": 6.20119571685791,
+      "G1": 8.151154518127441,
+      "G2": 8.133898735046387,
+      "B": 6.851037979125977
+     },
+     "planes_single": {
+      "R": 48.0645751953125,
+      "G1": 60.72838592529297,
+      "G2": 60.770668029785156,
+      "B": 52.70720291137695
+     },
+     "planes_half_difference_odd_even": {
+      "R": 0.7326507568359375,
+      "G1": 0.43325042724609375,
+      "G2": 0.5482368469238281,
+      "B": 0.07901382446289062
+     },
+     "improvement": {
+      "R": 7.75,
+      "G1": 7.45,
+      "G2": 7.47,
+      "B": 7.69
+     },
+     "ideal": 8.12,
+     "green_mean_of_two": {
+      "stack": 5.919144153594971,
+      "single": 43.258018493652344
+     },
+     "luminance": {
+      "stack_unblurred": 5.161367321013633,
+      "single_unblurred": 37.60685658204229,
+      "stack_after_blur": 1.837032675743103,
+      "single_after_blur": 10.184261322021484
+     }
+    },
+    "star_size": {
+     "stars": 117,
+     "hfd_stack_px": 5.7600887921789,
+     "hfd_single_px": 6.366566369615776,
+     "hfd_stack_arcsec": 4.473161919132871,
+     "hfd_single_arcsec": 4.944139451264347
+    },
+    "core": {
+     "what": "the largest black-subtracted RAW value of each colour plane within 14 px of the nucleus, in every frame of the run (15 s, ISO 3200); the ceiling is 15488 DN above black",
+     "frames": 70,
+     "max_over_frames_dn": {
+      "R": 536.0,
+      "G1": 1764.0,
+      "G2": 1916.0,
+      "B": 1780.0
+     },
+     "median_over_frames_dn": {
+      "R": 364.0,
+      "G1": 1268.0,
+      "G2": 1298.0,
+      "B": 1222.0
+     },
+     "highest_fraction_of_the_ceiling": 0.124,
+     "clipped": false,
+     "stack_peak_green_dn": 1115.7
+    },
+    "galaxy": {
+     "what": "green (mean of G1 and G2), sky plane removed, the MEDIAN in rings around the nucleus (6 px wide to 60 px, 12 px wide beyond; 1 px = 0.7766 arcsec); a median, so the stars drop out, the 10th magnitude star 1.45 arcmin from the nucleus among them",
+     "nucleus_px": [
+      1301.5,
+      846.4
+     ],
+     "ring_mid_px": [
+      3.0,
+      9.0,
+      15.0,
+      21.0,
+      27.0,
+      33.0,
+      39.0,
+      45.0,
+      51.0,
+      57.0,
+      66.0,
+      78.0,
+      90.0,
+      102.0,
+      114.0,
+      126.0,
+      138.0,
+      150.0,
+      162.0,
+      174.0,
+      186.0,
+      198.0,
+      210.0,
+      222.0,
+      234.0,
+      246.0,
+      258.0,
+      270.0,
+      282.0,
+      294.0,
+      306.0,
+      318.0,
+      330.0
+     ],
+     "stack_dn": [
+      148.062,
+      82.235,
+      72.491,
+      71.036,
+      73.945,
+      76.93,
+      78.126,
+      77.237,
+      77.788,
+      77.291,
+      76.761,
+      70.502,
+      66.087,
+      61.556,
+      55.975,
+      47.904,
+      43.57,
+      35.832,
+      28.646,
+      23.327,
+      19.935,
+      17.512,
+      13.976,
+      10.029,
+      6.245,
+      4.125,
+      3.39,
+      2.486,
+      2.105,
+      1.516,
+      0.892,
+      0.289,
+      -0.204
+     ],
+     "odd_frames_dn": [
+      146.68,
+      82.695,
+      71.619,
+      71.325,
+      73.876,
+      76.345,
+      78.208,
+      77.209,
+      78.018,
+      77.378,
+      76.814,
+      70.764,
+      65.97,
+      62.246,
+      56.9,
+      48.102,
+      43.865,
+      35.577,
+      28.664,
+      23.509,
+      19.926,
+      17.618,
+      14.109,
+      10.015,
+      6.309,
+      4.223,
+      3.394,
+      2.531,
+      2.301,
+      1.6,
+      1.1,
+      0.485,
+      -0.244
+     ],
+     "even_frames_dn": [
+      145.215,
+      81.828,
+      72.716,
+      71.483,
+      73.714,
+      76.745,
+      78.236,
+      77.283,
+      77.55,
+      78.124,
+      77.049,
+      70.768,
+      66.005,
+      62.048,
+      56.324,
+      47.82,
+      43.547,
+      35.958,
+      28.839,
+      23.559,
+      20.156,
+      17.776,
+      13.946,
+      10.115,
+      6.285,
+      4.197,
+      3.439,
+      2.698,
+      2.237,
+      1.695,
+      0.977,
+      0.405,
+      -0.043
+     ],
+     "blank_sky": {
+      "what": "the same rings laid on 4 places of blank sky in the same stack; their spread (standard deviation between the places) at each radius is what the flat and the sky leave: the floor",
+      "centres_px": [
+       [
+        380,
+        380
+       ],
+       [
+        380,
+        990
+       ],
+       [
+        900,
+        380
+       ],
+       [
+        2250,
+        380
+       ]
+      ],
+      "spread_dn": [
+       1.073,
+       0.793,
+       0.898,
+       0.601,
+       0.418,
+       0.45,
+       0.605,
+       0.571,
+       0.504,
+       0.632,
+       0.482,
+       0.187,
+       0.188,
+       0.404,
+       0.402,
+       0.12,
+       0.279,
+       0.234,
+       0.401,
+       0.376,
+       0.208,
+       0.258,
+       0.253,
+       0.409,
+       0.462,
+       0.358,
+       0.318,
+       0.325,
+       0.411,
+       0.361,
+       0.261,
+       0.379,
+       0.318
+      ],
+      "mean_dn": [
+       -0.397,
+       -0.399,
+       -0.041,
+       0.273,
+       0.315,
+       0.227,
+       -0.067,
+       0.119,
+       0.127,
+       -0.13,
+       -0.059,
+       0.352,
+       0.115,
+       0.264,
+       0.25,
+       0.327,
+       0.278,
+       0.281,
+       0.302,
+       0.282,
+       0.204,
+       0.182,
+       0.101,
+       0.241,
+       0.27,
+       0.326,
+       0.271,
+       0.25,
+       0.067,
+       0.201,
+       0.175,
+       0.166,
+       0.277
+      ]
+     },
+     "odd_even_half_difference_dn": [
+      0.733,
+      0.433,
+      0.548,
+      0.079,
+      0.081,
+      0.2,
+      0.014,
+      0.037,
+      0.234,
+      0.373,
+      0.117,
+      0.002,
+      0.018,
+      0.099,
+      0.288,
+      0.141,
+      0.159,
+      0.191,
+      0.087,
+      0.025,
+      0.115,
+      0.079,
+      0.081,
+      0.05,
+      0.012,
+      0.013,
+      0.023,
+      0.084,
+      0.032,
+      0.048,
+      0.061,
+      0.04,
+      0.101
+     ],
+     "sky_under_it_dn": 155.3,
+     "followed_to": {
+      "rule": "the ring median above 3 x the blank-sky spread, unbroken from the centre",
+      "radius_px": 312.0,
+      "radius_arcmin": 4.04,
+      "diameter_arcmin": 8.08,
+      "catalogue_diameters_arcmin": [
+       8.0,
+       5.6
+      ]
+     },
+     "at_radii": [
+      {
+       "r_arcmin": 0.27,
+       "r_px": 21.0,
+       "stack_dn": 71.04,
+       "odd_dn": 71.33,
+       "even_dn": 71.48,
+       "blank_sky_spread_dn": 0.6,
+       "blank_sky_mean_dn": 0.27,
+       "over_the_floor": 118.1
+      },
+      {
+       "r_arcmin": 0.5,
+       "r_px": 39.0,
+       "stack_dn": 78.13,
+       "odd_dn": 78.21,
+       "even_dn": 78.24,
+       "blank_sky_spread_dn": 0.61,
+       "blank_sky_mean_dn": -0.07,
+       "over_the_floor": 129.0
+      },
+      {
+       "r_arcmin": 0.74,
+       "r_px": 57.0,
+       "stack_dn": 77.29,
+       "odd_dn": 77.38,
+       "even_dn": 78.12,
+       "blank_sky_spread_dn": 0.63,
+       "blank_sky_mean_dn": -0.13,
+       "over_the_floor": 122.4
+      },
+      {
+       "r_arcmin": 1.01,
+       "r_px": 78.0,
+       "stack_dn": 70.5,
+       "odd_dn": 70.76,
+       "even_dn": 70.77,
+       "blank_sky_spread_dn": 0.19,
+       "blank_sky_mean_dn": 0.35,
+       "over_the_floor": 377.0
+      },
+      {
+       "r_arcmin": 1.32,
+       "r_px": 102.0,
+       "stack_dn": 61.56,
+       "odd_dn": 62.25,
+       "even_dn": 62.05,
+       "blank_sky_spread_dn": 0.4,
+       "blank_sky_mean_dn": 0.26,
+       "over_the_floor": 152.3
+      },
+      {
+       "r_arcmin": 1.48,
+       "r_px": 114.0,
+       "stack_dn": 55.97,
+       "odd_dn": 56.9,
+       "even_dn": 56.32,
+       "blank_sky_spread_dn": 0.4,
+       "blank_sky_mean_dn": 0.25,
+       "over_the_floor": 139.2
+      },
+      {
+       "r_arcmin": 1.79,
+       "r_px": 138.0,
+       "stack_dn": 43.57,
+       "odd_dn": 43.87,
+       "even_dn": 43.55,
+       "blank_sky_spread_dn": 0.28,
+       "blank_sky_mean_dn": 0.28,
+       "over_the_floor": 156.1
+      },
+      {
+       "r_arcmin": 1.94,
+       "r_px": 150.0,
+       "stack_dn": 35.83,
+       "odd_dn": 35.58,
+       "even_dn": 35.96,
+       "blank_sky_spread_dn": 0.23,
+       "blank_sky_mean_dn": 0.28,
+       "over_the_floor": 153.4
+      },
+      {
+       "r_arcmin": 2.25,
+       "r_px": 174.0,
+       "stack_dn": 23.33,
+       "odd_dn": 23.51,
+       "even_dn": 23.56,
+       "blank_sky_spread_dn": 0.38,
+       "blank_sky_mean_dn": 0.28,
+       "over_the_floor": 62.1
+      },
+      {
+       "r_arcmin": 2.56,
+       "r_px": 198.0,
+       "stack_dn": 17.51,
+       "odd_dn": 17.62,
+       "even_dn": 17.78,
+       "blank_sky_spread_dn": 0.26,
+       "blank_sky_mean_dn": 0.18,
+       "over_the_floor": 67.8
+      },
+      {
+       "r_arcmin": 2.72,
+       "r_px": 210.0,
+       "stack_dn": 13.98,
+       "odd_dn": 14.11,
+       "even_dn": 13.95,
+       "blank_sky_spread_dn": 0.25,
+       "blank_sky_mean_dn": 0.1,
+       "over_the_floor": 55.2
+      },
+      {
+       "r_arcmin": 3.03,
+       "r_px": 234.0,
+       "stack_dn": 6.25,
+       "odd_dn": 6.31,
+       "even_dn": 6.28,
+       "blank_sky_spread_dn": 0.46,
+       "blank_sky_mean_dn": 0.27,
+       "over_the_floor": 13.5
+      },
+      {
+       "r_arcmin": 3.18,
+       "r_px": 246.0,
+       "stack_dn": 4.13,
+       "odd_dn": 4.22,
+       "even_dn": 4.2,
+       "blank_sky_spread_dn": 0.36,
+       "blank_sky_mean_dn": 0.33,
+       "over_the_floor": 11.5
+      },
+      {
+       "r_arcmin": 3.49,
+       "r_px": 270.0,
+       "stack_dn": 2.49,
+       "odd_dn": 2.53,
+       "even_dn": 2.7,
+       "blank_sky_spread_dn": 0.33,
+       "blank_sky_mean_dn": 0.25,
+       "over_the_floor": 7.6
+      },
+      {
+       "r_arcmin": 3.81,
+       "r_px": 294.0,
+       "stack_dn": 1.52,
+       "odd_dn": 1.6,
+       "even_dn": 1.69,
+       "blank_sky_spread_dn": 0.36,
+       "blank_sky_mean_dn": 0.2,
+       "over_the_floor": 4.2
+      },
+      {
+       "r_arcmin": 3.96,
+       "r_px": 306.0,
+       "stack_dn": 0.89,
+       "odd_dn": 1.1,
+       "even_dn": 0.98,
+       "blank_sky_spread_dn": 0.26,
+       "blank_sky_mean_dn": 0.17,
+       "over_the_floor": 3.4
+      }
+     ],
+     "outer_ring": {
+      "where": "2.2 to 3.6 arcmin from the nucleus (the catalogue's 7.1 x 6.0 arcmin diameters)",
+      "seen": true,
+      "rule": "every ring median there above 3 x the blank-sky spread in the stack and above 2 x in the odd and in the even frames alone",
+      "stack_dn_there": [
+       23.33,
+       19.93,
+       17.51,
+       13.98,
+       10.03,
+       6.25,
+       4.13,
+       3.39,
+       2.49
+      ],
+      "floor_dn_there": [
+       0.38,
+       0.21,
+       0.26,
+       0.25,
+       0.41,
+       0.46,
+       0.36,
+       0.32,
+       0.33
+      ],
+      "as_a_fraction_of_the_sky": [
+       0.1502,
+       0.1284,
+       0.1128,
+       0.09,
+       0.0646,
+       0.0402,
+       0.0266,
+       0.0218,
+       0.016
+      ]
+     }
+    },
+    "sky_plane_in_the_picture_only": [
+     {
+      "plane": "R",
+      "a_dn": 0.16845798727492248,
+      "b_dn_per_px": -0.00044412773529239414,
+      "c_dn_per_px": -0.0003752718602980869,
+      "corner_to_corner_dn": 1.9696363437525457,
+      "blocks": 493,
+      "rms_of_blocks_after": 0.510057050930474
+     },
+     {
+      "plane": "G1",
+      "a_dn": 0.2874996023685479,
+      "b_dn_per_px": -0.0011183217712314381,
+      "c_dn_per_px": -0.001012218530142475,
+      "corner_to_corner_dn": 5.085926804074703,
+      "blocks": 496,
+      "rms_of_blocks_after": 0.7558568998247777
+     },
+     {
+      "plane": "G2",
+      "a_dn": 0.16441269255934957,
+      "b_dn_per_px": -0.0010576087563474827,
+      "c_dn_per_px": -0.0007436520669207045,
+      "corner_to_corner_dn": 4.408648319754714,
+      "blocks": 496,
+      "rms_of_blocks_after": 0.7699764977016914
+     },
+     {
+      "plane": "B",
+      "a_dn": 0.416823419315723,
+      "b_dn_per_px": -0.0009048723444101261,
+      "c_dn_per_px": -0.0003859723585563484,
+      "corner_to_corner_dn": 3.3019325262488612,
+      "blocks": 494,
+      "rms_of_blocks_after": 0.5707067815967221
+     }
+    ]
+   }
+  },
+  {
+   "step": "11 picture: crop (crop.py) and finish (finish16.py)",
+   "numbers": {
+    "crop": {
+     "what": "a crop, pixels untouched",
+     "source": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-stretched.png",
+     "source_px": [
+      2848,
+      1878
+     ],
+     "crop_px": [
+      701,
+      346,
+      1200,
+      1000
+     ],
+     "why": "the nebula and its halo are about 8 x 10 arcmin in a 37 x 24 arcmin field of plain sky: a cut around the central star's catalogue place at the stack's own pixels, nothing resampled"
+    },
+    "finish": {
+     "what": "levels and colour",
+     "source": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-crop.png",
+     "steps": [
+      {
+       "step": "sky to neutral",
+       "sky_is_percentiles": [
+        0.0,
+        40.0
+       ],
+       "sky_mean_rgb_before": [
+        75.73,
+        75.73,
+        75.74
+       ],
+       "subtracted_rgb": [
+        0.0,
+        0.0,
+        0.01
+       ]
+      },
+      {
+       "step": "levels",
+       "black_point": 82.66,
+       "white_point": 255.0,
+       "from_percentiles": [
+        50.0,
+        null
+       ],
+       "white_given": 1.0,
+       "sky_set_to": 5.1
+      },
+      {
+       "step": "midtones",
+       "gamma": 1.0,
+       "s_curve": 0.15,
+       "how": "brightness changed, each pixel's colour ratios kept"
+      },
+      {
+       "step": "grain",
+       "brightness": "bilateral filter, sigma 4.0 px, 7 L units",
+       "colour": "Gaussian sigma 4.0 px",
+       "where": "full below L 8, none above L 30 (brightness judged on a blurred copy)"
+      },
+      {
+       "step": "saturation",
+       "factor": 1.2,
+       "space": "CIELAB chroma",
+       "left_alone": "below L 14 (fading in to L 30) and above L 93",
+       "sky_without_colour": "colour fades to grey below L 8 (full colour from L 18): the dark sky's colour is noise"
+      }
+     ],
+     "clipped_to_white_pct": 0.009,
+     "clipped_to_black_pct": 3.99
+    }
+   }
+  },
+  {
+   "step": "12 half stacks: are the ears real?",
+   "numbers": {
+    "what": "Step 12: are the faint outer lobes (the \"ears\", the grey halo that fills the Dumbbell out to an apple shape round the",
+    "rings": [
+     [
+      2.0,
+      3.0
+     ],
+     [
+      3.0,
+      4.0
+     ],
+     [
+      4.0,
+      5.0
+     ],
+     [
+      5.0,
+      6.5
+     ]
+    ],
+    "sectors": [
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       0,
+       30
+      ],
+      "px": 7817,
+      "mean_dn": 24.521,
+      "odd_dn": 24.664,
+      "even_dn": 24.53,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 41.5,
+      "even_sigma": 41.3,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       30,
+       60
+      ],
+      "px": 7815,
+      "mean_dn": 21.012,
+      "odd_dn": 21.053,
+      "even_dn": 21.046,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 35.4,
+      "even_sigma": 35.4,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       60,
+       90
+      ],
+      "px": 7804,
+      "mean_dn": 19.849,
+      "odd_dn": 19.917,
+      "even_dn": 19.926,
+      "blank_spread_dn": 0.595,
+      "blank_places": 24,
+      "odd_sigma": 33.5,
+      "even_sigma": 33.5,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       90,
+       120
+      ],
+      "px": 7816,
+      "mean_dn": 11.57,
+      "odd_dn": 11.68,
+      "even_dn": 11.504,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 19.7,
+      "even_sigma": 19.4,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       120,
+       150
+      ],
+      "px": 7809,
+      "mean_dn": 16.608,
+      "odd_dn": 16.621,
+      "even_dn": 16.632,
+      "blank_spread_dn": 0.595,
+      "blank_places": 24,
+      "odd_sigma": 28.0,
+      "even_sigma": 28.0,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       150,
+       180
+      ],
+      "px": 7814,
+      "mean_dn": 21.481,
+      "odd_dn": 21.539,
+      "even_dn": 21.412,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 36.2,
+      "even_sigma": 36.0,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       180,
+       210
+      ],
+      "px": 7820,
+      "mean_dn": 18.143,
+      "odd_dn": 18.049,
+      "even_dn": 18.304,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 30.4,
+      "even_sigma": 30.8,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       210,
+       240
+      ],
+      "px": 7809,
+      "mean_dn": 11.119,
+      "odd_dn": 11.175,
+      "even_dn": 11.267,
+      "blank_spread_dn": 0.595,
+      "blank_places": 24,
+      "odd_sigma": 18.8,
+      "even_sigma": 19.0,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       240,
+       270
+      ],
+      "px": 7813,
+      "mean_dn": 16.029,
+      "odd_dn": 15.976,
+      "even_dn": 16.233,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 26.9,
+      "even_sigma": 27.3,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       270,
+       300
+      ],
+      "px": 7821,
+      "mean_dn": 14.519,
+      "odd_dn": 14.442,
+      "even_dn": 14.724,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 24.3,
+      "even_sigma": 24.8,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       300,
+       330
+      ],
+      "px": 7820,
+      "mean_dn": 17.915,
+      "odd_dn": 17.897,
+      "even_dn": 18.062,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 30.1,
+      "even_sigma": 30.4,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       2.0,
+       3.0
+      ],
+      "pa_deg": [
+       330,
+       360
+      ],
+      "px": 7810,
+      "mean_dn": 25.086,
+      "odd_dn": 25.109,
+      "even_dn": 25.077,
+      "blank_spread_dn": 0.594,
+      "blank_places": 24,
+      "odd_sigma": 42.2,
+      "even_sigma": 42.2,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       0,
+       30
+      ],
+      "px": 10942,
+      "mean_dn": 0.119,
+      "odd_dn": 0.264,
+      "even_dn": 0.107,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 0.5,
+      "even_sigma": 0.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       30,
+       60
+      ],
+      "px": 10935,
+      "mean_dn": -0.698,
+      "odd_dn": -0.666,
+      "even_dn": -0.63,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": -1.3,
+      "even_sigma": -1.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       60,
+       90
+      ],
+      "px": 10946,
+      "mean_dn": 1.253,
+      "odd_dn": 1.263,
+      "even_dn": 1.341,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 2.4,
+      "even_sigma": 2.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       90,
+       120
+      ],
+      "px": 10938,
+      "mean_dn": 6.333,
+      "odd_dn": 6.392,
+      "even_dn": 6.396,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 12.1,
+      "even_sigma": 12.1,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       120,
+       150
+      ],
+      "px": 10947,
+      "mean_dn": 5.883,
+      "odd_dn": 5.895,
+      "even_dn": 6.012,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 11.2,
+      "even_sigma": 11.4,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       150,
+       180
+      ],
+      "px": 10939,
+      "mean_dn": 2.925,
+      "odd_dn": 3.026,
+      "even_dn": 3.103,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 5.7,
+      "even_sigma": 5.9,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       180,
+       210
+      ],
+      "px": 10939,
+      "mean_dn": -0.157,
+      "odd_dn": -0.057,
+      "even_dn": -0.126,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": -0.1,
+      "even_sigma": -0.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       210,
+       240
+      ],
+      "px": 10946,
+      "mean_dn": -0.234,
+      "odd_dn": -0.197,
+      "even_dn": -0.035,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": -0.4,
+      "even_sigma": -0.1,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       240,
+       270
+      ],
+      "px": 10932,
+      "mean_dn": 1.9,
+      "odd_dn": 2.039,
+      "even_dn": 2.045,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 3.9,
+      "even_sigma": 3.9,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       270,
+       300
+      ],
+      "px": 10940,
+      "mean_dn": 6.509,
+      "odd_dn": 6.595,
+      "even_dn": 6.54,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 12.5,
+      "even_sigma": 12.4,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       300,
+       330
+      ],
+      "px": 10939,
+      "mean_dn": 6.364,
+      "odd_dn": 6.471,
+      "even_dn": 6.428,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 12.3,
+      "even_sigma": 12.2,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       3.0,
+       4.0
+      ],
+      "pa_deg": [
+       330,
+       360
+      ],
+      "px": 10941,
+      "mean_dn": 2.536,
+      "odd_dn": 2.567,
+      "even_dn": 2.619,
+      "blank_spread_dn": 0.527,
+      "blank_places": 24,
+      "odd_sigma": 4.9,
+      "even_sigma": 5.0,
+      "seen": true
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       0,
+       30
+      ],
+      "px": 14058,
+      "mean_dn": -0.683,
+      "odd_dn": -0.545,
+      "even_dn": -0.597,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -1.1,
+      "even_sigma": -1.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       30,
+       60
+      ],
+      "px": 14065,
+      "mean_dn": -1.576,
+      "odd_dn": -1.514,
+      "even_dn": -1.504,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -3.0,
+      "even_sigma": -3.0,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       60,
+       90
+      ],
+      "px": 14069,
+      "mean_dn": -0.675,
+      "odd_dn": -0.611,
+      "even_dn": -0.596,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -1.2,
+      "even_sigma": -1.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       90,
+       120
+      ],
+      "px": 14053,
+      "mean_dn": 0.039,
+      "odd_dn": 0.186,
+      "even_dn": -0.027,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": 0.4,
+      "even_sigma": -0.1,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       120,
+       150
+      ],
+      "px": 14061,
+      "mean_dn": 0.247,
+      "odd_dn": 0.258,
+      "even_dn": 0.309,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": 0.5,
+      "even_sigma": 0.6,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       150,
+       180
+      ],
+      "px": 14069,
+      "mean_dn": -0.451,
+      "odd_dn": -0.419,
+      "even_dn": -0.189,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -0.8,
+      "even_sigma": -0.4,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       180,
+       210
+      ],
+      "px": 14063,
+      "mean_dn": -0.819,
+      "odd_dn": -0.752,
+      "even_dn": -0.726,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -1.5,
+      "even_sigma": -1.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       210,
+       240
+      ],
+      "px": 14058,
+      "mean_dn": -0.754,
+      "odd_dn": -0.733,
+      "even_dn": -0.578,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -1.5,
+      "even_sigma": -1.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       240,
+       270
+      ],
+      "px": 14075,
+      "mean_dn": 0.088,
+      "odd_dn": 0.156,
+      "even_dn": 0.24,
+      "blank_spread_dn": 0.497,
+      "blank_places": 24,
+      "odd_sigma": 0.3,
+      "even_sigma": 0.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       270,
+       300
+      ],
+      "px": 14063,
+      "mean_dn": 0.351,
+      "odd_dn": 0.357,
+      "even_dn": 0.433,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": 0.7,
+      "even_sigma": 0.9,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       300,
+       330
+      ],
+      "px": 14070,
+      "mean_dn": 0.138,
+      "odd_dn": 0.166,
+      "even_dn": 0.236,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": 0.3,
+      "even_sigma": 0.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       4.0,
+       5.0
+      ],
+      "pa_deg": [
+       330,
+       360
+      ],
+      "px": 14074,
+      "mean_dn": -0.052,
+      "odd_dn": -0.019,
+      "even_dn": 0.158,
+      "blank_spread_dn": 0.498,
+      "blank_places": 24,
+      "odd_sigma": -0.0,
+      "even_sigma": 0.3,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       0,
+       30
+      ],
+      "px": 26962,
+      "mean_dn": -0.784,
+      "odd_dn": -0.696,
+      "even_dn": -0.695,
+      "blank_spread_dn": 0.356,
+      "blank_places": 24,
+      "odd_sigma": -2.0,
+      "even_sigma": -1.9,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       30,
+       60
+      ],
+      "px": 26958,
+      "mean_dn": -1.016,
+      "odd_dn": -1.046,
+      "even_dn": -0.902,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -2.9,
+      "even_sigma": -2.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       60,
+       90
+      ],
+      "px": 26955,
+      "mean_dn": -1.004,
+      "odd_dn": -0.935,
+      "even_dn": -0.99,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -2.6,
+      "even_sigma": -2.8,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       90,
+       120
+      ],
+      "px": 26971,
+      "mean_dn": -0.51,
+      "odd_dn": -0.436,
+      "even_dn": -0.513,
+      "blank_spread_dn": 0.356,
+      "blank_places": 24,
+      "odd_sigma": -1.2,
+      "even_sigma": -1.4,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       120,
+       150
+      ],
+      "px": 26966,
+      "mean_dn": -0.465,
+      "odd_dn": -0.456,
+      "even_dn": -0.369,
+      "blank_spread_dn": 0.356,
+      "blank_places": 24,
+      "odd_sigma": -1.3,
+      "even_sigma": -1.0,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       150,
+       180
+      ],
+      "px": 26963,
+      "mean_dn": -0.662,
+      "odd_dn": -0.621,
+      "even_dn": -0.587,
+      "blank_spread_dn": 0.356,
+      "blank_places": 24,
+      "odd_sigma": -1.7,
+      "even_sigma": -1.6,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       180,
+       210
+      ],
+      "px": 26961,
+      "mean_dn": -0.625,
+      "odd_dn": -0.455,
+      "even_dn": -0.596,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -1.3,
+      "even_sigma": -1.7,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       210,
+       240
+      ],
+      "px": 26953,
+      "mean_dn": -0.565,
+      "odd_dn": -0.401,
+      "even_dn": -0.536,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -1.1,
+      "even_sigma": -1.5,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       240,
+       270
+      ],
+      "px": 26957,
+      "mean_dn": -0.537,
+      "odd_dn": -0.442,
+      "even_dn": -0.453,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -1.2,
+      "even_sigma": -1.3,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       270,
+       300
+      ],
+      "px": 26958,
+      "mean_dn": 0.028,
+      "odd_dn": 0.165,
+      "even_dn": 0.055,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": 0.5,
+      "even_sigma": 0.2,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       300,
+       330
+      ],
+      "px": 26959,
+      "mean_dn": 0.237,
+      "odd_dn": 0.352,
+      "even_dn": 0.332,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": 1.0,
+      "even_sigma": 0.9,
+      "seen": false
+     },
+     {
+      "ring_arcmin": [
+       5.0,
+       6.5
+      ],
+      "pa_deg": [
+       330,
+       360
+      ],
+      "px": 26953,
+      "mean_dn": -0.634,
+      "odd_dn": -0.542,
+      "even_dn": -0.55,
+      "blank_spread_dn": 0.357,
+      "blank_places": 24,
+      "odd_sigma": -1.5,
+      "even_sigma": -1.5,
+      "seen": false
+     }
+    ],
+    "blank_places": [
+     [
+      2146.1,
+      503.9
+     ],
+     [
+      2248.3,
+      846.7
+     ],
+     [
+      2194.0,
+      1129.1
+     ],
+     [
+      2288.5,
+      1019.1
+     ],
+     [
+      2286.3,
+      1115.9
+     ],
+     [
+      2272.9,
+      1053.7
+     ],
+     [
+      2180.4,
+      799.3
+     ],
+     [
+      2206.2,
+      700.4
+     ],
+     [
+      2340.7,
+      1260.1
+     ],
+     [
+      2129.1,
+      1102.0
+     ],
+     [
+      2076.5,
+      1264.6
+     ],
+     [
+      2127.2,
+      1163.3
+     ],
+     [
+      2340.1,
+      606.5
+     ],
+     [
+      2240.4,
+      730.4
+     ],
+     [
+      2087.1,
+      1201.2
+     ],
+     [
+      2300.7,
+      1042.8
+     ],
+     [
+      2191.0,
+      971.0
+     ],
+     [
+      513.9,
+      1231.1
+     ],
+     [
+      2344.0,
+      555.9
+     ],
+     [
+      2317.9,
+      1217.3
+     ],
+     [
+      2181.0,
+      888.7
+     ],
+     [
+      2250.4,
+      980.9
+     ],
+     [
+      2341.6,
+      558.4
+     ],
+     [
+      2294.7,
+      1272.3
+     ]
+    ],
+    "sky_plane_dn": {
+     "a": 3.228043141352947,
+     "across_width": -4.1212116095911595,
+     "down_height": -2.2027259732289295
+    },
+    "verdict": "the halo (4 to 5 arcmin from the star): seen in both halves in 0 of 12 sectors; 5 to 6.5 arcmin: 0 of 12."
+   }
+  }
+ ]
+}

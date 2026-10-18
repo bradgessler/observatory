@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" role="img" aria-label="The 24 places the telescope steps to, spread evenly over a disc 3 arcminutes across, with the biggest dust shadow drawn to the same scale for comparison">
+<style>.bg{fill:#12151c}.t{fill:#e6e8ee;font:700 18px -apple-system,system-ui,sans-serif}.d{fill:#9aa1b3;font:14px -apple-system,system-ui,sans-serif}.n{fill:#12151c;font:700 11px -apple-system,system-ui,sans-serif;text-anchor:middle;dominant-baseline:central}.dot{fill:#6ea8ff}.ring{stroke:#2e3544;stroke-width:1.5;fill:none}.path{stroke:#6ea8ff;stroke-opacity:.35;stroke-width:1.5;fill:none}.dust{fill:#5a6170;fill-opacity:.55}.ax{stroke:#2e3544;stroke-width:1}</style>
+<rect class="bg" width="600" height="420" rx="12"/>
+<circle class="ring" cx="230" cy="215" r="180.0"/>
+<line class="ax" x1="40.0" y1="215" x2="420.0" y2="215"/><line class="ax" x1="230" y1="25.0" x2="230" y2="405.0"/>
+<text class="d" x="230" y="17.0" text-anchor="middle">north</text><text class="d" x="34.0" y="220" text-anchor="end">east</text>
+<path class="path" d="M230.0,189.0 L199.6,248.2 L287.9,209.9 L175.4,173.2 L243.6,291.8 L276.2,142.3 L139.5,239.3 L319.3,261.4 L193.3,114.4 L186.8,319.7 L337.8,164.5 L111.1,177.7 L295.1,327.4 L259.0,83.1 L115.5,295.5 L373.5,233.6 L133.8,100.9 L223.6,368.6 L341.5,103.0 L67.9,222.5 L357.7,321.6 L207.3,46.2 L130.5,358.1 L403.8,175.9"/>
+<circle class="dot" cx="230.0" cy="189.0" r="10"/><text class="n" x="230.0" y="189.0">1</text>
+<circle class="dot" cx="199.6" cy="248.2" r="10"/><text class="n" x="199.6" y="248.2">2</text>
+<circle class="dot" cx="287.9" cy="209.9" r="10"/><text class="n" x="287.9" y="209.9">3</text>
+<circle class="dot" cx="175.4" cy="173.2" r="10"/><text class="n" x="175.4" y="173.2">4</text>
+<circle class="dot" cx="243.6" cy="291.8" r="10"/><text class="n" x="243.6" y="291.8">5</text>
+<circle class="dot" cx="276.2" cy="142.3" r="10"/><text class="n" x="276.2" y="142.3">6</text>
+<circle class="dot" cx="139.5" cy="239.3" r="10"/><text class="n" x="139.5" y="239.3">7</text>
+<circle class="dot" cx="319.3" cy="261.4" r="10"/><text class="n" x="319.3" y="261.4">8</text>
+<circle class="dot" cx="193.3" cy="114.4" r="10"/><text class="n" x="193.3" y="114.4">9</text>
+<circle class="dot" cx="186.8" cy="319.7" r="10"/><text class="n" x="186.8" y="319.7">10</text>
+<circle class="dot" cx="337.8" cy="164.5" r="10"/><text class="n" x="337.8" y="164.5">11</text>
+<circle class="dot" cx="111.1" cy="177.7" r="10"/><text class="n" x="111.1" y="177.7">12</text>
+<circle class="dot" cx="295.1" cy="327.4" r="10"/><text class="n" x="295.1" y="327.4">13</text>
+<circle class="dot" cx="259.0" cy="83.1" r="10"/><text class="n" x="259.0" y="83.1">14</text>
+<circle class="dot" cx="115.5" cy="295.5" r="10"/><text class="n" x="115.5" y="295.5">15</text>
+<circle class="dot" cx="373.5" cy="233.6" r="10"/><text class="n" x="373.5" y="233.6">16</text>
+<circle class="dot" cx="133.8" cy="100.9" r="10"/><text class="n" x="133.8" y="100.9">17</text>
+<circle class="dot" cx="223.6" cy="368.6" r="10"/><text class="n" x="223.6" y="368.6">18</text>
+<circle class="dot" cx="341.5" cy="103.0" r="10"/><text class="n" x="341.5" y="103.0">19</text>
+<circle class="dot" cx="67.9" cy="222.5" r="10"/><text class="n" x="67.9" y="222.5">20</text>
+<circle class="dot" cx="357.7" cy="321.6" r="10"/><text class="n" x="357.7" y="321.6">21</text>
+<circle class="dot" cx="207.3" cy="46.2" r="10"/><text class="n" x="207.3" y="46.2">22</text>
+<circle class="dot" cx="130.5" cy="358.1" r="10"/><text class="n" x="130.5" y="358.1">23</text>
+<circle class="dot" cx="403.8" cy="175.9" r="10"/><text class="n" x="403.8" y="175.9">24</text>
+<text class="t" x="440" y="60">24 steps,</text><text class="t" x="440" y="84">then round again</text>
+<text class="d" x="440" y="116">Each one a golden</text><text class="d" x="440" y="136">angle (137.5°) round</text><text class="d" x="440" y="156">from the last.</text>
+<circle class="dust" cx="510.0" cy="250" r="70.0"/>
+<text class="d" x="440" y="344">The biggest dust</text><text class="d" x="440" y="364">shadow, 70″, to scale</text>
+<line class="ring" x1="230" y1="390" x2="350" y2="390" style="stroke:#9aa1b3"/><text class="d" x="290.0" y="408" text-anchor="middle">1 arcminute</text>
+</svg>

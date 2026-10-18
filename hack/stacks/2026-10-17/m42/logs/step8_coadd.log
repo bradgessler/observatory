@@ -1,0 +1,26 @@
+colour offsets in the frames (sensor px): red - green (+0.360, +0.508), blue - green (-0.607, -0.764), scatter [0.2115, 0.2939, 0.2657, 0.3878], 3874 measures
+canvas 3208 x 2488; area every long frame covers 44.4%; faint region 1063005 px (darkest 30% of it); 165 long, 44 short frames
+PSF stars (reference frame list): 76; run median HFD 8.51 plane px -> PSF radius 22 px
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m42/step8_coadd.py:177: RuntimeWarning: All-NaN slice encountered
+  pk = np.nanmax(cube[:, yi - 3:yi + 4, xi - 3:xi + 4], axis=(1, 2))
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/coadd.py:225: RuntimeWarning: All-NaN slice encountered
+  med[a:b] = np.nanmedian(cube[:, a:b] / flux[:, None, None].astype(np.float32), axis=0)
+R: constants 40.5..63.9; control dropped 0.540% (18s) | coadd: 74 PSF stars r=22, PSF HFD 7.23..10.02 px (P_R 8.32), flagged 0.184% (faint region 0.257%, beta 0.50), theory gain 1.0129; near ceiling 1994 px; 169s
+   G1 coadd vs control: point-source S/N ratio 1.0233 (median of 72 stars, quartiles 1.019..1.026); pixel noise 4.53 vs 4.56 DN; HFD 8.22 vs 8.27 px; theory 1.0154
+G1: constants 136.5..192.3; control dropped 0.468% (18s) | coadd: 72 PSF stars r=22, PSF HFD 7.21..10.09 px (P_R 8.22), flagged 0.055% (faint region 0.090%, beta 0.50), theory gain 1.0134; near ceiling 4529 px; 176s
+    the frames' PSFs change together across the field (correlation 0.99; the bands differ by 1.5% rms against a frame-to-frame spread of 7.6%); one PSF per frame
+   G2 coadd vs control: point-source S/N ratio 1.0146 (median of 73 stars, quartiles 1.011..1.018); pixel noise 4.50 vs 4.52 DN; HFD 8.45 vs 8.50 px; theory 1.0155
+G2: constants 137.3..194.9; control dropped 0.460% (18s) | coadd: 73 PSF stars r=22, PSF HFD 7.46..10.20 px (P_R 8.45), flagged 0.047% (faint region 0.077%, beta 0.50), theory gain 1.0131; near ceiling 4517 px; 172s
+B: constants 92.0..129.0; control dropped 0.540% (18s) | coadd: 74 PSF stars r=22, PSF HFD 7.06..10.02 px (P_R 8.12), flagged 0.092% (faint region 0.142%, beta 0.50), theory gain 1.0157; near ceiling 3981 px; 169s
+short R: constants -3.0..1.7 DN, frame noise 6.3 DN, near ceiling 0 px
+short G1: constants -0.3..4.7 DN, frame noise 6.6 DN, near ceiling 71 px
+short G2: constants 0.0..5.0 DN, frame noise 6.6 DN, near ceiling 73 px
+short B: constants -1.7..2.5 DN, frame noise 6.1 DN, near ceiling 53 px
+colour offsets left in the long stack (sensor px): red - green (+0.036, +0.021), blue - green (+0.021, +0.024), 73 stars
+noise in the faint region (stars masked), proper                   R 2.63 G1 4.53 G2 4.50 B 3.80 DN
+noise in the faint region (stars masked), control                  R 2.65 G1 4.56 G2 4.52 B 3.82 DN
+noise in the faint region (stars masked), masked-mean              R 2.62 G1 4.52 G2 4.48 B 3.79 DN
+noise in the faint region (stars masked), single                   R 25.80 G1 38.72 G2 38.74 B 30.23 DN
+noise in the faint region (stars masked), half_difference_proper   R 2.21 G1 3.01 G2 3.01 B 2.54 DN
+noise in the faint region (stars masked), short                    R 1.04 G1 1.06 G2 1.05 B 0.99 DN
+797 s in all

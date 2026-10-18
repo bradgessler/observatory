@@ -1,0 +1,196 @@
+M27 run: 66 used frames; M27 masked as a circle of 696 px round (1397, 907), grown 149 px for the wander
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:77: RuntimeWarning: All-NaN slice encountered
+  big = np.nanmedian(np.stack([r[0] for r in res]), axis=0)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:78: RuntimeWarning: All-NaN slice encountered
+  cube = np.stack([r[1] for r in res]); small = np.nanmedian(cube, axis=0); n = np.isfinite(cube).sum(0)
+M33 run: 92 frames (20261018-042444 to 20261018-051946)
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+sky of m33-still: 63 frames, level [44.3, 146.6, 147.6, 101.4] DN
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/.observatory/pyenv/lib/python3.13/site-packages/numpy/lib/_nanfunctions_impl.py:1215: RuntimeWarning: All-NaN slice encountered
+  return fnb._ureduce(a, func=_nanmedian, keepdims=keepdims,
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:71: RuntimeWarning: All-NaN slice encountered
+  med = np.nanmedian(v, axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/rawplanes.py:72: RuntimeWarning: All-NaN slice encountered
+  mad = 1.4826 * np.nanmedian(np.abs(v - med[..., None]), axis=2)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/flatcheck.py:54: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a[:h, :w].reshape(h // 2, 2, w // 2, 2).transpose(0, 2, 1, 3).reshape(h // 2, w // 2, 4), axis=2).astype(np.float32)
+sky of m33-dithered: 29 frames, level [38.3, 128.8, 130.1, 88.3] DN
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/skyflat.py:93: RuntimeWarning: All-NaN slice encountered
+  with np.errstate(all='ignore'): J = np.nanmedian(maps, axis=0)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/.claude/skills/stack-pictures/tools/skyflat.py:96: RuntimeWarning: All-NaN slice encountered
+  with np.errstate(all='ignore'): J = np.nanmedian(maps, axis=0)
+R  joined 2 runs: blocks seen by none 1808, by one 9; run against joint rms {'m33-still': 0.0067, 'm33-dithered': 0.0067}
+G1 joined 2 runs: blocks seen by none 1807, by one 10; run against joint rms {'m33-still': 0.0029, 'm33-dithered': 0.003}
+G2 joined 2 runs: blocks seen by none 1807, by one 10; run against joint rms {'m33-still': 0.0028, 'm33-dithered': 0.0028}
+B  joined 2 runs: blocks seen by none 1807, by one 10; run against joint rms {'m33-still': 0.0037, 'm33-dithered': 0.0037}
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/step7a_flats.py:68: RuntimeWarning: All-NaN slice encountered
+  s33 = dict(big=np.nanmedian(np.stack([z['big'] for z in zz]), 0), small=np.nanmedian(np.stack([z['small'] for z in zz]), 0), levels=np.concatenate([z['levels'] for z in zz]), frames=sum((list(z['frames']) for z in zz), []))
+==== on_m27_sky
+hybrid13   large (G1): rms 0.0150, after plane 0.0057 (1-99% 0.987..1.015), rings - - 0.996 0.998 1.001 1.005 | R after plane 0.0152, B 0.0077 | dust: 5 shadows left (5 deeper than 2%, deepest 0.061), correlation 0.35, shift [-0.07, -0.05] | depth sky/flat {'R': 0.657, 'G1': 0.74, 'G2': 0.76, 'B': 0.73}
+     left: plane px (400, 1967) = sensor (800, 3934), 0.061 deep, r 29 px
+     left: plane px (2990, 1958) = sensor (5981, 3917), 0.061 deep, r 19 px
+     left: plane px (310, 1973) = sensor (621, 3947), 0.059 deep, r 31 px
+     left: plane px (2230, 1815) = sensor (4460, 3629), 0.041 deep, r 12 px
+     left: plane px (2920, 2002) = sensor (5840, 4003), 0.040 deep, r 18 px
+twilight13 large (G1): rms 0.0997, after plane 0.0198 (1-99% 0.956..1.044), rings - - 0.983 0.997 1.011 1.016 | R after plane 0.0349, B 0.0171 | dust: 5 shadows left (5 deeper than 2%, deepest 0.062), correlation 0.35, shift [-0.06, -0.06] | depth sky/flat {'R': 0.647, 'G1': 0.672, 'G2': 0.666, 'B': 0.747}
+     left: plane px (2988, 1958) = sensor (5976, 3916), 0.062 deep, r 20 px
+     left: plane px (399, 1966) = sensor (797, 3932), 0.058 deep, r 27 px
+     left: plane px (311, 1972) = sensor (622, 3943), 0.057 deep, r 30 px
+     left: plane px (2230, 1814) = sensor (4461, 3629), 0.041 deep, r 11 px
+     left: plane px (2926, 2003) = sensor (5851, 4007), 0.040 deep, r 15 px
+m33        large (G1): rms 0.0116, after plane 0.0080 (1-99% 0.979..1.021), rings - - 0.997 0.997 1.002 1.008 | R after plane 0.0127, B 0.0091 | dust: 5 shadows left (5 deeper than 2%, deepest 0.062), correlation 0.35, shift [-0.07, -0.06] | depth sky/flat {'R': 0.697, 'G1': 0.732, 'G2': 0.786, 'B': 0.733}
+     left: plane px (399, 1967) = sensor (798, 3934), 0.062 deep, r 28 px
+     left: plane px (2990, 1958) = sensor (5981, 3917), 0.061 deep, r 19 px
+     left: plane px (310, 1973) = sensor (620, 3946), 0.059 deep, r 31 px
+     left: plane px (2920, 2002) = sensor (5841, 4004), 0.040 deep, r 18 px
+     left: plane px (2233, 1814) = sensor (4466, 3628), 0.037 deep, r 9 px
+==== on_m33_sky
+hybrid13   large (G1): rms 0.0157, after plane 0.0076 (1-99% 0.980..1.021), rings - - 1.006 1.001 0.997 0.994 | R after plane 0.0128, B 0.0081 | dust: 30 shadows left (27 deeper than 2%, deepest 0.054), correlation 0.39, shift [0.11, -0.05] | depth sky/flat {'R': 0.75, 'G1': 0.739, 'G2': 0.893, 'B': 0.916}
+     left: plane px (2224, 1810) = sensor (4448, 3620), 0.054 deep, r 24 px
+     left: plane px (2983, 1954) = sensor (5966, 3908), 0.047 deep, r 27 px
+     left: plane px (2910, 1996) = sensor (5821, 3992), 0.035 deep, r 23 px
+     left: plane px (2140, 1931) = sensor (4280, 3862), 0.033 deep, r 24 px
+     left: plane px (963, 12) = sensor (1926, 24), 0.029 deep, r 15 px
+     left: plane px (392, 1996) = sensor (784, 3992), 0.028 deep, r 17 px
+twilight13 large (G1): rms 0.1129, after plane 0.0199 (1-99% 0.950..1.050), rings - - 1.000 1.001 1.006 1.005 | R after plane 0.0422, B 0.0203 | dust: 26 shadows left (23 deeper than 2%, deepest 0.054), correlation 0.39, shift [0.11, -0.05] | depth sky/flat {'R': 0.83, 'G1': 0.725, 'G2': 0.846, 'B': 0.901}
+     left: plane px (2224, 1810) = sensor (4448, 3619), 0.054 deep, r 24 px
+     left: plane px (2980, 1954) = sensor (5960, 3907), 0.049 deep, r 28 px
+     left: plane px (2916, 1998) = sensor (5832, 3996), 0.035 deep, r 20 px
+     left: plane px (2140, 1932) = sensor (4280, 3863), 0.034 deep, r 24 px
+     left: plane px (962, 12) = sensor (1925, 23), 0.029 deep, r 15 px
+     left: plane px (3001, 996) = sensor (6002, 1992), 0.026 deep, r 14 px

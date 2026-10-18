@@ -1,0 +1,121 @@
+{
+ "frames": "342 frames of 15 s at ISO 3200 on M33 (by the RAW's own EXIF and each frame's own plate solve); 267 used, 75 dropped",
+ "turns": {
+  "1a": {
+   "taken": 63,
+   "used": 53,
+   "dropped": 10
+  },
+  "1b": {
+   "taken": 30,
+   "used": 26,
+   "dropped": 4
+  },
+  "2": {
+   "taken": 143,
+   "used": 129,
+   "dropped": 14
+  },
+  "13oct": {
+   "taken": 106,
+   "used": 59,
+   "dropped": 47
+  }
+ },
+ "turn_notes": {
+  "1a": "18 Oct about 04:24 to 05:00 UTC, held still (not dithered); the field drifted about 2.5 arcmin",
+  "1b": "18 Oct about 05:00 to 05:22 UTC, dithered (sunflower spiral up to 1.5 arcmin); the frame of 05:01 smeared by someone at the telescope is among the dropped",
+  "2": "18 Oct about 07:25 to 08:55 UTC, after Saturn: dithered every 3 frames, small probe steps then up to 4 arcmin (a sensor-map bug chose 4; it widens the combined field, which is fine)",
+  "13oct": "13 Oct 07:20 to 08:34 UTC, the frames of the 13 October M33 pipeline; until 08:19 that night the tracking let go now and then, so many are trailed"
+ },
+ "not_in_the_run": [
+  {
+   "file": "20261018-042400-DSC00662.ARW",
+   "exposure_s": 2.0,
+   "iso": 6400,
+   "why": "2 s at ISO 6400, not part of the 15 s ISO 3200 series"
+  },
+  {
+   "file": "20261018-045914-DSC00981.ARW",
+   "exposure_s": 2.0,
+   "iso": 6400,
+   "why": "2 s at ISO 6400, not part of the 15 s ISO 3200 series"
+  },
+  {
+   "file": "20261018-045954-DSC00982.ARW",
+   "exposure_s": 2.0,
+   "iso": 6400,
+   "why": "2 s at ISO 6400, not part of the 15 s ISO 3200 series"
+  },
+  {
+   "file": "20261013-072003-DSC00543.ARW",
+   "exposure_s": 1.0,
+   "iso": 1000,
+   "why": "1 s at ISO 1000, not part of the 15 s ISO 3200 series"
+  },
+  {
+   "file": "20261013-072028-DSC00544.ARW",
+   "exposure_s": 1.0,
+   "iso": 1000,
+   "why": "1 s at ISO 1000, not part of the 15 s ISO 3200 series"
+  },
+  {
+   "file": "20261013-073553-DSC00567.ARW",
+   "exposure_s": 15.0,
+   "iso": 3200,
+   "why": "no plate solve and no pointing in the sidecar (taken while the telescope was being re-aimed)"
+  },
+  "centring frames (2 s, ISO 6400), Saturn (1/60 s) and the frames of other targets lie outside the turns' windows or fail the 15 s ISO 3200 test"
+ ],
+ "integration_s": 4005.0,
+ "integration": "267 x 15 s = 66.8 minutes (tonight 208 frames = 52.0 min; 13 October 59 frames = 14.8 min)",
+ "star_size": "half-flux diameter, green: 4.51 arcsec in the stack (100 compact stars), 4.91 in the reference frame alone; median of the unsmeared frames tonight 4.23, 13 October 3.63",
+ "registration": "every frame's first guess from its own plate solve (all 267 within 9 sensor px of the star solution); rotation + shift on the stars, weighted rms at most 0.84 px; the field turned 10.2 degrees between the 13 October frames and tonight's turn 2",
+ "flat": "the 13 October hybrid flat (/Users/bradgessler/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77: large scale from that night's open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), as tonight's M27 pipeline chose it (it scored best on M27's open sky); on this run's dithered sky (flatcheck.py, M33's bright middle masked) it left a smaller large-scale remainder than the twilight flat alone (G1 after a plane 0.0133 against 0.0280, galaxy light included); M33 fills the frame, so no large scale was built or judged from these frames. Times each night's own dust measure (step 7)",
+ "dust": {
+  "tonight": "10 shadows measured on tonight's own sky (each frame against the first stack put back on its sensor grid, so the galaxy cancels; seen in turn 1 and in turn 2 alone, where the field had turned 7 degrees and moved) and divided out, 0.77% of the sensor; the crescent at sensor (3522, 848): 11.5% deep with no flat, 11.6% after the 13 October flat (new since then), 0.9% after tonight's own correction",
+  "oct13": "19 shallow shadows (1.5 to 3% left by the flat) measured on 13 October's frames (odd and even halves; those frames were not dithered, so this is the weaker test) and divided out of those frames only; the crescent is not there (-0.4%)",
+  "note": "the first stack carries each shadow diluted over the frames' places, so a shadow is read a little shallow; the deepest factor applied tonight 0.855"
+ },
+ "darks": "none: darks.subtract changed nothing and said so; hot pixels found from the frames, one map per night, repaired by the 3 x 3 median of their colour plane",
+ "combine": "3-sigma clipped weighted mean (the template's control combine), weights (transparency / noise)^2. Not done, for the time limit: proper coaddition (the skill measured +1 to +4% point-source S/N from it on 15 s frames) and the air-dispersion shift",
+ "sky": "ONE constant per colour per frame: the clipped mean over the darkest 30% of the area every frame covers. M33 fills the field: the zero is the galaxy's faintest level there, not the true sky; no surface fitted",
+ "noise": "green per stack pixel in the faint region 3.49 DN against 47.97 for one frame (13.7 x lower); tonight's frames alone 3.88, 13 October's alone 7.11",
+ "what_13_october_added": "59 frames (14.8 min) on top of tonight's 208: noise in the faint region 3.88 -> 3.49 DN green (10% lower), and the outer field it covers; its stars were sharper (3.63 against 4.23 arcsec)",
+ "coverage": {
+  "all_frames": {
+   "min_frames": 267,
+   "area_arcmin2": 488.86402435243343,
+   "rect_px": [
+    576,
+    524,
+    1948,
+    1400
+   ],
+   "rect_arcmin": [
+    25.2,
+    18.1
+   ]
+  },
+  "at_least_half": {
+   "min_frames": 134,
+   "area_arcmin2": 1001.4712025185445,
+   "rect_px": [
+    392,
+    352,
+    2804,
+    1652
+   ],
+   "rect_arcmin": [
+    36.3,
+    21.4
+   ]
+  },
+  "picture": "2804 x 1652 px = 36.3 x 21.4 arcmin, the largest upright rectangle where at least half the frames have data; inside it 63% of pixels have every frame and 94% at least three quarters; at the edges the coverage falls to top 53%, bottom 50%, left 53%, right 50% of the frames"
+ },
+ "is_it_the_thing": "yes: the reference frame and the stack plate-solved (astrometry.net); M33's catalogue nucleus falls 0.5 arcsec from the brightest point of the core in the stack",
+ "half_stacks": "odd against even frames, green, stars removed (median), band-passed to arm and cluster scales: 84 of 84 tiles of 3 arcmin repeat above 5 x the spread of a turned null; at 14 to 18 arcmin from the nucleus 14-18 arcmin 22/22 (median correlation 0.96); 18-30 arcmin 4/4 (median correlation 0.94). Tonight's frames against 13 October's (two nights, two dust corrections): 84 of 84 repeat. Every part of the disc in the picture, out to its corners, is in both halves",
+ "colour": "camera daylight white balance x Gaia DR3 star colours (kR 1.0100, kB 1.1428 from 44 stars), the camera's own colour matrix; colour only where the light carries it",
+ "picture": "2804 x 1652 px at the stack's own pixels (0.7764 arcsec per px, 36.3 x 21.4 arcmin), never enlarged; north -64.4 degrees clockwise from up",
+ "altitude": "turn 1 about 46 to 57 degrees up, turn 2 76 to 83, 13 October 77 to 86 (sidecars); no clock time goes with it anywhere published"
+}

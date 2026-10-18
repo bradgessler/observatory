@@ -181,9 +181,20 @@ defmodule Mix.Tasks.Site.BuildTest do
       assert night =~ ~s(<a href="orion-nebula.html">)
       assert night =~ ~s(<img src="images/moon-thumb.jpg" width="900" height="598" alt="" loading="lazy" />)
       assert night =~ "Thin cloud all night."
+      # the equipment is for photographers: at the foot of the same page under #technical, after the pictures
+      # and the story, with a link to it under the title
+      assert night =~ ~s(<p class="jump"><a href="#photography">Photography notes</a></p>)
+      {story, _} = :binary.match(night, "Thin cloud all night.")
+      {foot, _} = :binary.match(night, ~s(<section class="technical-details" id="photography"))
+      assert story < foot
+      assert night =~ ~s(<a href="orion-nebula.html#photography">)
+
       # the night's facts keep the order and the labels the file gives them, and a value may hold a colon
       assert night =~ ~r{<dt>Location</dt><dd>San Francisco Bay Area</dd></div>\s*<div><dt>Camera</dt><dd>Sony a6000, stock: APS-C</dd>}
       refute night =~ "<dt>title</dt>"
+
+      # the old technical page sends a link to where its part now is
+      assert page(dir, "2026-10-03/technical.html") =~ ~s{location.hash.slice(1) + ".html#photography"}
     end
 
     # 13 October 2026: "the plan gets published... each page could just be a placeholder... and then as
@@ -231,20 +242,25 @@ defmodule Mix.Tasks.Site.BuildTest do
       assert page(dir, "2026-10-03/crab-nebula.html") =~ "has not been photographed yet"
     end
 
-    test "a picture's page: the plain picture, then the labelled one with its facts, then the part for photographers", %{tmp_dir: dir} do
+    test "a picture's page: the plain picture, then the labelled one with its facts, then a link to how it was made", %{tmp_dir: dir} do
       build(dir, ["--ogplus", ""])
       html = page(dir, "2026-10-03/orion-nebula.html")
 
-      [plain, labels, frames] = for stem <- ~w(orion-nebula orion-nebula-labels orion-nebula-frames), do: elem(:binary.match(html, ~s(<a href="images/#{stem}.jpg">)), 0)
-      assert plain < labels and labels < frames
+      [plain, labels] = for stem <- ~w(orion-nebula orion-nebula-labels), do: elem(:binary.match(html, ~s(<a href="images/#{stem}.jpg">)), 0)
+      assert plain < labels
       {facts, _} = :binary.match(html, ~s(<dl class="facts">))
-      {specs, _} = :binary.match(html, ~s(<dl class="spec">))
-      assert labels < facts and facts < frames and frames < specs
+      {foot, _} = :binary.match(html, ~s(<section class="technical-details" id="photography"))
+      assert labels < facts and facts < foot
+      assert html =~ ~s(<p class="jump"><a href="#photography">Photography notes</a></p>)
+
+      # how it was made is at the foot of the same page, under #technical
+      {frames, _} = :binary.match(html, ~s(<a href="images/orion-nebula-frames.jpg">))
+      assert foot < frames
+      assert html =~ "<dt>Exposures</dt><dd>39 x 20 s at ISO 3200</dd>"
 
       # a phone gets the 1600-wide copy; the full size is one tap away
       assert html =~ ~s(srcset="images/orion-nebula-1600.jpg 1600w, images/orion-nebula.jpg 3002w")
       assert html =~ "A cloud of gas &amp; dust."
-      assert html =~ "<dt>Exposures</dt><dd>39 x 20 s at ISO 3200</dd>"
       assert html =~ ~s(<a href="moon.html" class="later">)
 
       # a single field has no frames picture, and a picture with no 1600 copy is served as it is
@@ -252,6 +268,55 @@ defmodule Mix.Tasks.Site.BuildTest do
       refute moon =~ "moon-frames.jpg"
       assert moon =~ ~s(<img src="images/moon.jpg" width="3036" height="5434")
       assert moon =~ ~s(<figure class="plate pan tall">)
+    end
+
+    test "each picture as a post for r/astrophotography, from the files and nothing else; a target still to come has no block", %{tmp_dir: dir, night: night} do
+      json = night |> Path.join("objects.json") |> File.read!() |> Jason.decode!()
+      [orion | rest] = json["objects"]
+
+      orion = %{
+        orion
+        | "specs" => [
+            ["Exposures", "39 x 20 s at ISO 3200: 13 minutes. Nothing clipped"],
+            ["Frames", "69 taken, 39 kept. 30 lost to cloud"],
+            ["Dithering", "Every 3 frames, 12 px"],
+            ["Stacking", "Sigma-clipped mean"],
+            ["Telescope", "Celestron 8SE"]
+          ]
+      }
+
+      File.write!(Path.join(night, "objects.json"), Jason.encode!(%{json | "objects" => [orion | rest]}))
+      File.write!(Path.join(night, "plan.json"), Jason.encode!(%{targets: [%{slug: "orion-nebula", title: "The Orion Nebula", sub: "Messier 42", state: "published"}, %{slug: "crab-nebula", title: "The Crab Nebula", sub: "Messier 1", state: "observing"}]}))
+      build(dir, ["--ogplus", ""])
+      tech = page(dir, "2026-10-03/orion-nebula.html")
+
+      # the text is a file of its own beside the page, not shown on it
+      refute tech =~ "**Equipment**"
+      block = page(dir, "2026-10-03/orion-nebula-notes.txt")
+      assert block =~ "**The Orion Nebula**: Messier 42\n\nNight of 3 October 2026, San Francisco Bay Area"
+      assert block =~ "**Equipment**\n\n* Telescope: Celestron 8SE\n* Camera: Sony a6000, stock: APS-C"
+      assert block =~ "* Lights: 39 × 20 s at ISO 3200 (13 minutes)\n* Frames: 69 taken, 39 kept\n* Dithering: Every 3 frames, 12 px"
+      assert block =~ "* Stacking: Sigma-clipped mean\n* Software: Nothing generated"
+      assert block =~ "Full write-up: #{@site}/observations/2026-10-03/orion-nebula.html"
+      assert block =~ "All the photography notes: #{@site}/observations/2026-10-03/orion-nebula.html#photography"
+      # a line the files do not have is left out, never filled in
+      refute block =~ "Mount"
+      refute block =~ "Darks"
+
+      # the copy button reads the file with the script; without it, a link opens the file
+      assert tech =~ ~s(<button type="button" class="copy" data-src="orion-nebula-notes.txt")
+      assert tech =~ "hidden>Copy photographer's notes</button>"
+      refute tech =~ ~r/reddit/i
+      assert tech =~ ~s(<a class="copy-text" href="orion-nebula-notes.txt">Open as text</a>)
+      assert tech =~ "fetch(url)"
+      assert tech =~ "ClipboardItem"
+      refute tech =~ ~r{<script[^>]+src=}
+
+      # the night lists each picture's details, and where a target still to come stands, with no block
+      night_page = page(dir, "2026-10-03/index.html")
+      assert night_page =~ ~r{The Crab Nebula</span><span class="note-summary">Being photographed now}
+      refute File.exists?(Path.join([dir, "_site/observations/2026-10-03/crab-nebula-notes.txt"]))
+      assert night_page =~ "https://github.com/bradgessler/observatory"
     end
 
     test "a picture's page shares as its own card, drawn by OpenGraph+ from a template", %{tmp_dir: dir} do

@@ -1,0 +1,14 @@
+canvas 3496 x 2488; area every frame covers 33.6%; faint region 876326 px (darkest 30% of it); 267 frames
+R: constants 22.5..56.9 DN, frame noise in the faint region 42.5 DN (median); 32s
+G1: constants 81.9..181.9 DN, frame noise in the faint region 52.4 DN (median); 31s
+G2: constants 85.0..179.4 DN, frame noise in the faint region 52.4 DN (median); 30s
+B: constants 55.2..125.1 DN, frame noise in the faint region 45.3 DN (median); 34s
+noise in the faint region, mean            R 2.72 G1 3.50 G2 3.48 B 2.99 DN
+noise in the faint region, odd             R 3.75 G1 4.77 G2 4.73 B 4.10 DN
+noise in the faint region, even            R 3.74 G1 4.73 G2 4.72 B 4.07 DN
+noise in the faint region, tonight         R 3.03 G1 3.89 G2 3.87 B 3.33 DN
+noise in the faint region, oct13           R 5.71 G1 7.12 G2 7.09 B 6.13 DN
+noise in the faint region, single          R 39.33 G1 47.96 G2 47.98 B 42.00 DN
+noise in the faint region, half_difference R 2.56 G1 3.18 G2 3.18 B 2.76 DN
+128 s
+done8

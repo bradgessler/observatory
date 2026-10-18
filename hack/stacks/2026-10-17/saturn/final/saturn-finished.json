@@ -1,0 +1,55 @@
+{
+ "what": "levels and colour",
+ "source": "final/saturn.png",
+ "steps": [
+  {
+   "step": "sky to neutral",
+   "sky_is_percentiles": [
+    0.0,
+    60.0
+   ],
+   "sky_mean_rgb_before": [
+    2.38,
+    0.73,
+    3.79
+   ],
+   "subtracted_rgb": [
+    1.65,
+    0.0,
+    3.06
+   ]
+  },
+  {
+   "step": "levels",
+   "black_point": 0.68,
+   "white_point": 255.0,
+   "from_percentiles": [
+    60.0,
+    null
+   ],
+   "white_given": 1.0,
+   "sky_set_to": 2.0
+  },
+  {
+   "step": "midtones",
+   "gamma": 1.0,
+   "s_curve": 0.1,
+   "how": "brightness changed, each pixel's colour ratios kept"
+  },
+  {
+   "step": "grain",
+   "brightness": "bilateral filter, sigma 4.0 px, 7 L units",
+   "colour": "Gaussian sigma 4.0 px",
+   "where": "full below L 10, none above L 35 (brightness judged on a blurred copy)"
+  },
+  {
+   "step": "saturation",
+   "factor": 1.15,
+   "space": "CIELAB chroma",
+   "left_alone": "below L 14 (fading in to L 30) and above L 93",
+   "sky_without_colour": "colour fades to grey below L 10 (full colour from L 22): the dark sky's colour is noise"
+  }
+ ],
+ "clipped_to_white_pct": 0.0,
+ "clipped_to_black_pct": 2.656
+}

@@ -336,6 +336,7 @@ defmodule Controller.StillCameraLive do
       <p :for={line <- uncounted(@last)} :if={!@old} class="hint" role="status">{line}</p>
       <%!-- the number to focus by, on a line of its own; under it what to do, with its help at the row's end --%>
       <p :if={@last && @focus && !@old} class="lock-line" role="status">{star_size_line(@last)}</p>
+      <p :if={sensor_line(@cam)} class="lock-line" role="status">{sensor_line(@cam)}</p>
       <div :if={@last && @focus && !@old} class="setting">
         <div class="setting-text">
           <span>Smaller is sharper. Turn the focus knob a little, take a picture, compare.</span>
@@ -669,6 +670,27 @@ defmodule Controller.StillCameraLive do
   end
 
   defp star_size_line(_), do: "Star size: no stars to measure"
+
+  # The sensor as a service: how much of it is clear, and what the run does about the rest (`SensorMap`)
+  defp sensor_line(%{sensor: %{spots: 0}}), do: "Sensor clean: no dust in tonight's pictures"
+
+  defp sensor_line(%{sensor: %{spots: n, biggest_arcsec: big, uptime: up}} = cam) do
+    clear = :erlang.float_to_binary(up * 100, decimals: 1)
+    spots = if n == 1, do: "1 dust spot", else: "#{n} dust spots"
+
+    moving =
+      case cam[:dither] do
+        %{at: %{radius_arcmin: r}, every: every} when is_integer(every) ->
+          ". Moving up to #{r}′ #{if every == 1, do: "before every picture", else: "every #{every} pictures"} to step past them"
+
+        _ ->
+          ""
+      end
+
+    "Sensor #{clear}% clear: #{spots}, the biggest #{big}″#{moving}"
+  end
+
+  defp sensor_line(_), do: nil
 
   defp tenths(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
   defp tenths(_), do: "?"

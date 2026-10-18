@@ -1,0 +1,7 @@
+coverage all                          489 arcmin^2; largest upright rectangle 1948 x 1400 px = 25.2 x 18.1 arcmin at (576, 524)
+coverage most (at least half)         1001 arcmin^2; largest upright rectangle 2804 x 1652 px = 36.3 x 21.4 arcmin at (392, 352)
+coverage picture (at least 50%)       1001 arcmin^2; largest upright rectangle 2804 x 1652 px = 36.3 x 21.4 arcmin at (392, 352)
+picture rectangle: edges {'top': {'min_frames': 142, 'median_frames': 226, 'min_fraction': 0.532}, 'bottom': {'min_frames': 134, 'median_frames': 256, 'min_fraction': 0.502}, 'left': {'min_frames': 142, 'median_frames': 235, 'min_fraction': 0.532}, 'right': {'min_frames': 134, 'median_frames': 170, 'min_fraction': 0.502}} ; inside it 63.1% of pixels have every frame, 93.8% at least 3/4
+stack solved: 0.7764 arcsec/px, field 36.3 x 21.4 arcmin, north -64.4 deg clockwise from up; M33 nucleus at (1450, 679), the peak 0.5 arcsec from it
+kR 1.0100 +- 0.0067, kB 1.1428 +- 0.0078 from 44 stars (0 clipped of 58 measured); R/G residual median -0.080 -> +0.002 mag, rms 0.065 -> 0.066; B/G median -0.284 -> -0.003, rms 0.060 -> 0.060; Sun-like stars (22) sRGB R/G 0.916 -> 0.985, B/G 0.782 -> 1.013; colour term R/G +0.063 +- 0.040, B/G -0.196 +- 0.030 mag/mag
+star size (HFD, green): stack 4.51 arcsec (100 stars), reference frame alone 4.9119570942645785

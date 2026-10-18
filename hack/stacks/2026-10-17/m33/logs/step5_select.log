@@ -1,0 +1,347 @@
+median HFD of the unsmeared frames 10.65 px = 4.13 arcsec; used 267, rejected 75; effective frames 264.84
+  use 20261013-072101 T 0.953 w 1.049 HFD 3.72" smear 0.037
+  use 20261013-072903 T 0.947 w 1.037 HFD 3.39" smear 0.047
+  use 20261013-073026 T 0.941 w 0.995 HFD 3.41" smear 0.075
+  use 20261013-073228 T 0.936 w 1.003 HFD 3.41" smear 0.056
+  use 20261013-073828 T 0.928 w 0.987 HFD 3.30" smear 0.098
+  use 20261013-073907 T 0.940 w 1.058 HFD 3.47" smear 0.089
+  use 20261013-073946 T 0.972 w 1.042 HFD 3.57" smear 0.108
+  use 20261013-074105 T 0.953 w 1.027 HFD 3.28" smear 0.054
+  use 20261013-074144 T 0.971 w 1.102 HFD 3.62" smear 0.114
+  use 20261013-074224 T 0.962 w 1.036 HFD 3.42" smear 0.053
+  use 20261013-074303 T 0.957 w 1.065 HFD 3.45" smear 0.158
+  use 20261013-074343 T 0.907 w 0.882 HFD 3.27" smear 0.108
+  use 20261013-074422 T 0.931 w 0.995 HFD 3.30" smear 0.150
+  use 20261013-074501 T 0.926 w 0.970 HFD 3.24" smear 0.085
+  use 20261013-074540 T 0.940 w 1.038 HFD 3.79" smear 0.105
+  use 20261013-074620 T 0.919 w 0.991 HFD 3.43" smear 0.063
+  use 20261013-074659 T 0.941 w 1.016 HFD 4.22" smear 0.081
+  use 20261013-074738 T 0.944 w 0.981 HFD 3.80" smear 0.059
+  use 20261013-074817 T 0.935 w 1.015 HFD 3.88" smear 0.146
+  use 20261013-075019 T 0.946 w 0.993 HFD 4.13" smear 0.041
+  use 20261013-075059 T 0.937 w 0.990 HFD 4.26" smear 0.057
+  use 20261013-075416 T 0.924 w 0.947 HFD 4.18" smear 0.142
+  use 20261013-075534 T 0.942 w 1.025 HFD 4.33" smear 0.047
+  use 20261013-075613 T 0.928 w 1.001 HFD 4.16" smear 0.028
+  use 20261013-075652 T 0.931 w 1.022 HFD 4.18" smear 0.027
+  use 20261013-075731 T 0.922 w 0.958 HFD 4.07" smear 0.118
+  use 20261013-075900 T 0.923 w 0.976 HFD 3.87" smear 0.038
+  use 20261013-075941 T 0.916 w 0.933 HFD 4.31" smear 0.056
+  use 20261013-080020 T 0.921 w 0.954 HFD 3.82" smear 0.069
+  use 20261013-080059 T 0.905 w 0.908 HFD 4.04" smear 0.127
+  use 20261013-080711 T 0.889 w 0.896 HFD 3.92" smear 0.121
+  use 20261013-080750 T 0.893 w 0.928 HFD 3.46" smear 0.027
+  use 20261013-080829 T 0.884 w 0.915 HFD 3.48" smear 0.082
+  use 20261013-080909 T 0.886 w 0.882 HFD 3.92" smear 0.126
+  use 20261013-081028 T 0.906 w 0.923 HFD 3.86" smear 0.101
+  use 20261013-081108 T 0.891 w 0.932 HFD 3.53" smear 0.090
+  use 20261013-081152 T 0.897 w 0.917 HFD 3.50" smear 0.055
+  use 20261013-081231 T 0.908 w 0.928 HFD 3.42" smear 0.143
+  use 20261013-081353 T 0.910 w 0.970 HFD 3.49" smear 0.140
+  use 20261013-081830 T 0.929 w 0.995 HFD 3.56" smear 0.138
+  use 20261013-082102 T 0.923 w 0.936 HFD 3.37" smear 0.096
+  use 20261013-082145 T 0.909 w 0.921 HFD 3.74" smear 0.182
+  use 20261013-082227 T 0.907 w 0.897 HFD 3.50" smear 0.049
+  use 20261013-082308 T 0.925 w 0.969 HFD 3.61" smear 0.069
+  use 20261013-082350 T 0.899 w 0.900 HFD 3.34" smear 0.046
+  use 20261013-082429 T 0.892 w 0.901 HFD 3.53" smear 0.199
+  use 20261013-082511 T 0.914 w 0.913 HFD 3.61" smear 0.133
+  use 20261013-082551 T 0.921 w 0.969 HFD 3.63" smear 0.141
+  use 20261013-082631 T 0.912 w 0.941 HFD 3.29" smear 0.026
+  use 20261013-082711 T 0.928 w 0.975 HFD 3.69" smear 0.043
+  use 20261013-082752 T 0.911 w 0.940 HFD 3.54" smear 0.090
+  use 20261013-082832 T 0.923 w 0.949 HFD 3.81" smear 0.172
+  use 20261013-082912 T 0.920 w 0.920 HFD 3.82" smear 0.035
+  use 20261013-082952 T 0.924 w 1.001 HFD 3.84" smear 0.025
+  use 20261013-083031 T 0.927 w 0.944 HFD 3.63" smear 0.061
+  use 20261013-083111 T 0.927 w 0.997 HFD 3.52" smear 0.123
+  use 20261013-083158 T 0.929 w 0.978 HFD 4.24" smear 0.158
+  use 20261013-083237 T 0.908 w 0.906 HFD 3.60" smear 0.100
+  use 20261013-083317 T 0.912 w 0.915 HFD 3.74" smear 0.112
+  use 20261018-042515 T 0.985 w 0.876 HFD 4.35" smear 0.051
+  use 20261018-042546 T 0.982 w 0.841 HFD 4.66" smear 0.012
+  use 20261018-042617 T 0.986 w 0.866 HFD 4.49" smear 0.114
+  use 20261018-042648 T 0.988 w 0.919 HFD 4.27" smear 0.141
+  use 20261018-042719 T 0.958 w 0.845 HFD 4.11" smear 0.111
+  use 20261018-042750 T 0.986 w 0.862 HFD 4.54" smear 0.105
+  use 20261018-042821 T 0.962 w 0.824 HFD 4.39" smear 0.105
+  use 20261018-042923 T 0.996 w 0.916 HFD 4.65" smear 0.050
+  use 20261018-043025 T 0.968 w 0.844 HFD 4.29" smear 0.072
+  use 20261018-043056 T 0.980 w 0.915 HFD 4.29" smear 0.024
+  use 20261018-043127 T 0.980 w 0.902 HFD 4.46" smear 0.161
+  use 20261018-043158 T 0.981 w 0.931 HFD 4.52" smear 0.101
+  use 20261018-043229 T 0.997 w 0.926 HFD 4.17" smear 0.127
+  use 20261018-043300 T 0.973 w 0.833 HFD 4.80" smear 0.030
+  use 20261018-043402 T 0.997 w 0.986 HFD 4.68" smear 0.039
+  use 20261018-043433 T 0.996 w 0.899 HFD 4.12" smear 0.078
+  use 20261018-043535 T 1.003 w 0.962 HFD 4.05" smear 0.069
+  use 20261018-043606 T 0.985 w 0.884 HFD 4.09" smear 0.108
+  use 20261018-043637 T 1.011 w 0.927 HFD 3.99" smear 0.082
+  use 20261018-043708 T 1.001 w 0.908 HFD 4.34" smear 0.099
+  use 20261018-043739 T 1.002 w 0.937 HFD 4.63" smear 0.027
+  use 20261018-043810 T 1.020 w 1.018 HFD 4.58" smear 0.035
+  use 20261018-043842 T 0.991 w 0.872 HFD 4.40" smear 0.099
+  use 20261018-043913 T 0.988 w 0.873 HFD 4.43" smear 0.141
+  use 20261018-043944 T 0.993 w 0.904 HFD 4.47" smear 0.074
+  use 20261018-044015 T 0.985 w 0.867 HFD 4.37" smear 0.021
+  use 20261018-044046 T 0.976 w 0.895 HFD 4.14" smear 0.040
+  use 20261018-044250 T 1.009 w 0.984 HFD 4.59" smear 0.060
+  use 20261018-044321 T 0.996 w 0.950 HFD 4.73" smear 0.129
+  use 20261018-044352 T 0.975 w 0.855 HFD 4.89" smear 0.114
+  use 20261018-044423 T 0.977 w 0.938 HFD 4.53" smear 0.136
+  use 20261018-044454 T 1.016 w 1.003 HFD 4.34" smear 0.086
+  use 20261018-044525 T 1.004 w 0.970 HFD 4.24" smear 0.117
+  use 20261018-044556 T 0.984 w 0.917 HFD 4.41" smear 0.084
+  use 20261018-044627 T 0.983 w 0.901 HFD 3.93" smear 0.144
+  use 20261018-044658 T 1.010 w 0.960 HFD 4.61" smear 0.041
+  use 20261018-044729 T 0.998 w 0.926 HFD 4.30" smear 0.143
+  use 20261018-044801 T 0.996 w 0.948 HFD 4.36" smear 0.033
+  use 20261018-044934 T 0.994 w 0.948 HFD 4.33" smear 0.033
+  use 20261018-045005 T 1.001 w 0.936 HFD 4.40" smear 0.115
+  use 20261018-045036 T 0.996 w 0.971 HFD 4.70" smear 0.177
+  use 20261018-045107 T 1.033 w 0.994 HFD 4.50" smear 0.025
+  use 20261018-045138 T 0.972 w 0.881 HFD 4.09" smear 0.030
+  use 20261018-045209 T 0.985 w 0.875 HFD 4.05" smear 0.126
+  use 20261018-045240 T 1.016 w 0.977 HFD 4.53" smear 0.079
+  use 20261018-045311 T 0.993 w 0.910 HFD 4.32" smear 0.171
+  use 20261018-045342 T 0.988 w 0.898 HFD 4.14" smear 0.169
+  use 20261018-045413 T 1.011 w 0.987 HFD 4.10" smear 0.138
+  use 20261018-045444 T 1.004 w 0.893 HFD 3.99" smear 0.077
+  use 20261018-045515 T 1.010 w 0.945 HFD 4.23" smear 0.113
+  use 20261018-045546 T 1.006 w 0.932 HFD 4.17" smear 0.053
+  use 20261018-045617 T 1.034 w 1.070 HFD 4.13" smear 0.081
+  use 20261018-045648 T 1.018 w 0.980 HFD 4.07" smear 0.105
+  use 20261018-050214 T 1.005 w 0.935 HFD 4.15" smear 0.135
+  use 20261018-050307 T 1.012 w 0.983 HFD 4.34" smear 0.050
+  use 20261018-050400 T 1.005 w 0.939 HFD 4.40" smear 0.038
+  use 20261018-050449 T 1.002 w 0.924 HFD 4.19" smear 0.097
+  use 20261018-050551 T 1.013 w 0.906 HFD 4.04" smear 0.151
+  use 20261018-050622 T 1.029 w 0.970 HFD 4.41" smear 0.052
+  use 20261018-050653 T 0.997 w 0.912 HFD 4.24" smear 0.123
+  use 20261018-050743 T 0.991 w 0.897 HFD 4.10" smear 0.129
+  use 20261018-050814 T 0.997 w 0.935 HFD 4.41" smear 0.093
+  use 20261018-050845 T 0.998 w 0.929 HFD 4.20" smear 0.054
+  use 20261018-050938 T 1.002 w 0.890 HFD 4.43" smear 0.057
+  use 20261018-051009 T 1.019 w 0.950 HFD 4.44" smear 0.029
+  use 20261018-051040 T 1.021 w 1.004 HFD 4.21" smear 0.053
+  use 20261018-051126 T 1.027 w 0.985 HFD 4.46" smear 0.085
+  use 20261018-051157 T 0.998 w 0.912 HFD 4.41" smear 0.112
+  use 20261018-051228 T 1.012 w 0.961 HFD 4.27" smear 0.068
+  use 20261018-051333 T 1.008 w 0.938 HFD 4.22" smear 0.144
+  use 20261018-051404 T 1.006 w 0.888 HFD 4.13" smear 0.065
+  use 20261018-051526 T 0.992 w 0.960 HFD 4.09" smear 0.041
+  use 20261018-051557 T 0.998 w 0.944 HFD 4.23" smear 0.019
+  use 20261018-051648 T 1.003 w 0.942 HFD 4.33" smear 0.107
+  use 20261018-051720 T 1.030 w 0.994 HFD 4.33" smear 0.142
+  use 20261018-051751 T 0.993 w 0.924 HFD 4.06" smear 0.084
+  use 20261018-051844 T 1.021 w 0.986 HFD 3.84" smear 0.053
+  use 20261018-051915 T 1.019 w 0.997 HFD 4.55" smear 0.159
+  use 20261018-051946 T 1.012 w 0.951 HFD 3.89" smear 0.073
+  use 20261018-072609 T 1.041 w 0.948 HFD 4.35" smear 0.187
+  use 20261018-072640 T 1.048 w 0.990 HFD 4.16" smear 0.068
+  use 20261018-072800 T 1.047 w 1.016 HFD 4.52" smear 0.143
+  use 20261018-072831 T 1.029 w 1.003 HFD 3.89" smear 0.039
+  use 20261018-072920 T 1.049 w 0.993 HFD 4.29" smear 0.042
+  use 20261018-072951 T 1.051 w 1.011 HFD 4.63" smear 0.117
+  use 20261018-073022 T 1.030 w 1.002 HFD 4.22" smear 0.080
+  use 20261018-073145 T 1.046 w 1.072 HFD 4.27" smear 0.010
+  use 20261018-073216 T 1.034 w 1.018 HFD 4.35" smear 0.077
+  use 20261018-073310 T 1.049 w 1.029 HFD 4.55" smear 0.014
+  use 20261018-073341 T 1.037 w 1.049 HFD 4.27" smear 0.038
+  use 20261018-073412 T 1.031 w 1.022 HFD 4.50" smear 0.073
+  use 20261018-073506 T 1.044 w 1.041 HFD 4.12" smear 0.041
+  use 20261018-073537 T 1.049 w 1.047 HFD 4.00" smear 0.138
+  use 20261018-073701 T 1.040 w 1.019 HFD 4.26" smear 0.068
+  use 20261018-073732 T 1.029 w 1.045 HFD 4.00" smear 0.074
+  use 20261018-073803 T 1.054 w 1.132 HFD 4.31" smear 0.050
+  use 20261018-073858 T 1.037 w 1.086 HFD 3.68" smear 0.029
+  use 20261018-073930 T 1.051 w 1.069 HFD 3.82" smear 0.088
+  use 20261018-074001 T 1.065 w 1.113 HFD 3.99" smear 0.088
+  use 20261018-074052 T 1.013 w 1.022 HFD 4.03" smear 0.108
+  use 20261018-074124 T 1.010 w 1.015 HFD 3.96" smear 0.130
+  use 20261018-074155 T 1.036 w 1.063 HFD 4.02" smear 0.144
+  use 20261018-074248 T 1.056 w 1.136 HFD 4.08" smear 0.033
+  use 20261018-074319 T 1.039 w 1.103 HFD 4.13" smear 0.048
+  use 20261018-074350 T 1.046 w 1.073 HFD 4.53" smear 0.185
+  use 20261018-074444 T 1.040 w 1.073 HFD 4.08" smear 0.054
+  use 20261018-074515 T 1.044 w 1.062 HFD 3.95" smear 0.083
+  use 20261018-074546 T 1.051 w 1.088 HFD 3.73" smear 0.040
+  use 20261018-074633 T 1.033 w 1.052 HFD 4.34" smear 0.082
+  use 20261018-074704 T 1.039 w 1.120 HFD 4.12" smear 0.053
+  use 20261018-074902 T 1.063 w 1.118 HFD 3.87" smear 0.100
+  use 20261018-074933 T 1.030 w 1.091 HFD 3.70" smear 0.041
+  use 20261018-075027 T 1.029 w 1.057 HFD 4.26" smear 0.169
+  use 20261018-075058 T 1.050 w 1.116 HFD 4.06" smear 0.002
+  use 20261018-075129 T 1.039 w 1.089 HFD 4.23" smear 0.117
+  use 20261018-075219 T 1.035 w 1.066 HFD 4.48" smear 0.158
+  use 20261018-075250 T 1.034 w 1.091 HFD 4.24" smear 0.055
+  use 20261018-075415 T 1.065 w 1.163 HFD 3.62" smear 0.109
+  use 20261018-075446 T 1.040 w 1.104 HFD 3.65" smear 0.072
+  use 20261018-075517 T 1.030 w 1.062 HFD 3.64" smear 0.182
+  use 20261018-075604 T 1.052 w 1.103 HFD 4.39" smear 0.131
+  use 20261018-075707 T 1.036 w 1.112 HFD 4.24" smear 0.026
+  use 20261018-075759 T 1.035 w 1.045 HFD 3.93" smear 0.058
+  use 20261018-075901 T 1.053 w 1.133 HFD 3.92" smear 0.065
+  use 20261018-075948 T 1.050 w 1.128 HFD 3.53" smear 0.038
+  use 20261018-080019 T 1.052 w 1.087 HFD 3.80" smear 0.101
+  use 20261018-080050 T 1.058 w 1.072 HFD 3.80" smear 0.078
+  use 20261018-080143 T 1.069 w 1.138 HFD 4.17" smear 0.071
+  use 20261018-080214 T 1.024 w 1.097 HFD 4.46" smear 0.038
+  use 20261018-080245 T 1.049 w 1.089 HFD 4.11" smear 0.064
+  use 20261018-080337 T 1.058 w 1.073 HFD 3.87" smear 0.047
+  use 20261018-080408 T 1.061 w 1.133 HFD 4.03" smear 0.089
+  use 20261018-080439 T 1.072 w 1.180 HFD 3.95" smear 0.088
+  use 20261018-080558 T 1.039 w 1.075 HFD 4.01" smear 0.118
+  use 20261018-080630 T 1.051 w 1.045 HFD 4.84" smear 0.145
+  use 20261018-080720 T 1.059 w 1.167 HFD 5.04" smear 0.187
+  use 20261018-080752 T 1.058 w 1.184 HFD 4.17" smear 0.054
+  use 20261018-080823 T 1.049 w 1.074 HFD 4.19" smear 0.014
+  use 20261018-080946 T 1.040 w 1.064 HFD 3.73" smear 0.056
+  use 20261018-081017 T 1.057 w 1.135 HFD 4.00" smear 0.187
+  use 20261018-081108 T 1.040 w 1.098 HFD 4.14" smear 0.069
+  use 20261018-081139 T 1.035 w 1.055 HFD 4.27" smear 0.113
+  use 20261018-081210 T 1.049 w 1.112 HFD 4.28" smear 0.030
+  use 20261018-081304 T 1.070 w 1.157 HFD 4.21" smear 0.088
+  use 20261018-081335 T 1.043 w 1.097 HFD 3.83" smear 0.101
+  use 20261018-081406 T 1.036 w 1.100 HFD 3.95" smear 0.039
+  use 20261018-081500 T 1.060 w 1.073 HFD 3.91" smear 0.092
+  use 20261018-081531 T 1.062 w 1.129 HFD 3.83" smear 0.144
+  use 20261018-081602 T 1.049 w 1.093 HFD 3.76" smear 0.016
+  use 20261018-081652 T 1.057 w 1.081 HFD 4.23" smear 0.082
+  use 20261018-081723 T 1.046 w 1.083 HFD 3.96" smear 0.046
+  use 20261018-081754 T 1.056 w 1.113 HFD 4.18" smear 0.093
+  use 20261018-081904 T 1.076 w 1.199 HFD 4.66" smear 0.173
+  use 20261018-081935 T 1.060 w 1.116 HFD 3.85" smear 0.115
+  use 20261018-082022 T 1.056 w 1.110 HFD 4.19" smear 0.072
+  use 20261018-082053 T 1.052 w 1.096 HFD 3.95" smear 0.081
+  use 20261018-082124 T 1.065 w 1.131 HFD 4.53" smear 0.135
+  use 20261018-082215 T 1.048 w 1.096 HFD 4.33" smear 0.096
+  use 20261018-082247 T 1.058 w 1.142 HFD 4.06" smear 0.071
+  use 20261018-082318 T 1.050 w 1.141 HFD 4.12" smear 0.075
+  use 20261018-082406 T 1.071 w 1.144 HFD 3.91" smear 0.070
+  use 20261018-082437 T 1.062 w 1.068 HFD 4.30" smear 0.044
+  use 20261018-082508 T 1.053 w 1.152 HFD 3.76" smear 0.087
+  use 20261018-082558 T 1.055 w 1.094 HFD 4.08" smear 0.188
+  use 20261018-082629 T 1.044 w 1.099 HFD 3.96" smear 0.066
+  use 20261018-082700 T 1.050 w 1.080 HFD 4.93" smear 0.198
+  use 20261018-082751 T 1.043 w 1.094 HFD 3.90" smear 0.087
+  use 20261018-082822 T 1.044 w 1.082 HFD 4.36" smear 0.134
+  use 20261018-082853 T 1.055 w 1.135 HFD 3.93" smear 0.070
+  use 20261018-082943 T 1.058 w 1.097 HFD 4.56" smear 0.131
+  use 20261018-083014 T 1.026 w 1.067 HFD 3.87" smear 0.033
+  use 20261018-083045 T 1.049 w 1.113 HFD 3.89" smear 0.041
+  use 20261018-083137 T 1.045 w 1.105 HFD 4.48" smear 0.121
+  use 20261018-083209 T 1.033 w 1.111 HFD 4.45" smear 0.040
+  use 20261018-083240 T 1.039 w 1.120 HFD 4.28" smear 0.123
+  use 20261018-083335 T 1.067 w 1.188 HFD 4.17" smear 0.056
+  use 20261018-083406 T 1.073 w 1.178 HFD 4.05" smear 0.098
+  use 20261018-083437 T 1.068 w 1.162 HFD 3.91" smear 0.044
+  use 20261018-083530 T 1.025 w 1.076 HFD 3.92" smear 0.039
+  use 20261018-083601 T 1.045 w 1.092 HFD 4.06" smear 0.100
+  use 20261018-083632 T 1.041 w 1.058 HFD 4.47" smear 0.101
+  use 20261018-083720 T 1.062 w 1.173 HFD 4.45" smear 0.053
+  use 20261018-083751 T 1.062 w 1.153 HFD 4.28" smear 0.096
+  use 20261018-083822 T 1.057 w 1.173 HFD 4.51" smear 0.129
+  use 20261018-083913 T 1.068 w 1.148 HFD 4.64" smear 0.081
+  use 20261018-083944 T 1.072 w 1.151 HFD 4.11" smear 0.106
+  use 20261018-084015 T 1.050 w 1.101 HFD 3.93" smear 0.107
+  use 20261018-084106 T 1.047 w 1.091 HFD 4.07" smear 0.102
+  use 20261018-084137 T 1.028 w 1.042 HFD 4.38" smear 0.124
+  use 20261018-084208 T 1.062 w 1.161 HFD 4.41" smear 0.122
+  use 20261018-084259 T 1.081 w 1.229 HFD 4.83" smear 0.075
+  use 20261018-084330 T 1.070 w 1.123 HFD 4.08" smear 0.102
+  use 20261018-084401 T 1.056 w 1.110 HFD 4.64" smear 0.147
+  use 20261018-084450 T 1.066 w 1.129 HFD 4.10" smear 0.104
+  use 20261018-084521 T 1.061 w 1.070 HFD 3.76" smear 0.086
+  use 20261018-084552 T 1.046 w 1.090 HFD 4.12" smear 0.048
+  use 20261018-084645 T 1.033 w 1.115 HFD 4.45" smear 0.140
+  use 20261018-084716 T 1.041 w 1.136 HFD 4.70" smear 0.074
+  use 20261018-084747 T 1.045 w 1.127 HFD 4.25" smear 0.097
+  use 20261018-084839 T 1.069 w 1.146 HFD 4.41" smear 0.065
+  use 20261018-084910 T 1.083 w 1.199 HFD 4.05" smear 0.039
+  use 20261018-085043 T 1.052 w 1.096 HFD 4.34" smear 0.078
+  use 20261018-085114 T 1.033 w 1.119 HFD 3.96" smear 0.078
+  use 20261018-085145 T 1.046 w 1.118 HFD 4.60" smear 0.119
+  use 20261018-085240 T 1.070 w 1.194 HFD 4.65" smear 0.093
+  use 20261018-085311 T 1.080 w 1.203 HFD 4.48" smear 0.129
+  use 20261018-085429 T 1.042 w 1.089 HFD 3.76" smear 0.072
+  use 20261018-085501 T 1.031 w 1.050 HFD 3.50" smear 0.099
+  DROP 20261013-072140 13oct smeared: every star stretched the same way, common ellipticity 0.22 at -57 deg (limit 0.20); median elongation 1.38
+  DROP 20261013-072219 13oct stars 8.86 arcsec half-flux diameter, 144% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.79 at -53 deg (limit 0.20); median elongation 2.89
+  DROP 20261013-072300 13oct stars 6.56 arcsec half-flux diameter, 81% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.66 at -53 deg (limit 0.20); median elongation 2.16
+  DROP 20261013-072340 13oct stars 5.52 arcsec half-flux diameter, 52% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.47 at -48 deg (limit 0.20); median elongation 1.65
+  DROP 20261013-072420 13oct stars 7.85 arcsec half-flux diameter, 116% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.80 at -55 deg (limit 0.20); median elongation 2.89
+  DROP 20261013-072500 13oct stars 5.57 arcsec half-flux diameter, 54% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.58 at -50 deg (limit 0.20); median elongation 2.09
+  DROP 20261013-072541 13oct stars 6.40 arcsec half-flux diameter, 76% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.75 at -55 deg (limit 0.20); median elongation 2.68
+  DROP 20261013-072623 13oct stars 8.67 arcsec half-flux diameter, 139% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.88 at -53 deg (limit 0.20); median elongation 4.26; stars at 79% of their usual brightness in turn 13oct (limit 90%); registration rms 1.03 px
+  DROP 20261013-072704 13oct smeared: every star stretched the same way, common ellipticity 0.23 at -49 deg (limit 0.20); median elongation 1.29
+  DROP 20261013-072744 13oct stars 6.55 arcsec half-flux diameter, 81% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.60 at -58 deg (limit 0.20); median elongation 2.02
+  DROP 20261013-072823 13oct stars 4.79 arcsec half-flux diameter, 32% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.43 at -53 deg (limit 0.20); median elongation 1.69
+  DROP 20261013-072947 13oct stars 8.17 arcsec half-flux diameter, 125% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.75 at -53 deg (limit 0.20); median elongation 2.67
+  DROP 20261013-073107 13oct stars 7.18 arcsec half-flux diameter, 98% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.73 at -55 deg (limit 0.20); median elongation 2.67
+  DROP 20261013-073148 13oct stars 4.58 arcsec half-flux diameter, 26% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.36 at -56 deg (limit 0.20); median elongation 1.57
+  DROP 20261013-073308 13oct stars 5.85 arcsec half-flux diameter, 61% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.58 at -53 deg (limit 0.20); median elongation 2.00
+  DROP 20261013-073348 13oct stars 5.13 arcsec half-flux diameter, 42% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.48 at -51 deg (limit 0.20); median elongation 1.64
+  DROP 20261013-073429 13oct stars 8.97 arcsec half-flux diameter, 147% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.82 at -52 deg (limit 0.20); median elongation 3.10; stars at 89% of their usual brightness in turn 13oct (limit 90%)
+  DROP 20261013-073511 13oct stars 6.00 arcsec half-flux diameter, 65% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.57 at -53 deg (limit 0.20); median elongation 1.85
+  DROP 20261013-073629 13oct the first frame after the slew to the target (28 s after it): dropped by rule; it measured stars of 3.38 arcsec, smear 0.06, transparency 0.943
+  DROP 20261013-073710 13oct smeared: every star stretched the same way, common ellipticity 0.21 at -56 deg (limit 0.20); median elongation 1.41
+  DROP 20261013-073749 13oct smeared: every star stretched the same way, common ellipticity 0.24 at -42 deg (limit 0.20); median elongation 1.32
+  DROP 20261013-074026 13oct smeared: every star stretched the same way, common ellipticity 0.34 at -56 deg (limit 0.20); median elongation 1.46
+  DROP 20261013-074856 13oct stars 4.51 arcsec half-flux diameter, 24% wider than the median of that night's unsmeared frames, 3.63 (limit 20%)
+  DROP 20261013-074938 13oct stars 4.40 arcsec half-flux diameter, 21% wider than the median of that night's unsmeared frames, 3.63 (limit 20%)
+  DROP 20261013-075138 13oct stars 4.63 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 3.63 (limit 20%)
+  DROP 20261013-075217 13oct stars 4.40 arcsec half-flux diameter, 21% wider than the median of that night's unsmeared frames, 3.63 (limit 20%)
+  DROP 20261013-075256 13oct stars 4.65 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.25 at -26 deg (limit 0.20); median elongation 1.30
+  DROP 20261013-075336 13oct stars 5.11 arcsec half-flux diameter, 41% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.37 at -63 deg (limit 0.20); median elongation 1.46; taken 0 s after a move (limit 10 s); the first frame after the slew to the target (-1 s after it): dropped by rule; it measured stars of 5.11 arcsec, smear 0.37, transparency 0.896
+  DROP 20261013-075455 13oct stars 4.76 arcsec half-flux diameter, 31% wider than the median of that night's unsmeared frames, 3.63 (limit 20%)
+  DROP 20261013-075822 13oct stars 7.66 arcsec half-flux diameter, 111% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.57 at -56 deg (limit 0.20); median elongation 1.95; taken 0 s after a move (limit 10 s); the first frame after the slew to the target (-1 s after it): dropped by rule; it measured stars of 7.66 arcsec, smear 0.57, transparency 0.898
+  DROP 20261013-080139 13oct stars 8.12 arcsec half-flux diameter, 124% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.77 at -52 deg (limit 0.20); median elongation 2.71
+  DROP 20261013-080219 13oct stars 4.36 arcsec half-flux diameter, 20% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.29 at -59 deg (limit 0.20); median elongation 1.45
+  DROP 20261013-080300 13oct stars 7.83 arcsec half-flux diameter, 116% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.70 at -51 deg (limit 0.20); median elongation 2.40
+  DROP 20261013-080339 13oct stars 4.63 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.67 at -57 deg (limit 0.20); median elongation 2.81; stars at 46% of their usual brightness in turn 13oct (limit 90%)
+  DROP 20261013-080419 13oct stars 4.40 arcsec half-flux diameter, 21% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.31 at -58 deg (limit 0.20); median elongation 1.37; the first frame after the slew to the target (20 s after it): dropped by rule; it measured stars of 4.40 arcsec, smear 0.31, transparency 0.885
+  DROP 20261013-080518 13oct stars 6.28 arcsec half-flux diameter, 73% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.57 at -52 deg (limit 0.20); median elongation 1.89; taken 0 s after a move (limit 10 s); the first frame after the slew to the target (-1 s after it): dropped by rule; it measured stars of 6.28 arcsec, smear 0.57, transparency 0.901
+  DROP 20261013-080632 13oct stars 5.81 arcsec half-flux diameter, 60% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.51 at -59 deg (limit 0.20); median elongation 1.81; taken 0 s after a move (limit 10 s)
+  DROP 20261013-080948 13oct smeared: every star stretched the same way, common ellipticity 0.20 at 9 deg (limit 0.20); median elongation 1.41
+  DROP 20261013-081314 13oct smeared: every star stretched the same way, common ellipticity 0.31 at -53 deg (limit 0.20); median elongation 1.44
+  DROP 20261013-081432 13oct smeared: every star stretched the same way, common ellipticity 0.33 at -70 deg (limit 0.20); median elongation 1.64; stars at 68% of their usual brightness in turn 13oct (limit 90%)
+  DROP 20261013-081512 13oct the first frame after the slew to the target (11 s after it): dropped by rule; it measured stars of 3.69 arcsec, smear 0.08, transparency 0.912
+  DROP 20261013-081551 13oct smeared: every star stretched the same way, common ellipticity 0.57 at -60 deg (limit 0.20); median elongation 52139.98; stars at 36% of their usual brightness in turn 13oct (limit 90%)
+  DROP 20261013-081630 13oct the first frame after the slew to the target (17 s after it): dropped by rule; it measured stars of 3.61 arcsec, smear 0.09, transparency 0.910
+  DROP 20261013-081709 13oct stars 8.27 arcsec half-flux diameter, 128% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.75 at -51 deg (limit 0.20); median elongation 2.61; stars at 87% of their usual brightness in turn 13oct (limit 90%)
+  DROP 20261013-081749 13oct stars 4.64 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.27 at -64 deg (limit 0.20); median elongation 1.39
+  DROP 20261013-082019 13oct stars 4.66 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.41 at -48 deg (limit 0.20); median elongation 1.50; taken 0 s after a move (limit 10 s); the first frame after the slew to the target (-1 s after it): dropped by rule; it measured stars of 4.66 arcsec, smear 0.41, transparency 0.911
+  DROP 20261013-083356 13oct stars 4.49 arcsec half-flux diameter, 24% wider than the median of that night's unsmeared frames, 3.63 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.29 at -57 deg (limit 0.20); median elongation 1.43
+  DROP 20261018-042444 1a the first frame after the slew to the target (48 s after it): dropped by rule; it measured stars of 4.58 arcsec, smear 0.09, transparency 0.968
+  DROP 20261018-042852 1a smeared: every star stretched the same way, common ellipticity 0.22 at 69 deg (limit 0.20); median elongation 1.25
+  DROP 20261018-042954 1a stars 6.86 arcsec half-flux diameter, 62% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.62 at -63 deg (limit 0.20); median elongation 2.48; stars at 36% of their usual brightness in turn 1a (limit 90%); registration rms 1.60 px
+  DROP 20261018-043331 1a smeared: every star stretched the same way, common ellipticity 0.21 at -83 deg (limit 0.20); median elongation 1.25
+  DROP 20261018-043504 1a smeared: every star stretched the same way, common ellipticity 0.21 at -74 deg (limit 0.20); median elongation 1.46
+  DROP 20261018-044117 1a stars 5.40 arcsec half-flux diameter, 28% wider than the median of that night's unsmeared frames, 4.23 (limit 20%)
+  DROP 20261018-044148 1a smeared: every star stretched the same way, common ellipticity 0.22 at 85 deg (limit 0.20); median elongation 1.21
+  DROP 20261018-044219 1a smeared: every star stretched the same way, common ellipticity 0.23 at 62 deg (limit 0.20); median elongation 1.29
+  DROP 20261018-044832 1a stars 5.20 arcsec half-flux diameter, 23% wider than the median of that night's unsmeared frames, 4.23 (limit 20%)
+  DROP 20261018-044903 1a smeared: every star stretched the same way, common ellipticity 0.21 at -53 deg (limit 0.20); median elongation 1.23
+  DROP 20261018-050037 1b stars 5.29 arcsec half-flux diameter, 25% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.28 at 55 deg (limit 0.20); median elongation 1.33; the first frame after the slew to the target (46 s after it): dropped by rule; it measured stars of 5.29 arcsec, smear 0.28, transparency 0.907
+  DROP 20261018-050127 1b smeared: every star stretched the same way, common ellipticity 0.36 at -61 deg (limit 0.20); median elongation 36332.28; stars at 30% of their usual brightness in turn 1b (limit 90%); registration rms 1.16 px
+  DROP 20261018-051302 1b taken 2 s after a move (limit 10 s)
+  DROP 20261018-051455 1b smeared: every star stretched the same way, common ellipticity 0.22 at -59 deg (limit 0.20); median elongation 1.33
+  DROP 20261018-072538 2 the first frame after the slew to the target (50 s after it): dropped by rule; it measured stars of 4.39 arcsec, smear 0.10, transparency 1.052
+  DROP 20261018-072729 2 smeared: every star stretched the same way, common ellipticity 0.51 at -52 deg (limit 0.20); median elongation 1.85; stars at 65% of their usual brightness in turn 2 (limit 90%)
+  DROP 20261018-073114 2 stars 7.67 arcsec half-flux diameter, 81% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.64 at -60 deg (limit 0.20); median elongation 2.21
+  DROP 20261018-073608 2 stars 10.30 arcsec half-flux diameter, 144% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.86 at -55 deg (limit 0.20); median elongation 7.63; stars at 28% of their usual brightness in turn 2 (limit 90%); registration rms 1.98 px
+  DROP 20261018-074735 2 stars 5.44 arcsec half-flux diameter, 29% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.57 at -53 deg (limit 0.20); median elongation 1.84; stars at 87% of their usual brightness in turn 2 (limit 90%)
+  DROP 20261018-074831 2 smeared: every star stretched the same way, common ellipticity 0.48 at -51 deg (limit 0.20); median elongation 1.85; stars at 70% of their usual brightness in turn 2 (limit 90%)
+  DROP 20261018-075321 2 stars 6.55 arcsec half-flux diameter, 55% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.81 at -50 deg (limit 0.20); median elongation 3.44; stars at 49% of their usual brightness in turn 2 (limit 90%); registration rms 1.43 px
+  DROP 20261018-075636 2 stars 5.32 arcsec half-flux diameter, 26% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.60 at -57 deg (limit 0.20); median elongation 1.92; stars at 65% of their usual brightness in turn 2 (limit 90%)
+  DROP 20261018-075830 2 stars 6.27 arcsec half-flux diameter, 48% wider than the median of that night's unsmeared frames, 4.23 (limit 20%); smeared: every star stretched the same way, common ellipticity 0.52 at -48 deg (limit 0.20); median elongation 1.78; stars at 72% of their usual brightness in turn 2 (limit 90%)
+  DROP 20261018-080527 2 smeared: every star stretched the same way, common ellipticity 0.21 at 73 deg (limit 0.20); median elongation 1.27
+  DROP 20261018-080915 2 smeared: every star stretched the same way, common ellipticity 0.21 at -68 deg (limit 0.20); median elongation 1.34
+  DROP 20261018-081833 2 taken 7 s after a move (limit 10 s)
+  DROP 20261018-084942 2 smeared: every star stretched the same way, common ellipticity 0.26 at 5 deg (limit 0.20); median elongation 1.37
+  DROP 20261018-085342 2 smeared: every star stretched the same way, common ellipticity 0.21 at 45 deg (limit 0.20); median elongation 1.29
+turn 1a    used  53 dropped  10
+turn 1b    used  26 dropped   4
+turn 2     used 129 dropped  14
+turn 13oct used  59 dropped  47

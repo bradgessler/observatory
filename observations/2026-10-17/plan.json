@@ -1,0 +1,32 @@
+{
+ "targets": [
+  {
+   "slug": "dumbbell-nebula",
+   "title": "The Dumbbell Nebula",
+   "sub": "Messier 27, a dying star's shell of gas",
+   "what": "The glowing outer layers of a star like the Sun, thrown off as it ran out of fuel, 1,300 light-years away. Shot while the Triangulum Galaxy climbed out of the trees.",
+   "state": "published"
+  },
+  {
+   "slug": "triangulum-galaxy",
+   "title": "The Triangulum Galaxy",
+   "sub": "Messier 33, a spiral galaxy, going deeper",
+   "what": "A spiral galaxy 2.7 million light-years away, photographed on 13 October for 16 minutes. Tonight adds two and a half hours, in two turns either side of Saturn. The galaxy is wider than this telescope's view, so the pictures are of its bright middle and inner arms.",
+   "state": "published"
+  },
+  {
+   "slug": "saturn",
+   "title": "Saturn",
+   "sub": "The ringed planet, in Pisces",
+   "what": "A planet ten times as far from the Sun as the Earth, with rings of ice wider than the planet itself. Two hours of short pictures around its highest point in the sky, and only the sharpest moments kept.",
+   "state": "published"
+  },
+  {
+   "slug": "orion-nebula",
+   "title": "The Orion Nebula",
+   "sub": "Messier 42, where stars are being born",
+   "what": "A cloud of gas lit from inside by newborn stars, 1,300 light-years away and bright enough to see with the eye. Nearly three hours from when it clears the trees until dawn, plus short pictures for its bright core.",
+   "state": "published"
+  }
+ ]
+}

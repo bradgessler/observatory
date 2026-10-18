@@ -1,0 +1,59 @@
+"""Step 13: final/recipe.json, every number that shaped the picture, gathered from the steps' own JSON in work/."""
+import json, os, datetime, collections
+import numpy as np
+from common import *
+
+if __name__ == '__main__':
+    s1 = jload('step1.json'); s3 = jload('step3_transforms.json'); s5 = jload('step5_select.json'); s6 = jload('step6_solve_ref.json')
+    s7a = jload('step7a_flats.json'); s7 = jload('step7_dust.json'); s8 = jload('step8_stack.json'); s9 = jload('step9_solve.json'); s9d = jload('step9_deliver.json')
+    s11 = jload('step11_halves.json'); fin = json.load(open(os.path.join(FINAL, NAME + '.json')))
+    col = jload('step9b_colour.json') if os.path.exists(W('step9b_colour.json')) else None
+    turns = collections.OrderedDict((t, dict(taken=0, used=0, dropped={})) for t in ('1a', '1b', '2', '13oct'))
+    for f in s1['frames']: turns[f['turn']]['taken'] += 1
+    for u in s5['used']: turns[u['turn']]['used'] += 1
+    for r in s5['rejected']: turns[r['turn']]['dropped'][r['stamp']] = r['why']
+    N = len(s5['used']); nz = s8['noise_faint_region_dn']
+    g = lambda k: 0.5 * (nz[k][1] + nz[k][2])
+    tr = {o['stamp']: o for o in s3['transforms']}
+    nd = s7['nights']
+    summary = dict(
+        frames='%d frames of 15 s at ISO 3200 on M33 (by the RAW\'s own EXIF and each frame\'s own plate solve); %d used, %d dropped' % (len(s1['frames']), N, len(s5['rejected'])),
+        turns={t: dict(taken=v['taken'], used=v['used'], dropped=len(v['dropped'])) for t, v in turns.items()},
+        turn_notes={'1a': '18 Oct about 04:24 to 05:00 UTC, held still (not dithered); the field drifted about 2.5 arcmin', '1b': '18 Oct about 05:00 to 05:22 UTC, dithered (sunflower spiral up to 1.5 arcmin); the frame of 05:01 smeared by someone at the telescope is among the dropped',
+                    '2': '18 Oct about 07:25 to 08:55 UTC, after Saturn: dithered every 3 frames, small probe steps then up to 4 arcmin (a sensor-map bug chose 4; it widens the combined field, which is fine)', '13oct': '13 Oct 07:20 to 08:34 UTC, the frames of the 13 October M33 pipeline; until 08:19 that night the tracking let go now and then, so many are trailed'},
+        not_in_the_run=[l for l in s1['left_out']] + ['centring frames (2 s, ISO 6400), Saturn (1/60 s) and the frames of other targets lie outside the turns\' windows or fail the 15 s ISO 3200 test'],
+        integration_s=N * 15.0, integration='%d x 15 s = %.1f minutes (tonight %d frames = %.1f min; 13 October %d frames = %.1f min)' % (N, N * 0.25, N - turns['13oct']['used'], (N - turns['13oct']['used']) * 0.25, turns['13oct']['used'], turns['13oct']['used'] * 0.25),
+        star_size='half-flux diameter, green: %.2f arcsec in the stack (%d compact stars), %.2f in the reference frame alone; median of the unsmeared frames tonight %.2f, 13 October %.2f' % (s9d['star_size']['stack_arcsec'], s9d['star_size']['stack_stars'], s9d['star_size']['reference_frame_arcsec'], s5['hfd_night_median_arcsec']['18oct'], s5['hfd_night_median_arcsec']['13oct']),
+        registration='every frame\'s first guess from its own plate solve (all %d within %.0f sensor px of the star solution); rotation + shift on the stars, weighted rms at most %.2f px; the field turned %.1f degrees between the 13 October frames and tonight\'s turn 2' % (N, max(o.get('guess_error_at_centre_px', 0) for o in s3['transforms']), max(tr[u['stamp']]['wrms_px'] for u in s5['used']), max(o['rotation_deg'] for o in s3['transforms'] if not o.get('failed')) - min(o['rotation_deg'] for o in s3['transforms'] if not o.get('failed'))),
+        flat='the 13 October hybrid flat (%s: large scale from that night\'s open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), as tonight\'s M27 pipeline chose it (it scored best on M27\'s open sky); on this run\'s dithered sky (flatcheck.py, M33\'s bright middle masked) it left a smaller large-scale remainder than the twilight flat alone (G1 after a plane %.4f against %.4f, galaxy light included); M33 fills the frame, so no large scale was built or judged from these frames. Times each night\'s own dust measure (step 7)' % (FLAT_DIR, s7a['on_m33_sky'][0]['large']['G1']['robust_rms_after_plane'], s7a['on_m33_sky'][1]['large']['G1']['robust_rms_after_plane']),
+        dust=dict(tonight='%d shadows measured on tonight\'s own sky (each frame against the first stack put back on its sensor grid, so the galaxy cancels; seen in turn 1 and in turn 2 alone, where the field had turned 7 degrees and moved) and divided out, %.2f%% of the sensor; the crescent at sensor (3522, 848): %.1f%% deep with no flat, %.1f%% after the 13 October flat (new since then), %.1f%% after tonight\'s own correction' % (len(nd['18oct']['divided_out']), 100 * nd['18oct']['sensor_fraction_changed'], 100 * nd['18oct']['named_shadows'][0]['depth_in_own_sky_no_flat'], 100 * nd['18oct']['named_shadows'][0]['left_by_the_13oct_flat'], 100 * nd['18oct']['named_shadows'][0]['left_after_own_correction']),
+                  oct13='%d shallow shadows (1.5 to 3%% left by the flat) measured on 13 October\'s frames (odd and even halves; those frames were not dithered, so this is the weaker test) and divided out of those frames only; the crescent is not there (%.1f%%)' % (len(nd['13oct']['divided_out']), 100 * nd['13oct']['named_shadows'][0]['depth_in_own_sky_no_flat']),
+                  note='the first stack carries each shadow diluted over the frames\' places, so a shadow is read a little shallow; the deepest factor applied tonight %.3f' % nd['18oct']['deepest_factor']),
+        darks='none: darks.subtract changed nothing and said so; hot pixels found from the frames, one map per night, repaired by the 3 x 3 median of their colour plane',
+        combine='3-sigma clipped weighted mean (the template\'s control combine), weights (transparency / noise)^2. Not done, for the time limit: proper coaddition (the skill measured +1 to +4% point-source S/N from it on 15 s frames) and the air-dispersion shift',
+        sky='ONE constant per colour per frame: the clipped mean over the darkest 30% of the area every frame covers. M33 fills the field: the zero is the galaxy\'s faintest level there, not the true sky; no surface fitted',
+        noise='green per stack pixel in the faint region %.2f DN against %.2f for one frame (%.1f x lower); tonight\'s frames alone %.2f, 13 October\'s alone %.2f' % (g('mean'), g('single'), g('single') / g('mean'), g('tonight'), g('oct13')),
+        what_13_october_added='%d frames (%.1f min) on top of tonight\'s %d: noise in the faint region %.2f -> %.2f DN green (%.0f%% lower), and the outer field it covers; its stars were sharper (%.2f against %.2f arcsec)' % (turns['13oct']['used'], turns['13oct']['used'] * 0.25, N - turns['13oct']['used'], g('tonight'), g('mean'), 100 * (1 - g('mean') / g('tonight')), s5['hfd_night_median_arcsec']['13oct'], s5['hfd_night_median_arcsec']['18oct']),
+        coverage=dict(all_frames=s9['coverage']['all'], at_least_half=s9['coverage']['most (at least half)'], picture='%d x %d px = %.1f x %.1f arcmin, the largest upright rectangle where at least half the frames have data; inside it %.0f%% of pixels have every frame and %.0f%% at least three quarters; at the edges the coverage falls to %s of the frames' % (
+            s9['crop_on_canvas']['width'], s9['crop_on_canvas']['height'], *s9['coverage']['picture (at least 50%)']['rect_arcmin'], 100 * s9['fraction_inside_with_every_frame'], 100 * s9['fraction_inside_with_three_quarters'], ', '.join('%s %.0f%%' % (k, 100 * v['min_fraction']) for k, v in s9['picture_edges'].items()))),
+        is_it_the_thing='yes: the reference frame and the stack plate-solved (astrometry.net); M33\'s catalogue nucleus falls %.1f arcsec from the brightest point of the core in the stack' % s9['catalogue']['M33']['offset_arcsec'],
+        half_stacks='odd against even frames, green, stars removed (median), band-passed to arm and cluster scales: %d of %d tiles of 3 arcmin repeat above 5 x the spread of a turned null; at 14 to 18 arcmin from the nucleus %s. Tonight\'s frames against 13 October\'s (two nights, two dust corrections): %d of %d repeat. Every part of the disc in the picture, out to its corners, is in both halves' % (
+            s11['odd_vs_even']['passing'], s11['odd_vs_even']['tiles'], '; '.join('%d-%d arcmin %d/%d (median correlation %.2f)' % (*b['arcmin'], b['passing'], b['tiles'], b['median_corr']) for b in s11['odd_vs_even']['by_distance'] if b['arcmin'][0] >= 14), s11['tonight_vs_oct13']['passing'], s11['tonight_vs_oct13']['tiles']),
+        colour=('camera daylight white balance x Gaia DR3 star colours (kR %.4f, kB %.4f from %d stars), the camera\'s own colour matrix; colour only where the light carries it' % (col['factors']['R'], col['factors']['B'], col['used'])) if col else 'camera daylight white balance (Gaia calibration failed)',
+        picture='%d x %d px at the stack\'s own pixels (%.4f arcsec per px, %.1f x %.1f arcmin), never enlarged; north %.1f degrees clockwise from up' % (s9['crop_on_canvas']['width'], s9['crop_on_canvas']['height'], s9['pixscale_arcsec'], *s9['field_arcmin'], s9['north_angle_from_up_deg_clockwise']),
+        altitude='turn 1 about 46 to 57 degrees up, turn 2 76 to 83, 13 October 77 to 86 (sidecars); no clock time goes with it anywhere published')
+    rec = dict(target='Messier 33 (NGC 598), the Triangulum Galaxy', night='2026-10-17 (frames of 18 October UTC) with the frames of 13 October', made=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+               reproduce='hack/stacks/2026-10-17/m33/run_all.sh (hooks M33_*, see common.py); with none set it reproduces this run. RAWs read in place, never written',
+               template='hack/stacks/2026-10-17/m27 (and hack/stacks/2026-10-12/m33 for the object bigger than the frame)', tools=dict(note='deterministic array arithmetic only: averages, medians, measured fits, fixed curves and matrices. Nothing generative, learned or upscaled'),
+               files=dict(picture=[os.path.join(FINAL, NAME + e) for e in ('.png', '.jpg')], stack_tif=s9d['tif']['path']), summary=summary,
+               frames=[dict(stamp=f['stamp'], turn=f['turn'], file=f['name'], arw_sha256=f.get('arw_sha256'), since_slew_s=f.get('since_slew_s'), dither=f.get('dither'), pointing_from=f.get('pointing_from')) for f in s1['frames']],
+               dropped={t: v['dropped'] for t, v in turns.items()},
+               steps=[dict(step='1 frames and hot pixels', numbers=dict(hot=s1['hot'], hot_from=s1['hot_from'], left_out=s1['left_out'])),
+                      dict(step='3 registration', numbers=dict(reference=s3['reference'], rotation_sign=s3['rotation_sign'], transforms={o['stamp']: dict(R=o.get('R'), t=o.get('t'), rotation_deg=o.get('rotation_deg'), wrms_px=o.get('wrms_px'), first_guess=o.get('first_guess'), guess_error_at_centre_px=o.get('guess_error_at_centre_px')) for o in s3['transforms']})),
+                      dict(step='5 selection', numbers=s5), dict(step='6 is it the thing (reference frame plate solve)', numbers=s6),
+                      dict(step='7a flatcheck on the dithered sky', numbers={k: v for k, v in s7a.items() if k != 'frames'}), dict(step='7 canvas and dust', numbers={k: v for k, v in s7.items() if k not in ('fits', 'constants_pass1')}),
+                      dict(step='8 combine', numbers={k: v for k, v in s8.items() if k != 'frames'}), dict(step='9 coverage, plate solve of the stack, star colours, render', numbers=dict(solve=s9, deliver=s9d, colour=col)),
+                      dict(step='10 finish (finish16.py)', numbers=fin), dict(step='11 half stacks', numbers=s11)])
+    os.makedirs(FINAL, exist_ok=True)
+    json.dump(rec, open(os.path.join(FINAL, 'recipe.json'), 'w'), indent=1, default=float)
+    print(json.dumps(summary, indent=1, default=float))

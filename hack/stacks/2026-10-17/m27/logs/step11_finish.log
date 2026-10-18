@@ -1,0 +1,5 @@
+/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-crop: 1200 x 1000 from 2848 x 1878 at (701, 346)
+m27: black 82.7 white 255.0 gamma 1.00 curve 0.15 sat 1.20 | white-clipped 0.009% black-clipped 3.990%
+m27-field: black 82.5 white 255.0 gamma 1.00 curve 0.15 sat 1.20 | white-clipped 0.001% black-clipped 2.811%
+m27.png                      darkest  0-10%: R   1.0 G   1.0 B   1.0 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R   2.8 G   2.8 B   2.8 (R-G  +0.0, B-G  -0.0)
+m27-field.png                darkest  0-10%: R   1.5 G   1.5 B   1.5 (R-G  +0.0, B-G  -0.0) | darkest 10-40%: R   3.8 G   3.8 B   3.8 (R-G  +0.0, B-G  -0.0)

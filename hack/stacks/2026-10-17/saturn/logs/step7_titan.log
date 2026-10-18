@@ -1,0 +1,1 @@
+Titan in 25 frames: 18 sigma; found [-4, 1] fine px from where predicted; blur (green) 3.20 x 2.97 arcsec FWHM (+- 0.02), long axis 127 deg; red [np.float64(0.058), np.float64(0.918)], blue [np.float64(-0.154), np.float64(-0.618)] sensor px from green (planet: red [0.313, 0.363], blue [-0.519, -0.543])

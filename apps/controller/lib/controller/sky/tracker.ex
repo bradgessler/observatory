@@ -468,7 +468,9 @@ defmodule Controller.Sky.Tracker do
       cw: readout && readout[:cw],
       paused: entry.paused,
       since: entry.since,
-      target: entry.target
+      target: entry.target,
+      # where the hold is actually pointing: the target moved by centring's correction, or by a dither
+      aim: Map.take(entry.obj, [:name, :ra_deg, :dec_deg])
     }
 
     :ets.insert(@table, {id, status})

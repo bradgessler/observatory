@@ -27,6 +27,12 @@ plan =
   end)
 
 iso = String.to_integer(System.get_env("ISO") || "3200")
+# DITHER=1.5 moves the telescope round a disc of 1.5 arcminutes between pictures (DITHER_EVERY=1: before every
+# one), so the sensor's dust and hot pixels land on different sky and stacking averages them away
+# (`Controller.Sky.Dither`; 17 October: dust shadows up to 70 arcseconds). Only for exposures of 2 s and longer: a
+# planet's short frames are picked for sharpness and moving between them only costs time.
+dither = case System.get_env("DITHER") do nil -> nil; d -> elem(Float.parse(d), 0) end
+dither_every = String.to_integer(System.get_env("DITHER_EVERY") || "1")
 shutter = System.get_env("SHUTTER") || "15"
 skip_first = System.get_env("FIRST_SKIP_CENTRE") == "1"
 
@@ -106,7 +112,8 @@ runner = fn ->
     say.("#{name}: waiting for the hold to settle: #{inspect(steady.(steady, 0, 60))}")
     StillCamera.set(iso: iso, shutter: shutter)
     start = StillCamera.status().good
-    StillCamera.continuous(true)
+    exposure_s = case String.split(to_string(shutter), "/") do [a, b] -> String.to_integer(a) / String.to_integer(b); [a] -> elem(Float.parse(a), 0) end
+    StillCamera.continuous(true, 0, if(dither && exposure_s >= 2, do: [dither: dither, dither_every: dither_every], else: []))
     watch = fn watch ->
       s = StillCamera.status()
       done = s.good - start

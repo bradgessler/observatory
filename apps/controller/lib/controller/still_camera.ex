@@ -452,6 +452,9 @@ defmodule Controller.StillCamera do
        watching: MapSet.new(),
        # the run's options for each picture (`shoot/1`'s)
        shot_opts: [],
+       # a run's dither (`continuous/3`'s `dither:`): pictures since the last move, the next offset's
+       # number, the aim the run started from, a move under way, the offset now and the last move's result
+       dither: %{shots: 0, k: 0, base: nil, busy: false, at: nil, last: nil},
        # the mounts whose reports are followed, and when each was last seen slewing (monotonic ms)
        mounts: MapSet.new(),
        moved: %{},
@@ -469,6 +472,8 @@ defmodule Controller.StillCamera do
   @impl true
   def handle_call({:continuous, on?, interval, opts}, _from, s) do
     s = persist(%{s | continuous: on?, interval_ms: interval, shot_opts: opts, failures: 0, why: nil})
+    # a new run dithers round its own middle, from its first picture
+    s = if on?, do: %{s | dither: %{s.dither | shots: 0, k: 0, base: nil, at: nil}}, else: s
     s = if on? and s.task == nil and not s.armed, do: arm(s, 0), else: s
     {:reply, :ok, announce(s)}
   end
@@ -673,10 +678,21 @@ defmodule Controller.StillCamera do
         s = arm(%{s | clock_wait: s.clock_wait || now}, 2_000)
         {:noreply, if(s.why == why, do: s, else: announce(%{s | why: why}))}
 
+      # a dither move under way: it asks for the next picture when the hold has settled
+      s.dither.busy ->
+        {:noreply, s}
+
       true ->
         s = if is_binary(s.why) and (s.why =~ "waiting for network time" or s.why =~ "paused for an upgrade"), do: %{s | why: nil, paused_until: nil}, else: s
-        {:noreply, start_shot(s)}
+        {:noreply, next_or_dither(s)}
     end
+  end
+
+  # The dither move is done (or gave up, bounded): the run carries on from wherever the hold is.
+  def handle_info({:dithered, result}, s) do
+    unless result == :ok, do: Logger.warning("still camera: dither move #{inspect(result)}; carrying on")
+    s = %{s | dither: %{s.dither | busy: false, shots: 0, last: result}}
+    {:noreply, announce(if s.continuous and not s.armed, do: arm(s, 0), else: s)}
   end
 
   def handle_info({ref, result}, %{task: %Task{ref: ref}} = s) do
@@ -746,7 +762,30 @@ defmodule Controller.StillCamera do
     end)
   end
 
-  defp start_shot(s, opts \\ nil, solve \\ nil)
+  # The next picture of a run, or first a dither move: only with the camera free (no shutter open), only
+  # every `dither_every:` pictures (1), and only while a hold is running to move. `dither:` is the
+  # disc's radius in arcminutes; it should be bigger than the dust on the sensor (`Controller.Sky.Dither`).
+  defp next_or_dither(s) do
+    radius = s.shot_opts[:dither]
+    every = s.shot_opts[:dither_every] || 1
+    mount = s.shot_opts[:mount] || mount_id()
+    hold = is_number(radius) and radius > 0 and s.task == nil and s.dither.shots >= every and mount && Controller.Sky.Tracker.status(mount)
+    base = s.dither.base || (is_map(hold) && hold[:aim])
+
+    if is_map(hold) and is_map(base) and is_number(base[:ra_deg]) do
+      k = s.dither.k
+      {east, north} = offset = Controller.Sky.Dither.offset(k, radius)
+      me = self()
+      Task.Supervisor.start_child(Controller.StillCamera.Tasks, fn -> send(me, {:dithered, Controller.Sky.Dither.step(mount, base, offset)}) end)
+      at = %{k: k, east_arcmin: Float.round(east, 2), north_arcmin: Float.round(north, 2), radius_arcmin: radius}
+      announce(%{s | dither: %{s.dither | busy: true, k: k + 1, base: base, at: at}})
+    else
+      started = start_shot(s, if(s.dither.at, do: Keyword.put(s.shot_opts, :dither_at, s.dither.at)))
+      if started.task != s.task, do: %{started | dither: %{started.dither | shots: started.dither.shots + 1}}, else: started
+    end
+  end
+
+  defp start_shot(s, opts, solve \\ nil)
 
   defp start_shot(%{task: nil, camera: %{id: id, state: :ready}} = s, opts, solve) do
     if is_integer(s.free) and s.free < floor_bytes() + pair_bytes(s) do
@@ -864,7 +903,8 @@ defmodule Controller.StillCamera do
             calibration: mount_id && safe(fn -> LockOn.calibration(mount_id) end),
             measured: measured,
             plate: plate,
-            frame: ctx.opts[:frame]
+            frame: ctx.opts[:frame],
+            dither: ctx.opts[:dither_at]
           }
           |> Sidecar.build()
           |> then(&Sidecar.write(night, base, &1))
@@ -1298,6 +1338,8 @@ defmodule Controller.StillCamera do
       good: s.good,
       why: s.why,
       solving: s.solving,
+      # the run's dither: the offset pictures are being taken at now, the last move's result, a move under way
+      dither: Map.take(s.dither, [:at, :last, :busy]),
       solve: s.solve && Map.take(s.solve, [:seq, :mount, :n, :state, :reason, :solution, :residual_arcmin]),
       free_mb: if(is_integer(s.free), do: div(s.free, 1_000_000)),
       # the card in numbers: `%{total_mb, pictures, pictures_mb}` (how big it is, and what of it is pictures)

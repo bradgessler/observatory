@@ -119,6 +119,9 @@ defmodule Controller.StillCamera.Sidecar do
       # "dark" (the cap on, the light's own exposure and ISO) or "flat" (an evenly lit sky). The stacking
       # tools find calibration frames by this (`stack-pictures/tools/darks.py`)
       frame: shot[:frame] && %{type: to_string(shot[:frame])},
+      # where in the run's dither the picture was taken: `%{k, east_arcmin, north_arcmin, radius_arcmin}`
+      # from the run's middle (`Controller.Sky.Dither`); nil when the run held still
+      dither: shot[:dither],
       time: %{
         shutter_pressed: pressed,
         exposure_end: ended,

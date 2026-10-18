@@ -164,6 +164,9 @@ defmodule Mix.Tasks.Site.Build do
       title: meta["title"] || slug,
       summary: meta["summary"] || "",
       date: parse_date(meta["date"], slug),
+      # `kind: note`: a technical note, written as a problem turns up (the software, the hardware), listed on its
+      # own under the posts; anything else is a post
+      kind: if(meta["kind"] == "note", do: :note, else: :post),
       hero: hero,
       hero_alt: hero_alt,
       html: body |> render() |> from_root()
@@ -266,6 +269,21 @@ defmodule Mix.Tasks.Site.Build do
       card: card
     }
 
+    {notes, posts} = Enum.split_with(posts, &(&1.kind == :note))
+
+    notes_list =
+      if notes != [] do
+        rows =
+          # the newest few, above the posts: they are what happened lately
+          Enum.map_join(Enum.take(notes, 5), "\n", fn p ->
+            ~s(<li><a href="#{p.slug}.html"><span class="note-title">#{esc(p.title)}</span><time datetime="#{p.date}">#{pretty(p.date)}</time><span class="note-summary">#{esc(p.summary)}</span></a></li>)
+          end)
+
+        ~s(<section class="notes"><h2>Technical notes</h2><p class="lede">The problems we ran into with the software and the hardware, written up as they happened.</p><ul class="notes">#{rows}</ul></section>)
+      else
+        ""
+      end
+
     items =
       Enum.map_join(posts, "\n", fn p ->
         """
@@ -290,6 +308,7 @@ defmodule Mix.Tasks.Site.Build do
       <p class="lede"><a href="https://github.com/bradgessler/observatory">Source on GitHub</a></p>
     </header>
     #{latest_night(sessions)}
+    #{notes_list}
     <ul class="posts">#{items}</ul>
     """, "wide")
   end
@@ -330,6 +349,7 @@ defmodule Mix.Tasks.Site.Build do
     <template id="ogplus">#{share.card}</template>
     <p class="back"><a href="index.html">‹ Observatory</a></p>
     <article>
+      #{if post.kind == :note, do: ~s(<p class="kind">Technical note</p>)}
       <h1>#{esc(post.title)}</h1>
       <time datetime="#{post.date}">#{pretty(post.date)}</time>
       #{post.html}
@@ -944,6 +964,12 @@ defmodule Mix.Tasks.Site.Build do
     time { color: var(--dim); font-size: .9rem; }
     .lede { color: var(--dim); }
     .back a { color: var(--dim); text-decoration: none; }
+    section.notes { margin-top:3rem; }
+    ul.notes { list-style:none; padding:0; margin:1.5rem 0 0; display:grid; gap:1.25rem; max-width:46rem; }
+    ul.notes a { display:grid; gap:.25rem; text-decoration:none; color:inherit; }
+    ul.notes .note-title { font-weight:600; text-decoration:underline; text-underline-offset:.2em; }
+    ul.notes time, p.kind { font-size:.875rem; opacity:.75; }
+    p.kind { margin:0 0 .25rem; text-transform:uppercase; letter-spacing:.06em; }
     ul.posts { list-style:none; padding:0; display:grid; gap:1.75rem; margin-top:2.5rem; grid-template-columns:repeat(auto-fit,minmax(20rem,1fr)); }
     .card { background:var(--panel); border-radius:16px; overflow:hidden; transition:transform .12s ease; }
     .card:hover { transform:translateY(-2px); }

@@ -1,7 +1,7 @@
 ---
 title: "Night of 17 October 2026"
 date: 2026-10-17
-summary: "Three targets and as long as the night allows on each: Saturn, the Triangulum Galaxy, and the Orion Nebula."
+summary: "Four targets and as long as the night allows on each: the Dumbbell Nebula, the Triangulum Galaxy, Saturn, and the Orion Nebula."
 Location: San Francisco Bay Area. A driveway at home, with trees on most sides
 Telescope: Celestron 8SE Schmidt-Cassegrain. 203 mm aperture, about 2,085 mm focal length by plate solve, f/10.3
 Camera: Sony a6000, stock, at prime focus. APS-C 23.5 x 15.6 mm, 6000 x 4000, 3.9 micron pixels, RAW
@@ -11,6 +11,8 @@ Computer: Raspberry Pi 3 running Observatory, in Elixir
 Processing: Stacked from the RAW frames with numpy, OpenCV and rawpy, calibrated with the night's own darks, a flat from the night's sky and the dawn's dust, and star colours from the Gaia catalogue. Plate solving by astrometry.net. Nothing generated
 ---
 
-Last week the telescope worked through eleven targets in a night and got a few minutes of light on each. Tonight it goes the other way: three targets, hours on each, and a camera that starts its next picture while the last one is still being saved.
+Last week the telescope worked through eleven targets in a night and got a few minutes of light on each. Tonight it goes the other way: a few targets, hours on each, and a camera that starts its next picture while the last one is still being saved.
 
-This page went up with the plan before the first picture, and it fills in as the night goes.
+The night started late. The focus was off, which nothing in software can fix, so the first hour went to setting the telescope up on Vega and reading star sizes off each picture while I turned the focus knob, from 12 arcseconds down to 5. Then the Triangulum Galaxy was still behind a tree, so the telescope went to the Dumbbell Nebula, high overhead, until the galaxy climbed clear.
+
+This page fills in as the night goes. The problems we ran into along the way are written up as technical notes.

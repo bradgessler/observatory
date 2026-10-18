@@ -1,0 +1,8 @@
+R  long = 63.281 (+-0.225) x short -12.7   [2409 px, scatter 7.6 DN]  bins: ['800..1500: 63.27 (2223 px)', '1500..3000: 63.22 (186 px)']
+G1 long = 62.596 (+-0.036) x short +1.9   [10802 px, scatter 10.7 DN]  bins: ['800..1500: 62.69 (5264 px)', '1500..3000: 62.51 (4332 px)', '3000..6000: 62.70 (1206 px)']
+G2 long = 62.674 (+-0.037) x short +5.0   [10880 px, scatter 11.1 DN]  bins: ['800..1500: 62.78 (5298 px)', '1500..3000: 62.59 (4347 px)', '3000..6000: 62.75 (1235 px)']
+B  long = 62.655 (+-0.052) x short -4.5   [9381 px, scatter 12.5 DN]  bins: ['800..1500: 62.76 (4452 px)', '1500..3000: 62.62 (4255 px)', '3000..6000: 62.70 (674 px)']
+nebula: factor applied to all planes 62.645 (expected 60: measured / expected = 1.0441); offsets b [-2.4, 1.2, 6.4, -3.4]
+stars: long / short aperture flux, 66 unclipped stars: median 65.17 (spread 1.94, error of the median 0.30; brighter half 64.98, fainter half 66.07) against 60 expected and 62.65 from the nebula
+star width: peak(short x a, blurred) / peak(long) by blur sigma {0.0: np.float64(0.728), 0.2: np.float64(0.728), 0.4: np.float64(0.714), 0.6: np.float64(0.683), 0.8: np.float64(0.654), 1.0: np.float64(0.624), 1.2: np.float64(0.595), 1.4: np.float64(0.566), 1.6: np.float64(0.535), 1.8: np.float64(0.503), 2.0: np.float64(0.472)} over 27 stars -> blur 0.00 px
+blend: short stack used at 10517 px (1.76 arcmin^2), fully at 5350; 751 px where even the short frames came near the ceiling (shown white)

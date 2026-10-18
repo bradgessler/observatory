@@ -67,6 +67,12 @@ def peak(img, near, radius, blur):
     x0, y0 = max(int(near[0] - radius), 0), max(int(near[1] - radius), 0); t = g[y0:y0 + 2 * radius, x0:x0 + 2 * radius]
     y, x = np.unravel_index(np.argmax(t), t.shape); return (x0 + x, y0 + y)
 
+def dark(img, near, radius, blur):
+    """The darkest spot near a place (for a dark lane or bay), the mirror of peak()."""
+    g = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.float32), (0, 0), blur)
+    x0, y0 = max(int(near[0] - radius), 0), max(int(near[1] - radius), 0); t = g[y0:y0 + 2 * radius, x0:x0 + 2 * radius]
+    y, x = np.unravel_index(np.argmin(t), t.shape); return (x0 + x, y0 + y)
+
 def targets():
     T = {}
 
@@ -298,6 +304,74 @@ def targets():
               ("COMPARED", "Not as sharp as 4 October: Titan's blur %.1f x %.1f arcsec against 2.7 x 2.2 then, and by the same measures the plain stack's gap contrast %.2f against 0.32 and the ring's width %.1f against 3.8 arcsec" % (ti["fwhm_arcsec"][0], ti["fwhm_arcsec"][1], sel["counts_compared"][[c["keep"] for c in sel["counts_compared"]].index(K)]["gap_contrast"], sel["counts_compared"][[c["keep"] for c in sel["counts_compared"]].index(K)]["ansa_width_fwhm_arcsec"])),
               ("TELESCOPE", "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, 2,084 mm focal length by plate solve, f/10.3"), CAMERA,
               ("MOUNT", "Sky-Watcher EQ6-R, unguided, not dithered")])
+
+    # -- the Orion Nebula, Messier 42 (m42/final/m42.png, m42/final/m42.json, m42/final/recipe.json) --------------------
+    # The entry is m42/step12_annotate.py's: title, sub, what, facts, bar, labels and how_sub word for word, as on
+    # m42/share/m42-annotated.jpg (the corrected card, every label box inside the picture; render() checks that here too).
+    # Its notes: distance about 1,350 ly (414 pc, Menten 2007; Gaia and VLBA 390 to 410 pc), a soft number. Spans
+    # 1350 x 36.51 x 2.909e-4 = 14 ly. One pixel 1350 x 0.7768 x 4.848e-6 = 0.00508 ly = 321 Earth-Sun distances. Light
+    # left about the year 680. Bar: 5 ly = 5 / (1350 x 2.909e-4) = 12.73 arcmin.
+    # Label places: step 12's catalogue places (J2000) through the stack's own plate solution
+    # (~/.observatory/nights/2026-10-17-a6000/m42/work/solve/stack.wcs, wcs-rd2xy, minus 1 for 0-based px), written out
+    # here so the entry does not need the work folder:
+    #   theta1 Orionis C (83.818583, -5.389694) -> (1102.756, 1043.903), then peak() 10 px: the Trapezium
+    #   NU Orionis, the star in M43 (83.880667, -5.267389) -> (468.454, 1017.944), then peak() 12 px
+    #   the fish's mouth (83.8460, -5.3600) -> (920.987, 1087.349): NOT a catalogue object; the dark bay's known
+    #       position (about 05 35 23, -05 21 36), then dark() finds the darkest point within 25 px. Said so in a spec row.
+    #   the Orion Bar (83.828391, -5.419195) -> (1200.000, 1150.000): a point on the ridge as the picture shows it
+    # The photographers' rows, from m42/final/recipe.json:
+    #   long frames: 193 (192 in the run and the one before the firmware flash), 165 kept. Dropped, by each frame's own
+    #       reasons ("dropped"): 21 smeared (8 of them also with stars over 20 percent wide, 1 also dimmed), 4 soft only,
+    #       2 dimmed only (71 and 87 percent), and the pre-flash frame as the first after the slew. (summary.dropped_why
+    #       counts tests, 25 smeared, 12 wide, 5 dimmed, ...: it does not add up to 28 frames, so the rows use "dropped".)
+    #   short frames: 48 read, 44 kept: 2 smeared, 1 soft, 1 taken 2 s after a move; a 49th has a sidecar and no RAW
+    #   dither: every 3 frames (62 places for the long frames, 16 for the short), spiral radius 1 then 1.5 arcmin,
+    #       largest offset 1.49 arcmin
+    #   join: short replaces long where any long frame came within 7 percent of the ceiling, 1.76 arcmin2, 751 px white;
+    #       ratio 62.645 measured on the nebula (R 63.28, G1 62.60, G2 62.67, B 62.66; steady across the brightness
+    #       bins) against 60 expected (30 s x 1600 / 2 s x 400), stars 65.17 (66 stars, error of the median 0.30)
+    #   coadd against the control: point-source S/N x 1.0233 (G1), 1.0146 (G2); PSF 8.22 against 8.27 px
+    #   noise: 3.01 DN from the half difference, 12.9 x under one frame (sqrt(165) = 12.8)
+    #   stars 6.41 arcsec half-flux in the joined stack (52 stars), 6.46 the reference frame; long 6.19, short 6.50
+    #   halves: 76 of 76 tiles, faintest third 26 of 26; 18 to 30 arcmin from the Trapezium 14 of 14, median correlation 0.78
+    #   altitude: 30 to 47 degrees (sidecars): "30 to 50 degrees up"; before dawn
+    orec = stack("m42"); ofin = finish("m42", "m42"); osm = orec["summary"]
+    o9 = step(orec, "9 coverage, plate solve of the stack, star colours, render")["numbers"]
+    OS = o9["solve"]["pixscale_arcsec"]; OFL = o9["solve"]["focal_length_mm"]; ONORTH = o9["solve"]["north_angle_from_up_deg_clockwise"]; fw, fh = o9["solve"]["field_arcmin"]
+    D = 1350.0; span_ly = span(D, fw)
+    ou = osm["turns"]; nL = ou["long"]["used"]; nS = ou["short"]["used"]; oj = osm["join"]; cvc = osm["combine"]["coadd_vs_control"]
+    oh = step(orec, "11 half stacks")["numbers"]["odd_vs_even"]; far = [b for b in oh["by_distance"] if b["arcmin"] == [18, 30]][0]
+    OP = dict(trapezium=(1102.756, 1043.903), m43=(468.454, 1017.944), mouth=(920.987, 1087.349), bar=(1200.000, 1150.000))
+    T["orion-nebula"] = dict(src="m42/final/m42.png", scale=OS, north=-ONORTH, title="The Orion Nebula", sub="Messier 42 and Messier 43, a star nursery in the sword of Orion",
+        what="The nearest big nursery of stars to us: a cloud of gas and dust lit from inside by the young, hot stars of the Trapezium, which formed out of it in the last million years or so. Their light carves the cloud into ridges and bays; the dark lanes are dust in front of the glowing gas. The smaller round nebula beside it, Messier 43, is the same cloud lit by one star.",
+        facts=[("DISTANCE", "about 1,350 light-years (measurements run 1,270 to 1,400)"),
+               ("THIS PICTURE SPANS", "about %d light-years; one pixel is about 320 times the distance from the Earth to the Sun" % int(round(span_ly))),
+               ("THE LIGHT LEFT", "about 1,350 years ago, around the year 680"),
+               ("HONEST NOTE", "the middle is far too bright for the long frames, so it comes from %d frames of 2 seconds; the glow fills the whole frame, so the darkest part is still nebula, not empty sky" % nS)],
+        bar=(bar(5, D, OS), "5 light-years"), frames="%d frames of 30 s and %d of 2 s, from one night" % (nL, nS),
+        labels=lambda im: [(peak(im, OP["trapezium"], 10, 1.5), "The Trapezium, the young stars that light it", 9, -9),
+                           (peak(im, OP["m43"], 12, 2.0), "Messier 43", 0, -9),
+                           (dark(im, OP["mouth"], 25, 6.0), "The fish's mouth, dust in front", -3, 11),
+                           (OP["bar"], "The bright bar, the cloud's lit edge", 10, 9)],
+        how_sub="%.0f minutes of 30 s frames for the nebula and %d frames of 2 s for its bright middle" % (nL * 0.5, nS),
+        tech=[("EXPOSURES", "%d x 30 s at ISO 1600: %.1f minutes; and %d x 2 s at ISO 400, %d s, for the bright middle" % (nL, nL * 0.5, nS, nS * 2)),
+              ("FRAMES", "%d taken, %d kept. Long: %d of %d; short: %d of %d (a 49th left a sidecar but no RAW on disk). Long frames dropped: 21 smeared (every star stretched the same way; 8 of them also with wide stars), 4 with soft stars, 2 dimmed by haze, and the one frame taken before a firmware flash, as the first after the slew. Short: 2 smeared, 1 soft, 1 taken 2 s after a move" % (sum(v["taken"] for v in ou.values()), nL + nS, nL, ou["long"]["taken"] + ou["pre"]["taken"], nS, ou["short"]["taken"])),
+              ("DITHERING", "Every 3 frames, the long and the short alike: a spiral of steps up to 1.5 arcmin from the start (the first steps up to 1)"),
+              ("SAMPLING", "%.3f arcsec per pixel: one pixel per 2 x 2 colour cell, never enlarged. Stars 6.41 arcsec wide (half-flux) in the joined stack, 6.46 in the reference frame; the long frames' median 6.19, the short 6.50" % OS),
+              ("FIELD", "%.1f x %.1f arcmin: the largest upright rectangle where at least half the long frames have data; inside it 65 percent of the pixels have every long frame and 86 percent at least three quarters. Not turned (north 61 degrees anticlockwise of up)" % (fw, fh)),
+              ("WHEN", "The night of 17 October 2026, before dawn. 30 to 50 degrees up"),
+              ("REGISTRATION", "Each frame placed first by its own plate solve, then rotation and shift on the stars onto one long frame, the short frames too; weighted rms at most 0.64 px for the long frames, 1.62 for the short. The field turned 5.4 degrees over the run. The air's prism: red sat 0.36, 0.51 and blue -0.61, -0.76 sensor px from green, measured and taken out in the one resampling"),
+              ("DARKS", "None taken. Hot pixels found from the frames themselves, one map for the long frames and one for the short, repaired by the 3 x 3 median of their colour plane"),
+              ("FLATS", "No flat frames. The hybrid flat of 13 October (large scale from that night's open sky, dust from its twilight frames), as the Dumbbell Nebula and the Triangulum Galaxy used tonight. Its large scale cannot be judged on this run: the nebula's glow is in every frame. The short frames get the same flat"),
+              ("CALIBRATION", "Dust that moved since 13 October, measured on this run's own dithered long frames (each frame against the first stack put back on its sensor grid, so the nebula cancels; each shadow seen in the first and the second half of the run alone) and divided out: %d shadows, 0.96 percent of the sensor. Among them the new crescent, %.1f percent deep after the 13 October flat, left at %.1f percent. Nothing judged within 5 arcmin of the Trapezium, where the nebula is too bright and structured" % (len(step(orec, "7 canvas and dust")["numbers"]["nights"]["long"]["divided_out"]), 100 * step(orec, "7 canvas and dust")["numbers"]["nights"]["long"]["named_shadows"][0]["left_by_the_13oct_flat"], 100 * step(orec, "7 canvas and dust")["numbers"]["nights"]["long"]["named_shadows"][0]["left_after_own_correction"])),
+              ("HIGH DYNAMIC RANGE", "The 2 s stack replaces the 30 s one wherever any 30 s frame came within 7 percent of clipping, in any colour: %.2f square arcmin round the Trapezium, grown one colour cell, with a smooth ramp in brightness so there is no step. %d pixels are white, where even the 2 s frames clipped. The scale between the two is measured, not assumed: %.2f on the nebula (each colour 62.6 to 63.3, the same at every brightness) against the %.0f the exposures and ISOs give, and %.1f on %d stars. Neither difference is explained: the camera's ISO or shutter not being exactly nominal is a guess, not checked. The join uses the measured %.2f" % (oj["area_from_the_short_stack_arcmin2"], oj["white_px"], oj["nebula_factor"], oj["expected_ratio"], oj["stars"]["median_ratio"], oj["stars"]["n"], oj["nebula_factor"])),
+              ("STACKING", "RAW colour planes (no demosaic), hot pixels by 3 x 3 median, registered on stars with rotation. The long frames by proper coaddition (Zackay and Ofek: each frame weighted by its own measured blur and noise); the old 3-sigma clipped weighted mean made beside it from the same frames gives %.1f to %.1f percent less point-source signal to noise and stars 0.5 percent wider: nothing a viewer can see. Noise 12.9 times under one frame, as the square root of %d says. The short frames by the 3-sigma clipped weighted mean. One constant per colour per frame, set on the darkest 30 percent of the area every long frame covers: the faintest nebula, not the true sky" % (100 * (cvc["G2"]["point_source_snr_ratio"] - 1), 100 * (cvc["G1"]["point_source_snr_ratio"] - 1), nL)),
+              ("WHAT IS REAL", "The nebula's loops repeat in the odd and the even 30 s frames, each stacked alone: %d of %d tiles of 3 arcmin, and %d of the %d faintest; %d of %d at 18 to 30 arcmin from the Trapezium. The faint outer loops are real. Tiles touching the joined middle are left out" % (oh["passing"], oh["tiles"], oh["faintest_third"]["passing"], oh["faintest_third"]["tiles"], far["passing"], far["tiles"])),
+              ("HONEST LIMITS", "The test compares structure at the scale of loops and ridges, not smooth glow, and with the nebula filling the frame there is no blank sky to say how far the faintest light stands above the true sky. The fish's mouth is named from the bay's known position, not a catalogue entry, then put on the darkest point near it"),
+              ("COLOUR", "The camera's colour matrix with its white balance set by %d Gaia stars in the field (red x %.2f, blue x %.2f). Colour only where the light carries it; where even the 2 s frames came near clipping, white" % (o9["colour"]["used"], o9["colour"]["factors"]["R"], o9["colour"]["factors"]["B"])),
+              ("FINISH", "Star colours from Gaia, the camera's colour matrix. Arcsinh stretch (soft 12 DN, white 250,000 DN: one curve from the faint loops to the core); black at the faintest part's own level, S-curve 0.25, saturation x 1.2; the dark parts smoothed (bilateral 3 px). %.1f percent of the picture is exactly black" % ofin["clipped_to_black_pct"]),
+              optics(OFL), CAMERA,
+              ("MOUNT", "Sky-Watcher EQ6-R, unguided. Set down about 10 degrees off the pole; aligned from four plate-solved photos, both axes driven from that model. Dithered every three frames")])
     return T
 
 def sent(text): return text[:1].upper() + text[1:]
@@ -360,12 +434,23 @@ def render(name, t, kind, caption=True):
             L = math.hypot(dx, dy) * u; g0 = min((t.get("gap", 0.9) if gap is None else gap) * u, L * 0.25)   # how far short of the thing a leader stops
             p0 = (pt[0] + dx * u * g0 / L, pt[1] + dy * u * g0 / L); p1 = (ax, ay)
             d.line([p0, p1], fill=(0, 0, 0, 120), width=lw + 2); d.line([p0, p1], fill=(238, 238, 234, 240), width=lw)
-        if text: words(tx, ty, text)                              # no words: a second leader to the label before it
+        if text:
+            words(tx, ty, text)                                   # no words: a second leader to the label before it
+            boxes.append((text, (tx - 0.45 * u, ty - 0.1 * u, tx + tw + 0.45 * u, ty + th + 0.1 * u)))
+    boxes = []
     own = kind == "story" and "draw" in t                         # an entry that draws its own labels, bar and north (Saturn, as its own card)
     if own: t["draw"](d, ox)
     elif kind == "story":
         for pt, text, dx, dy, *gap in t["labels"](rgb):           # a label may carry its own gap as a fifth value
             if 0 <= pt[0] < W and 0 <= pt[1] < H: label(pt, text, dx, dy, leader=text not in t.get("plain", ()), gap=gap[0] if gap else None)
+        # every label's box must sit wholly inside the picture and clear of the others (from m42/step12_annotate.py: an
+        # Orion label once ran off the left edge)
+        bad = []
+        for i, (text, (x0, y0, x1, y1)) in enumerate(boxes):
+            if not (x0 >= ox and y0 >= 0 and x1 <= ox + W and y1 <= H): bad.append(text + " outside the picture")
+            for text2, (a0, b0, a1, b1) in boxes[i + 1:]:
+                if x0 < a1 and a0 < x1 and y0 < b1 and b0 < y1: bad.append(text + " overlaps " + text2)
+        if bad: raise SystemExit("%s: labels not placed: %s" % (name, bad))
     if not own:
         bl, btxt = t["bar"]; ang = bl * t["scale"]; angtxt = "%.1f arcminutes" % (ang / 60) if ang >= 90 else "%.0f arcseconds" % ang
         angtxt = t.get("bar_sub", angtxt)                             # a bar that is already a round angle says underneath what that angle is out there

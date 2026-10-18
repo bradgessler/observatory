@@ -1,0 +1,7 @@
+coverage all                          593 arcmin^2; largest upright rectangle 2592 x 1224 px = 33.5 x 15.8 arcmin at (280, 608)
+coverage most (at least half)         1002 arcmin^2; largest upright rectangle 2820 x 1948 px = 36.5 x 25.2 arcmin at (236, 244)
+coverage picture (at least 50%)       1002 arcmin^2; largest upright rectangle 2820 x 1948 px = 36.5 x 25.2 arcmin at (236, 244)
+picture rectangle: edges {'top': {'min_frames': 85, 'median_frames': 101, 'min_fraction': 0.515}, 'bottom': {'min_frames': 83, 'median_frames': 88, 'min_fraction': 0.503}, 'left': {'min_frames': 83, 'median_frames': 159, 'min_fraction': 0.503}, 'right': {'min_frames': 84, 'median_frames': 110, 'min_fraction': 0.509}} ; inside it 64.5% of pixels have every frame, 86.0% at least 3/4
+stack solved: 0.7768 arcsec/px, field 36.5 x 25.2 arcmin, north -60.8 deg clockwise from up; theta1 Ori C at (1103, 1044), the peak 0.9 arcsec from it; M43's star at (468, 1018)
+kR 0.9881 +- 0.0112, kB 1.1750 +- 0.0109 from 13 stars (0 clipped of 81 measured); R/G residual median -0.044 -> +0.003 mag, rms 0.040 -> 0.041; B/G median -0.341 -> -0.005, rms 0.049 -> 0.048; Sun-like stars (4) sRGB R/G 0.944 -> 0.981, B/G 0.727 -> 0.990; colour term R/G +0.086 +- 0.018, B/G -0.030 +- 0.022 mag/mag
+star size (HFD, green): stack 6.41 arcsec (52 stars), reference frame alone 6.458399632201362

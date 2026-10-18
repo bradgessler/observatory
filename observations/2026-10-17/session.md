@@ -12,8 +12,12 @@ Sky: Clear and still. A Moon a little under half lit, low in the southwest early
 Processing: Stacked from the RAW frames with numpy, OpenCV and rawpy. No darks tonight: hot pixels found from each run itself. Flats from open sky and earlier twilight frames, with tonight's dust measured on each run's own sky and divided out. Star colours from the Gaia catalogue. Plate solving by astrometry.net. Nothing generated
 ---
 
-Last week the telescope worked through eleven targets in a night and got a few minutes of light on each. Tonight it goes the other way: a few targets, hours on each, and a camera that starts its next picture while the last one is still being saved.
+Last week the telescope worked through eleven targets in a night and got a few minutes of light on each. This time it went the other way: four targets and as long as the night allowed on each. The Orion Nebula got an hour and a half.
 
 The night started late. The focus was off, which nothing in software can fix, so the first hour went to setting the telescope up on Vega and reading star sizes off each picture while I turned the focus knob, from 12 arcseconds down to 5. Then the Triangulum Galaxy was still behind a tree, so the telescope went to the Dumbbell Nebula, high overhead, until the galaxy climbed clear.
 
-This page fills in as the night goes. The problems we ran into along the way are written up as technical notes.
+Out at the telescope I saw dark spots on the camera's screen that looked like dust. They were: the same specks sat in the same places in pictures of two different objects. So from then on the telescope moved a little between pictures, and stacking averaged the dust away. Saturn came next, two hours of short pictures around its highest point, then the Triangulum Galaxy again, then Orion until dawn.
+
+The telescope wasn't parked when it finished. Nothing was set to do it, so it stood there unparked after sunrise. From the next night on, the telescope parks itself.
+
+The problems we ran into along the way are written up as technical notes, below.

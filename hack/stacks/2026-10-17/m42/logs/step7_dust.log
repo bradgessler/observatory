@@ -1,0 +1,23 @@
+canvas 3208 x 2488 px, origin on the reference grid (-216, -232) (the reference frame is 3012 x 2012)
+area covered by every used frame: 44.4% of the canvas; 12s
+pass 1 (first green stack) done; 23s
+pass 2 (each frame against the first stack) done; 39s
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m42/step7_dust.py:117: RuntimeWarning: All-NaN slice encountered
+  with np.errstate(all='ignore'): Sg = np.nanmedian(cube, axis=0)
+/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m42/step7_dust.py:111: RuntimeWarning: All-NaN slice encountered
+  with np.errstate(all='ignore'): m = np.nanmedian(v, axis=2)
+long: named shadow crescent sensor (3522, 848): 0.1174 deep in the own sky with no flat, 0.1224 left by the 13 October flat, 0.0113 after this run's own correction
+long: dust at sensor (3556,  855), about 80 arcsec: 0.149 deep after the 13 Oct flat (first half 0.063, second half 0.064), 0.1201 before any flat -> divided out
+long: dust at sensor (5565, 2211), about 45 arcsec: 0.040 deep after the 13 Oct flat (first half 0.025, second half 0.022), 0.0373 before any flat -> divided out
+long: dust at sensor (4450, 3622), about 42 arcsec: 0.040 deep after the 13 Oct flat (first half 0.025, second half 0.025), 0.0352 before any flat -> divided out
+long: dust at sensor (4274, 3873), about 43 arcsec: 0.035 deep after the 13 Oct flat (first half 0.021, second half 0.022), 0.0313 before any flat -> divided out
+long: dust at sensor ( 247, 1035), about 41 arcsec: 0.033 deep after the 13 Oct flat (first half 0.025, second half 0.026), 0.046 before any flat -> divided out
+long: dust at sensor (4013, 3969), about 41 arcsec: 0.028 deep after the 13 Oct flat (first half 0.021, second half 0.021), 0.0354 before any flat -> divided out
+long: dust at sensor (1357, 2448), about 26 arcsec: 0.028 deep after the 13 Oct flat (first half 0.019, second half 0.018), 0.0644 before any flat -> divided out
+long: dust at sensor (2181,  805), about 17 arcsec: 0.021 deep after the 13 Oct flat (first half 0.019, second half 0.020), 0.0487 before any flat -> divided out
+long: dust at sensor (1817, 1255), about 33 arcsec: 0.019 deep after the 13 Oct flat (first half 0.015, second half 0.016), 0.0124 before any flat -> divided out
+long: dust at sensor (4888, 2776), about 32 arcsec: 0.018 deep after the 13 Oct flat (first half 0.016, second half 0.015), 0.022 before any flat -> divided out
+long: dust at sensor (4720, 1344), about 20 arcsec: 0.015 deep after the 13 Oct flat (first half 0.013, second half 0.013), 0.0176 before any flat -> divided out
+long: dust at sensor (1941, 3860), about 23 arcsec: 0.015 deep after the 13 Oct flat (first half 0.013, second half 0.013), 0.0138 before any flat -> divided out
+long: 165 frames, 12 shadows divided out (0.96% of the sensor, deepest factor 0.852), 7 candidates turned down; remainder rms (8 px blocks) 0.0048
+40 s

@@ -266,7 +266,8 @@ defmodule Camera.Transport.Sim do
       bytes: s.picture
     }
 
-    raw_bytes = "ARW simulated raw " <> Integer.to_string(n)
+    # a RAW with the picture inside as its preview, as a Sony ARW carries one (`Camera.Raw`)
+    raw_bytes = Camera.Raw.wrap(s.picture, "ARW simulated raw " <> Integer.to_string(n))
 
     arw = %{
       info: %{
@@ -280,7 +281,13 @@ defmodule Camera.Transport.Sim do
       bytes: raw_bytes
     }
 
-    files = if s.props[0x5004].current == 19, do: [jpeg, arw], else: [jpeg]
+    # 19 RAW+JPEG, 16 RAW alone, the rest JPEG alone
+    files =
+      case s.props[0x5004].current do
+        19 -> [jpeg, arw]
+        16 -> [arw]
+        _ -> [jpeg]
+      end
 
     turned(
       %{

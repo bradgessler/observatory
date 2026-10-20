@@ -215,6 +215,16 @@ defmodule Camera.Server do
     Sony.set(conn, Sony.prop(:shutter), Sony.shutter_value(v), order: order)
   end
 
+  # image quality: `:best` (what `Sony.best_quality/1` picks from what the camera offers), `:raw`, or a code
+  defp set_one(conn, :quality, q) do
+    with {:ok, props, conn} <- Sony.props(conn) do
+      offered = case get_in(props, [Sony.prop(:quality), :form]) do {:enum, vals} -> vals; _ -> [] end
+      value = case q do :best -> Sony.best_quality(offered); :raw -> 16; v when is_integer(v) -> v; _ -> nil end
+
+      if value, do: Sony.put(conn, Sony.prop(:quality), value), else: {:error, {:no_such_quality, q}, conn}
+    end
+  end
+
   defp set_one(conn, k, _v), do: {:error, {:unknown_setting, k}, conn}
 
   defp exposure_ms(props) do

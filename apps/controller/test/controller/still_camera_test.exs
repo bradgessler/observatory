@@ -33,6 +33,21 @@ defmodule Controller.StillCameraTest do
     last
   end
 
+  # 18 October 2026: RAW only, if it cuts the camera's time between pictures. The camera's quality is set over USB,
+  # the picture is the RAW alone, and the box measures the preview the camera keeps inside it.
+  test "a picture taken RAW only is kept whole and measured from the preview inside the RAW" do
+    assert {:ok, %{settings: %{quality: "RAW", qualities: qs}}} = StillCamera.set(quality: :best)
+    assert "RAW" in qs and "RAW+JPEG" in qs
+    last = picture()
+    assert Enum.all?(last.files, &File.exists?/1)
+    assert Enum.all?(last.names, &String.ends_with?(&1, ".ARW"))
+    assert last.w == 960
+    assert %{fraction: f} = last.bright
+    assert f > 0.05
+  after
+    StillCamera.set(quality: 19)
+  end
+
   @tag timeout: 60_000
   test "a picture is kept whole, RAW and JPEG, and measured: the Moon in it is found" do
     last = picture()

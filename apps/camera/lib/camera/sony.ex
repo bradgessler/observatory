@@ -244,6 +244,42 @@ defmodule Camera.Sony do
     reply(Ptp.transact(conn, @control_device, [prop_code], data: Ptp.encode_value(:uint8, steps)))
   end
 
+  @doc """
+  Set a property the camera marks settable (`getset` 1, such as image quality) straight to `value`, then read it
+  back for up to `settle_ms` (3000). A dial (`getset` 0: ISO, shutter) is turned with `set/4` instead.
+  Returns `{:ok, value_it_reads, conn}`.
+  """
+  def put(conn, prop_code, value, opts \\ []) do
+    with {:ok, props, conn} <- props(conn), %{} = d <- Map.get(props, prop_code) do
+      cond do
+        d.current == value ->
+          {:ok, value, conn}
+
+        match?({:enum, _}, d.form) and value not in elem(d.form, 1) ->
+          {:error, :not_a_value, conn}
+
+        true ->
+          with {:ok, %{code: :ok}, conn} <- Ptp.transact(conn, @set_ext_prop, [prop_code], data: Ptp.encode_value(d.type, value)),
+               {:ok, d2, conn} <- await_change(conn, d, Keyword.get(opts, :settle_ms, 3000)) do
+            {:ok, d2.current, conn}
+          else
+            {:ok, %{code: code}, conn} -> {:error, {:refused, code}, conn}
+            error -> error
+          end
+      end
+    else
+      nil -> {:error, :no_such_property, conn}
+      error -> error
+    end
+  end
+
+  @doc """
+  The best image quality a camera offers, from the values it lists: RAW alone, else RAW+JPEG, else the finest JPEG
+  (18 October 2026: the stacks read the RAW, and the box reads the preview inside it, so a JPEG beside it is time
+  and card for nothing).
+  """
+  def best_quality(values) when is_list(values), do: Enum.find([16, 19, 4, 3, 2], &(&1 in values))
+
   @doc "Press or release a button property: `2` down, `1` up."
   def press(conn, prop_code, value) do
     reply(
@@ -589,6 +625,11 @@ defmodule Camera.Sony do
       shutter_s: v.(:shutter) && shutter_seconds(v.(:shutter)),
       f_number: v.(:f_number) && v.(:f_number) / 100,
       quality: v.(:quality) && quality(v.(:quality)),
+      qualities:
+        case get_in(props, [prop(:quality), :form]) do
+          {:enum, vals} -> Enum.map(vals, &quality/1)
+          _ -> []
+        end,
       focus:
         case v.(:focus_mode) do
           1 -> :manual

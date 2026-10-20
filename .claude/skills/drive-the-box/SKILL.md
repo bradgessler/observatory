@@ -125,5 +125,10 @@ Each prints `S ...` lines; grep for them.
 - `plan_check.exs`: read only, with the same `PLAN` and `PARK_AT`. Each step's altitude and hour angle at its
   start and end, the pose of its Go To, a warning when the hold would reach its meridian limit before the step
   ends (which stops the plan), and where the Sun is at the park. Run it before every plan and after any change.
+- `raw_timing.exs`: does RAW only shorten the time between pictures? N pictures each way at 1/60 s, compared from
+  their sidecars; the camera only, never during a plan. On 17 October 12.2 s of the ~14.6 s after each exposure was
+  the camera's own processing before "picture ready", and 2.4 s the download. Switch to RAW only
+  (`StillCamera.set(quality: :best)`) only if this shows it clearly faster. Check the camera's menu too: Auto
+  Review off, and PC Remote's still image save destination set to PC only.
 - `status.exs`: read only. One screen of the night: the plan and whether its park timer is armed, the camera, the
   dither and the sensor map, the hold, the mount, and the last ten minutes' trouble.

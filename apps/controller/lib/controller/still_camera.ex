@@ -857,7 +857,9 @@ defmodule Controller.StillCamera do
       # asked later is a later reading: an ISO turned while this picture came down and was measured
       # is already in it (the night a frame taken at ISO 3200 was written down as 800).
       settings = hd(files)[:settings]
-      jpeg = Enum.find(files, &(&1.format == :jpeg))
+      # the camera's JPEG, or for a picture taken RAW only the preview the camera keeps inside the RAW
+      # (`Camera.Raw`): what the box measures, solves and shows; the RAW itself is kept untouched either way
+      jpeg = Enum.find(files, &(&1.format == :jpeg)) || raw_preview(files)
       tell(ctx, %{stage: :measuring})
       frame = jpeg && measure(jpeg.bytes)
       # the grey copy goes to the sensor map, never into the record (it is 600 kB)
@@ -1094,6 +1096,14 @@ defmodule Controller.StillCamera do
           id when is_binary(id) -> id
           _ -> nil
         end
+    end
+  end
+
+  defp raw_preview(files) do
+    with %{bytes: raw} <- Enum.find(files, &(&1.format == :arw)), preview when is_binary(preview) <- Camera.Raw.preview(raw) do
+      %{format: :jpeg, bytes: preview, preview_of: :arw}
+    else
+      _ -> nil
     end
   end
 

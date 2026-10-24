@@ -27,6 +27,8 @@ Inputs:  --night <folder with index.jsonl and the RAWs> (read only), --out <fold
          --level LO HI (green DN above black at the sensor centre), --workers N, --compare <flat folder>.
 Outputs in --out:
   flat_planes.npz       R, G1, G2, B float32 (2012 x 3012), the master as measured, 1 at the sensor centre.
+  flat_planes.fits      the same as FITS: IMAGETYP 'MASTER FLAT', NCOMBINE, ISOSPEED, dates, each input's name and
+                        SHA-256 (tools/master_fits.py); flat.json then also has schema observatory.master/1, inputs, fits.
                         Divide plane p by it (plane p's own pixels). Same layout as the night flats under <night>/flat/.
   smallscale_planes.npz R, G1, G2, B float32: the master over its own large scale (dust and pixel response only, 1 on
                         average). compose(large, small) multiplies it onto another flat's large scale (the 'hybrid').
@@ -254,6 +256,10 @@ def build(night, out, iso=100, after='13:10', level=LEVEL, workers=4, compare=No
         rec['compare'] = compare_flats(M, S2, compare)
     np.savez_compressed(os.path.join(out, 'flat_planes.npz'), **{k: M[p] for p, k in enumerate(rp.PLANE_NAMES)})
     np.savez_compressed(os.path.join(out, 'smallscale_planes.npz'), **{k: small[p] for p, k in enumerate(rp.PLANE_NAMES)})
+    import master_fits                                         # the same master as FITS (MASTER FLAT), the inputs' SHA-256 in it and in flat.json
+    master_fits.write(os.path.join(out, 'flat_planes.fits'), M, 'flat', [master_fits.frame_record(f['path']) for f in use], rec, 'per-pixel median over the frames',
+                      norm='1 at the sensor centre (central %d x %d plane px)' % (2 * CENTRE_BOX, 2 * CENTRE_BOX), hot_n=sum(defects), iso=iso, history=[rec['formula']] + rec['method'],
+                      extra=[('OBS FLAT KIND', 'twilight', 'tracking %s' % ', '.join(rec['made_from']['tracking']))])
     json.dump(rec, open(os.path.join(out, 'flat.json'), 'w'), indent=1)
     g = 0.5 * (M[1] + M[2])
     top = np.clip((cv2.resize(g, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA) - 0.55) / 0.5, 0, 1)

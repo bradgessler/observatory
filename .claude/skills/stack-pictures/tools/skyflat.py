@@ -23,7 +23,9 @@ Inputs:  runs [dict(name, frames=[RAW paths], objects=[ellipses in plane px], gr
          (its smallscale_planes.npz and flat.json), --exclude a run (leave the target's own run out of its flat),
          --cache-dir for the measured skies (scratch: delete after).
 Outputs in --out: flat_planes.npz (R, G1, G2, B float32, 1 at the sensor centre), large_planes.npz (the large scale
-         alone), flat.json, README.txt, v_skyflat.png (green large scale 0.6 to 1.05; coverage).
+         alone), flat_planes.fits (the flat as FITS, IMAGETYP 'MASTER FLAT', every input frame's SHA-256:
+         tools/master_fits.py), flat.json (schema observatory.master/1), README.txt, v_skyflat.png (green large scale
+         0.6 to 1.05; coverage).
 Recipe entries (flat.json): made_from{target, runs{name: frames, sky_level_dn, objects}, excluded, frames},
          formula, large_scale{block_px, smooth_blocks, coverage, runs_per_block, per_run_plane, run_minus_joint_rms},
          dust (the twilight flat's list, so a pipeline's dust check can read it), small_scale_from, made_utc, tool.
@@ -120,6 +122,12 @@ def build(runs, twilight, out, exclude=(), cache_dir=None, workers=4):
                small_scale_from=dict(dir=twilight, frames=tj['made_from']['frames']), dust=tj['dust'])
     np.savez_compressed(os.path.join(out, 'flat_planes.npz'), **{k: F[p] for p, k in enumerate(rp.PLANE_NAMES)})
     np.savez_compressed(os.path.join(out, 'large_planes.npz'), **{k: L[p] for p, k in enumerate(rp.PLANE_NAMES)})
+    import master_fits                                         # the same master as FITS (MASTER FLAT), the inputs' SHA-256 in it and in flat.json
+    tw_fits = os.path.join(twilight, 'flat_planes.fits')
+    master_fits.write(os.path.join(out, 'flat_planes.fits'), F, 'flat', [master_fits.frame_record(p) for r in use for p in r['frames']], rec,
+                      'block medians over the runs x the twilight small scale', norm='1 at the sensor centre (central 128 x 128 plane px)',
+                      history=[rec['formula'], 'small scale (dust, pixel response) from %s' % twilight] + (['its FITS sha256 %s' % master_fits.om.sha256_file(tw_fits)] if os.path.exists(tw_fits) else []),
+                      extra=[('OBS FLAT KIND', 'sky', 'the night\'s open sky x twilight dust')])
     json.dump(rec, open(os.path.join(out, 'flat.json'), 'w'), indent=1)
     g = 0.5 * (L[1] + L[2]); top = np.clip((cv2.resize(g, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA) - 0.6) / 0.45, 0, 1)
     cv = cv2.resize((cnt1 / max(len(names), 1)).astype(np.float32), (top.shape[1], top.shape[0]), interpolation=cv2.INTER_NEAREST)

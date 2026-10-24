@@ -23,10 +23,10 @@ defmodule Controller.DatabaseTest do
   test "a settings.json from before the database is brought in once and kept beside" do
     path = Application.get_env(:controller, :settings_path)
     Repo.delete_all("settings")
-    File.write!(path, Jason.encode!(%{"site" => %{"lat" => 37.5, "lon" => -122.0}, "night" => true}))
+    File.write!(path, Jason.encode!(%{"site" => %{"lat" => 37.34, "lon" => -121.64}, "night" => true}))
 
     map = Settings.load()
-    assert map["site"] == %{"lat" => 37.5, "lon" => -122.0} and map["night"] == true
+    assert map["site"] == %{"lat" => 37.34, "lon" => -121.64} and map["night"] == true
     assert Repo.aggregate(from(s in "settings"), :count) == 2
     refute File.exists?(path)
     assert File.exists?(path <> ".imported")

@@ -4,7 +4,7 @@ defmodule Controller.Sky.SceneTest do
   alias Controller.Sky.Scene
 
   # mid-latitude north, an October noon (19:00 UTC is noon in California)
-  @site %{lat: 37.9, lon: -122.2, name: "test"}
+  @site %{lat: 37.34, lon: -121.64, name: "test"}
   @noon ~U[2026-10-02 19:00:00Z]
   @flat Map.new(~w(N NE E SE S SW W NW), &{&1, 0})
 

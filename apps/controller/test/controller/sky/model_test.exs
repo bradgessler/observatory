@@ -11,8 +11,8 @@ defmodule Controller.Sky.ModelTest do
   alias Controller.Sky.{Astro, Model, Stars}
 
   @signs %{ha_sign: 1, dec_sign: -1}
-  @lat 37.88
-  @lon -122.18
+  @lat 37.34
+  @lon -121.64
   @now ~U[2026-09-20 05:30:00Z]
 
   defp lst(now \\ @now), do: Astro.lst_deg(now, @lon)

@@ -29,3 +29,6 @@ systems/*/.nerves/
 /apps/camera/priv/usbport
 /apps/camera/priv/.usbport-cc
 /apps/input/priv/hidport
+
+# where the scope is: never in this public repository (config/config.exs says how it is found)
+/config/site.secret.exs

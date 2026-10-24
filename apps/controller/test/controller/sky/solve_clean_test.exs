@@ -88,7 +88,7 @@ defmodule Controller.Sky.SolveCleanTest do
       end
     end
 
-    @site %{lat: 38.0, lon: -122.0}
+    @site %{lat: 38.0, lon: -121.64}
 
     test "is refused when the photo's time and place say it can't be" do
       at = ~U[2026-09-26 06:30:00Z]

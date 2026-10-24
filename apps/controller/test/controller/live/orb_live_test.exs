@@ -89,7 +89,7 @@ defmodule Controller.OrbLiveTest do
           {ra_deg, dec_deg} <- [{0.0, 0.0}, {30.0, 40.0}, {-60.0, -40.0}, {85.0, 120.0}, {-20.0, -150.0}] do
         ctx = %{
           now: ~U[2026-09-19 06:00:00Z],
-          site: %{lat: 37.0, lon: -122.0, name: "test"},
+          site: %{lat: 37.34, lon: -121.64, name: "test"},
           pointing: %{ha_sign: ha_sign, dec_sign: dec_sign},
           offset: %{"ra" => 0.0, "dec" => 0.0}
         }
@@ -113,10 +113,10 @@ defmodule Controller.OrbLiveTest do
     end
 
     test "at home the tube is on the pole and the dec axis is horizontal" do
-      ctx = %{now: ~U[2026-09-19 06:00:00Z], site: %{lat: 37.0, lon: -122.0, name: "t"}, pointing: %{ha_sign: 1, dec_sign: -1}, offset: %{"ra" => 0.0, "dec" => 0.0}}
+      ctx = %{now: ~U[2026-09-19 06:00:00Z], site: %{lat: 37.34, lon: -121.64, name: "t"}, pointing: %{ha_sign: 1, dec_sign: -1}, offset: %{"ra" => 0.0, "dec" => 0.0}}
       snap = %{homed: false, axes: %{ra: %{degrees: 0.0, running: false}, dec: %{degrees: 0.0, running: false}}}
       scene = Controller.OrbLive.scene(snap, ctx)
-      assert_in_delta scene.scope.alt, 37.0, 1.0e-6
+      assert_in_delta scene.scope.alt, 37.34, 1.0e-6
       assert_in_delta scene.scope.az, 0.0, 1.0e-6
       assert scene.radec == nil
     end

@@ -64,9 +64,25 @@ config :phoenix, :filter_parameters, ["password", "keys"]
 
 import_config "#{config_env()}.exs"
 
-# Where the scope is; used by the sky map for alt/az and sidereal time.
 config :controller,
-  site: %{name: "Orinda", lat: 37.877, lon: -122.180},
   # First-order pointing model for the sky map (axis degrees from home → sky).
   # Signs are a guess until verified on a star; plate solving replaces this.
   pointing: %{ha_sign: 1, dec_sign: -1}
+
+# Where the scope is (the sky map's alt/az and sidereal time, and the blog's privacy check). The repository is
+# public, so it is never written here: config/site.secret.exs on the machine that builds (git ignores it; the
+# firmware built there carries it), else OBSERVATORY_SITE="lat,lon,name" (the blog's CI, from a repository
+# secret). Without either the site comes from the box's settings (typed, or from a phone), else 0°, 0°, said so.
+cond do
+  File.exists?(Path.join(__DIR__, "site.secret.exs")) ->
+    import_config "site.secret.exs"
+
+  # an unset repository secret arrives as an empty string: no site, not a crash
+  (site = System.get_env("OBSERVATORY_SITE")) not in [nil, ""] ->
+    [lat, lon | name] = String.split(site, ",", parts: 3)
+    config :controller, site: %{lat: String.to_float(String.trim(lat)), lon: String.to_float(String.trim(lon)), name: name |> Enum.join() |> String.trim()}
+
+  true ->
+    :ok
+end
+

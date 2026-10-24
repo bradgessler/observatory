@@ -14,6 +14,36 @@ the 17 October stacks (`hack/stacks/2026-10-17/*`), the stacking tools
 (`.claude/skills/stack-pictures/tools/`), `observations/2026-10-17/` and
 `mix site.build`.
 
+## As built (23 October 2026)
+
+Where the code differs from the tables below, the code is right:
+
+- **Sidecar `observatory.still/2`** (`Controller.StillCamera.Sidecar`): every v1 field, plus `capture`
+  {`purpose` light/dark/flat/focus/centring/finder/test, `target` {id, name, ra_deg, dec_deg, aim}, `run` {id,
+  k}, `plan` {run, step, index, of}}, `fits` (keyword -> value, in order; our own keys as `"OBS ..."`, which is
+  how astropy names a `HIERARCH OBS ...` card), `camera` {serial, firmware, clock_reads, clock_offset_s,
+  clock_set}, `sensor` (the model's profile, `Controller.Metadata.Sensor`), model axis numbers, and
+  `time.clock_source` (network / peer / phone / own). The one keyword map is `Controller.Metadata.Fits`, used by
+  the stills and the scope camera alike.
+- **Solve answers** keep the plate solve's WCS: `wcs` as solved (on the solver's copy), `wcs_full` scaled to
+  the full frame (`wcs_full_of` names it; for a RAW-only picture, the preview inside the RAW), `wcs_scale`,
+  plus the index and the solver's version. `RADESYS = 'ICRS'` is added (astrometry.net writes only EQUINOX).
+- **The camera's clock**: set over PTP (0x5011) only when the camera offers it as settable. The a6000 doesn't,
+  so its own EXIF date stays wrong; `camera.clock_offset_s` records by how much, and the sidecar's times are the
+  ones to trust.
+- **Stacks**: `stack-pictures/tools/stack_fits.py` writes `<target>-stack.fits` under the night's folder:
+  `IMAGETYP = 'MASTER LIGHT'`, NCOMBINE, EXPTIME/LIVETIME, DATE-OBS/END/AVG, a WCS from plate solving the stack
+  itself (SIP 2, checked against Gaia), one HISTORY line per step, CHECKSUM; no location. A 64-character hash
+  doesn't fit one HIERARCH card, so it is split over `KEY` and `KEY 2`.
+- **Recipes**: schema `observatory.recipe/1` (not `observatory.stack.recipe/1`): inputs with `used` true/false
+  and each frame's sha256, tool versions, the git commit, relative paths; `OBS RECIPE ID` in the stack FITS is a
+  hash of the recipe's substance (without `made`, `git` and `outputs`, so the two don't chase each other).
+- **Masters** (`master_fits.py`, called by `darks.py`, `twilight_flat.py`, `skyflat.py`): FITS beside the
+  .npz with `IMAGETYP = 'MASTER DARK'`/`'MASTER FLAT'`, NCOMBINE and the inputs' hashes.
+- **Not yet**: PIERSIDE (the model only guesses the side), ROTATANG in the sidecar (the solve comes after),
+  TELESCOP and OBSERVER (written once the box's `telescope`/`observer` settings are set), EGAIN, Moon and Sun,
+  the ObsCore index, and keeping the WCS across a restart between solve and answer.
+
 ## Principles
 
 1. **One immutable record per file, written once, beside it.** The camera's
@@ -408,12 +438,20 @@ the table below is what those internal copies carry, not what is published.
 
 ## Privacy
 
-Internal files (the box's card, the Mac's `~/.observatory`, the night
-folders) keep the full location and everything that can be turned back into
-it. Nothing published places the telescope finer than "San Francisco Bay
-Area".
+Three rules (Brad, 23 October 2026):
 
-| Field | Internal | Published |
+1. **Raw capture records keep everything**, full location included: the box's sidecars and solve answers and
+   the scope camera's FITS, on the box's card and the Mac's `~/.observatory`. They are never committed.
+2. **Anything processed carries no location**: stacks, masters, finished pictures. No `SITELAT`, `SITELONG`,
+   `SITEELEV`, `OBSGEO-*`, `CENTALT`, `CENTAZ` or hour angle; `AIRMASS` rounded to 0.1. `obsmeta.write_fits`
+   strips them whatever it is handed, and refuses to write inside the repository.
+3. **No image with metadata goes into git**, and no FITS, TIFF, XISF, RAW or NumPy file at all
+   (`apps/controller/test/repo_images_test.exs`, `.gitignore`). Published pictures carry no metadata (decided).
+
+The site itself lives only in the untracked `config/site.secret.exs` (and the `OBSERVATORY_SITE` repository
+secret for the blog's build); `stack-pictures/tools/privacy_check.py` scans staged files for numbers near it.
+
+| Field | Raw capture (internal) | Processed / published |
 |---|---|---|
 | `site.lat`, `site.lon`, `SITELAT`, `SITELONG`, `OBSGEO-*` | full precision | never |
 | `site.elevation_m`, `SITEELEV` | full | never |
@@ -426,11 +464,9 @@ Area".
 | local weather from a station | if added later | never (a station ID is a place) |
 | AVM `Spatial.*` (where in the sky) | | fine: says nothing about the ground |
 
-Found in the audit, outside metadata: `config/config.exs` (`:site`) in this
-public repository carries the town's name and the site's coordinates, and
-three test files carry the same coordinates. The build's check protects the
-blog from them; the repository itself does not. Moving the configured site to
-an untracked file or the box's settings is a separate change.
+Found in the audit and fixed the same day: `config/config.exs` named the town and gave the site's coordinates,
+and tests repeated them. The site now lives only in `config/site.secret.exs`; tests use Lick Observatory. The
+repository's old commits still hold them unless history is rewritten.
 
 ---
 

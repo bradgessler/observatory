@@ -197,6 +197,13 @@ defmodule Controller.Plates do
   """
   def view(mount_id), do: call({:view, mount_id})
 
+  @doc """
+  A solved plate's whole WCS, as the solver wrote it for the image it was given:
+  `%{wcs: [{keyword, value}], image_w:, image_h:}` (`Controller.Sky.Solve.Wcs`), or nil (not
+  solved, or solved by a solver that gives no WCS). Kept out of `view/1`, which every page is sent.
+  """
+  def wcs(mount_id, n), do: call({:wcs, mount_id, n})
+
   @doc "Queue a failed plate again (not one that was moving)."
   def retry(mount_id, n), do: call({:retry, mount_id, n})
 
@@ -381,6 +388,10 @@ defmodule Controller.Plates do
   end
 
   def handle_call({:view, mount}, _from, state), do: {:reply, view(state, mount), state}
+
+  def handle_call({:wcs, mount, n}, _from, state) do
+    {:reply, (find(state, mount, n) || %{})[:wcs], state}
+  end
 
   def handle_call({:retry, mount, n}, _from, state) do
     case find(state, mount, n) do
@@ -625,11 +636,14 @@ defmodule Controller.Plates do
         update_plate(state, r.mount, r.n, fn p ->
           case result do
             {:ok, sol} ->
-              keep = Map.take(sol, [:ra_deg, :dec_deg, :width_deg, :height_deg, :rotation_deg, :parity, :seconds, :solver, :stars, :pixscale_arcsec])
-              %{p | state: :solved, reason: nil, solution: keep}
+              # `index`: which of astrometry.net's index files matched; `software`: which astrometry.net
+              keep = Map.take(sol, [:ra_deg, :dec_deg, :width_deg, :height_deg, :rotation_deg, :parity, :seconds, :solver, :stars, :pixscale_arcsec, :index, :software])
+              p = %{p | state: :solved, reason: nil, solution: keep}
+              # the whole WCS, kept beside the plate and handed out by `wcs/2`, never in the view every page is sent
+              if is_list(sol[:wcs]), do: Map.put(p, :wcs, Map.take(sol, [:wcs, :image_w, :image_h])), else: Map.delete(p, :wcs)
 
             {:error, reason} ->
-              %{p | state: :failed, reason: reason_word(reason)}
+              Map.delete(%{p | state: :failed, reason: reason_word(reason)}, :wcs)
           end
         end)
 
@@ -846,7 +860,7 @@ defmodule Controller.Plates do
 
       plates =
         Enum.map(session.plates, fn p ->
-          Map.merge(p, %{
+          Map.merge(Map.delete(p, :wcs), %{
             ahead: if(p.state == :queued, do: Enum.find_index(order, &(&1 == {mount, p.n}))),
             residual_arcmin: residuals[p.n],
             solving: if(p.state == :solving, do: solving(state, mount, p))

@@ -25,7 +25,8 @@ pipeline's step 1 finds the hot pixels from the run itself, stands. A pipeline k
 (after a dark it finds few). Scaling a dark to another exposure is not done (no bias frames to separate the offset).
 
 Inputs: a night folder (read only) or a list of RAW paths; a darks output folder.
-Outputs: master_<exp>s_iso<iso>.npz and .json per group; nothing else is written.
+Outputs: master_<exp>s_iso<iso>.npz, .fits (IMAGETYP 'MASTER DARK', tools/master_fits.py) and .json (schema
+observatory.master/1, with the inputs' SHA-256) per group; nothing else is written.
 Recipe entries (from subtract): dark{used: true/false, master, frames, exposure_s, iso, offset_dn_per_plane,
   made_utc | why}. From build: the .json beside each master.
 
@@ -103,6 +104,10 @@ def build(paths, darks_dir, how=None):
                    frames=[os.path.basename(p) for p, _, _ in fr], found_by={os.path.basename(p): (how or {}).get(p) for p, _, _ in fr}, black_level_in_the_raws=blacks[0],
                    planes=stats, made_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'), tool=os.path.abspath(__file__))
         np.savez_compressed(os.path.join(darks_dir, 'master_%s.npz' % k), **{n: M[i] for i, n in enumerate(rp.PLANE_NAMES)})
+        import master_fits                                     # the same master as FITS (MASTER DARK), the inputs' SHA-256 in it and in the JSON
+        master_fits.write(os.path.join(darks_dir, 'master_%s.fits' % k), M, 'dark', [master_fits.frame_record(p) for p, _, _ in fr], rec,
+                          'sigma-clipped mean, %.1f x 1.4826 MAD about the median' % KAPPA, hot_n=sum(s['hot_px_over_8_sigma'] for s in stats.values()),
+                          exptime_s=fr[0][1], iso=fr[0][2], history=[rec['what']])
         json.dump(rec, open(os.path.join(darks_dir, 'master_%s.json' % k), 'w'), indent=1)
         out[k] = rec
         print('master dark %s from %d frames: offset (DN) %s, hot px %s' % (k, len(fr), {n: s['offset_dn_mean'] for n, s in stats.items()}, {n: s['hot_px_over_8_sigma'] for n, s in stats.items()}), flush=True)

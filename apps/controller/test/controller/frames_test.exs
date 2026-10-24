@@ -74,7 +74,9 @@ defmodule Controller.FramesTest do
       assert h["ROWORDER"] == "TOP-DOWN" and h["IMAGETYP"] == "LIGHT" and h["INSTRUME"] == "Simulated camera"
       assert h["EXPTIME"] == asked.exposure_ms / 1000 and h["NCOMBINE"] == asked.stack and h["GAIN"] == asked.gain
       assert {:ok, _} = NaiveDateTime.from_iso8601(h["DATE-OBS"])
-      assert is_float(h["SITELAT"]) and h["TELESCOP"] =~ "EQ6-R"
+      # the mount is named as the mount, never as the telescope (TELESCOP is the optical tube)
+      assert is_float(h["SITELAT"]) and h["OBS MOUNT NAME"] =~ "EQ6-R"
+      refute (h["TELESCOP"] || "") =~ "EQ6-R"
       # ours: the frame, the mount at the start and end, the copy, the second measurement
       assert h["OBS FRAME VERDICT"] == "stars" and h["OBS FRAME STARS"] > 0
       assert h["OBS MOUNT ID"] == id

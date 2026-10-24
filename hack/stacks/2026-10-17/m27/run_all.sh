@@ -7,6 +7,8 @@
 # deleted at the end (CLEAN=0 keeps them). The finished pictures and recipe.json go to ./final/.
 # Hooks are environment variables (common.py and each step's docstring); with none set this reproduces the delivered run.
 # RAWs (~/.observatory/stills/2026-10-18/) are read in place and never written; nothing is cached per frame.
+# step16_metadata.py (after the recipe): the linear stack as FITS beside the TIF (~/.observatory/nights/...), the recipe in the
+# schema observatory.recipe/1 (.claude/skills/stack-pictures/tools/obsmeta.py, stack_fits.py, upgrade_recipe.py).
 set -e
 cd "$(dirname "$0")"
 PY=${PY:-$HOME/.observatory/pyenv/bin/python}
@@ -15,11 +17,11 @@ mkdir -p "$WORK" logs final
 FROM=${1:-1}
 TO=${2:-99}
 n=0
-for s in step1_hot step2_stars step3_register step4_quality step5_select step6_solve_ref step7a_flats step7_flat step8_coadd step9_solve step9b_colour step10_deliver step11_finish step12_halves step13_recipe step14_annotate; do
+for s in step1_hot step2_stars step3_register step4_quality step5_select step6_solve_ref step7a_flats step7_flat step8_coadd step9_solve step9b_colour step10_deliver step11_finish step12_halves step13_recipe step16_metadata step14_annotate; do
   n=$((n + 1))
   [ "$n" -lt "$FROM" ] && continue
   [ "$n" -gt "$TO" ] && continue
   echo "== $n $s"
   if [ -f "$s.sh" ]; then sh "$s.sh" 2>&1 | tee "logs/$s.log"; else $PY "$s.py" 2>&1 | tee "logs/$s.log"; fi
 done
-if [ "$TO" -ge 16 ] && [ "${CLEAN:-1}" = "1" ]; then $PY step15_clean.py 2>&1 | tee logs/step15_clean.log; fi
+if [ "$TO" -ge 17 ] && [ "${CLEAN:-1}" = "1" ]; then $PY step15_clean.py 2>&1 | tee logs/step15_clean.log; fi

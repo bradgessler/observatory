@@ -68,6 +68,59 @@ defmodule Controller.Sky.SolvePlatesTest do
     assert_in_delta min(turn, 180 - turn), 37.0, 1.0
   end
 
+  # docs/metadata.md, Stage 2: the box solves a copy four times smaller than the camera's JPEG, and
+  # the WCS it keeps must be good on the JPEG itself. Here the "JPEG" is a 1,600 x 1,200 plate, the
+  # solver's copy that averaged 2 x 2 (as ffmpeg's area scaling does), and the test is the one the
+  # spec asks for: a catalogue star, through the full picture's WCS, lands on the star.
+  test "the WCS of a solve made on a smaller copy, carried onto the full picture, puts catalogue stars on their pixels", ctx do
+    {ra0, dec0} = @m42
+    {w, h, fov} = {1600, 1200, 1.0}
+    stars = Plate.stars(ra0, dec0, fov * 0.75)
+    full = Plate.render(stars, center: @m42, width: w, height: h, fov_deg: fov, sigma_px: 3.2)
+    copy = halve(full, w, h)
+
+    assert {:ok, %{wcs: wcs, image_w: 800, image_h: 600, software: "astrometry.net " <> _} = sol} = Local.solve(copy, hint: {84.0, -5.0, 5.0}, tmp_dir: ctx.tmp)
+    assert sol.index =~ ~r/\Aindex-4\d/
+    full_wcs = Controller.Sky.Solve.Wcs.scale(wcs, 2.0, {w, h})
+
+    # where the plate drew each star (Plate.render: gnomonic, east left, north up, pixel centres at
+    # 0-based integers), in FITS pixels (1-based)
+    scale = fov * :math.pi() / 180 / w
+    {cx, cy} = {(w - 1) / 2, (h - 1) / 2}
+
+    offs =
+      for {ra, dec, _} <- Enum.take(stars, 15), {xi, eta} = gnomonic(ra, dec, ra0, dec0), x = cx - xi / scale, y = cy - eta / scale, x > 10 and x < w - 10 and y > 10 and y < h - 10 do
+        {sra, sdec} = Controller.Sky.Solve.Wcs.sky(full_wcs, {x + 1, y + 1})
+        Astro.separation_radec(ra, dec, sra, sdec) * 3600
+      end
+
+    assert length(offs) >= 5
+    # 2.25 arcsec a pixel on the full plate: every star within a pixel of where the WCS says
+    assert Enum.max(offs) < 2.25, "off by #{inspect(Enum.map(offs, &Float.round(&1, 2)))} arcsec"
+  end
+
+  defp halve(<<"P5\n", _::binary>> = pgm, w, h) do
+    # "P5", width, height, maxval, then the pixels
+    [_, _, _, _, px] = String.split(pgm, ~r/\s/, parts: 5)
+
+    rows =
+      for y <- 0..(div(h, 2) - 1), into: <<>> do
+        for x <- 0..(div(w, 2) - 1), into: <<>> do
+          a = :binary.at(px, 2 * y * w + 2 * x) + :binary.at(px, 2 * y * w + 2 * x + 1) + :binary.at(px, (2 * y + 1) * w + 2 * x) + :binary.at(px, (2 * y + 1) * w + 2 * x + 1)
+          <<round(a / 4)>>
+        end
+      end
+
+    "P5\n#{div(w, 2)} #{div(h, 2)}\n255\n" <> rows
+  end
+
+  defp gnomonic(ra, dec, ra0, dec0) do
+    d = :math.pi() / 180
+    {a, dd, a0, d0} = {ra * d, dec * d, ra0 * d, dec0 * d}
+    cosc = :math.sin(d0) * :math.sin(dd) + :math.cos(d0) * :math.cos(dd) * :math.cos(a - a0)
+    {:math.cos(dd) * :math.sin(a - a0) / cosc, (:math.cos(d0) * :math.sin(dd) - :math.sin(d0) * :math.cos(dd) * :math.cos(a - a0)) / cosc}
+  end
+
   test "too few stars is said at once, without a minute of hopeless matching", ctx do
     # eight stars on a clean sky: nothing else for image2xy to count
     pgm = plate(@m42, keep: 8, noise: 0.5)

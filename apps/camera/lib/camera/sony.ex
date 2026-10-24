@@ -220,6 +220,68 @@ defmodule Camera.Sony do
     end
   end
 
+  # -- the camera's own clock ------------------------------------------------------------------
+  #
+  # The a6000's clock was never set: its pictures say 1 January 2014 in their EXIF, and Siril or
+  # PixInsight reading the RAW date every frame then. PTP's standard DateTime property (0x5011,
+  # a string "YYYYMMDDThhmmss") sets it on cameras that offer it. The a6000 does not: it lists no
+  # standard properties in its device info, no 0x5011 in Sony's extended list or its property
+  # blob, and no SetDevicePropValue (0x1016). So nothing is sent to a camera that doesn't list
+  # it, and what it said is kept.
+
+  @date_time 0x5011
+  @set_device_prop_value 0x1016
+
+  @doc """
+  Set the camera's clock to `utc` (written as UTC: the box keeps no time zone), when the camera
+  offers DateTime (0x5011) as settable: in Sony's property blob (`props`, set by Sony's own
+  SetExtDevicePropValue), else as a standard property with SetDevicePropValue in its device info
+  (`info`). `{:ok, %{sent:, how:}, conn}`, `{:error, :not_offered, conn}` without a word sent, or
+  `{:error, {:refused, code}, conn}`.
+  """
+  def set_clock(conn, info, props, %DateTime{} = utc) do
+    stamp = clock_string(utc)
+    data = Ptp.encode_string(stamp)
+
+    {op, how} =
+      cond do
+        match?(%{getset: 1}, props[@date_time]) -> {@set_ext_prop, :sony}
+        @date_time in (info[:properties] || []) and @set_device_prop_value in (info[:operations] || []) -> {@set_device_prop_value, :ptp}
+        true -> {nil, nil}
+      end
+
+    if op do
+      case Ptp.transact(conn, op, [@date_time], data: data) do
+        {:ok, %{code: :ok}, conn} -> {:ok, %{sent: stamp, how: how}, conn}
+        {:ok, %{code: code}, conn} -> {:error, {:refused, code}, conn}
+        error -> error
+      end
+    else
+      {:error, :not_offered, conn}
+    end
+  end
+
+  @doc "Whether this camera offers its clock to be set at all (see `set_clock/4`)."
+  def clock_offered?(info, props),
+    do: match?(%{getset: 1}, props[@date_time]) or (@date_time in (info[:properties] || []) and @set_device_prop_value in (info[:operations] || []))
+
+  @doc "A time as PTP's DateTime string: `\"20261018T032139\"`."
+  def clock_string(%DateTime{} = t), do: Calendar.strftime(t, "%Y%m%dT%H%M%S")
+
+  @doc "A PTP DateTime string (`\"20140101T080202\"`, an optional `.s` and zone ignored) as a UTC DateTime, or nil."
+  def parse_clock(<<y::binary-4, m::binary-2, d::binary-2, "T", hh::binary-2, mm::binary-2, ss::binary-2, _::binary>>) do
+    nums = for part <- [y, m, d, hh, mm, ss], do: (case Integer.parse(part) do {n, ""} -> n; _ -> nil end)
+
+    with [y, m, d, hh, mm, ss] when is_integer(y) and is_integer(m) and is_integer(d) and is_integer(hh) and is_integer(mm) and is_integer(ss) <- nums,
+         {:ok, naive} <- NaiveDateTime.new(y, m, d, hh, mm, ss) do
+      DateTime.from_naive!(naive, "Etc/UTC")
+    else
+      _ -> nil
+    end
+  end
+
+  def parse_clock(_), do: nil
+
   @doc "Close the session (the camera returns to its own control)."
   def disconnect(conn) do
     case Ptp.transact(conn, Ptp.op(:close_session)) do

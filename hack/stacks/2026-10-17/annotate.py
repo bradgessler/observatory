@@ -55,6 +55,7 @@ UMIN = 10.0     # px. The drawing unit is a hundredth of the picture's width, bu
 
 def finish(folder, name): return json.load(open("%s/final/%s.json" % (folder, name)))   # the finish recipe of <folder>/final/<name>.png
 def stack(folder): return json.load(open("%s/final/recipe.json" % folder))               # the stack's own recipe
+def sections(r): return {**r, **{s["key"]: s["numbers"] for s in r.get("steps", []) if s.get("key")}}   # observatory.recipe/1 keeps Saturn's sections as steps (key = the old name)
 def step(r, name): return [s for s in r["steps"] if s["step"] == name][0]
 def mm(fl): whole, _, frac = ("%.1f" % fl).rstrip("0").rstrip(".").partition("."); return format(int(whole), ",") + ("." + frac if frac else "")
 def optics(fl): return ("TELESCOPE", "Celestron 8SE Schmidt-Cassegrain: 203 mm aperture, %s mm focal length by plate solve of this stack, f/%.1f" % (mm(fl), fl / 203))
@@ -256,7 +257,7 @@ def targets():
     #           of 16 with gap contrast 0.325 and ring width 3.82 arcsec, by the same metrics.py; tonight's plain stack of 25:
     #           0.127 and 4.16
     #   when: frames 22:20 to 00:25 local by the window, kept ones mostly in the first hour; "about 50 degrees up"
-    sr = json.load(open("saturn/final/recipe.json")); co = sr["composite"]; eph = sr["ephemeris"]; SS = co["arcsec_per_px"]
+    sr = sections(json.load(open("saturn/final/recipe.json"))); co = sr["composite"]; eph = sr["ephemeris"]; SS = co["arcsec_per_px"]
     au = eph["distance_au"]; km = au * 1.495979e8; light_min = au * 499.005 / 60; diam = eph["equatorial_diameter_arcsec"]
     def saturn_labels(d, ox):
         """saturn/step11_annotate.py's labels, bar and north, on the picture's own pixels (its TOP margin is 0 here)."""

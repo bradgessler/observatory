@@ -32,3 +32,19 @@ systems/*/.nerves/
 
 # where the scope is: never in this public repository (config/config.exs says how it is found)
 /config/site.secret.exs
+
+# formats that carry metadata by design (and are big): they live with the night under ~/.observatory, never here
+*.fits
+*.fit
+*.fts
+*.tif
+*.tiff
+*.xisf
+*.ARW
+*.arw
+*.CR2
+*.cr3
+*.nef
+*.dng
+*.npz
+*.npy

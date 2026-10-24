@@ -10,6 +10,14 @@ defmodule Camera.Server do
   `Camera.Discovery` notices, restarts it within its budget, and says in one
   line when it gives up. A failure here never reaches the mount.
 
+  **The camera's clock** is set once a connection, from this machine's,
+  when this machine's is trusted (set by the network: `Controller.Clock.synced?/0`
+  when the controller runs here; `config :camera, clock: fun` stands in for
+  it) and the camera offers its DateTime as settable (`Camera.Sony.set_clock/4`).
+  Not yet trusted: asked again with each refresh. A camera that doesn't offer
+  it, or refuses, is asked nothing more and its status says so (`clock`);
+  the log says it once. `config :camera, set_clock: false` turns it off.
+
       Camera.Server.status("ilce-6000")
       Camera.Server.set("ilce-6000", iso: 800, shutter: "1/60")
       {:ok, files} = Camera.Server.capture("ilce-6000")
@@ -91,7 +99,9 @@ defmodule Camera.Server do
        info: nil,
        props: %{},
        last: nil,
-       shots: 0
+       shots: 0,
+       # setting the camera's clock: nil until it has been tried this connection, then what came of it
+       clock: nil
      }, {:continue, :connect}}
   end
 
@@ -104,7 +114,7 @@ defmodule Camera.Server do
          {:ok, info, conn} <- Sony.connect(conn),
          {:ok, props, conn} <- Sony.props(conn) do
       Process.send_after(self(), :refresh, @refresh_ms)
-      {:noreply, publish(%{s | conn: conn, info: info, props: props})}
+      {:noreply, publish(clock(%{s | conn: conn, info: info, props: props}))}
     else
       {:error, reason} -> stop(s, reason)
       {:error, reason, conn} -> stop(%{s | conn: conn}, reason)
@@ -165,7 +175,7 @@ defmodule Camera.Server do
     case Sony.props(s.conn) do
       {:ok, props, conn} ->
         Process.send_after(self(), :refresh, @refresh_ms)
-        {:noreply, publish(%{s | conn: conn, props: props})}
+        {:noreply, publish(clock(%{s | conn: conn, props: props}))}
 
       {:error, reason, conn} ->
         stop(%{s | conn: conn}, reason)
@@ -199,6 +209,69 @@ defmodule Camera.Server do
     Logger.warning("camera #{s.id}: #{inspect(reason)}")
     :persistent_term.put({__MODULE__, s.id}, %{id: s.id, state: :failed, error: reason})
     {:stop, {:shutdown, reason}, s}
+  end
+
+  # -- the camera's clock ----------------------------------------------------------------------
+
+  # Once a connection: set the camera's clock from this machine's, when this machine's is to be
+  # trusted. Whatever the camera says, the camera carries on: this never ends the process.
+  defp clock(%{clock: nil} = s) do
+    cond do
+      Application.get_env(:camera, :set_clock, true) == false ->
+        %{s | clock: %{set: false, why: :turned_off}}
+
+      not Sony.clock_offered?(s.info || %{}, s.props) ->
+        said(s, %{set: false, why: :not_offered})
+
+      true ->
+        case trusted_now() do
+          %DateTime{} = now ->
+            case Sony.set_clock(s.conn, s.info || %{}, s.props, now) do
+              {:ok, %{sent: sent, how: how}, conn} -> said(%{s | conn: conn}, %{set: true, sent: sent, how: how, at: now, zone: "UTC"})
+              {:error, why, conn} -> said(%{s | conn: conn}, %{set: false, why: why})
+            end
+
+          # not yet: asked again at the next refresh
+          _ ->
+            s
+        end
+    end
+  end
+
+  defp clock(s), do: s
+
+  # what came of it, kept, and said in the log once (a camera that reconnects all night says it once)
+  defp said(s, result) do
+    key = {__MODULE__, :clock_said, s.id, result[:set], result[:why]}
+
+    unless :persistent_term.get(key, false) do
+      :persistent_term.put(key, true)
+
+      if result.set,
+        do: Logger.info("camera #{s.id}: its clock set to #{result.sent} UTC"),
+        else: Logger.info("camera #{s.id}: its clock was not set (#{inspect(result.why)}); its pictures keep the camera's own date")
+    end
+
+    %{s | clock: result}
+  end
+
+  # this machine's time, when the network set it; nil when it isn't to be trusted yet
+  defp trusted_now do
+    case Application.get_env(:camera, :clock) do
+      fun when is_function(fun, 0) ->
+        fun.()
+
+      nil ->
+        clock = Controller.Clock
+        if Code.ensure_loaded?(clock) and function_exported?(clock, :synced?, 0) and apply(clock, :synced?, []) == true, do: DateTime.utc_now()
+
+      _ ->
+        nil
+    end
+  rescue
+    _ -> nil
+  catch
+    _, _ -> nil
   end
 
   defp set_one(conn, :iso, :auto), do: Sony.set(conn, Sony.prop(:iso), 0xFFFFFF)
@@ -240,6 +313,11 @@ defmodule Camera.Server do
       state: :ready,
       model: s.info && s.info.model,
       manufacturer: s.info && s.info.manufacturer,
+      # as the camera reports them (PTP device info); a serial of all zeros, as the a6000 sends, is no serial
+      serial: s.info && serial(s.info[:serial_number]),
+      firmware: s.info && blank(s.info[:device_version]),
+      # whether its clock was set from this machine's this connection (`clock/1`), nil until tried
+      clock: s.clock,
       device: s.device,
       # the simulated a6000 says so itself (Camera.simulated?/1)
       sim: sim?(s.transport),
@@ -257,6 +335,12 @@ defmodule Camera.Server do
 
     s
   end
+
+  defp serial(v) when is_binary(v), do: if(String.trim(v, "0") == "", do: nil, else: blank(v))
+  defp serial(_), do: nil
+
+  defp blank(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: String.trim(v))
+  defp blank(_), do: nil
 
   # to every machine for a real camera; a simulated one is this machine's alone (Telescope.listed?/3)
   defp broadcast(id, st) do

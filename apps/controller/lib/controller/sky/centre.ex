@@ -159,7 +159,7 @@ defmodule Controller.Sky.Centre do
       Task.start(fn ->
         if after_move?, do: landed(id)
         Process.sleep(settle)
-        result = StillCamera.finder(mount: id, scale: StillCamera.field_scale(), min_stars: 6, deadline: deadline)
+        result = StillCamera.finder(mount: id, scale: StillCamera.field_scale(), min_stars: 6, deadline: deadline, purpose: :centring)
         send(parent, {:solved, id, result})
       end)
 

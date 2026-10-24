@@ -92,8 +92,9 @@ defmodule Controller.StillCameraLive do
     cam = StillCamera.prefer(socket.assigns.cam, cam)
     # a picture that has left the roll is no longer the one being looked at
     picked = if socket.assigns.picked && Enum.any?(cam[:recent] || [], &(&1.seq == socket.assigns.picked)), do: socket.assigns.picked
-    {:noreply, assign(socket, cam: cam, picked: picked, bar: bar(socket.assigns.bar, cam[:shot]))}
+    {:noreply, socket |> assign(cam: cam, picked: picked, bar: bar(socket.assigns.bar, cam[:shot])) |> rotation()}
   end
+
 
   def handle_info({:lock_on, lock}, socket), do: {:noreply, assign(socket, lock: lock)}
 
@@ -336,6 +337,7 @@ defmodule Controller.StillCameraLive do
       <p :for={line <- uncounted(@last)} :if={!@old} class="hint" role="status">{line}</p>
       <%!-- the number to focus by, on a line of its own; under it what to do, with its help at the row's end --%>
       <p :if={@last && @focus && !@old} class="lock-line" role="status">{star_size_line(@last)}</p>
+      <p :if={tracking_line(assigns[:rotation])} class={["lock-line", tracking_over?(assigns[:rotation]) && "warn-line"]} role="status">{tracking_line(assigns[:rotation])}</p>
       <p :if={sensor_line(@cam)} class="lock-line" role="status">{sensor_line(@cam)}</p>
       <div :if={@last && @focus && !@old} class="setting">
         <div class="setting-text">
@@ -671,6 +673,25 @@ defmodule Controller.StillCameraLive do
 
   defp star_size_line(_), do: "Star size: no stars to measure"
 
+  # What the alignment allows at the camera's exposure: calm when it's within, plainly said when it isn't
+  defp tracking_over?(%{smear_arcsec: s, tolerance_arcsec: t}) when is_number(s) and is_number(t), do: s > t
+  defp tracking_over?(_), do: false
+
+  defp tracking_line(%{axis_off_deg: off, max_exposure_s: nil}), do: "Tracking: the field isn't turning (polar axis #{deg(off)} off)"
+
+  defp tracking_line(%{axis_off_deg: off, max_exposure_s: max, smear_arcsec: smear} = r) do
+    if tracking_over?(r),
+      do: "Tracking: the corners will smear about #{arcsec(smear)} in each picture, because the polar axis is #{deg(off)} off. Exposures up to #{seconds(max)} stay sharp, or align the polar axis",
+      else: "Tracking: sharp to the corners for exposures up to #{seconds(max)} here (polar axis #{deg(off)} off)"
+  end
+
+  defp tracking_line(_), do: nil
+
+  defp deg(x), do: "#{:erlang.float_to_binary(x / 1, decimals: 1)}°"
+  defp arcsec(x), do: "#{:erlang.float_to_binary(x / 1, decimals: 1)}″"
+  defp seconds(s) when s >= 120, do: "#{div(s, 60)} min"
+  defp seconds(s), do: "#{s} s"
+
   # The sensor as a service: how much of it is clear, and what the run does about the rest (`SensorMap`)
   defp sensor_line(%{sensor: %{spots: 0}}), do: "Sensor clean: no dust in tonight's pictures"
 
@@ -785,6 +806,25 @@ defmodule Controller.StillCameraLive do
   defp hold_line(_), do: nil
 
   defp fmt(x), do: :erlang.float_to_binary(x / 1, decimals: 2)
+
+  # How the mount's polar axis turns the field at the camera's exposure, for the tracking line: worked out at most
+  # every 10 s (a picture reports its stages several times a second), and never on the camera's process.
+  defp rotation(%{assigns: %{selected: id, cam: cam}} = socket) when is_binary(id) do
+    now = System.monotonic_time(:millisecond)
+    shutter = get_in(cam || %{}, [:camera, :settings, :shutter_s])
+
+    # monotonic time can be negative: "never worked out" is nil, not a number
+    stale = case socket.assigns[:rotation_at] do nil -> true; at -> now - at > 10_000 end
+
+    if stale or shutter != socket.assigns[:rotation_shutter] do
+      exposure = if is_number(shutter), do: shutter
+      assign(socket, rotation: safe(fn -> Controller.Sky.FieldRotation.for_mount(id, exposure) end), rotation_at: now, rotation_shutter: shutter)
+    else
+      socket
+    end
+  end
+
+  defp rotation(socket), do: socket
 
   defp safe(fun) do
     fun.()

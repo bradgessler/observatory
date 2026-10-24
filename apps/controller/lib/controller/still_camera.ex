@@ -900,6 +900,8 @@ defmodule Controller.StillCamera do
       exposure_s = Sidecar.seconds((settings || get_in(camera || %{}, [:settings]) || %{})[:shutter]) || 0.0
       settle = mount_id && settle(ctx.moved[mount_id], samples, pressed, hd(files)[:pressed_mono] || started, exposure_s, ctx.opts)
       plate = if solve && jpeg, do: to_plates(mount_id, jpeg.bytes, samples, pressed, exposure_s, solve, sharp)
+      # what the mount's alignment did to this picture: the field's turn and the corners' smear (facts, no verdict)
+      tracking = mount_id && safe(fn -> Controller.Sky.FieldRotation.for_mount(mount_id, exposure_s, at: pressed) end)
 
       # a sidecar that can't be written never costs the picture
       sidecar =
@@ -921,7 +923,8 @@ defmodule Controller.StillCamera do
             measured: measured,
             plate: plate,
             frame: ctx.opts[:frame],
-            dither: ctx.opts[:dither_at]
+            dither: ctx.opts[:dither_at],
+            tracking: tracking
           }
           |> Sidecar.build()
           |> then(&Sidecar.write(night, base, &1))

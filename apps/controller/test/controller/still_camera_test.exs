@@ -382,6 +382,28 @@ defmodule Controller.StillCameraTest do
   end
 
   @tag timeout: 60_000
+  # 23 October 2026: the record carries the field rotation's facts; the page, not the record, says when a picture's
+  # corners smeared past the tolerance it was worked to
+  test "a picture whose corners the field's turn smeared says so on its page, from its record", %{conn: conn} do
+    last = picture()
+    record = Controller.StillCamera.Record.read(last.seq)
+    path = Path.join([StillCamera.dir(), record.night, record.name <> ".json"])
+    sidecar = path |> File.read!() |> Jason.decode!()
+    tracking = %{"axis_off_deg" => 10.6, "rate_deg_per_h" => -2.43, "corner_arcsec" => 1400, "smear_arcsec" => 1.98, "max_exposure_s" => 61, "tolerance_arcsec" => 1.0}
+    File.write!(path, Jason.encode!(Map.put(sidecar, "tracking", tracking)))
+
+    {:ok, view, _html} = live(conn, ~p"/cameras/stills/pictures/#{last.seq}")
+    assert has_element?(view, ".warn-line[role=status]", "the corners smeared about 2.0″")
+    assert has_element?(view, ".warn-line", "61 s was the longest that stayed sharp")
+    assert has_element?(view, ".now-h", "Tracking")
+    assert has_element?(view, ".pic-facts dd", "2.4° an hour")
+    # within the tolerance: the facts, no note
+    File.write!(path, Jason.encode!(Map.put(sidecar, "tracking", %{tracking | "smear_arcsec" => 0.5})))
+    {:ok, view, _html} = live(conn, ~p"/cameras/stills/pictures/#{last.seq}")
+    refute has_element?(view, ".warn-line")
+    assert has_element?(view, ".now-h", "Tracking")
+  end
+
   test "Lock On from the page steers by this camera's pictures", %{conn: conn} do
     id = "sim-still-mount-#{System.unique_integer([:positive])}"
     start_supervised!({Mount.Server, id: id, transport: {Mount.Transport.Sim, []}})

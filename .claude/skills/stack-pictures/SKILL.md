@@ -29,6 +29,81 @@ night); that night's scripts are the worked example in
   picture is delivered; keep scripts, logs and the deliverables.
 - One agent per target works well: the targets share nothing. Tell each
   where the RAWs are, that they are read-only, and where to deliver.
+- **Every pipeline ends with the stack as FITS and a recipe in the schema**
+  (below). Nothing a processed file carries may give the site away.
+
+## Metadata: the stack FITS and the recipe (docs/metadata.md)
+
+The tools: `tools/obsmeta.py` (one reader for a frame's sidecar and solve,
+`observatory.still/1` and `/2`; the FITS cards by the spec's names; FITS with
+CHECKSUM/DATASUM; the recipe helpers), `tools/stack_fits.py` (the stack FITS),
+`tools/master_fits.py` (calibration masters), `tools/upgrade_recipe.py` (an old
+recipe to the schema), `tools/privacy_check.py` (before every commit),
+`tools/test_obsmeta.py` (run it after changing any of them). Worked example:
+`hack/stacks/2026-10-17/<target>/step16_metadata.py` (Saturn: `step14`) and
+`hack/stacks/2026-10-17/nightmeta.py`.
+
+- **The last steps of a pipeline:** the recipe step, then a metadata step that
+  (1) brings the recipe to `observatory.recipe/1` (`upgrade_recipe.upgrade(old,
+  ctx)`, or build it in that shape and call `obsmeta.finish_recipe`), (2) writes
+  `<OUT>/<target>-stack.fits` with `stack_fits.write(...)`, (3) adds the FITS to
+  the recipe's outputs, (4) dumps the recipe. Then the annotate step, then the
+  clean (the metadata step reads `work/`).
+- **The deliver step keeps the linear stack itself:** `np.save(W('stack_linear_rgb.npy'),
+  cam.astype(np.float32))` beside the TIF, before rounding. The FITS is that array
+  (float32, planes first: R, G, B; G the mean of G1 and G2; camera RGB times the
+  white balance; no pedestal; not clipped: the TIF clipped M42's core at 65535).
+  `stack_fits.write(..., tif=, pedestal=1000)` proves round(data + 1000) is the TIF.
+- **Header:** `IMAGETYP = 'MASTER LIGHT'`, `NCOMBINE`/`STACKCNT`, `EXPTIME` =
+  one frame (the data are per frame), `LIVETIME` = total, `DATE-OBS`/`DATE-END`
+  of the frames, `DATE-AVG` weighted, MJDs, `OBJECT` (SIMBAD name) and
+  `OBJCTRA`/`OBJCTDEC`, `TELESCOP`/`INSTRUME`/`FOCALLEN` (from the stack's own
+  solve)/`APTDIA`, `XPIXSZ` effective (7.84 um and `XBINNING = 2` for one pixel
+  per colour cell), `BUNIT`, `CALSTAT`, `ROWORDER = 'TOP-DOWN'`, one `HISTORY`
+  per recipe step (each step's `history` line), `HIERARCH OBS RECIPE ID`. A
+  SHA-256 is too long for one HIERARCH card: it is split over `KEY`, `KEY 2`
+  (`obsmeta.joined` reads it back).
+- **WCS: plate-solve the stack itself** (`solve=dict(ra_deg, dec_deg,
+  scale_low, scale_high)`: astrometry.net, SIP order 2, for the array as
+  stored), never frame WCS pushed through the registration. It is checked
+  against Gaia DR3: every isolated Gaia star looked for at its place through
+  the WCS (17 October: 140 to 639 stars, median 0.39 px for M27, 0.49 for M33,
+  1.14 for M42, all within 1.7 px at the 90th percentile; a mean offset of
+  0.1 to 0.7 px remains, with the Tycho-2 and the 2MASS indexes alike, cause
+  not found). The write fails past a median of 1.5 px, a 90th percentile of
+  2.5 or a mean offset of 1 px. The solve is deterministic: the same stack
+  gives the pipeline's own `work/solve/stack.wcs` to 0.000 px. astropy reads
+  it with `WCS(header, naxis=2)` (NAXIS3 is the colour).
+- **A planet (lucky imaging):** no stars, and the planet moves against them
+  (Saturn 18 arcsec over 1.7 hours). Pass `wcs=` yourself: Saturn-centred at
+  `DATE-AVG` (`WCSNAME` says so), scale and turn from the moons against JPL
+  Horizons, CRVAL geocentric. Check it on the ring axis. Fine grid: `XPIXSZ` =
+  3.92 / 3 um.
+- **Masters:** `darks.py`, `twilight_flat.py`, `skyflat.py` write `.fits` beside
+  the `.npz` (`IMAGETYP = 'MASTER DARK' / 'MASTER FLAT'`, NAXIS3 = 4 planes R G1
+  G2 B, `NCOMBINE`, `EXPTIME`, `ISOSPEED`, dates, every input's name and SHA-256
+  in HISTORY) and their JSON gains `schema: observatory.master/1`, `inputs`,
+  `fits`. For a master built before: `master_fits.py <folder>`.
+- **The recipe** (`observatory.recipe/1`): `schema`, `id` (SHA-256 of
+  everything but id, made, git, outputs: the FITS carries it), `target` {name,
+  ids, title, ra_deg, dec_deg, text}, `night`, `made`, `reproduce`, `roots`
+  (where relative paths start), `software` (versions, astrometry.net and its
+  indexes), `git` (commit, the scripts' last commit, changes not committed),
+  `inputs` (every frame considered: name, night, folder, the RAW's SHA-256 from
+  its sidecar, the sidecar's and solve's own, used, why, weight), `calibration`,
+  `steps` (each with `history`), `outputs` (file, root, kind, SHA-256, bytes;
+  the stack FITS with its WCS and checks). Paths relative to the repository or
+  under `~/.observatory`, never `/Users/...`. `obsmeta.check_recipe` lists what
+  does not conform.
+- **Privacy (Brad's rule): nothing a processed file carries may give the site
+  away.** No `SITELAT`, `SITELONG`, `SITEELEV`, `OBSGEO-*`, `CENTALT`/`CENTAZ`,
+  hour angle or local time zone in any FITS, HISTORY or HIERARCH card;
+  `AIRMASS` only to 0.1. `obsmeta.write_fits` strips them whatever it is given
+  and refuses text naming the site. No site in a recipe either: it names the
+  frames. FITS, TIF, NPZ and anything with metadata live under
+  `~/.observatory/nights/` only, never in git (write_fits refuses the
+  repository); the committed pictures carry no metadata at all (OpenCV writes
+  none). Before committing: `tools/privacy_check.py` on the staged files.
 
 ## Before stacking: is it the thing?
 

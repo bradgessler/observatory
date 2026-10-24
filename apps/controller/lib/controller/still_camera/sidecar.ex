@@ -8,7 +8,9 @@ defmodule Controller.StillCamera.Sidecar do
   `index.jsonl`, the same record, so a night can be read without opening
   every file.
 
-  What is in it (`"schema": "observatory.still/1"`):
+  What is in it (`"schema": "observatory.still/2"`; every field of
+  `observatory.still/1` is still there with the same meaning, so its readers
+  read this too):
 
     * `time`: when the box pressed the shutter, when the exposure ended
       (that plus the shutter speed), when the camera had the picture, when it
@@ -50,18 +52,42 @@ defmodule Controller.StillCamera.Sidecar do
       Left out when the picture had no stars to measure.
     * `plate_solve`: when pictures are being plate solved, which plate this one
       became and the file its answer is written to (`<name>.solve.json`: RA/Dec
-      of the centre, field, rotation; or why it wasn't solved).
+      of the centre, field, rotation, the whole WCS; or why it wasn't solved).
+
+  New in `/2` (`docs/metadata.md`):
+
+    * `capture`: what the picture was taken for. `purpose` (`light`, `dark`,
+      `flat`, `focus`, `centring`, `finder`, `test`), the hold's `target`
+      as the shutter was pressed (`%{name, id, ra_deg, dec_deg}`: the
+      catalogue's place, and `aim` when centring or a dither has moved the
+      hold off it), `run` (`%{id, k}`: which run of pictures, and this one's
+      number in it, counted from 1) and `plan` (`%{run, step, index, of}`,
+      when an observing plan ran the camera). What a stack groups frames by.
+    * `fits`: the same facts as FITS keywords, keyword to value, in order:
+      standard ones first, ours as `OBS ...` (`Controller.Metadata.Fits`,
+      the map the telescope camera's FITS files use too).
+    * `camera.serial`, `camera.firmware`, `camera.program`, and the camera's
+      own clock: `clock_reads` (its capture date, as it says it),
+      `clock_offset_s` (that less the shutter press) and `clock_set` (whether
+      the box set its clock this connection, `Camera.Sony.set_clock/4`).
+    * `sensor`: the camera's sensor by model (`Controller.Metadata.Sensor`).
+    * `model.axis_off_deg`, `axis_alt_deg`, `axis_az_deg`: the polar axis in
+      numbers beside `axis_words`; `time.clock_source` in one word.
+    * Unknown is absent: `camera.f_number` is left out with no lens on the
+      camera (it said 0.0), `tracking.smear_arcsec` without an exposure.
 
   It is as good as what was known that night: a mount that isn't homed has no
   RA/Dec, and the encoder positions are still there to work it out later.
   """
 
+  alias Controller.Metadata.{Fits, Sensor}
   alias Controller.ScopeCamera.Header
   alias Controller.Sky.Astro
   alias Controller.Settings
   alias Controller.StillCamera.Optics
 
-  @schema "observatory.still/1"
+  @schema "observatory.still/2"
+  @purposes ~w(light dark flat focus centring finder test)
   @sample_ms 250
 
   # -- the mount, watched while a picture is taken ----------------------------------------------
@@ -101,7 +127,10 @@ defmodule Controller.StillCamera.Sidecar do
   (from `stop/1`), `settle` (`%{settling, since_slew_s, settle_s}`), `sky`
   (`Controller.StillCamera.Cloud.judge/3`'s verdict), `lock`
   (`Controller.LockOn.status/0`), `calibration` (the mount's saved one),
-  `measured`. Anything missing is left out.
+  `measured`; and for `capture`: `purpose`, `target` (the hold's, read as the
+  shutter was pressed; looked up now when not given), `run`, `plan`, and
+  `camera_clock` (the camera's capture date for the picture). Anything
+  missing is left out.
   """
   def build(shot) do
     camera = shot[:camera] || %{}
@@ -110,66 +139,256 @@ defmodule Controller.StillCamera.Sidecar do
     exposure_s = seconds(settings[:shutter])
     pressed = shot[:pressed_at] || shot[:saved_at]
     ended = if exposure_s, do: DateTime.add(pressed, round(exposure_s * 1000), :millisecond), else: pressed
-    ctx = Header.context(shot[:mount_id], pressed)
+    # where the mount pointed is worked out from the mount as it was when the shutter opened, not as it is now
+    ctx = Header.context(shot[:mount_id], pressed, snapshot_at(shot[:samples] || [], pressed))
+    target = if Map.has_key?(shot, :target), do: shot[:target], else: ctx[:target]
+    capture = capture(shot, target)
+    camera_block = camera(camera, settings, settings_from, exposure_s, shot[:camera_clock], pressed)
+    pointing = pointing(ctx[:pointing], ctx[:site], pressed)
 
-    plain(%{
-      schema: @schema,
-      seq: shot[:seq],
-      # what kind of frame: light (the sky, nothing said) or a calibration frame taken on purpose:
-      # "dark" (the cap on, the light's own exposure and ISO) or "flat" (an evenly lit sky). The stacking
-      # tools find calibration frames by this (`stack-pictures/tools/darks.py`)
-      frame: shot[:frame] && %{type: to_string(shot[:frame])},
-      # where in the run's dither the picture was taken: `%{k, east_arcmin, north_arcmin, radius_arcmin}`
-      # from the run's middle (`Controller.Sky.Dither`); nil when the run held still
-      dither: shot[:dither],
-      # how the mount's polar axis turns the field (`Controller.Sky.FieldRotation`): axis_off_deg, rate_deg_per_h,
-      # corner_arcsec, smear_arcsec (predicted for this exposure), max_exposure_s and the tolerance it was worked to.
-      # Facts only: a reader decides whether the smear matters
-      tracking: shot[:tracking],
-      time: %{
-        shutter_pressed: pressed,
-        exposure_end: ended,
-        exposure_s: exposure_s,
-        picture_ready: shot[:ready_at],
-        saved: shot[:saved_at],
-        # a box that has just booted keeps its own time until the network sets it: times written then can be off by a minute
-        clock:
-          cond do
-            Controller.Clock.synced?() -> "set by the network"
-            Controller.Clock.set?() -> "set from a phone or another machine of the cluster"
-            true -> "the box's own, not yet set by the network"
-          end,
-        note: "UTC by the box's clock. shutter_pressed is when the box sent the press; the camera opens within tens of ms."
-      },
-      files: shot[:files],
-      camera: %{
-        id: camera[:id],
-        model: camera[:model],
-        manufacturer: camera[:manufacturer],
-        iso: settings[:iso],
-        shutter: settings[:shutter],
-        exposure_s: exposure_s,
-        quality: settings[:quality],
-        f_number: settings[:f_number],
-        focus: settings[:focus],
-        battery_pct: settings[:battery],
-        settings_from: settings_from
-      },
-      optics: optics(),
-      mount: mount(shot[:mount_id], shot[:samples] || [], pressed, ended),
-      settling: shot[:settle] && shot.settle[:settling],
-      settle: shot[:settle] && Map.take(shot.settle, [:since_slew_s, :settle_s]),
-      cloud: shot[:sky] && shot.sky[:cloud],
-      transparency: shot[:sky] && shot.sky[:transparency],
-      transparency_from: if(is_map(shot[:sky]) and shot.sky[:cloud] != nil, do: Map.take(shot.sky, [:stars, :sky_ratio, :first])),
-      pointing: pointing(ctx[:pointing], ctx[:site], pressed),
-      model: ctx[:model],
+    record =
+      plain(%{
+        schema: @schema,
+        seq: shot[:seq],
+        # what kind of frame: "light" (the sky) or a calibration frame taken on purpose: "dark" (the cap
+        # on, the light's own exposure and ISO) or "flat" (an evenly lit sky). The stacking tools find
+        # calibration frames by this (`stack-pictures/tools/darks.py`). Said for every picture since /2
+        frame: %{type: to_string(shot[:frame] || :light)},
+        # what it was taken for, the hold's target, the run and the plan it belongs to
+        capture: capture,
+        # where in the run's dither the picture was taken: `%{k, east_arcmin, north_arcmin, radius_arcmin}`
+        # from the run's middle (`Controller.Sky.Dither`); nil when the run held still
+        dither: shot[:dither],
+        # how the mount's polar axis turns the field (`Controller.Sky.FieldRotation`): axis_off_deg, rate_deg_per_h,
+        # corner_arcsec, smear_arcsec (predicted for this exposure), max_exposure_s and the tolerance it was worked to.
+        # Facts only: a reader decides whether the smear matters
+        tracking: tracking(shot[:tracking]),
+        time: %{
+          shutter_pressed: pressed,
+          exposure_end: ended,
+          exposure_s: exposure_s,
+          picture_ready: shot[:ready_at],
+          saved: shot[:saved_at],
+          # a box that has just booted keeps its own time until the network sets it: times written then can be off by a minute
+          clock:
+            cond do
+              Controller.Clock.synced?() -> "set by the network"
+              Controller.Clock.set?() -> "set from a phone or another machine of the cluster"
+              true -> "the box's own, not yet set by the network"
+            end,
+          # the same in one word: network, peer, phone or own (`Controller.Clock.source/0`)
+          clock_source: safe(fn -> Controller.Clock.source() end),
+          note: "UTC by the box's clock. shutter_pressed is when the box sent the press; the camera opens within tens of ms."
+        },
+        files: shot[:files],
+        camera: camera_block,
+        sensor: Sensor.profile(camera[:model]),
+        optics: optics(),
+        mount: mount(shot[:mount_id], shot[:samples] || [], pressed, ended),
+        settling: shot[:settle] && shot.settle[:settling],
+        settle: shot[:settle] && Map.take(shot.settle, [:since_slew_s, :settle_s]),
+        cloud: shot[:sky] && shot.sky[:cloud],
+        transparency: shot[:sky] && shot.sky[:transparency],
+        transparency_from: if(is_map(shot[:sky]) and shot.sky[:cloud] != nil, do: Map.take(shot.sky, [:stars, :sky_ratio, :first])),
+        pointing: pointing,
+        model: ctx[:model],
+        site: ctx[:site],
+        lock_on: lock(shot[:lock], shot[:calibration]),
+        measured: shot[:measured],
+        plate_solve: plate(shot[:plate], Path.basename(to_string(shot[:files] |> List.first() |> Map.get(:name))) |> Path.rootname()),
+        box: %{node: ctx[:node], firmware: ctx[:firmware]}
+      })
+
+    Map.put(record, "fits", fits(record, ctx, capture, camera_block, pointing, settings, pressed, ended, exposure_s, shot))
+  end
+
+  # the camera as it was for this picture: as the shutter was pressed where the driver read it then,
+  # what it reports about itself, and its own clock against the box's
+  defp camera(camera, settings, settings_from, exposure_s, camera_clock, pressed) do
+    reads = camera_clock && Camera.Sony.parse_clock(camera_clock)
+
+    %{
+      id: camera[:id],
+      model: camera[:model],
+      manufacturer: camera[:manufacturer],
+      serial: camera[:serial],
+      firmware: camera[:firmware],
+      iso: settings[:iso],
+      shutter: settings[:shutter],
+      exposure_s: exposure_s,
+      quality: settings[:quality],
+      # a camera with no lens on it says 0.0: that is no f-number, so it is left out
+      f_number: if(is_number(settings[:f_number]) and settings[:f_number] > 0, do: settings[:f_number]),
+      focus: settings[:focus],
+      program: settings[:program],
+      battery_pct: settings[:battery],
+      settings_from: settings_from,
+      # the camera's own clock: what it stamped this picture with, and how far that is from the box's press
+      clock_reads: if(is_binary(camera_clock) and camera_clock != "", do: camera_clock),
+      clock_offset_s: reads && pressed && DateTime.diff(reads, DateTime.truncate(pressed, :second), :second),
+      clock_set: camera[:clock]
+    }
+  end
+
+  # what the picture was taken for and of: `purpose`, the hold's `target`, the `run` and the `plan`
+  defp capture(shot, target) do
+    %{
+      purpose: purpose(shot[:purpose], shot[:frame]),
+      target: target,
+      run: shot[:run],
+      plan: shot[:plan]
+    }
+  end
+
+  @doc """
+  What a picture was taken for, in the sidecar's words: the one asked for (`purpose:`), else a
+  calibration frame's type, else `"light"` (a picture of the sky for a stack).
+  """
+  def purpose(asked, frame \\ nil)
+  def purpose(asked, _frame) when is_atom(asked) and not is_nil(asked), do: purpose(Atom.to_string(asked))
+  def purpose(asked, _frame) when is_binary(asked), do: if(asked == "centre", do: "centring", else: asked)
+  def purpose(nil, frame) when frame in [:dark, :flat, "dark", "flat"], do: to_string(frame)
+  def purpose(_, _), do: "light"
+
+  @doc "The purposes a picture can have."
+  def purposes, do: @purposes
+
+  # a smear worked out without an exposure is no smear: left out, never `false`
+  defp tracking(%{} = t), do: if(is_number(t[:smear_arcsec]), do: t, else: Map.delete(t, :smear_arcsec))
+  defp tracking(_), do: nil
+
+  # the sample nearest the shutter's press, as the mount reported it
+  defp snapshot_at([], _), do: nil
+
+  defp snapshot_at(samples, at) do
+    case Enum.filter(samples, fn {_, snap} -> is_map(snap) end) do
+      [] -> nil
+      found -> found |> Enum.min_by(fn {t, _} -> abs(DateTime.diff(t, at, :millisecond)) end) |> elem(1)
+    end
+  end
+
+  # -- the FITS keywords (`Controller.Metadata.Fits`): the same facts, by their standard names ---
+
+  defp fits(record, ctx, capture, camera, pointing, settings, pressed, ended, exposure_s, shot) do
+    optics = record["optics"] || %{}
+    sensor = Sensor.profile(camera[:model])
+    purpose = capture.purpose
+
+    facts = %{
+      type: imagetyp(purpose),
+      began: pressed,
+      ended: ended,
+      exposure_s: exposure_s,
+      object: capture.target,
+      pointing: pointing && %{ra_deg: pointing.ra_deg, dec_deg: pointing.dec_deg, source: pointing.source},
       site: ctx[:site],
-      lock_on: lock(shot[:lock], shot[:calibration]),
-      measured: shot[:measured],
-      plate_solve: plate(shot[:plate], Path.basename(to_string(shot[:files] |> List.first() |> Map.get(:name))) |> Path.rootname()),
-      box: %{node: ctx[:node], firmware: ctx[:firmware]}
-    })
+      instrument: Fits.instrument_name(camera[:manufacturer], camera[:model]),
+      telescope: Header.telescope(),
+      observer: Header.observer(),
+      focal_length_mm: optics["focal_length_mm"],
+      aperture_mm: optics["aperture_mm"],
+      pixel_um: sensor && sensor.pixel_um,
+      binning: sensor && 1,
+      cfa: sensor && sensor[:cfa],
+      iso: settings[:iso],
+      software: Fits.software_name(ctx[:firmware]),
+      ours: ours(record, ctx, capture, camera, shot)
+    }
+
+    facts |> Fits.cards() |> Fits.json()
+  end
+
+  # IMAGETYP: what is meant for a stack is LIGHT, DARK or FLAT; anything else is a look (N.I.N.A.'s SNAPSHOT)
+  defp imagetyp(p) when p in ["light", "dark", "flat"], do: String.to_atom(p)
+  defp imagetyp(_), do: :snapshot
+
+  defp ours(record, ctx, capture, camera, shot) do
+    time = record["time"] || %{}
+    model = ctx[:model] || %{}
+    tracking = record["tracking"] || %{}
+    dither = record["dither"] || %{}
+    stars = get_in(record, ["measured", "star_size"]) || %{}
+    run = capture.run || %{}
+    plan = capture.plan || %{}
+
+    [
+      {"OBS SCHEMA", @schema},
+      {"OBS FRAME SEQ", record["seq"], "picture number on this box"},
+      {"OBS FRAME WHY", capture.purpose, "what it was taken for"},
+      {"OBS RUN ID", run[:id], "the run of pictures it belongs to"},
+      {"OBS RUN K", run[:k], "its number in the run, from 1"},
+      {"OBS PLAN RUN", plan[:run], "the observing plan"},
+      {"OBS PLAN STEP", plan[:step], "the plan's step"},
+      {"OBS PLAN INDEX", plan[:index], "its number in the step, from 1"},
+      {"OBS PLAN OF", plan[:of], "pictures the step asked for"},
+      {"OBS TIME READY", shot[:ready_at], "the camera had the picture, UTC"},
+      {"OBS TIME SAVED", shot[:saved_at], "saved on the box, UTC"},
+      {"OBS CLOCK SOURCE", time["clock_source"], "where the box's time came from"},
+      {"OBS CAMERA ID", camera[:id]},
+      {"OBS CAMERA SERIAL", camera[:serial]},
+      {"OBS CAMERA FIRMWARE", camera[:firmware]},
+      {"OBS CAMERA SHUTTER", camera[:shutter], "as the camera words it"},
+      {"OBS CAMERA QUALITY", camera[:quality]},
+      {"OBS CAMERA FOCUS MODE", camera[:focus] && to_string(camera[:focus])},
+      {"OBS CAMERA PROGRAM", camera[:program]},
+      {"OBS CAMERA BATTERY PCT", camera[:battery_pct]},
+      {"OBS CAMERA CLOCK", camera[:clock_reads], "the camera's own clock, as it stamped the picture"},
+      {"OBS CAMERA CLOCK OFFSET S", camera[:clock_offset_s], "camera's clock less the box's"},
+      {"OBS OPTICS FOCAL FROM", get_in(record, ["optics", "focal_length_from"])},
+      {"OBS OPTICS FOCAL LABEL MM", get_in(record, ["optics", "focal_length_label_mm"])},
+      {"OBS MOUNT ID", get_in(record, ["mount", "id"])},
+      {"OBS MOUNT START TRACKING", get_in(record, ["mount", "start", "tracking"])},
+      {"OBS MOUNT START HOMED", get_in(record, ["mount", "start", "homed"])},
+      {"OBS MOUNT START RA DEG", get_in(record, ["mount", "start", "ra", "deg"])},
+      {"OBS MOUNT START DEC DEG", get_in(record, ["mount", "start", "dec", "deg"])},
+      {"OBS MOUNT START RA STEPS", get_in(record, ["mount", "start", "ra", "steps"])},
+      {"OBS MOUNT START DEC STEPS", get_in(record, ["mount", "start", "dec", "steps"])},
+      {"OBS MOUNT END RA DEG", get_in(record, ["mount", "end", "ra", "deg"])},
+      {"OBS MOUNT END DEC DEG", get_in(record, ["mount", "end", "dec", "deg"])},
+      {"OBS POINTING SOURCE", get_in(record, ["pointing", "source"])},
+      {"OBS MODEL POINTS", model[:n], "star alignment points in force"},
+      {"OBS MODEL RMS ARCMIN", model[:rms_arcmin]},
+      {"OBS MODEL STALE", model[:stale?]},
+      {"OBS MODEL AXIS OFF DEG", model[:axis_off_deg], "polar axis from the pole"},
+      {"OBS MODEL AXIS ALT DEG", model[:axis_alt_deg], "polar axis altitude"},
+      {"OBS MODEL AXIS AZ DEG", model[:axis_az_deg], "polar axis azimuth"},
+      {"OBS TRACKING AXIS OFF DEG", tracking["axis_off_deg"]},
+      {"OBS TRACKING ROT DEG PER H", tracking["rate_deg_per_h"], "the field's turn"},
+      {"OBS TRACKING CORNER ARCSEC", tracking["corner_arcsec"]},
+      {"OBS TRACKING SMEAR ARCSEC", tracking["smear_arcsec"], "the corners' smear in this exposure"},
+      {"OBS TRACKING MAX EXP S", tracking["max_exposure_s"]},
+      {"OBS TRACKING TOL ARCSEC", tracking["tolerance_arcsec"]},
+      {"OBS SETTLING", record["settling"], "taken while the mount settled after a slew"},
+      {"OBS SINCE SLEW S", get_in(record, ["settle", "since_slew_s"])},
+      {"OBS SETTLE S", get_in(record, ["settle", "settle_s"])},
+      {"OBS DITHER K", dither["k"]},
+      {"OBS DITHER EAST ARCMIN", dither["east_arcmin"]},
+      {"OBS DITHER NORTH ARCMIN", dither["north_arcmin"]},
+      {"OBS DITHER RADIUS ARCMIN", dither["radius_arcmin"]},
+      {"OBS LOCKON STATE", get_in(record, ["lock_on", "state"])},
+      {"OBS LOCKON HOLDING", get_in(record, ["lock_on", "holding"])},
+      {"OBS SKY CLOUD", record["cloud"]},
+      {"OBS SKY TRANSPARENCY", record["transparency"], "stars' light against the clearest picture of the field"},
+      {"OBS SKY TRANSP STARS", get_in(record, ["transparency_from", "stars"])},
+      {"OBS FRAME BACKGROUND", get_in(record, ["measured", "background"]), "median, 0-255, of the grey copy"},
+      {"OBS FRAME MAX", get_in(record, ["measured", "max"])},
+      {"OBS FRAME STARS", get_in(record, ["measured", "stars"])},
+      {"OBS STARS HFD ARCSEC", stars["arcsec"], "median half-flux diameter"},
+      {"OBS STARS HFD PX", stars["px"]},
+      {"OBS STARS HFD N", stars["n"]},
+      {"OBS PLATE N", get_in(record, ["plate_solve", "plate"])},
+      {"OBS PLATE ANSWER", get_in(record, ["plate_solve", "answer_in"])},
+      {"OBS BOX NODE", ctx[:node]},
+      {"OBS BOX FIRMWARE", ctx[:firmware], "nerves_fw_uuid"}
+    ]
+  end
+
+  defp safe(fun) do
+    fun.()
+  rescue
+    _ -> nil
+  catch
+    _, _ -> nil
   end
 
   @doc "Write the record beside the picture and add it to the night's index. Returns the sidecar's path."

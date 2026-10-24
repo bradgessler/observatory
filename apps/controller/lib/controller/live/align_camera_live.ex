@@ -218,7 +218,7 @@ defmodule Controller.AlignCameraLive do
       %{camera: %{state: :ready, settings: now}} ->
         Task.Supervisor.start_child(Controller.ScopeCamera.Tasks, fn ->
           unless finder_exposure?(now), do: safe(fn -> StillCamera.set(iso: @iso, shutter: @shutter) end)
-          StillCamera.shoot()
+          StillCamera.shoot(purpose: :test)
         end)
 
         {:noreply, put_notice(socket, "Taking a picture")}

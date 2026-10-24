@@ -63,6 +63,7 @@ defmodule Controller.StillCamera do
 
   alias Controller.{LockOn, Plates, ScopeCamera, Settings}
   alias Controller.ScopeCamera.Header
+  alias Controller.Sky.Solve.Wcs
   alias Controller.StillCamera.{Cloud, Focus, Optics, SensorMap, Sidecar}
 
   @topic "still_camera"
@@ -206,6 +207,10 @@ defmodule Controller.StillCamera do
 
     * `frame:` `:dark` or `:flat` for a calibration frame taken on purpose; its sidecar says so and
       the stacking tools find it by that (nothing said: a light frame of the sky);
+    * `purpose:` what the picture is for, written in its sidecar (`capture.purpose`) so a stack
+      can leave out what isn't for it: `:light` (the sky, for a stack; the default), `:dark`,
+      `:flat` (the default for those frames), `:focus`, `:centring`, `:finder` (a finder
+      picture's default), `:test`;
     * `settle_ms:` how long after a slew a picture is still the mount settling (2000). A picture
       whose shutter opened sooner than that is marked `settling: true` and not counted;
     * `slew_deg_s:` how fast an axis must turn for it to be a slew and not tracking, in degrees a
@@ -233,7 +238,11 @@ defmodule Controller.StillCamera do
 
   @doc """
   Take pictures one after another (`interval_ms` between them, 0 for back to back), or stop.
-  `opts` are `shoot/1`'s, for every picture of the run.
+  `opts` are `shoot/1`'s, for every picture of the run, and `plan:` `%{run, step, of}` when an
+  observing plan runs the camera (which plan, which of its steps, how many pictures the step asks
+  for). Each run has its own id (the UTC time it started, `20261018-032139`) and counts its
+  pictures from 1; the sidecar says both (`capture.run`), and with a plan `capture.plan` says
+  `%{run, step, index, of}`, `index` being the picture's number in the step.
   """
   def continuous(on?, interval_ms \\ 0, opts \\ []) do
     {on, opts} = Keyword.pop(opts, :on)
@@ -452,6 +461,8 @@ defmodule Controller.StillCamera do
        watching: MapSet.new(),
        # the run's options for each picture (`shoot/1`'s)
        shot_opts: [],
+       # the run of pictures under way: its id and how many it has started (`capture.run`)
+       run: nil,
        # a run's dither (`continuous/3`'s `dither:`): pictures since the last move, the next offset's
        # number, the aim the run started from, a move under way, the offset now and the last move's result
        dither: %{shots: 0, k: 0, base: nil, busy: false, at: nil, last: nil},
@@ -471,7 +482,9 @@ defmodule Controller.StillCamera do
 
   @impl true
   def handle_call({:continuous, on?, interval, opts}, _from, s) do
-    s = persist(%{s | continuous: on?, interval_ms: interval, shot_opts: opts, failures: 0, why: nil})
+    # a new run: its own id, its pictures counted from 1 (`capture.run` in each sidecar)
+    run = if on?, do: %{id: Calendar.strftime(DateTime.utc_now(), "%Y%m%d-%H%M%S"), k: 0}
+    s = persist(%{s | continuous: on?, interval_ms: interval, shot_opts: opts, failures: 0, why: nil, run: run})
     # a new run dithers round its own middle, from its first picture
     s = if on?, do: %{s | dither: %{s.dither | shots: 0, k: 0, base: nil, at: nil}}, else: s
     s = if on? and s.task == nil and not s.armed, do: arm(s, 0), else: s
@@ -496,7 +509,10 @@ defmodule Controller.StillCamera do
     deadline = opts[:deadline] || Plates.finder_deadline()
     solve = s.solve_opts |> Keyword.merge(Keyword.take(opts, [:scale, :min_stars, :nsigma, :hint])) |> Keyword.merge(finder: true, deadline: deadline)
 
-    case start_shot(s, Keyword.merge(s.shot_opts, opts), solve) do
+    # a finder picture is a finder's (Centre says :centring), never one of a plan's pictures
+    shot = s.shot_opts |> Keyword.drop([:plan, :purpose, :run_at]) |> Keyword.merge(Keyword.put_new(opts, :purpose, :finder))
+
+    case start_shot(s, shot, solve) do
       %{task: %Task{}, seq: seq} = s -> {:noreply, %{s | finder: %{from: from, seq: seq, opts: opts, deadline: deadline}}}
       # not taken (no room on the card): `why` says so on the page
       s -> {:reply, {:error, :not_taken}, s}
@@ -510,7 +526,8 @@ defmodule Controller.StillCamera do
     {:noreply, announce(%{s | paused_until: System.monotonic_time(:millisecond) + ms, why: "paused for an upgrade: no new picture until the box is back"})}
   end
 
-  def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(s.shot_opts, opts))}
+  # one picture on its own: the run's settings, never the run's place in a plan
+  def handle_cast({:shoot, opts}, s), do: {:noreply, start_shot(s, Keyword.merge(Keyword.drop(s.shot_opts, [:plan, :run_at]), opts))}
 
   # how many of the last pictures the roll keeps
   @roll 8
@@ -780,8 +797,11 @@ defmodule Controller.StillCamera do
       at = %{k: k, east_arcmin: Float.round(east, 2), north_arcmin: Float.round(north, 2), radius_arcmin: radius}
       announce(%{s | dither: %{s.dither | busy: true, k: k + 1, base: base, at: at}})
     else
-      started = start_shot(s, if(s.dither.at, do: Keyword.put(s.shot_opts, :dither_at, s.dither.at)))
-      if started.task != s.task, do: %{started | dither: %{started.dither | shots: started.dither.shots + 1}}, else: started
+      # the run's next picture, and its number in the run
+      run = s.run && %{s.run | k: s.run.k + 1}
+      opts = if(s.dither.at, do: Keyword.put(s.shot_opts, :dither_at, s.dither.at), else: s.shot_opts)
+      started = start_shot(s, Keyword.put(opts, :run_at, run))
+      if started.task != s.task, do: %{started | dither: %{started.dither | shots: started.dither.shots + 1}, run: run}, else: started
     end
   end
 
@@ -828,6 +848,9 @@ defmodule Controller.StillCamera do
     started = System.monotonic_time(:millisecond)
     # the mount a caller named (Auto Align, for the mount it is aligning), else the usual one
     mount_id = ctx.opts[:mount] || mount_id()
+    # what the hold is on as the shutter is pressed (a plan may move on to the next target while this
+    # picture is still coming down)
+    target = mount_id && safe(fn -> Header.target(mount_id) end)
     watch = Sidecar.watch(mount_id)
     result = Camera.capture(id, progress: ctx[:tell])
     samples = Sidecar.stop(watch)
@@ -873,7 +896,7 @@ defmodule Controller.StillCamera do
       place = %{
         camera: id,
         mount: mount_id,
-        target: mount_id && safe(fn -> Controller.Sky.Tracker.status(mount_id)[:name] end),
+        target: (target && target[:name]) || (mount_id && safe(fn -> Controller.Sky.Tracker.status(mount_id)[:name] end)),
         settings: settings && {settings[:iso], settings[:shutter]},
         slewed: mount_id && ctx.turned[mount_id]
       }
@@ -924,7 +947,13 @@ defmodule Controller.StillCamera do
             plate: plate,
             frame: ctx.opts[:frame],
             dither: ctx.opts[:dither_at],
-            tracking: tracking
+            tracking: tracking,
+            target: target,
+            purpose: ctx.opts[:purpose],
+            run: ctx.opts[:run_at],
+            plan: plan_at(ctx.opts),
+            # the camera's own clock, as it stamped this picture (PTP's capture date)
+            camera_clock: get_in(hd(files), [:info, :capture_date])
           }
           |> Sidecar.build()
           |> then(&Sidecar.write(night, base, &1))
@@ -953,8 +982,11 @@ defmodule Controller.StillCamera do
         field: field,
         # for a finder: where the model says the telescope points, should the solve not come back
         aim: solve[:finder] && safe(fn -> Header.context(mount_id, pressed)[:pointing] end),
-        # the camera's JPEG, across: the sensor's whole width in this many pixels
+        # the camera's JPEG, across: the sensor's whole width in this many pixels; and down, and which
+        # file it is (the JPEG, or the preview inside the RAW): what a solve's WCS is carried onto
         full_w: jpeg && jpeg_width(jpeg.bytes),
+        full_h: jpeg && elem(jpeg_size(jpeg.bytes) || {nil, nil}, 1),
+        full_of: jpeg && full_of(jpeg, kept),
         # how the camera was set as the shutter was pressed, for the roll of recent pictures
         iso: settings && settings[:iso],
         shutter: settings && settings[:shutter]
@@ -978,6 +1010,18 @@ defmodule Controller.StillCamera do
       })
 
       {:ok, record}
+    end
+  end
+
+  # the file the box measured and solved: the camera's JPEG, or the RAW whose preview it was
+  defp full_of(%{preview_of: :arw}, kept), do: with(%{name: n} <- Enum.find(kept, &(&1.format == :arw)), do: n <> " (the preview inside it)")
+  defp full_of(_jpeg, kept), do: with(%{name: n} <- Enum.find(kept, &(&1.format == :jpeg)), do: n)
+
+  # where a plan's picture sits in it: the plan's `%{run, step, of}` and the picture's number in the step
+  defp plan_at(opts) do
+    case opts[:plan] do
+      %{} = plan -> plan |> Map.take([:run, :step, :of]) |> Map.put(:index, opts[:run_at] && opts[:run_at][:k])
+      _ -> nil
     end
   end
 
@@ -1065,23 +1109,57 @@ defmodule Controller.StillCamera do
 
   defp learn(solve), do: solve
 
-  # the answer beside the picture, once
+  # The answer beside the picture, once. With a solve: the whole WCS as the solver wrote it for its
+  # copy (`wcs`), and the same carried onto the camera's own picture (`wcs_full`, `Wcs.scale/3`), so
+  # the solve applies to the JPEG (or the RAW's preview) and not only to the box's grey copy.
   defp write_solve(solve) do
-    record = %{
-      schema: "observatory.still.solve/1",
-      picture: Path.basename(solve.base),
-      mount: solve.mount,
-      plate: solve.n,
-      state: solve.state,
-      reason: solve.reason,
-      solution: solve.solution,
-      focal_length_mm: solve.focal_length_mm,
-      written: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
+    found = solve.state == :solved && safe(fn -> Plates.wcs(solve.mount, solve.n) end)
+
+    record =
+      %{
+        schema: "observatory.still.solve/1",
+        picture: Path.basename(solve.base),
+        mount: solve.mount,
+        plate: solve.n,
+        state: solve.state,
+        reason: solve.reason,
+        solution: solve.solution,
+        focal_length_mm: solve.focal_length_mm,
+        # how far this plate sits from the model fitted through it, when it has been fitted
+        residual_arcmin: solve[:residual_arcmin],
+        written: DateTime.utc_now() |> DateTime.to_iso8601()
+      }
+      |> Map.merge(wcs_blocks(found, solve))
+      |> Map.reject(fn {k, v} -> k in [:residual_arcmin] and v == nil end)
 
     safe(fn -> File.write!(solve.base <> ".solve.json", Jason.encode_to_iodata!(record, pretty: true)) end)
     %{solve | written: true}
   end
+
+  @doc false
+  # The WCS blocks of a solve's answer: `wcs` for the image the solver had (`IMAGEW` x `IMAGEH`),
+  # `wcs_full` for the camera's picture it was made from (`full_w` x `full_h`, named `wcs_full_of`),
+  # `wcs_scale` between them, and how the pixels are counted. The full one only when the two are the
+  # same shape (one scale both ways, within half a percent): a copy that isn't is said, not guessed at.
+  def wcs_blocks(%{wcs: wcs} = found, solve) when is_list(wcs) do
+    h = Map.new(wcs)
+    {w, ht} = {found[:image_w] || h["IMAGEW"], found[:image_h] || h["IMAGEH"]}
+    {fw, fh} = {solve[:full_w], solve[:full_h]}
+
+    base = %{
+      wcs: Wcs.json(wcs),
+      wcs_pixels: "FITS pixels: 1 is the middle of the first pixel; row 1 is the top row of the picture as the sensor sees it (the camera's rotation flag ignored)"
+    }
+
+    if is_integer(w) and is_integer(ht) and w > 0 and ht > 0 and is_integer(fw) and is_integer(fh) and abs(fw / w - fh / ht) <= 0.005 * fw / w do
+      s = fw / w
+      Map.merge(base, %{wcs_full: Wcs.json(Wcs.scale(wcs, s, {fw, fh})), wcs_full_of: solve[:full_of], wcs_scale: Float.round(s, 6)})
+    else
+      Map.put(base, :wcs_full_why, "the camera's picture (#{inspect({fw, fh})}) is not the solved copy (#{inspect({w, ht})}) scaled the same both ways")
+    end
+  end
+
+  def wcs_blocks(_, _), do: %{}
 
   # the mount these pictures are taken through: the one Lock On holds, else this box's own (a real
   # one before a simulated one), else any the cluster has
@@ -1233,10 +1311,17 @@ defmodule Controller.StillCamera do
   def jpeg_width(<<0xFF, 0xD8, rest::binary>>), do: segment_width(rest)
   def jpeg_width(_), do: nil
 
-  defp segment_width(<<0xFF, m, _len::16, _bits, _h::16, w::16, _::binary>>) when m in 0xC0..0xCF and m not in [0xC4, 0xC8, 0xCC], do: w
-  defp segment_width(<<0xFF, 0xFF, rest::binary>>), do: segment_width(<<0xFF, rest::binary>>)
-  defp segment_width(<<0xFF, _m, len::16, rest::binary>>) when len >= 2 and byte_size(rest) >= len - 2, do: segment_width(binary_part(rest, len - 2, byte_size(rest) - len + 2))
-  defp segment_width(_), do: nil
+  @doc false
+  # the picture's `{width, height}` from its frame header, or nil
+  def jpeg_size(<<0xFF, 0xD8, rest::binary>>), do: segment_size(rest)
+  def jpeg_size(_), do: nil
+
+  defp segment_width(bin), do: with({w, _h} <- segment_size(bin), do: w)
+
+  defp segment_size(<<0xFF, m, _len::16, _bits, h::16, w::16, _::binary>>) when m in 0xC0..0xCF and m not in [0xC4, 0xC8, 0xCC], do: {w, h}
+  defp segment_size(<<0xFF, 0xFF, rest::binary>>), do: segment_size(<<0xFF, rest::binary>>)
+  defp segment_size(<<0xFF, _m, len::16, rest::binary>>) when len >= 2 and byte_size(rest) >= len - 2, do: segment_size(binary_part(rest, len - 2, byte_size(rest) - len + 2))
+  defp segment_size(_), do: nil
 
   defp existing(path), do: if(File.exists?(path), do: path)
 
@@ -1338,7 +1423,7 @@ defmodule Controller.StillCamera do
   # this picture's plate: follow it on its mount's plates until it is solved or failed
   defp follow(s, %{plate: %{mount: mount, n: n}, seq: seq, base: base} = record) do
     s = if MapSet.member?(s.watching, mount), do: s, else: (Plates.subscribe(mount); %{s | watching: MapSet.put(s.watching, mount)})
-    solve = %{seq: seq, mount: mount, n: n, base: base, state: :queued, reason: nil, solution: nil, residual_arcmin: nil, written: false, full_w: record[:full_w], focal_length_mm: nil}
+    solve = %{seq: seq, mount: mount, n: n, base: base, state: :queued, reason: nil, solution: nil, residual_arcmin: nil, written: false, full_w: record[:full_w], full_h: record[:full_h], full_of: record[:full_of], focal_length_mm: nil}
     # it may have been solved before the picture's files were all saved
     %{s | solve: plate_state(solve, safe(fn -> Plates.view(mount) end) || %{plates: [%{n: n, state: :queued}]})}
   end

@@ -428,7 +428,7 @@ defmodule Controller.StillCameraTest do
     last = picture()
     assert String.ends_with?(last.sidecar, ".json") and Path.dirname(last.sidecar) == Path.dirname(hd(last.files))
     side = last.sidecar |> File.read!() |> Jason.decode!()
-    assert side["schema"] == "observatory.still/1"
+    assert side["schema"] == "observatory.still/2"
 
     # the camera's files, untouched: what's on the card hashes to what the sidecar says
     assert length(side["files"]) == 2
@@ -462,6 +462,98 @@ defmodule Controller.StillCameraTest do
     # and the night's index has the same record on one line
     index = Path.join(Path.dirname(last.sidecar), "index.jsonl") |> File.read!() |> String.split("\n", trim: true)
     assert Enum.any?(index, &(Jason.decode!(&1)["files"] == side["files"]))
+
+    # /2: what it was taken for, said for every picture (a single picture is a light frame unless told)
+    assert side["frame"] == %{"type" => "light"}
+    assert %{"purpose" => "light"} = side["capture"]
+    refute Map.has_key?(side["capture"], "plan")
+    # the camera says what it is; the a6000's serial is zeros (no serial) and it has no lens (no f-number)
+    assert %{"firmware" => "2.0"} = side["camera"]
+    refute Map.has_key?(side["camera"], "serial") or Map.has_key?(side["camera"], "f_number")
+    # its own clock was never set: it says 2014, and the box couldn't set it
+    assert %{"clock_reads" => "2014" <> _, "clock_offset_s" => offset, "clock_set" => %{"set" => false, "why" => "not_offered"}} = side["camera"]
+    assert offset < -365 * 86_400
+    assert %{"pixel_um" => 3.92, "cfa" => "RGGB"} = side["sensor"]
+    assert is_binary(side["time"]["clock_source"])
+
+    # the same facts by their FITS names, standard first, in order
+    fits = (last.sidecar |> File.read!() |> Jason.decode!(objects: :ordered_objects))["fits"]
+    [{"IMAGETYP", "LIGHT"} | _] = fits.values
+    assert fits["DATE-OBS"] == pressed |> String.trim_trailing("Z") |> String.slice(0, 23)
+    assert fits["EXPTIME"] == exp and fits["TIMESYS"] == "UTC" and is_float(fits["MJD-OBS"])
+    assert fits["INSTRUME"] == "Sony ILCE-6000" and fits["XPIXSZ"] == 3.92 and fits["BAYERPAT"] == "RGGB" and fits["ISOSPEED"] == iso
+    assert fits["OBS SCHEMA"] == "observatory.still/2" and fits["OBS FRAME WHY"] == "light" and fits["OBS MOUNT ID"] == id
+    assert fits["OBS CAMERA CLOCK"] =~ "2014"
+    assert fits["SWCREATE"] =~ "Observatory"
+  end
+
+  test "a run's pictures say which run they are, their number in it, and the plan and step they were taken for" do
+    before = (StillCamera.status().last || %{})[:seq] || 0
+    :ok = StillCamera.continuous(true, 0, purpose: :light, plan: %{run: "plan-20261018-021500", step: 2, of: 3})
+
+    sides =
+      Enum.reduce_while(1..200, [], fn _, acc ->
+        receive do
+          {:still_camera, %{last: %{seq: seq, sidecar: path}}} when seq > before and is_binary(path) ->
+            acc = Enum.uniq([path | acc])
+            if length(acc) >= 2, do: {:halt, acc}, else: {:cont, acc}
+        after
+          15_000 -> {:halt, acc}
+        end
+      end)
+
+    StillCamera.continuous(false)
+    assert length(sides) >= 2
+    [a, b | _] = sides |> Enum.map(&(&1 |> File.read!() |> Jason.decode!())) |> Enum.sort_by(& &1["seq"])
+    assert %{"purpose" => "light", "run" => %{"id" => run, "k" => ka}, "plan" => %{"run" => "plan-20261018-021500", "step" => 2, "of" => 3, "index" => ka}} = a["capture"]
+    assert %{"run" => %{"id" => ^run, "k" => kb}, "plan" => %{"index" => kb}} = b["capture"]
+    # counted from 1, one for each picture the run took (the box's own numbers count the same pictures)
+    assert ka >= 1 and kb > ka and kb - ka == b["seq"] - a["seq"]
+    assert run =~ ~r/\A\d{8}-\d{6}\z/
+    assert a["fits"]["OBS PLAN STEP"] == 2 and a["fits"]["OBS RUN K"] == ka and a["fits"]["IMAGETYP"] == "LIGHT"
+
+    # a picture on its own afterwards (once the run's last has come down) belongs to no run and no plan
+    Enum.find(1..300, fn _ -> not StillCamera.status().busy or (Process.sleep(50) && false) end)
+    single = picture().sidecar |> File.read!() |> Jason.decode!()
+    refute Map.has_key?(single["capture"], "plan") or Map.has_key?(single["capture"], "run")
+  end
+
+  test "the sidecar's numbers: no f-number for no lens, no smear without an exposure, the hold's target in OBJECT and OBJCTRA, the pointing in RA" do
+    alias Controller.StillCamera.Sidecar
+    pressed = ~U[2026-10-18 03:21:39.655Z]
+
+    side =
+      Sidecar.build(%{
+        seq: 1,
+        saved_at: pressed,
+        pressed_at: pressed,
+        files: [%{name: "20261018-032139-DSC00309.ARW", format: :arw}],
+        camera: %{id: "sony-ilce-6000", model: "ILCE-6000", manufacturer: "Sony Corporation", serial: "1234567", firmware: "2.0"},
+        settings: %{iso: 1600, shutter: "15", f_number: 0.0, quality: "RAW"},
+        tracking: %{axis_off_deg: 10.6, rate_deg_per_h: -2.4, corner_arcsec: 1400, smear_arcsec: false, max_exposure_s: 61, tolerance_arcsec: 1.0},
+        target: %{id: "m27", name: "M27 Dumbbell Nebula", ra_deg: 299.9016, dec_deg: 22.7211},
+        frame: :dark,
+        camera_clock: "20140101T080202"
+      })
+
+    refute Map.has_key?(side["camera"], "f_number")
+    assert side["camera"]["serial"] == "1234567"
+    refute Map.has_key?(side["tracking"], "smear_arcsec")
+    assert side["tracking"]["max_exposure_s"] == 61
+    # a dark frame taken on purpose: its type, its purpose, and DARK
+    assert side["frame"] == %{"type" => "dark"} and side["capture"]["purpose"] == "dark" and side["fits"]["IMAGETYP"] == "DARK"
+    assert %{"name" => "M27 Dumbbell Nebula", "id" => "m27", "ra_deg" => 299.9016} = side["capture"]["target"]
+    assert side["fits"]["OBJECT"] == "M 27" and side["fits"]["OBJCTRA"] == "19 59 36.4" and side["fits"]["OBJCTDEC"] == "+22 43 16"
+    # no mount, no pointing: RA and DEC are left out rather than filled with the target's
+    refute Map.has_key?(side["fits"], "RA")
+    assert side["fits"]["EXPTIME"] == 15.0 and side["fits"]["DATE-END"] == "2026-10-18T03:21:54.655"
+    assert side["camera"]["clock_offset_s"] == DateTime.diff(~U[2014-01-01 08:02:02Z], ~U[2026-10-18 03:21:39Z])
+
+    # a finder's and Centre's pictures are not for a stack: SNAPSHOT
+    for {p, word} <- [{:finder, "finder"}, {:centring, "centring"}, {:focus, "focus"}, {:test, "test"}] do
+      side = Sidecar.build(%{saved_at: pressed, files: [%{name: "x.JPG"}], purpose: p})
+      assert side["capture"]["purpose"] == word and side["fits"]["IMAGETYP"] == "SNAPSHOT"
+    end
   end
 
   # The simulated camera, telling the test (by name) the moment its shutter has been pressed.
@@ -968,7 +1060,7 @@ defmodule Controller.StillCameraTest do
     assert Enum.any?(listed, &(&1["name"] == "index.jsonl"))
 
     assert conn |> get(~p"/cameras/stills/files/#{night}/#{Path.basename(raw)}") |> response(200) == File.read!(raw)
-    assert conn |> get(~p"/cameras/stills/files/#{night}/#{Path.basename(last.sidecar)}") |> response(200) =~ "observatory.still/1"
+    assert conn |> get(~p"/cameras/stills/files/#{night}/#{Path.basename(last.sidecar)}") |> response(200) =~ "observatory.still/2"
 
     # nothing outside a night's folder
     assert conn |> get("/cameras/stills/files/#{night}/..%2F..%2Fsettings.json") |> response(404)
@@ -1064,6 +1156,70 @@ defmodule Controller.StillCameraTest do
       {:ok, _view, html} = live(conn, ~p"/cameras/stills/solving")
       assert html =~ "Solving On"
       assert html =~ ~r/Picture #{n}<\/strong><span class="dim">Solved · in \d+ s · 30 stars/
+    end
+
+    # a solver that answers as astrometry.net does on this machine: with the whole WCS of the image it
+    # was handed (a field in Lyra, solved on a 1,500 x 1,000 copy; its numbers scaled to whatever size
+    # it is given), and the index and astrometry.net that made it
+    defmodule WithWcs do
+      def solve(image, opts) do
+        {:ok, {w, h}} = Controller.Sky.Photo.dimensions(image)
+        if pid = Process.whereis(:still_camera_test), do: send(pid, {:solver_size, {w, h}})
+        k = 1500 / w
+
+        wcs = [
+          {"WCSAXES", 2}, {"CTYPE1", "RA---TAN-SIP"}, {"CTYPE2", "DEC--TAN-SIP"}, {"EQUINOX", 2000.0}, {"RADESYS", "ICRS"},
+          {"CRVAL1", 279.130669496}, {"CRVAL2", 38.6007299382}, {"CRPIX1", (224.958896637 - 0.5) / k + 0.5}, {"CRPIX2", (521.315330505 - 0.5) / k + 0.5},
+          {"CUNIT1", "deg"}, {"CUNIT2", "deg"},
+          {"CD1_1", 0.000177939491145 * k}, {"CD1_2", -0.000392916473035 * k}, {"CD2_1", 0.000392689939346 * k}, {"CD2_2", 0.000177692801668 * k},
+          {"IMAGEW", w}, {"IMAGEH", h}, {"A_ORDER", 2}, {"A_2_0", 3.40811218986e-07 * k}, {"B_ORDER", 2}, {"B_0_2", 1.45197279025e-07 * k}
+        ]
+
+        with {:ok, sol} <- Controller.StillCameraTest.Solved.solve(image, opts),
+             do: {:ok, Map.merge(sol, %{wcs: wcs, image_w: w, image_h: h, index: "index-4205-03", software: "astrometry.net 0.97"})}
+      end
+    end
+
+    @tag timeout: 90_000
+    test "the solve's whole WCS is kept beside the picture: as solved on the box's copy, and carried onto the camera's own picture", %{cam: cam} do
+      # a 6,000 x 4,000 picture, the a6000's JPEG size: the solver gets a copy a quarter of that
+      path = Path.join(System.tmp_dir!(), "big-#{System.unique_integer([:positive])}.jpg")
+      {_, 0} = System.cmd("ffmpeg", ~w(-loglevel error -f lavfi -i color=c=0x080808:s=6000x4000 -frames:v 1 -q:v 4 -y #{path}))
+      jpeg = File.read!(path)
+      File.rm(path)
+      stop_supervised!({Camera.Server, cam})
+      big = "sim-still-big-#{System.unique_integer([:positive])}"
+      start_supervised!({Camera.Server, id: big, transport: {Controller.StillCameraTest.StarCamera, picture: jpeg}})
+      assert_receive {:still_camera, %{camera: %{id: ^big, state: :ready}}}, 10_000
+
+      Process.register(self(), :still_camera_test)
+      Application.put_env(:controller, :solver, backend: WithWcs)
+      :ok = StillCamera.solving(true)
+      last = picture()
+      assert %{mount: mount, n: n} = last.plate
+      on_exit(fn -> Controller.Plates.clear(mount) end)
+      assert_receive {:solver_size, {1500, 1000}}, 15_000
+      assert %{state: :solved} = solve_outcome()
+
+      file = last.base <> ".solve.json"
+      answer = Enum.find_value(1..100, fn _ -> (File.exists?(file) && file |> File.read!() |> Jason.decode!(objects: :ordered_objects)) || (Process.sleep(50) && nil) end)
+      assert answer["solution"]["index"] == "index-4205-03" and answer["solution"]["software"] == "astrometry.net 0.97"
+      assert answer["wcs"]["IMAGEW"] == 1500 and answer["wcs"]["CTYPE1"] == "RA---TAN-SIP"
+      assert [{"WCSAXES", 2} | _] = answer["wcs"].values
+      assert answer["wcs_full"]["IMAGEW"] == 6000 and answer["wcs_full"]["IMAGEH"] == 4000 and answer["wcs_scale"] == 4.0
+      assert answer["wcs_full_of"] == Path.basename(last.base) <> ".JPG"
+      assert answer["wcs_pixels"] =~ "FITS pixels"
+      # the same place on the sky through either: the copy's pixel and the picture's
+      alias Controller.Sky.Solve.Wcs
+      copy = Enum.to_list(answer["wcs"].values)
+      full = Enum.to_list(answer["wcs_full"].values)
+      {r1, d1} = Wcs.sky(copy, {100.5, 900.5})
+      {r2, d2} = Wcs.sky(full, {(100.5 - 0.5) * 4 + 0.5, (900.5 - 0.5) * 4 + 0.5})
+      assert Controller.Sky.Astro.separation_radec(r1, d1, r2, d2) * 3600 < 0.01
+
+      # the WCS is kept beside the plate, never sent to every page with the plates
+      assert %{wcs: [_ | _], image_w: 1500} = Controller.Plates.wcs(mount, n)
+      refute Enum.any?(Controller.Plates.view(mount).plates, &Map.has_key?(&1, :wcs))
     end
 
     @tag timeout: 60_000
@@ -1199,8 +1355,9 @@ defmodule Controller.StillCameraTest do
       on_exit(fn -> Controller.Plates.clear(mount) end)
       assert %{state: :failed, reason: "deadline", finder: true} = Enum.find(Controller.Plates.view(mount).plates, &(&1.n == n))
       assert Controller.Plates.status().solving == 0
-      # the picture is kept like any other, and its answer says why it has none
+      # the picture is kept like any other, says it was a finder's (not one for a stack), and its answer says why it has none
       assert Enum.all?(last.files, &File.exists?/1)
+      assert %{"capture" => %{"purpose" => "finder"}, "fits" => %{"IMAGETYP" => "SNAPSHOT"}} = last.sidecar |> File.read!() |> Jason.decode!()
       assert %{"state" => "failed", "reason" => "deadline"} = (last.base <> ".solve.json") |> File.read!() |> Jason.decode!()
       {:ok, _view, html} = live(conn, ~p"/cameras/stills")
       assert html =~ "not solved: the finder solve missed its deadline. The model&#39;s aim stands"

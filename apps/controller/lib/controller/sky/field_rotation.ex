@@ -85,7 +85,8 @@ defmodule Controller.Sky.FieldRotation do
         axis_off_deg: Float.round(Model.axis_error(m, site.lat) / 1, 2),
         rate_deg_per_h: Float.round(rate, 3),
         corner_arcsec: round(corner),
-        smear_arcsec: is_number(exposure_s) && Float.round(smear_arcsec(rate, exposure_s, corner), 2),
+        # nil (left out of a record) when the exposure isn't known: never `false`
+        smear_arcsec: if(is_number(exposure_s), do: Float.round(smear_arcsec(rate, exposure_s, corner), 2)),
         max_exposure_s: (max = max_exposure_s(rate, corner, tol)) && round(max),
         tolerance_arcsec: tol
       }

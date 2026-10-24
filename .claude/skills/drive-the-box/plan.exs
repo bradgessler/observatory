@@ -95,6 +95,9 @@ runner = fn ->
   # and a centring left running by a plan this one replaces would fight this one's first Go To
   Centre.stop(id)
   file = "/root/.observatory/plan.json"
+  # this plan's name in every picture it takes (`capture.plan` in the sidecar: run, step, index, of), so a
+  # stack finds a step's frames by it instead of by a window of UTC times
+  plan_run = "plan-" <> Calendar.strftime(DateTime.utc_now(), "%Y%m%d-%H%M%S")
   progress = fn map -> File.write(file, Jason.encode!(Map.put(map, :at, DateTime.utc_now()))) end
   say = fn words -> Logger.warning("plan: " <> words) end
 
@@ -144,7 +147,7 @@ runner = fn ->
     end
   end
 
-  shoot = fn name, n, iso, shutter ->
+  shoot = fn name, n, iso, shutter, step ->
     # minutes of light become pictures at this step's shutter speed
     {n, until} =
       case n do
@@ -158,7 +161,9 @@ runner = fn ->
     StillCamera.set(iso: iso, shutter: shutter)
     start = StillCamera.status().good
     exposure_s = case String.split(to_string(shutter), "/") do [a, b] -> String.to_integer(a) / String.to_integer(b); [a] -> elem(Float.parse(a), 0) end
-    StillCamera.continuous(true, 0, if(dither && exposure_s >= 2, do: [dither: dither, dither_every: dither_every], else: []))
+    # light frames for a stack, each saying which plan and step it is (`of`: nil when the step runs by the clock)
+    tagged = [purpose: :light, plan: %{run: plan_run, step: step, of: if(until, do: nil, else: n)}]
+    StillCamera.continuous(true, 0, tagged ++ if(dither && exposure_s >= 2, do: [dither: dither, dither_every: dither_every], else: []))
     watch = fn watch ->
       s = StillCamera.status()
       done = s.good - start
@@ -186,7 +191,7 @@ runner = fn ->
     progress.(%{target: obj.name, phase: :centred, centre: st && Map.take(st, [:ok, :tries, :off_arcmin, :words])})
 
     if st && st.ok do
-      r = shoot.(obj.name, n, step_iso || iso, step_shutter || shutter)
+      r = shoot.(obj.name, n, step_iso || iso, step_shutter || shutter, i + 1)
       say.("#{obj.name}: #{inspect(r)}")
       progress.(%{target: obj.name, phase: :shot, result: inspect(r)})
       if r == :done, do: {:cont, :ok}, else: {:halt, r}

@@ -83,6 +83,19 @@ defmodule Controller.Clock do
   @doc false
   def reading, do: {synced?(), settable?(), DateTime.utc_now()}
 
+  @doc """
+  Where this clock's time came from, in one word for a record (`OBS CLOCK SOURCE`): `"network"`
+  (network time; a Mac's own clock is that), `"peer"` (another machine of the cluster), `"phone"`,
+  or `"own"` (nobody has set it this boot: it may be off by minutes).
+  """
+  def source do
+    cond do
+      synced?() -> "network"
+      :persistent_term.get({__MODULE__, :set}, false) -> :persistent_term.get({__MODULE__, :set_by}, "phone")
+      true -> "own"
+    end
+  end
+
   @doc "May a phone set this clock? Only on a box that says so."
   def settable?, do: Application.get_env(:controller, :clock_from_browser, false) and Code.ensure_loaded?(NervesTime.SystemTime)
 
@@ -93,6 +106,7 @@ defmodule Controller.Clock do
     case NervesTime.SystemTime.set_time(DateTime.to_naive(utc)) do
       :ok ->
         :persistent_term.put({__MODULE__, :set}, true)
+        :persistent_term.put({__MODULE__, :set_by}, if(String.starts_with?(to_string(from), "the cluster"), do: "peer", else: "phone"))
         Logger.info("Clock set from #{from}: #{DateTime.to_iso8601(before)} -> #{DateTime.to_iso8601(utc)}")
         Telescope.Events.emit(:system, :clock_set, %{from: DateTime.to_iso8601(before), to: DateTime.to_iso8601(utc), by: from, off_s: DateTime.diff(utc, before, :second)})
         :ok

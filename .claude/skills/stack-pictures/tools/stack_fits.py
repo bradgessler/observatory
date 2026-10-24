@@ -2,8 +2,9 @@
 and a WCS of its own, from a plate solve of the stack itself.
 
 What it does:
-  1. takes the linear stack as the pipeline made it (float, camera RGB times the white balance, no pedestal, not
-     clipped), planes first (3, h, w); the data are written as float32 and otherwise untouched;
+  1. takes the linear stack as the pipeline made it (float64, camera RGB times the white balance, no pedestal, not
+     clipped), planes first (3, h, w); the data are written as float32 (the largest change that makes is recorded)
+     and otherwise untouched;
   2. if a TIF of the same stack is given, proves the FITS holds what the TIF was made from: round(data + pedestal),
      clipped to 0..65535, must equal the TIF exactly (and says how many values the TIF clipped);
   3. plate-solves the green plane with the local astrometry.net (obsmeta.solve_image: Tycho-2 indexes, SIP order 2),
@@ -42,12 +43,15 @@ def write(path, data, frames, *, target, recipe, recipe_path, planes='R G B', ex
     use as they are (and wcs_check: the record of how they were checked). previous_wcs: the pipeline's own .wcs of the
     same image, to compare. tif + pedestal: the TIF made from the same array, to prove it. Returns the step record."""
     from astropy.io import fits
-    data = np.ascontiguousarray(np.asarray(data, np.float32))
+    data = np.asarray(data)
     assert data.ndim == 3 and np.isfinite(data).all(), (data.shape, 'non-finite values')
     step = dict(file=None)
-    if tif:
+    if tif:                                                  # on the array as the pipeline made it (float64), before float32
         step['tif_check'] = tif_matches(data, tif, pedestal)
         if not step['tif_check']['equal']: raise SystemExit('the TIF %s is not round(data + %g): this is not the array the TIF was made from' % (tif, pedestal))
+    d32 = np.ascontiguousarray(data.astype(np.float32))
+    step['float32_max_change'] = float(np.abs(d32.astype(np.float64) - data).max())
+    data = d32
     G = data[planes.split().index('G')] if 'G' in planes.split() else data.mean(0)
     h, w = G.shape
     if solve:

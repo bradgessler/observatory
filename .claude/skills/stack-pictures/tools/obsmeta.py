@@ -607,7 +607,7 @@ def astrometry_indexes():
     return out
 
 
-def solve_image(G, ra_deg, dec_deg, scale_low, scale_high, radius_deg=1.0, tweak_order=2, cpulimit=120, keep=None):
+def solve_image(G, ra_deg, dec_deg, scale_low, scale_high, radius_deg=1.0, tweak_order=2, cpulimit=120, keep=None, indexes=None):
     """Plate-solve a 2-D image with the local astrometry.net, as the 17 October pipelines' solvelib does (image2xy at 8
     sigma, solve-field with the observatory's config, scale window in arcsec/px, within radius_deg of the place, SIP of
     tweak_order). Returns (wcs cards {KEYWORD: value} for the image as stored, info). keep: a folder to copy the
@@ -616,9 +616,13 @@ def solve_image(G, ra_deg, dec_deg, scale_low, scale_high, radius_deg=1.0, tweak
     h, w = G.shape
     with tempfile.TemporaryDirectory() as td:
         f = lambda ext: os.path.join(td, 'img' + ext)
+        cfg = ASTROMETRY_CFG
+        if indexes:                                      # only these index files (globs in the config's folders), in this order
+            folder = os.path.dirname(ASTROMETRY_CFG); names = [p for g in indexes for p in sorted(glob.glob(os.path.join(folder, g)))]
+            cfg = f('.cfg'); open(cfg, 'w').write('inparallel\ncpulimit %d\n' % cpulimit + ''.join('index %s\n' % p for p in names))
         _image2xy_fits(f('.fits'), G)
         subprocess.run(['image2xy', '-O', '-p', '8', '-w', '3', '-o', f('.xy'), f('.fits')], check=True, capture_output=True)
-        cmd = ['solve-field', '--config', ASTROMETRY_CFG, '--overwrite', '--no-plots', '--no-remove-lines', '--uniformize', '0', '--width', str(w), '--height', str(h),
+        cmd = ['solve-field', '--config', cfg, '--overwrite', '--no-plots', '--no-remove-lines', '--uniformize', '0', '--width', str(w), '--height', str(h),
                '--x-column', 'X', '--y-column', 'Y', '--sort-column', 'FLUX', '--scale-units', 'arcsecperpix', '--scale-low', '%g' % scale_low, '--scale-high', '%g' % scale_high,
                '--ra', '%.4f' % ra_deg, '--dec', '%.4f' % dec_deg, '--radius', '%g' % radius_deg, '--cpulimit', str(cpulimit), '--tweak-order', str(tweak_order),
                '-N', 'none', '--rdls', 'none', '--match', 'none', '--solved', 'none', '--index-xyls', 'none', '--corr', f('.corr'), '--wcs', f('.wcs'), f('.xy')]
@@ -635,7 +639,8 @@ def solve_image(G, ra_deg, dec_deg, scale_low, scale_high, radius_deg=1.0, tweak
         idx = re.findall(r'index-(\d+)', ' '.join(l for l in log.splitlines() if 'solved' in l.lower() or 'index' in l.lower()))
         lo = re.findall(r'log-odds ratio ([\d.]+)', log)
         info = dict(matched_stars=int(len(corr)), match_rms_px=float(np.sqrt(np.mean(dx * dx + dy * dy))), log_odds=float(lo[-1]) if lo else None,
-                    index=('index-%s' % idx[-1]) if idx else None, command=' '.join(os.path.basename(c) if c.startswith(td) else c for c in cmd).replace(ASTROMETRY_CFG, '~/.observatory/astrometry/astrometry.cfg'),
+                    index=('index-%s' % idx[-1]) if idx else None, indexes_offered=list(indexes) if indexes else 'all in astrometry.cfg',
+                    command=' '.join(os.path.basename(c) if c.startswith(td) else c for c in cmd).replace(ASTROMETRY_CFG, '~/.observatory/astrometry/astrometry.cfg'),
                     software=astrometry_version(), sources=int(len(fits.getdata(f('.xy')))))
         if keep:
             os.makedirs(keep, exist_ok=True)
@@ -685,49 +690,70 @@ def find_stars(G, k=8.0, n=400, sat=None):
     return a[:, 0], a[:, 1], a[:, 2]
 
 
-def check_wcs(G, cards, epoch_year, gmax=16.0, match_px=4.0, n=400, sat=None, offline=False):
-    """Stars found in the image against Gaia DR3 through the WCS (proper motion to epoch_year). Each found star is matched
-    to the nearest catalogue star within match_px (one to one). Returns residuals (px; arcsec) overall and by region."""
+def _background(G, bk=32):
+    import cv2
+    h, w = G.shape; ny, nx = h // bk, w // bk
+    b = np.median(G[:ny * bk, :nx * bk].reshape(ny, bk, nx, bk).transpose(0, 2, 1, 3).reshape(ny, nx, -1), axis=2).astype(np.float32)
+    return cv2.resize(cv2.medianBlur(b, 5), (w, h), interpolation=cv2.INTER_LINEAR)
+
+
+def check_wcs(G, cards, epoch_year, gmax=16.0, match_px=4.0, isolated_px=10.0, snr_min=15.0, sat=None, offline=False):
+    """The WCS against Gaia DR3 (proper motion to epoch_year): every isolated catalogue star (no other star within
+    isolated_px, G < gmax + 2) that lands in the image is looked for there: an intensity-weighted centroid over 9 x 9
+    px of the image less its smooth background (32 px block medians), started at the predicted place and moved to the
+    light three times. Kept when its peak is snr_min x the noise above the background, it is not near the image's
+    ceiling (or `sat`), and the centroid ends within match_px of the prediction. The residual is centroid - prediction.
+    Starting at the catalogue's place (not from a list of detections) keeps nebula and galaxy knots out of the match;
+    a star the WCS missed by more than match_px is counted as lost. Returns residuals overall and by region."""
     import catalogue
-    W = wcs_of(cards); h, w = G.shape
-    x, y, fl = find_stars(G, n=n, sat=sat)
+    W = wcs_of(cards); G = np.nan_to_num(np.asarray(G, np.float32)); h, w = G.shape
+    D = G - _background(G)
+    noise = 1.4826 * float(np.median(np.abs(D[::3, ::3] - np.median(D[::3, ::3]))))
+    top = sat if sat is not None else 0.98 * float(G.max())
     ra0, de0 = W.all_pix2world([[w / 2 - 0.5, h / 2 - 0.5]], 0)[0]
     cor = W.all_pix2world([[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]], 0)
     rad = max(float(np.degrees(np.arccos(np.clip(np.sin(np.radians(de0)) * np.sin(np.radians(d)) + np.cos(np.radians(de0)) * np.cos(np.radians(d)) * np.cos(np.radians(r - ra0)), -1, 1)))) for r, d in cor) + 0.01
-    cat, src = catalogue.gaia_field(float(ra0), float(de0), rad, gmax, offline=offline)
+    cat, src = catalogue.gaia_field(float(ra0), float(de0), rad, gmax + 2, offline=offline)
     dt = epoch_year - 2016.0
     ok = np.isfinite(cat['ra']) & np.isfinite(cat['dec'])
-    pmra = np.nan_to_num(cat['pmra']); pmde = np.nan_to_num(cat['pmdec'])
-    ra = cat['ra'] + pmra * dt / 3.6e6 / np.cos(np.radians(cat['dec'])); de = cat['dec'] + pmde * dt / 3.6e6
-    px = W.all_world2pix(np.c_[ra[ok], de[ok]], 0)
-    inside = (px[:, 0] > -5) & (px[:, 0] < w + 5) & (px[:, 1] > -5) & (px[:, 1] < h + 5)
-    px = px[inside]; g = cat['g'][ok][inside]
+    ra = cat['ra'] + np.nan_to_num(cat['pmra']) * dt / 3.6e6 / np.cos(np.radians(cat['dec'])); de = cat['dec'] + np.nan_to_num(cat['pmdec']) * dt / 3.6e6
+    px = W.all_world2pix(np.c_[ra[ok], de[ok]], 0); g = cat['g'][ok]
     from scipy.spatial import cKDTree
-    T = cKDTree(px)
-    d, j = T.query(np.c_[x, y], distance_upper_bound=match_px)
-    m = np.isfinite(d)
-    if m.any():                                            # one to one: a catalogue star claimed twice keeps its nearest
-        best = {}
-        for i in np.where(m)[0]:
-            if j[i] not in best or d[i] < d[best[j[i]]]: best[j[i]] = i
-        keep = np.zeros_like(m); keep[list(best.values())] = True; m = keep
-    dx = x[m] - px[j[m], 0]; dy = y[m] - px[j[m], 1]; r = np.hypot(dx, dy)
+    T = cKDTree(px); nb = T.query(px, k=2)[0][:, 1]
+    cand = (g < gmax) & (nb > isolated_px) & (px[:, 0] > 8) & (px[:, 0] < w - 9) & (px[:, 1] > 8) & (px[:, 1] < h - 9)
+    yy, xx = np.mgrid[-4:5, -4:5]
+    P, C, lost = [], [], 0
+    for (x0, y0) in px[cand]:
+        cx, cy = x0, y0; good = True
+        for _ in range(3):
+            ix, iy = int(round(cx)), int(round(cy))
+            if not (4 <= ix < w - 4 and 4 <= iy < h - 4): good = False; break
+            win = D[iy - 4:iy + 5, ix - 4:ix + 5]; wg = np.clip(win - np.median(win), 0, None)
+            if wg.sum() <= 0: good = False; break
+            cx, cy = ix + float((wg * xx).sum() / wg.sum()), iy + float((wg * yy).sum() / wg.sum())
+        if not good: lost += 1; continue
+        ix, iy = int(round(cx)), int(round(cy))
+        if D[iy - 1:iy + 2, ix - 1:ix + 2].max() < snr_min * noise: continue          # too faint to measure: not counted
+        if G[iy - 4:iy + 5, ix - 4:ix + 5].max() >= top: continue                      # near the ceiling
+        if np.hypot(cx - x0, cy - y0) > match_px: lost += 1; continue
+        P.append((x0, y0)); C.append((cx, cy))
+    P, C = np.array(P).reshape(-1, 2), np.array(C).reshape(-1, 2)
+    dx, dy = (C - P).T if len(P) else (np.zeros(0), np.zeros(0)); r = np.hypot(dx, dy)
     scale = float(np.sqrt(abs(np.linalg.det(W.pixel_scale_matrix))) * 3600)
     def stats(sel):
         if sel.sum() == 0: return dict(n=0)
         rr = r[sel]
         return dict(n=int(sel.sum()), median_px=round(float(np.median(rr)), 3), rms_px=round(float(np.sqrt(np.mean(rr ** 2))), 3), p90_px=round(float(np.percentile(rr, 90)), 3),
                     max_px=round(float(rr.max()), 3), mean_dx_px=round(float(dx[sel].mean()), 3), mean_dy_px=round(float(dy[sel].mean()), 3))
-    xm, ym = x[m], y[m]
+    xm, ym = (P[:, 0], P[:, 1]) if len(P) else (np.zeros(0), np.zeros(0))
     regions = dict(centre=(np.abs(xm - w / 2) < w / 4) & (np.abs(ym - h / 2) < h / 4))
     for name, sx, sy in (('top_left', -1, -1), ('top_right', 1, -1), ('bottom_left', -1, 1), ('bottom_right', 1, 1)):
         regions[name] = (sx * (xm - w / 2) > w / 4) & (sy * (ym - h / 2) > h / 4)
-    allsel = np.ones(int(m.sum()), bool)
-    res = dict(what='stars found in this image (8 sigma, compact, unsaturated, brightest %d) matched one to one to Gaia DR3 (G < %.1f, proper motion to %.2f) through the WCS, within %.0f px' % (n, gmax, epoch_year, match_px),
-               found=int(len(x)), catalogue_in_field=int(len(px)), arcsec_per_px=round(scale, 5), all=stats(allsel), regions={k: stats(v) for k, v in regions.items()},
+    res = dict(what='"within a pixel or two": passes with at least 20 stars, median <= 1.5 px, 90th percentile <= 2.5 px, mean offset <= 1 px each way. Isolated Gaia DR3 stars (G < %.1f, proper motion to %.2f) looked for at their places through the WCS: intensity-weighted 9 x 9 px centroid, three moves, peak above %.0f x the noise, unsaturated, within %.0f px' % (gmax, epoch_year, snr_min, match_px),
+               catalogue_in_field=int(cand.sum()), measured=int(len(P)), lost=int(lost), arcsec_per_px=round(scale, 5), all=stats(np.ones(len(P), bool)), regions={k: stats(v) for k, v in regions.items()},
                catalogue=dict(table=src.get('table') or 'I/355/gaiadr3', cache_file=rel(src.get('cache_file')) if src.get('cache_file') else None, used_from_cache=src.get('used_from_cache'), rows_used=src.get('rows_used')))
     a = res['all']
-    res['passed'] = bool(a.get('n', 0) >= 20 and a['median_px'] <= 1.0 and a['p90_px'] <= 2.0 and abs(a['mean_dx_px']) < 0.3 and abs(a['mean_dy_px']) < 0.3)
+    res['passed'] = bool(a.get('n', 0) >= 20 and a['median_px'] <= 1.5 and a['p90_px'] <= 2.5 and abs(a['mean_dx_px']) <= 1.0 and abs(a['mean_dy_px']) <= 1.0)
     return res
 
 

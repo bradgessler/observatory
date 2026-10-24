@@ -28,11 +28,9 @@ defmodule Controller.ScopeCamera.Header do
   `EXPTIME` long, so it began that long before the grab ended.
   """
 
-  alias Controller.Sky.{Astro, Lineup, Pointing}
+  alias Controller.Metadata.{Fits, Sensor}
+  alias Controller.Sky.{Lineup, Pointing, Tracker}
   alias Controller.Settings
-
-  # IMX307: 2.9 µm pixels
-  @pixel_um 2.9
 
   @doc "Header cards for a frame, from its record (what was asked, what was found) and the moment's context."
   def cards(record, ctx) do
@@ -56,59 +54,51 @@ defmodule Controller.ScopeCamera.Header do
       ]
   end
 
+  # the standard cards, from the one keyword map every writer shares (`Controller.Metadata.Fits`)
   defp standard(record, ctx, began, ended, exp_s, stack, binned) do
-    site = ctx[:site] || %{}
-    pointing = ctx[:pointing]
+    {ra, dec, source} = with({ra, dec, source} <- ctx[:pointing], do: {ra, dec, source}, else: (_ -> {nil, nil, nil}))
+    profile = Sensor.profile(ctx[:camera_name]) || if(record[:sim] || ctx[:camera_name] == "Simulated camera", do: Sensor.profile("IMX307"))
 
-    [
-      {"ROWORDER", "TOP-DOWN", "first row is the top of the picture"},
-      {"IMAGETYP", "LIGHT", "a picture of the sky"},
-      {"DATE-OBS", began, "exposure start, UTC"},
-      {"DATE-END", ended, "exposure end (frame arrived), UTC"},
-      {"DATE", DateTime.utc_now(), "file written, UTC"},
-      {"TIMESYS", "UTC"},
-      {"EXPTIME", exp_s, "seconds, each frame"},
-      {"EXPOSURE", exp_s, "seconds, each frame"},
-      {"NCOMBINE", stack, "frames averaged into this one"},
-      {"GAIN", record[:gain], "camera gain setting"},
-      {"INSTRUME", ctx[:camera_name], "camera"},
-      {"XPIXSZ", if(binned, do: @pixel_um * binned), "pixel size, um, binned"},
-      {"YPIXSZ", if(binned, do: @pixel_um * binned), "pixel size, um, binned"},
-      {"XBINNING", binned, "capture pixels per picture pixel, across"},
-      {"YBINNING", binned, "capture pixels per picture pixel, down"},
-      {"TELESCOP", if(ctx[:mount], do: "EQ6-R (#{ctx.mount.id})"), "mount"},
-      {"FOCALLEN", Settings.get("focal_length_mm"), "mm"},
-      {"APTDIA", Settings.get("aperture_mm"), "mm"},
-      {"SITELAT", site[:lat], "degrees north"},
-      {"SITELONG", site[:lon], "degrees east"},
-      {"SWCREATE", "Observatory", "github.com/bradgessler/observatory"}
-    ] ++ pointed(pointing, site, began)
+    [{"ROWORDER", "TOP-DOWN", "first row is the top of the picture"}] ++
+      Fits.cards(%{
+        # a live view frame is a look, not a frame for a stack
+        type: if(record[:why] == "live view", do: :snapshot, else: :light),
+        began: began,
+        ended: ended,
+        written: DateTime.utc_now(),
+        exposure_s: exp_s,
+        ncombine: stack,
+        gain: record[:gain],
+        instrument: ctx[:camera_name],
+        telescope: telescope(),
+        observer: observer(),
+        focal_length_mm: Settings.get("focal_length_mm"),
+        aperture_mm: Settings.get("aperture_mm"),
+        pixel_um: profile && profile.pixel_um,
+        binning: binned,
+        site: ctx[:site],
+        object: ctx[:target],
+        pointing: if(is_number(ra) and is_number(dec), do: %{ra_deg: ra, dec_deg: dec, source: source}),
+        software: Fits.software_name(ctx[:firmware])
+      }) ++
+      [
+        {"OBS POINTING SOURCE", source || "none: not homed or lined up"},
+        {"OBS MOUNT NAME", if(ctx[:mount], do: "EQ6-R (#{ctx.mount.id})"), "the mount"}
+      ]
   end
 
-  # where the model says the scope pointed at the exposure's start
-  defp pointed({ra, dec, source}, site, at) when is_number(ra) and is_number(dec) do
-    altaz =
-      if is_number(site[:lat]) and is_number(site[:lon]),
-        do: Astro.alt_az(ra, dec, site.lat, Astro.lst_deg(at, site.lon))
+  @doc "The optical tube's name for `TELESCOP` (`Settings` `\"telescope\"`, else `config :controller, :telescope`), or nil."
+  def telescope, do: name_setting("telescope")
 
-    [
-      {"RA", Float.round(ra * 1.0, 5), "degrees, from the #{source}"},
-      {"DEC", Float.round(dec * 1.0, 5), "degrees, from the #{source}"},
-      {"OBJCTRA", hms(ra), "from the #{source}"},
-      {"OBJCTDEC", dms(dec), "from the #{source}"},
-      {"EQUINOX", 2000.0}
-    ] ++
-      case altaz do
-        {alt, az} ->
-          [{"CENTALT", Float.round(alt * 1.0, 3), "degrees"}, {"CENTAZ", Float.round(az * 1.0, 3), "degrees"}] ++
-            if(alt > 1, do: [{"AIRMASS", Float.round(1 / :math.sin(alt * :math.pi() / 180), 4)}], else: [])
+  @doc "Who observed, for `OBSERVER` (`Settings` `\"observer\"`, else `config :controller, :observer`), or nil."
+  def observer, do: name_setting("observer")
 
-        _ ->
-          []
-      end ++ [{"OBS POINTING SOURCE", source}]
+  defp name_setting(key) do
+    case safe(fn -> Settings.get(key) end) do
+      v when is_binary(v) and v != "" -> v
+      _ -> Application.get_env(:controller, String.to_atom(key))
+    end
   end
-
-  defp pointed(_, _, _), do: [{"OBS POINTING SOURCE", "none: not homed or lined up"}]
 
   defp frame(r) do
     [
@@ -184,6 +174,10 @@ defmodule Controller.ScopeCamera.Header do
       {"OBS MODEL POINTS", st[:n], "star alignment points in force"},
       {"OBS MODEL RMS ARCMIN", if(is_number(st[:rms_arcmin]), do: Float.round(st.rms_arcmin * 1.0, 2))},
       {"OBS MODEL STALE", st[:stale?]},
+      # the polar axis in numbers (the altitude gives the latitude away: internal files only)
+      {"OBS MODEL AXIS OFF DEG", round5(st[:axis_off_deg]), "polar axis from the pole"},
+      {"OBS MODEL AXIS ALT DEG", round5(st[:axis_alt_deg]), "polar axis altitude"},
+      {"OBS MODEL AXIS AZ DEG", round5(st[:axis_az_deg]), "polar axis azimuth"},
       {"OBS MODEL POLAR AXIS", st[:axis_words]}
     ]
   end
@@ -202,27 +196,52 @@ defmodule Controller.ScopeCamera.Header do
   @doc """
   What the header needs from the moment a frame is taken that the frame
   itself doesn't know: the mount (`snapshot` at the start and end), the
-  model, where it pointed, the site, the box. Never raises: what can't be
-  had is left out.
+  model, where it pointed, the site, the box, the hold's target. Never
+  raises: what can't be had is left out. `snap` is the mount as it was at
+  `at`, when the caller has it (a still's sample nearest the shutter): its
+  pointing is worked out from that, not from where the mount is now.
   """
-  def context(mount_id, at) do
+  def context(mount_id, at, snap \\ nil) do
     site = safe(fn -> Pointing.site() end) || %{}
 
     %{
-      site: Map.take(site, [:lat, :lon]),
+      site: Map.take(site, [:lat, :lon, :elevation_m]),
       node: to_string(node()),
       firmware: firmware(),
-      model: mount_id && safe(fn -> Lineup.status(mount_id) |> Map.take([:n, :rms_arcmin, :stale?, :axis_words]) end),
-      pointing: mount_id && pointing(mount_id, at)
+      model: mount_id && safe(fn -> Lineup.status(mount_id) |> Map.take([:n, :rms_arcmin, :stale?, :axis_words, :axis_off_deg, :axis_alt_deg, :axis_az_deg]) end),
+      pointing: mount_id && pointing(mount_id, at, snap),
+      target: mount_id && target(mount_id)
     }
+  end
+
+  @doc """
+  What the hold on mount `id` is on: the catalogue object (`%{id, name, ra_deg, dec_deg}`) and,
+  as `aim`, where the hold actually points when centring or a dither has moved it off the
+  catalogue place. nil with no hold.
+  """
+  def target(id) do
+    case safe(fn -> Tracker.status(id) end) do
+      %{} = st ->
+        t = st[:target] || %{}
+        aim = st[:aim] || %{}
+        name = t[:name] || st[:name]
+
+        if name do
+          %{id: t[:id], name: name, ra_deg: t[:ra_deg] || aim[:ra_deg], dec_deg: t[:dec_deg] || aim[:dec_deg]}
+          |> then(fn o -> if is_number(aim[:ra_deg]) and is_number(aim[:dec_deg]), do: Map.put(o, :aim, %{ra_deg: aim.ra_deg, dec_deg: aim.dec_deg}), else: o end)
+        end
+
+      _ ->
+        nil
+    end
   end
 
   @doc "A mount's snapshot, or nil."
   def snapshot(nil), do: nil
   def snapshot(id), do: safe(fn -> Mount.snapshot(id) end)
 
-  defp pointing(id, at) do
-    with %{} = snap <- snapshot(id),
+  defp pointing(id, at, snap) do
+    with %{} = snap <- if(is_map(snap) and is_map(snap[:axes]), do: snap, else: snapshot(id)),
          %{} = ctx <- safe(fn -> Pointing.context(at, id) end),
          {ra, dec} <- safe(fn -> Pointing.scope_radec(Map.put(snap, :homed, snap[:homed] == true), ctx) end) do
       {ra, dec, if(is_map(ctx[:model]), do: "star alignment", else: "home position")}
@@ -234,23 +253,6 @@ defmodule Controller.ScopeCamera.Header do
   defp firmware do
     if Code.ensure_loaded?(Nerves.Runtime.KV), do: safe(fn -> apply(Nerves.Runtime.KV, :get_active, ["nerves_fw_uuid"]) end)
   end
-
-  defp hms(ra) do
-    h = ra / 15
-    {hh, rest} = {trunc(h), (h - trunc(h)) * 60}
-    {mm, ss} = {trunc(rest), (rest - trunc(rest)) * 60}
-    "#{pad(hh)} #{pad(mm)} #{:erlang.float_to_binary(ss, decimals: 1) |> String.pad_leading(4, "0")}"
-  end
-
-  defp dms(dec) do
-    sign = if dec < 0, do: "-", else: "+"
-    d = abs(dec)
-    {dd, rest} = {trunc(d), (d - trunc(d)) * 60}
-    {mm, ss} = {trunc(rest), round((rest - trunc(rest)) * 60)}
-    "#{sign}#{pad(dd)} #{pad(mm)} #{pad(min(ss, 59))}"
-  end
-
-  defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
 
   defp safe(fun) do
     fun.()

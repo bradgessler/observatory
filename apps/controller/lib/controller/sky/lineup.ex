@@ -484,6 +484,9 @@ defmodule Controller.Sky.Lineup do
       worst_arcmin: Map.get(entry, "worst_arcmin"),
       residuals_arcmin: Map.get(entry, "residuals_arcmin", []),
       axis_off_deg: m && Model.axis_error(m, lat),
+      # where the model has the polar axis, in degrees: what `axis_words` says in words
+      axis_alt_deg: m && Model.canonical(m).axis_alt,
+      axis_az_deg: m && Model.canonical(m).axis_az,
       axis_words: m && axis_words(m, lat),
       # one or two stars fit exactly whatever they are; only three or more can be judged
       good_for: if(rms && n >= 3, do: for({g, lim, _} <- @goals, rms <= lim, do: g), else: []),
@@ -782,7 +785,7 @@ defmodule Controller.Sky.Lineup do
 
   alias Controller.Machine
 
-  @nothing %{n: 0, stale?: false, rms_arcmin: nil, worst_arcmin: nil, residuals_arcmin: [], axis_off_deg: nil, axis_words: nil, good_for: [], signs_corrected?: false, counterweight: nil, solved?: false}
+  @nothing %{n: 0, stale?: false, rms_arcmin: nil, worst_arcmin: nil, residuals_arcmin: [], axis_off_deg: nil, axis_alt_deg: nil, axis_az_deg: nil, axis_words: nil, good_for: [], signs_corrected?: false, counterweight: nil, solved?: false}
 
   defoverridable status: 1, model: 1, samples: 1, stale?: 2, counterweight: 1, set_aside: 1, restore: 2, clear: 1, drop: 2, set_counterweight: 3, add: 3, replace: 3
 

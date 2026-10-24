@@ -70,8 +70,10 @@ defmodule Controller.Sky.Pointing do
     base = Application.get_env(:controller, :site, %{lat: 0.0, lon: 0.0, name: "nowhere"})
 
     case Settings.get("site") do
-      %{"lat" => lat, "lon" => lon} when is_number(lat) and is_number(lon) ->
-        %{base | lat: lat / 1, lon: lon / 1}
+      %{"lat" => lat, "lon" => lon} = typed when is_number(lat) and is_number(lon) ->
+        site = %{base | lat: lat / 1, lon: lon / 1}
+        # the height above sea level, in metres, when it was given (`SITEELEV`, the Moon's parallax)
+        if is_number(typed["elevation_m"]), do: Map.put(site, :elevation_m, typed["elevation_m"] / 1), else: site
 
       _ ->
         base

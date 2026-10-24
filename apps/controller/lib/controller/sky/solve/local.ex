@@ -83,7 +83,7 @@ defmodule Controller.Sky.Solve.Local do
 
   require Logger
   alias Controller.Sky.Photo
-  alias Controller.Sky.Solve.Runner
+  alias Controller.Sky.Solve.{Runner, Wcs}
 
   @default_timeout 90_000
   # Fewer sources than this and solve-field grinds to its CPU limit without a
@@ -394,9 +394,22 @@ defmodule Controller.Sky.Solve.Local do
   defp solve_field(xy, dims, dir, opts, deadline) do
     left = deadline - System.monotonic_time(:millisecond)
 
-    with {:ok, out} <- step(:solve_field, args(xy, dims, dir, Keyword.put(opts, :cpu_ms, left)), dir, opts, deadline) do
-      parse(out)
+    with {:ok, out} <- step(:solve_field, args(xy, dims, dir, Keyword.put(opts, :cpu_ms, left)), dir, opts, deadline),
+         {:ok, sol} <- parse(out) do
+      {:ok, Map.merge(sol, kept_wcs(dir, dims))}
     end
+  end
+
+  # The whole WCS solve-field wrote (`solve.wcs`), read before the directory goes: every pixel's
+  # place on the sky, not only the centre (`Controller.Sky.Solve.Wcs`), the size of the image it is
+  # for, and which astrometry.net made it. Nothing, when it can't be read: the answer stands without.
+  defp kept_wcs(dir, {w, h}) do
+    case Wcs.read(Path.join(dir, "solve.wcs")) do
+      {:ok, %{wcs: wcs, software: sw}} -> %{wcs: wcs, image_w: w, image_h: h, software: sw}
+      _ -> %{}
+    end
+  rescue
+    _ -> %{}
   end
 
   @doc "solve-field's arguments for a star list (public so a test can see exactly what is asked for)."
@@ -463,7 +476,8 @@ defmodule Controller.Sky.Solve.Local do
   @doc """
   Read solve-field's report. `{:ok, %{ra_deg, dec_deg, width_deg, height_deg,
   rotation_deg, parity, pixscale_arcsec, index}}` when it solved,
-  `{:error, :no_solution}` when it did not.
+  `{:error, :no_solution}` when it did not. (`solve/2` adds the WCS file's
+  header to that: `wcs`, `image_w`, `image_h`, `software`.)
   """
   def parse(out) when is_binary(out) do
     with [_, ra, dec] <- Regex.run(~r/Field center: \(RA,Dec\) = \(\s*([-\d.eE+]+),\s*([-\d.eE+]+)\s*\) deg\./, out),

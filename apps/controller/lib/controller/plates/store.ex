@@ -145,7 +145,7 @@ defmodule Controller.Plates.Store do
 
   @enc ~w(ra_deg dec_deg ra_steps dec_steps ra_running dec_running)
   @hint ~w(ra_deg dec_deg radius_deg)
-  @solution ~w(ra_deg dec_deg width_deg height_deg rotation_deg parity seconds solver stars pixscale_arcsec)
+  @solution ~w(ra_deg dec_deg width_deg height_deg rotation_deg parity seconds solver stars pixscale_arcsec index software)
 
   defp plate_from(m) do
     %{

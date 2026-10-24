@@ -18,7 +18,17 @@ defmodule Camera.Transport.Sim do
     * `after_shot:` settings that change the moment the shutter has been
       pressed (`[iso: 800]`, `[shutter: "1/60"]`): a dial turned while the
       picture is on its way down, to test that a picture is recorded with
-      the settings it was taken at.
+      the settings it was taken at;
+    * `clock:` `:fixed` (default) a camera whose clock is its own and can't
+      be set from the computer, as the real a6000's: it lists no DateTime
+      property and its pictures say they were taken on 1 January 2014;
+      `:settable` a camera that offers DateTime (0x5011) in its property
+      blob and takes a new time over Sony's SetExtDevicePropValue;
+      `:refuses` offers it and answers every set with a refusal.
+
+  The camera's clock runs from `clock_reads:` (`"20140101T080202"`) as the
+  simulator starts; each picture's object info carries it as its capture
+  date, as a real camera's does.
   """
   @behaviour Camera.Transport
 
@@ -26,6 +36,7 @@ defmodule Camera.Transport.Sim do
   alias Camera.{Ptp, Sony}
 
   @handle 0xFFFFC001
+  @date_time 0x5011
 
   # the a6000's shutter dial, slowest first (bulb is past the slow end); Sony packs n/d as n << 16 | d
   @shutter Enum.map(
@@ -84,10 +95,21 @@ defmodule Camera.Transport.Sim do
   @impl true
   def open(opts) do
     {:ok, %{payload: blob}, _} = Ptp.parse(fixture("all_props_iso6400.bin"))
+    clock = Keyword.get(opts, :clock, :fixed)
+    reads = Keyword.get(opts, :clock_reads, "20140101T080202")
+    props = Sony.parse_props(blob)
+
+    props =
+      if clock in [:settable, :refuses],
+        do: Map.put(props, @date_time, %{code: @date_time, name: @date_time, type: :string, getset: 1, enabled: 1, default: reads, current: reads, form: :none, order: map_size(props)}),
+        else: props
 
     {:ok,
      %{
-       props: Sony.parse_props(blob),
+       props: props,
+       clock: clock,
+       # the camera's clock: what it read, and when (this VM's monotonic ms)
+       clock_at: {Sony.parse_clock(reads), System.monotonic_time(:millisecond)},
        out: :queue.new(),
        session: nil,
        pending: nil,
@@ -178,6 +200,8 @@ defmodule Camera.Transport.Sim do
   # Sony: the handshake, the extended info, application priority, the property blob
   defp handle(0x9201, _, _, s), do: {s, :ok, <<0::64>>}
   defp handle(0x9202, _, _, s), do: {s, :ok, payload("ext_device_info.bin")}
+  defp handle(0x9205, [@date_time], _data, %{clock: :refuses} = s), do: {s, :general_error, nil}
+  defp handle(0x9205, [@date_time], data, %{clock: :settable} = s), do: {set_clock(put_value(s, @date_time, data)), :ok, nil}
   defp handle(0x9205, [code], data, s), do: {put_value(s, code, data), :ok, nil}
   defp handle(0x9209, _, _, s), do: {s, :ok, Sony.encode_props(s.props)}
 
@@ -199,6 +223,17 @@ defmodule Camera.Transport.Sim do
   defp handle(op, _, _, s) when op in [0x1008, 0x1009], do: {s, :invalid_object_handle, nil}
 
   defp handle(_, _, _, s), do: {s, :operation_not_supported, nil}
+
+  # the clock runs on from what it was set to
+  defp set_clock(s) do
+    case Sony.parse_clock(s.props[@date_time].current) do
+      %DateTime{} = t -> %{s | clock_at: {t, System.monotonic_time(:millisecond)}}
+      nil -> s
+    end
+  end
+
+  defp clock_now(%{clock_at: {%DateTime{} = t, at}}), do: Sony.clock_string(DateTime.add(t, System.monotonic_time(:millisecond) - at, :millisecond))
+  defp clock_now(_), do: ""
 
   defp put_value(s, code, data) do
     case s.props[code] do
@@ -261,7 +296,8 @@ defmodule Camera.Transport.Sim do
         size: byte_size(s.picture),
         width: 6000,
         height: 4000,
-        filename: "DSC0#{n + 1000}.JPG"
+        filename: "DSC0#{n + 1000}.JPG",
+        capture_date: clock_now(s)
       },
       bytes: s.picture
     }
@@ -276,7 +312,8 @@ defmodule Camera.Transport.Sim do
         size: byte_size(raw_bytes),
         width: 6000,
         height: 4000,
-        filename: "DSC0#{n + 1000}.ARW"
+        filename: "DSC0#{n + 1000}.ARW",
+        capture_date: clock_now(s)
       },
       bytes: raw_bytes
     }

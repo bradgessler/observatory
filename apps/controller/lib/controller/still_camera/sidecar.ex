@@ -122,6 +122,10 @@ defmodule Controller.StillCamera.Sidecar do
       # where in the run's dither the picture was taken: `%{k, east_arcmin, north_arcmin, radius_arcmin}`
       # from the run's middle (`Controller.Sky.Dither`); nil when the run held still
       dither: shot[:dither],
+      # how the mount's polar axis turns the field (`Controller.Sky.FieldRotation`): axis_off_deg, rate_deg_per_h,
+      # corner_arcsec, smear_arcsec (predicted for this exposure), max_exposure_s and the tolerance it was worked to.
+      # Facts only: a reader decides whether the smear matters
+      tracking: shot[:tracking],
       time: %{
         shutter_pressed: pressed,
         exposure_end: ended,

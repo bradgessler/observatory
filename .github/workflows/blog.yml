@@ -48,6 +48,9 @@ jobs:
       - name: Publish
         env:
           BLOG_DEPLOY_KEY: ${{ secrets.BLOG_DEPLOY_KEY }}
+          # "lat,lon,town": what the build refuses to publish. The repository is public, so it lives in a secret;
+          # without it the build still runs but can't check posts for the town or the coordinates
+          OBSERVATORY_SITE: ${{ secrets.OBSERVATORY_SITE }}
         run: |
           test -n "$BLOG_DEPLOY_KEY" || { echo "::error::No BLOG_DEPLOY_KEY secret: add a deploy key with write access to bradgessler/observatory-blog"; exit 1; }
           mkdir -p ~/.ssh && chmod 700 ~/.ssh

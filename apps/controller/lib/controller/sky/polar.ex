@@ -9,7 +9,7 @@ defmodule Controller.Sky.Polar do
   alignment error: split into altitude and azimuth, it is how far to turn
   which bolt.
 
-      Polar.fit(samples, site: %{lat: 37.9, lon: -122.2}, signs: %{ha_sign: 1, dec_sign: -1})
+      Polar.fit(samples, site: %{lat: 37.34, lon: -121.64}, signs: %{ha_sign: 1, dec_sign: -1})
       #=> {:ok, %{error_deg: 0.94, moves: [%{knob: :altitude, dir: :raise, deg: 0.5, margin_deg: 0.1}, ...], ...}}
 
   A sample is `%{theta_ra, theta_dec, ra_deg, dec_deg, at}`: encoders in

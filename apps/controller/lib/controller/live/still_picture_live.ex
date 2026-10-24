@@ -115,6 +115,7 @@ defmodule Controller.StillPictureLive do
             <img :if={shown?(@cam, @pic, @seq)} src={StillCamera.src_of(@cam, @seq)} alt={"Picture #{@seq}"} />
             <div :if={!shown?(@cam, @pic, @seq)} class="scope-frame-empty"><p class="dim">{empty_words(@pic, @flight)}</p></div>
             <p class="dim pic-caption">{caption(@pic, @flight, @now_ms)}</p>
+            <p :if={smear_note(@pic)} class="lock-line warn-line" role="status">{smear_note(@pic)}</p>
           </section>
 
           <%!-- what has happened to it, in order: each step done, under way, or still to come --%>
@@ -316,6 +317,7 @@ defmodule Controller.StillPictureLive do
       {"Camera", camera_rows(s["camera"])},
       {"Pointing", pointing_rows(s["pointing"], pic.solve)},
       {"Mount", mount_rows(s["mount"], s["settle"])},
+      {"Tracking", tracking_rows(s["tracking"])},
       {"Alignment", model_rows(s["model"])},
       {"Telescope", optics_rows(s["optics"], pic.solve)},
       {"Site and clock", site_rows(s["site"], s["time"])},
@@ -325,6 +327,29 @@ defmodule Controller.StillPictureLive do
     |> Enum.map(fn {t, rows} -> {t, Enum.reject(rows, fn {_, v} -> v in [nil, ""] end)} end)
     |> Enum.reject(fn {_, rows} -> rows == [] end)
   end
+
+  # From the picture's own record: if the field's turn smeared its corners past the tolerance it was worked to,
+  # say so once, calmly, with the numbers. The record holds the facts, not this verdict.
+  defp smear_note(%{sidecar: %{"tracking" => %{"smear_arcsec" => s, "tolerance_arcsec" => t} = r}})
+       when is_number(s) and is_number(t) and s > t do
+    "FYI: the corners smeared about #{one(s)}″ during this exposure, more than the #{one(t)}″ that keeps them sharp: the polar axis was #{one(r["axis_off_deg"])}° off#{if r["max_exposure_s"], do: " and #{r["max_exposure_s"]} s was the longest that stayed sharp here", else: ""}."
+  end
+
+  defp smear_note(_), do: nil
+
+  defp tracking_rows(nil), do: []
+
+  defp tracking_rows(t) do
+    [
+      {"Polar axis", t["axis_off_deg"] && "#{one(t["axis_off_deg"])}° from the pole"},
+      {"Field turning", t["rate_deg_per_h"] && "#{one(abs(t["rate_deg_per_h"]))}° an hour"},
+      {"Corner smear", t["smear_arcsec"] && "#{one(t["smear_arcsec"])}″ in this exposure (corner #{t["corner_arcsec"]}″ from the middle)"},
+      {"Sharp up to", t["max_exposure_s"] && "#{t["max_exposure_s"]} s for #{one(t["tolerance_arcsec"])}″ in the corners"}
+    ]
+  end
+
+  defp one(x) when is_number(x), do: :erlang.float_to_binary(x / 1, decimals: 1)
+  defp one(x), do: to_string(x)
 
   defp camera_rows(nil), do: []
 

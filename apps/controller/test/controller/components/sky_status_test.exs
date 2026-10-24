@@ -18,7 +18,7 @@ defmodule Controller.Components.SkyStatusTest do
   @horizon 20.0
   @twilight 4.7
 
-  @home %{lat: 37.877, lon: -122.180, set: true}
+  @home %{lat: 37.34, lon: -121.64, set: true}
   # 01:00 in the morning there (UTC-7), early October: dark, a night with twilight at both ends
   @night ~U[2026-10-04 08:00:00Z]
 

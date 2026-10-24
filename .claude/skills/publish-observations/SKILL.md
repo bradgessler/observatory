@@ -104,7 +104,7 @@ Things that went wrong that night, so they do not again:
   degree**, clock time or not. Altitudes go to the nearest ten degrees at
   most ("about 80 degrees up", "nearly overhead").
 - **The privacy guard refuses innocent numbers** that match the site's
-  latitude or longitude to one decimal ("noise 37.9 DN"). Reword the number;
+  latitude or longitude to one decimal (a noise level in DN that happened to equal it). Reword the number;
   never loosen the guard.
 - **A share card's words sit at the foot by default.** When the subject is
   at the foot, set `CARD_TEXT[slug] = "top"` in `annotate.py`. Look at

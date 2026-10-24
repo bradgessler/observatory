@@ -10,8 +10,8 @@ defmodule Controller.Sky.PolarTest do
 
   alias Controller.Sky.{Astro, Model, Polar}
 
-  @lat 37.88
-  @lon -122.18
+  @lat 37.34
+  @lon -121.64
   @site %{lat: @lat, lon: @lon}
   @signs %{ha_sign: 1, dec_sign: -1}
   @now ~U[2026-09-20 05:30:00Z]

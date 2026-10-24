@@ -221,8 +221,8 @@ def read_frame(path, exif=False):
         name=name, stem=os.path.basename(stem), path_stem=stem, folder=rel(folder), version=version, schema=schema,
         files=files, sha256=arw.get('sha256'), sidecar_sha256=sha256_file(sc),
         solve_sha256=sha256_file(sv) if os.path.exists(sv) else None,
-        seq=j.get('seq'), imagetyp=imagetyp, purpose=purpose, frame_type=ftype, plan=cap.get('plan'), run=j.get('run'),
-        target=dict(name=tgt.get('name'), id=tgt.get('id'), ra_deg=tgt.get('ra_deg'), dec_deg=tgt.get('dec_deg')) if isinstance(tgt, dict) else None,
+        seq=j.get('seq'), imagetyp=imagetyp, purpose=purpose, frame_type=ftype, plan=cap.get('plan'), run=cap.get('run') or j.get('run'),       # still/2: capture.run {id, k}; still/1 had none
+        target=dict(name=tgt.get('name'), id=tgt.get('id'), ra_deg=tgt.get('ra_deg'), dec_deg=tgt.get('dec_deg'), aim=tgt.get('aim')) if isinstance(tgt, dict) else None,
         time=dict(start=start, end=end, mid=mid, exposure_s=float(exp) if exp is not None else None, ready=tm.get('picture_ready'), saved=tm.get('saved'), clock=tm.get('clock')),
         camera=dict(id=cam.get('id'), make=make or None, model=cam.get('model'), instrume=fv('INSTRUME') or (('%s %s' % (make, cam.get('model'))).strip() if cam.get('model') else None),
                     iso=cam.get('iso') if cam.get('iso') is not None else fv('ISOSPEED'), exposure_s=cam.get('exposure_s'), serial=cam.get('serial') or fv('OBS CAMERA SERIAL'),
@@ -244,7 +244,7 @@ def read_frame(path, exif=False):
         rec['solve'] = dict(state=s.get('state'), reason=s.get('reason'), ra_deg=sol.get('ra_deg'), dec_deg=sol.get('dec_deg'), pixscale_arcsec=sol.get('pixscale_arcsec'),
                             rotation_deg=sol.get('rotation_deg'), parity=sol.get('parity'), stars=sol.get('stars'), seconds=sol.get('seconds'), solver=sol.get('solver'),
                             width_deg=sol.get('width_deg'), height_deg=sol.get('height_deg'), focal_length_mm=s.get('focal_length_mm'), written=s.get('written'),
-                            wcs_full=full, wcs_solved=solved, schema=s.get('schema'))
+                            wcs_full=full, wcs_solved=solved, wcs_full_of=s.get('wcs_full_of'), wcs_scale=s.get('wcs_scale'), schema=s.get('schema'))
     if exif and 'arw' in files:
         p = os.path.join(folder, files['arw']['name'])
         if os.path.exists(p):
@@ -311,6 +311,10 @@ def frame_cards(rec):
     add('RADESYS', 'ICRS'); add('EQUINOX', 2000.0)
     add('RA', pt['ra_deg'], '[deg] where the mount says it points'); add('DEC', pt['dec_deg'], '[deg] where the mount says it points')
     add('OBS SCHEMA', rec['schema']); add('OBS FRAME SEQ', rec.get('seq'))
+    run = rec.get('run') or {}; plan = rec.get('plan') or {}
+    add('OBS RUN ID', run.get('id')); add('OBS RUN K', run.get('k'), 'picture of the run')
+    add('OBS PLAN RUN', plan.get('run')); add('OBS PLAN STEP', plan.get('step')); add('OBS PLAN INDEX', plan.get('index')); add('OBS PLAN OF', plan.get('of'))
+    add('OBS FRAME WHY', rec.get('purpose'), 'what it was taken for')
     add('OBS FILE RAW SHA256', rec.get('sha256'))
     add('OBS CAMERA ID', cam['id']); add('OBS CAMERA SERIAL', cam.get('serial')); add('OBS CAMERA FIRMWARE', cam.get('firmware'))
     add('OBS MOUNT ID', rec.get('mount_id')); add('OBS POINTING SOURCE', pt.get('source'))

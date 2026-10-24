@@ -83,6 +83,31 @@ if __name__ == '__main__':
         check('no card gives the site away (v1 or v2)', not any(om.LOCATION_KEYS.match(k) for k in keys + [k for k, _, _ in om.frame_cards(r)]))
         check('v2: the target\'s place from capture', dict((k, v) for k, v, _ in c2).get('OBJCTRA') == '05 35 16.80')
         check('v2: the full-size WCS in the cards', dict((k, v) for k, v, _ in c2).get('CRPIX1') == 3000.5)
+        # --- still/2 as the box writes it (Controller.StillCamera.Sidecar): capture.{purpose, target, run, plan}, a fits block of
+        # keyword -> value with our keys as 'OBS ...', and solve.json with wcs, wcs_full, wcs_full_of, wcs_scale. Made-up values, Lick site.
+        box = copy.deepcopy(V1); box['schema'] = 'observatory.still/2'
+        box['site'] = {'lat': 37.3414, 'lon': -121.6429, 'elevation_m': 1283.0}
+        box['camera'].update(serial='0000001', firmware='ILCE-6000 v2.00')
+        box['capture'] = {'purpose': 'light', 'target': {'id': 'NGC 1976', 'name': 'M 42', 'ra_deg': 83.8221, 'dec_deg': -5.3911, 'aim': 'the Trapezium'},
+                          'run': {'id': 'run-20261018-090200', 'k': 7}, 'plan': {'run': 'plan-m42', 'step': 2, 'index': 7, 'of': 30}}
+        box['fits'] = {'IMAGETYP': 'LIGHT', 'OBJECT': 'M 42', 'DATE-OBS': '2026-10-18T10:22:51.926', 'EXPTIME': 30.0, 'TELESCOP': 'Celestron 8SE',
+                       'SITELAT': 37.3414, 'SITELONG': -121.6429, 'SITEELEV': 1283.0, 'CENTALT': 41.5, 'AIRMASS': 1.5123,
+                       'OBS CAMERA SERIAL': '0000001', 'OBS RUN ID': 'run-20261018-090200', 'OBS RUN K': 7, 'OBS FRAME WHY': 'light'}
+        bsolve = copy.deepcopy(SOLVE1)
+        bsolve['wcs'] = dict(WCS_FULL, CRPIX1=750.5, CRPIX2=500.5, CD1_1=-4e-4, CD2_2=4e-4, IMAGEW=1500, IMAGEH=1000)
+        bsolve['wcs_full'] = dict(WCS_FULL); bsolve['wcs_full_of'] = [6000, 4000]; bsolve['wcs_scale'] = 4.0
+        rb = om.read_frame(frame(td, box, bsolve, stem='20261018-102252-DSC00002'))
+        check('box v2: run and plan read from capture', rb['run'] == {'id': 'run-20261018-090200', 'k': 7} and rb['plan']['of'] == 30 and rb['plan']['run'] == 'plan-m42', (rb['run'], rb['plan']))
+        check('box v2: target with its aim, purpose', rb['target'] == {'name': 'M 42', 'id': 'NGC 1976', 'ra_deg': 83.8221, 'dec_deg': -5.3911, 'aim': 'the Trapezium'} and rb['purpose'] == 'light' and rb['imagetyp'] == 'LIGHT')
+        check('box v2: fits keys as given (OBS ..., no HIERARCH prefix)', rb['fits']['OBS RUN K'][0] == 7 and rb['fits']['OBS CAMERA SERIAL'][0] == '0000001' and rb['camera']['serial'] == '0000001')
+        check('box v2: wcs is the solver copy, wcs_full the camera picture', rb['solve']['wcs_solved']['IMAGEW'] == 1500 and rb['solve']['wcs_full']['IMAGEW'] == 6000 and rb['solve']['wcs_full']['CRPIX1'] == 3000.5 and rb['solve']['wcs_full_of'] == [6000, 4000] and rb['solve']['wcs_scale'] == 4.0)
+        cb = dict((k, v) for k, v, _ in om.frame_cards(rb))
+        check('box v2: cards keep run, plan and purpose', cb.get('OBS RUN ID') == 'run-20261018-090200' and cb.get('OBS RUN K') == 7 and cb.get('OBS PLAN OF') == 30 and cb.get('OBS FRAME WHY') == 'light', {k: cb.get(k) for k in ('OBS RUN ID', 'OBS RUN K', 'OBS PLAN OF')})
+        check('box v2: the site, CENTALT gone from the cards; AIRMASS to 0.1', not any(k in cb for k in ('SITELAT', 'SITELONG', 'SITEELEV', 'CENTALT')) and cb.get('AIRMASS') == 1.5, cb.get('AIRMASS'))
+        check('box v2: observing night by the site\'s solar time', rb['night'] == '2026-10-17', rb['night'])
+        fb = os.path.join(td, 'box.fits'); om.write_fits(fb, np.zeros((2, 2), np.float32), om.frame_cards(rb), 'w')
+        hb = open(fb, 'rb').read().decode('ascii', 'replace')
+        check('box v2: no site value anywhere in a written header', '37.34' not in hb and '121.64' not in hb and '1283' not in hb)
         bad = dict(V1, schema='observatory.still/9'); json.dump(bad, open(os.path.join(td, 'x.json'), 'w'))
         try: om.read_frame(os.path.join(td, 'x.json')); check('an unknown schema is refused', False)
         except ValueError: check('an unknown schema is refused', True)

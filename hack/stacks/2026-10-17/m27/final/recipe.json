@@ -1,49 +1,879 @@
 {
- "target": "Messier 27 (NGC 6853), the Dumbbell Nebula, a planetary nebula in Vulpecula",
- "night": "2026-10-17 (frames of 18 October UTC, 03:46 to 04:22)",
+ "schema": "observatory.recipe/1",
+ "id": "ae0f3b164c2f718597700f8c553c9dc119110f83aa330b885cc3354a141ed337",
+ "target": {
+  "name": "M 27",
+  "ids": [
+   "NGC 6853"
+  ],
+  "title": "the Dumbbell Nebula",
+  "ra_deg": 299.901579,
+  "dec_deg": 22.721056,
+  "what": "the central star of NGC 6853 (ICRS)",
+  "text": "Messier 27 (NGC 6853), the Dumbbell Nebula, a planetary nebula in Vulpecula"
+ },
+ "night": {
+  "date": "2026-10-17",
+  "text": "2026-10-17 (frames of 18 October UTC, 03:46 to 04:22)"
+ },
  "made": "2026-10-18T05:58:55+00:00",
  "reproduce": "hack/stacks/2026-10-17/m27/run_all.sh (hooks M27_*, see common.py); with none set it reproduces this run. RAWs ~/.observatory/stills/2026-10-18/ read in place, never written",
- "template": "hack/stacks/2026-10-12/m77-calibrated (calibrated flat, Gaia star colours, darks.subtract) with the combine of hack/stacks/2026-10-12/ngc891-coadd (proper coaddition, keep_phase=\"mean\"; the old sigma-clipped weighted mean made from the same cube as a control, work/control_*.npy)",
- "files": {
-  "picture": [
-   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.png",
-   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.jpg",
-   "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/final/m27.json"
-  ],
-  "stack_linear_tif": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-stack.tif",
-  "full_field": [
-   "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-field.png",
-   "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/m27-field.jpg"
-  ],
-  "share": "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/share",
-  "logs": "/Users/bradgessler/Projects/bradgessler/observatory/.claude/worktrees/beautiful-payne-df0a74/hack/stacks/2026-10-17/m27/logs"
+ "roots": {
+  "repo": ".",
+  "night": "~/.observatory/nights/2026-10-17-a6000",
+  "stills": "~/.observatory/stills",
+  "nights": "~/.observatory/nights"
  },
- "summary": {
-  "frames": "70 taken in the run (15 s, ISO 3200 by the RAW's own EXIF; every one plate-solved on M27 by its sidecar); 66 used, 4 dropped",
-  "dropped": {
-   "20261018-034619": "the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000",
-   "20261018-035059": "smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35",
-   "20261018-035232": "smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32",
-   "20261018-041416": "smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32"
+ "software": [
+  {
+   "name": "python",
+   "version": "3.13.2"
   },
-  "not_in_the_run": "before 03:46 UTC: centring frames (2 s at ISO 6400, a 1/60 s frame) and the focusing frames on Vega (2 s, 03:06 to 03:25); from 04:23 UTC, M33 (another target, used only for a candidate flat). None of these is in the stack",
-  "integration_s": 990.0,
-  "integration": "66 x 15 s = 16.5 minutes",
-  "transparency": "0.980 to 1.009 of the run's typical star flux: no cloud",
-  "star_size": "half-flux diameter, green, 117 compact unsaturated stars: 4.47 arcsec in the stack, 4.94 in the reference frame alone; the run's frames 4.64 (median, step 4). The box's own figure (the 960 px JPEG preview) read 6.2 to 7.3 arcsec for the same frames: a coarser measure of the same stars",
-  "flat": "the 13 October hybrid flat (~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77: large scale from that night's open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), chosen over two others on this run's own sky (step 7a), times this run's own measure of the dust that moved since (step 7)",
-  "dust": "three shadows named for tonight, their depth in this run's own sky before any flat / after the 13 October flat / after this run's own correction: crescent at sensor (3534, 824): 12.7% / 12.6% / 1.7%; spot_a at sensor (1356, 2400): 5.5% / 0.5% / 0.1%; spot_b at sensor (5352, 3456): 9.0% / 0.2% / 0.2%. The crescent is new since 13 October (the twilight flat has only a 3% shadow there) and is taken out by this run's own measure; the two spots were already in the 13 October flat. 11 shadows in all were measured on this run's sky (seen in the odd and in the even frames alone) and divided out, 0.73% of the sensor",
-  "darks": "none taken tonight: darks.subtract changed nothing and said so; hot pixels found from the run itself and repaired by the 3 x 3 median of their colour plane",
-  "combine": "proper coaddition (Zackay & Ofek 2017; tools/coadd.py, keep_phase=\"mean\"), 269 PSF stars per plane, one PSF per frame and plane; theory S/N gain over the old weighted mean 1.0100 (green). The old combine is made from the same cube as a control",
-  "noise": "sky noise per stack pixel 6.2 to 8.2 DN against 48.1 to 60.8 for one frame: 7.45 to 7.75 times lower (8.12 expected from the weights)",
-  "is_it_the_thing": "yes: the reference frame and the stack plate-solved (astrometry.net); M27's central star's catalogue place falls 0.7 arcsec from the light's centroid in the stack",
-  "ears": "the faint outer lobes (\"ears\", filling the nebula out along its long axis, position angle about 90 to 150 and 270 to 330 degrees) are real: 3 to 4 arcmin from the star they are 12/12, 11/11, 6/6, 4/4, 12/12, 12/12, 5/5 sigma above blank sky in the odd and in the even frames alone (step 12). Beyond 4 arcmin no sector passes in either half: the faint outer halo seen in deep pictures (out to about 7 arcmin) is NOT seen in 16.5 minutes from this sky",
-  "followed": "the nebula followed (ring median of green above 3 x the blank-sky spread, unbroken from the star) to 4.04 arcmin from the star, 8.1 arcmin across",
-  "colour": "the camera's daylight white balance times Gaia DR3 star colours (kR 1.0128, kB 1.1530 from 93 stars), the camera's own colour matrix. The nebula's blue-green (doubly ionised oxygen, 501 nm) is outside sRGB; colour shown only above 8 DN, grey below. No saturation beyond x 1.2",
-  "picture": "a 1200 x 1000 px cut at the stack's own pixels (0.777 arcsec per px, 15.5 x 12.9 arcmin), nothing resampled after the stack, never enlarged; north 116.2 degrees clockwise from up (the camera's orientation)",
-  "sky": "dark sky neutral: m27.png                      darkest  0-10%: R   1.0 G   1.0 B   1.0 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R   2.8 G   2.8 B   2.8 (R-G  +0.0, B-G  -0.0)",
-  "jpeg_metadata_free": true,
-  "altitude": "about 60 to 70 degrees up during the run (sidecars: 60 to 66); no clock time goes with it anywhere published"
+  {
+   "name": "numpy",
+   "version": "2.5.3"
+  },
+  {
+   "name": "opencv",
+   "version": "5.0.0"
+  },
+  {
+   "name": "rawpy",
+   "version": "0.27.1"
+  },
+  {
+   "name": "tifffile",
+   "version": "2026.9.20"
+  },
+  {
+   "name": "scipy",
+   "version": "1.18.1"
+  },
+  {
+   "name": "astropy",
+   "version": "8.0.2"
+  },
+  {
+   "name": "astrometry.net",
+   "version": "0.97",
+   "indexes": {
+    "Tycho-2": "index-4107 to 4119 (13 files)",
+    "2MASS": "index-4204 to 4207 (84 files)"
+   }
+  }
+ ],
+ "git": {
+  "commit": "527597523bd67ed4da4fddd5e848f907c02b8954",
+  "repository": "github.com/bradgessler/observatory",
+  "scripts": "hack/stacks/2026-10-17/m27",
+  "scripts_commit": "d69e8343cc6534264b545cccf8a002e025846423",
+  "scripts_changed_since": [
+   "hack/stacks/2026-10-17/m27/run_all.sh",
+   "hack/stacks/2026-10-17/m27/step10_deliver.py",
+   "hack/stacks/2026-10-17/m27/step16_metadata.py"
+  ]
+ },
+ "inputs": [
+  {
+   "name": "20261018-034619-DSC00591.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "f805d5867b189be88921798d4e468e59730464b38ee648ab518f22f27005682e",
+   "sidecar_sha256": "c1a1f30acd4755fce74c6e85b40af04300f9e59cdfb8dff8b2f5c7ab0111c9fb",
+   "solve_sha256": "00558ec3cb2d47b44302a8c9ec9b49ee8af49c7e9a8e756eba09459f279aa0b5",
+   "schema": "observatory.still/1",
+   "used": false,
+   "why": "the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000"
+  },
+  {
+   "name": "20261018-034650-DSC00592.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "5bdc003a6f01dae9cefe5cc250498c8c285ef776a9b3d17e45b2a892f34a4d6d",
+   "sidecar_sha256": "b409058d5f3b20f2aa5417cf95193ea314b23aebfa1f5b4a5d3f568889e594b7",
+   "solve_sha256": "1a526c58987afb4dd10f365e8a67035045e4a3e9d9d343c7d39b557e3d06c194",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.8989521006553354
+  },
+  {
+   "name": "20261018-034721-DSC00593.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "45d4422419083273bcd8e56f911790aaa88de73c0d7dd2da0be68a306db170f2",
+   "sidecar_sha256": "aa14c0764d4ae5227a8b46c18e19ca3193868985f7556d8843bcc973b07bde2e",
+   "solve_sha256": "c6da27597b80308540f40a22ec7a28d7fe1f3203172e9c835c93f36fe1de931e",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9351499237750093
+  },
+  {
+   "name": "20261018-034752-DSC00594.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "15d1442344eae0a77260ee3324cd98468e870c0844a757c9c2ceeb9f959a9f0a",
+   "sidecar_sha256": "19fb722731f94aa576a30c7985456e58812010e8a0166510450d9da7955149ca",
+   "solve_sha256": "b45a98096a568d9c1f7c238bb476df788f20125762dae8e81f3c9a8336df47b6",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9836063105091964
+  },
+  {
+   "name": "20261018-034823-DSC00595.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "96a93af008dddd2cbe23c069ebc01ffce0714e6260bce7310d94e7dfffda373e",
+   "sidecar_sha256": "c085978d34d9996d69a5a7ed510467ca8694cc6df8d03a9e1867712d20858a42",
+   "solve_sha256": "39fe05422e6725070ae1dfcc40a93bd92490b95f1fbf6af960b6d27d961e32eb",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9377308162483232
+  },
+  {
+   "name": "20261018-034854-DSC00596.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "80d47e364e787573c573824c6854475f089ebebda06b250c4046e6500b7817b2",
+   "sidecar_sha256": "0e85190cb69aa5ae4cfd9f38adff72f3e3a50d47fe5ef9dae5398531616eeaa5",
+   "solve_sha256": "8e7cbda747d0d1622c18e5f432cfe5cd4f15f0c3ba8b8619bfa97ce02c8360ba",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0601773448804954
+  },
+  {
+   "name": "20261018-034925-DSC00597.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "46f95e51f66e74c40dffb6e4834edeb61ef65280cc150397b4b00f84c7a55362",
+   "sidecar_sha256": "d5923b2dacd04523e8b6bb57b04de8472aab6b1c177f9fed3b4cca1855e58db6",
+   "solve_sha256": "de3f4d9b45c4a7a08b5b2249fae8da7065220bf1338d360f903a7bff38b8c0b5",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9695853870837606
+  },
+  {
+   "name": "20261018-034956-DSC00598.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "add50367aed4c7f4f3911befdccfc79d95b6269d9ac3d77a96bc6e7009b75705",
+   "sidecar_sha256": "7acd0e2d0c74d60de1299e9285b951e76ad505c1d6323e8cdd1145ea00c89230",
+   "solve_sha256": "19638e404d5de117f48da72911275a5ea6b96c5335bf096ebb5c4b7cfd97737f",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9572310041722707
+  },
+  {
+   "name": "20261018-035027-DSC00599.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "0bbc05d6d99ae87f032415e5dbf9f44cc8c5fe52911a474bc5a0c44b6afabeb7",
+   "sidecar_sha256": "74601f4702240111472094b01324a7175927a71bec804cb607439e60dc254aea",
+   "solve_sha256": "55e670c3cf701ad299388e20b4fa335e21309a96dceaa390bc1171bd5ab86199",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9643741064398429
+  },
+  {
+   "name": "20261018-035059-DSC00600.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "48eae4008af72b8b5558bc191ad29539d1d5ef92f85b7c0229b5d92cd48b67c4",
+   "sidecar_sha256": "59251eb0065badb063d5b57e5f26f3b49e26d2cdc63d0c303ab0cd2c9e025d5d",
+   "solve_sha256": "80063d7a3c21faae7d7862ea6830977058888300735023e729e3e2934ff96c66",
+   "schema": "observatory.still/1",
+   "used": false,
+   "why": "smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35"
+  },
+  {
+   "name": "20261018-035130-DSC00601.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "70c893349e134df80e14f6fb4930ed545baaf6441e6ecaec02c8ca6561eb21f3",
+   "sidecar_sha256": "0e8fae50def7c55f5fd19f1746dfd019cbfb49b2aae8cbfcb38f5cd54b739038",
+   "solve_sha256": "e260b6a80b86981a6fa65fc0a33dd0022c316a2b76d975bfb5e26de6718d0adb",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.033721960234992
+  },
+  {
+   "name": "20261018-035201-DSC00602.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "6609ea1971dc462078b2b1253b4d6e48d6b812d38b91661ac0e80a63d2b21981",
+   "sidecar_sha256": "3c6cbd6f0a2cc954003769e8469143241e881b181ed8e6f9a6ec6caae935f092",
+   "solve_sha256": "1f82908b10074e1326171fbf1d7dfd2ffa87c343786ebd11fba05c2bdbc172e8",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.957125727852026
+  },
+  {
+   "name": "20261018-035232-DSC00603.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "823133857123f68e551290a7d444bf6e75179b69717dff92a3b6203d7257b648",
+   "sidecar_sha256": "2043d6819e6f5cddbb9e09280022dea056247a29c611b0bd0517230792450fef",
+   "solve_sha256": "ee91569b31a40838bf0a6b86adb3969aa534529428a5d6be613c3279df0352d1",
+   "schema": "observatory.still/1",
+   "used": false,
+   "why": "smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32"
+  },
+  {
+   "name": "20261018-035303-DSC00604.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "4a0268c2ccccc56ff6694234be973b57b85fe7e74509233e0dfac897f152e627",
+   "sidecar_sha256": "97ebb023f41dd6aa4fbbee55cc771df2b90ccb8f725ea105d5d24d0e7236cb11",
+   "solve_sha256": "4c5c77ce81cfc796dd4e20b9c91b523e5585c2157083617506e1880e1eb40b34",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0011074238165112
+  },
+  {
+   "name": "20261018-035334-DSC00605.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "494bcbe7f4521fcad6564c46d7557847f8ef3216ee242565860a334ab82c99e7",
+   "sidecar_sha256": "e708d0741f31a3a64c7955ced9e6e32af3e54d3d8b3fdb6a6005005cf50404ac",
+   "solve_sha256": "613ab728f3dda7b46e9be260bab0aa5f15f5b44047ea5cb80f4884940779d361",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0297503089512758
+  },
+  {
+   "name": "20261018-035405-DSC00606.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "ad1636935a8a08478ff74384d50971c2315a365c59bb5d437fb76b528cb6d720",
+   "sidecar_sha256": "28ef29fe627bcc74cec078a4a26847e1de530ce121ba734b8be0a72c848900b0",
+   "solve_sha256": "860f15643cedcdf4dacb8c7c37acf53e13ada515f3787fe07858233042cd9a99",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0479755964745576
+  },
+  {
+   "name": "20261018-035436-DSC00607.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "a7a93fa884655ec4cdfb0f53f06ece79ce5f98f9b0d125a58c16f3de620b9e33",
+   "sidecar_sha256": "cc19fe185be6dc527c373edb65708376da88d5a36346ed9d4edc56db4a977bd7",
+   "solve_sha256": "8deed9e0b564cefa806cde40727d7baeb4cf949e7734807e36709e44fed25a89",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0056872590806405
+  },
+  {
+   "name": "20261018-035506-DSC00608.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "670d459a00bc4dcb8d1f01e4e53c125a1074fb576e558f7557c2110cf5f3dda9",
+   "sidecar_sha256": "f484c0a37d0e19c947f1205ecbbe9b5b61e8b355c095639331f19986bd2f3d80",
+   "solve_sha256": "3a5060e58bb9d6463f6e5a163c2ccab86c056f4afc07fc50cde92fd0bc6df735",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9833323282342539
+  },
+  {
+   "name": "20261018-035538-DSC00609.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "93eb28bd992c2baa52256aeda1b08e0dfa2bc3279b43bddd24f5de307b18d390",
+   "sidecar_sha256": "e3ff15dc8dd4f96571aaebc98983f5ee01ae957aa8face4a1a6a040e295a65f8",
+   "solve_sha256": "f2a80911a13cb24cf6007508dff743761c175326d01107924a874a1f0b476311",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.995485188685888
+  },
+  {
+   "name": "20261018-035609-DSC00610.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "983b1772382bfd1048829a0220859710bf208574b7fcbad29943b62e01ed05b6",
+   "sidecar_sha256": "a4204b898f93cdfef29fac58d565e54e28694ed8a9a819dcd761221473116f38",
+   "solve_sha256": "93c1cbf6237ff5e2668099e6126cac9e6b49cd368d5f1065baea99649e925065",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9889715394928491
+  },
+  {
+   "name": "20261018-035640-DSC00611.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "82a941b27951c4bde7e1658eed0858328017bd8eee855121eb2eadb31443c714",
+   "sidecar_sha256": "4efab89621570badeaf72c78c7854dbaa2e360fbb4b5509564e814e6e884cb99",
+   "solve_sha256": "63c85a2bc4a49f9d8d705446b0d47e6dff3300fa879b85a10175cd5b36b1f83a",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9084789575780475
+  },
+  {
+   "name": "20261018-035711-DSC00612.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "351bb323639dfded2f3859967ac6ef6b4e4653b878e932e202ed5e9d8a318caa",
+   "sidecar_sha256": "c6cb2c28f3c49b8b300e0d18163607e0caaef0078727b90bfc590311637f9369",
+   "solve_sha256": "2c38e7f55e54bb2d42912e4e24917fcf70beec74fd80eec936af5d88dce55283",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9836201605558844
+  },
+  {
+   "name": "20261018-035742-DSC00613.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "4e17d17ae01102b7a08e049d62fbea143916a339d639c3f189c4739aded77c66",
+   "sidecar_sha256": "4792a62a402eec87a0dd5c0048564e421b463486bef911fbbfedb11b48d5f832",
+   "solve_sha256": "6e4980a6712b8586feb8351b97c0246c9f5fc7a909630fe440705d4ad48c59ae",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0383587002391041
+  },
+  {
+   "name": "20261018-035813-DSC00614.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "93ba2f50144ee0d636430215f2acb8f1852b68e66e0e157301e102cfd17b57c0",
+   "sidecar_sha256": "ec223c1e46741b73d87b7af4238f3d80306903b99d5b5d55bb4a8f309c2f755f",
+   "solve_sha256": "ff75d4960ea7c46b1e9e9bac2087b9665160c2e6dccc2d0690d720e0d3f38635",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0260593026724478
+  },
+  {
+   "name": "20261018-035844-DSC00615.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "af8141225ecf517096d0d1584a20efbe014965b5463ddb108869b31b8fb521f0",
+   "sidecar_sha256": "4229902e5eba8be7ddcd71b831edd90e3c27b8a8c0b1052ec5d3e13174a4bb5b",
+   "solve_sha256": "2ad714a0f628d757ac51de42a0d957d37213f10154331e2d7d914b9ce99dd88e",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0416522138450368
+  },
+  {
+   "name": "20261018-035915-DSC00616.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "08e869a83746998c2dc4e547b2ffe3ece049a552d90f841efc397db6b0928062",
+   "sidecar_sha256": "25271ef6ab192667f70a50ac916529dedd1d9a824b1f58b3857818c49d1f894e",
+   "solve_sha256": "ba6f3f79ba63728f3933eefce8713505ac39e33cace663c129b71cb7f35fa21f",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9750172494422547
+  },
+  {
+   "name": "20261018-035946-DSC00617.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "21c7ccc37ff30dc6a5c6433319c3ff6e37610e2ef92a8a1ac53de2bd01dbfce6",
+   "sidecar_sha256": "f76b8a4322293333ff646ba73255385ca41184c49432dd48ab52635056c41f4a",
+   "solve_sha256": "1935b5da23e1b6ffa63bd1f92fc47f07a847124c2ba188d2a94e00c85437deab",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9906009671378226
+  },
+  {
+   "name": "20261018-040017-DSC00618.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "b396b694aa293a9c13841031239ecf17fd41db081e3b9bfa80c14388a14d3696",
+   "sidecar_sha256": "00c893c95dc1a497d7ffd19a07459fa37a67393c552ebcfc8eb31f6b6accc32e",
+   "solve_sha256": "862cbc7c876bc49135f7f67a6391d31056d3c1a4de13511e01bea3d6bc651010",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9727107009710786
+  },
+  {
+   "name": "20261018-040049-DSC00619.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "5c92413daedde17073b4a8b43969edbfb694a88a92d867943ac7c72c5b26e3de",
+   "sidecar_sha256": "115316794a5cfcd52cc8f8a2fc7c528bd2bb06adec4892561c24c0cf3d4b5b39",
+   "solve_sha256": "8777cc84d70533cf65407f875ade6da30538de83126d97e896d4be74a038e69d",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.01902078589704
+  },
+  {
+   "name": "20261018-040119-DSC00620.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "0fc3acb10d61920472a0aefebda9655cab504994d713a6423be013190f57d01c",
+   "sidecar_sha256": "2ba8d1a25017fccda46a6b03273e2c052bb2852d19340699e48e245bbd30372d",
+   "solve_sha256": "ff5728105d8b85b524755483d1afda0cf0feb9b6d8af674ce2d25f0e896b18a0",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9897370225078493
+  },
+  {
+   "name": "20261018-040151-DSC00621.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "2a0cbe7c59b7b9890854e63aa10d9c9354d46b0ebc4e0a295176f5b9a1c36ac3",
+   "sidecar_sha256": "b302642d3a933ca2ef9b944fc680ccc866b5222c0e4eb8d9c65161a9c73231b2",
+   "solve_sha256": "52b6b81e91db472d0d3006c8fca813814e7b01328e3ae25bb2035b6985f6e1cf",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0369535172779445
+  },
+  {
+   "name": "20261018-040222-DSC00622.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "8abce6efac68a6ba00adab3706a5c46d0405e426b28c5b15c2268e7c811b2509",
+   "sidecar_sha256": "ef561d739c29de24e4199e156eaa9f1ebf55d4ff811e3bbbdb496e4e489f7fc7",
+   "solve_sha256": "3eea3651f4bdf8fa7528e9462975da8263dc2c992a183e6cfa6bf74cfd4868f4",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.972224367264604
+  },
+  {
+   "name": "20261018-040253-DSC00623.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "e96f5b4f5a34fcdb3fa0e0b383201b94d4e8c2d46111bd8f637176714ed1be9b",
+   "sidecar_sha256": "6ed7f1d151c1e53814824b6027a1e8eabe54bdefb8e7219593ff811d6c0fc82c",
+   "solve_sha256": "edc1cb095806ddaf1b083ef8d69f409fb8ba08881c4c7082f8bd5bef7857f9a3",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0477922287759625
+  },
+  {
+   "name": "20261018-040324-DSC00624.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "5a0f51cf4fdf19b2fd121c0b2004b6565403e2908967438c64d3175ff44e2d9e",
+   "sidecar_sha256": "93a323536a3309333b57df73c05251f25b11bde92dbe67d0e6143f2f3141e8c6",
+   "solve_sha256": "a62c642efa2b8e4b2becbf5a7e9a4b0d4d5bb99f00740c051c6fbed9661cbe94",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0198854252990246
+  },
+  {
+   "name": "20261018-040355-DSC00625.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "10a78b0bff21e8943a9926c641fa74d370254422c4862f69ed0b5948ed4d3482",
+   "sidecar_sha256": "6418799b5d5385762578b1d74bfaca0b5f91bcc5360b209a34e834f9e7f70337",
+   "solve_sha256": "2ddf11d861c3ef272327150bcdf012b56c524c728012e4d6828454e97b7832af",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0453698613626743
+  },
+  {
+   "name": "20261018-040426-DSC00626.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "6a29334de9d407eae0822fe4e7c6d5d9a5afd2daf53a04ebed39c7cee470b698",
+   "sidecar_sha256": "3f15c074a8e771078d8afe0d621467ca99b8f00dcb1a37ff3446814dee72585e",
+   "solve_sha256": "5dc9b9c31bd3e8074e30462bbb9556753478010aa6090c8fce758c44fc6256df",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9776896380357352
+  },
+  {
+   "name": "20261018-040457-DSC00627.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "937d05fca0962b13bbe91f0fe5ac60acfe495aff6739f33a2e3f9cb6cdfc8785",
+   "sidecar_sha256": "7cf03b152233ce93974488a752b97d5f176056b77f8cc98e161f5b424f8fcac1",
+   "solve_sha256": "6ca9c617836c770337a69d54fc043270d9250c78f842562d2af614004d5b4657",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.1130142179029496
+  },
+  {
+   "name": "20261018-040528-DSC00628.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "837dbc331bf3ec3b92112f3568a700b8f8074d6db22b390a23237a252f45b578",
+   "sidecar_sha256": "33992ff3a633940af8ddcb4b712347705ad41c88de159b7c6a78939457e071c9",
+   "solve_sha256": "58f4231e7d8963d891bf327384db7fc208d40824fa63771e8e1fae571df2380a",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9935566401074789
+  },
+  {
+   "name": "20261018-040559-DSC00629.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "13cc97db83b5759684f1691f8058af66f8fb22b90e00fc3a57120750fe32eac6",
+   "sidecar_sha256": "aee79c1d48717712e1afaae9af553879205e274d29db70f9d37c832846a9221b",
+   "solve_sha256": "da6f0338c1edccbecba418c51bc4268db9f20c212404ad7563a57733059c27a0",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.019483476023159
+  },
+  {
+   "name": "20261018-040630-DSC00630.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "25cf59145a935b74235c789055b38623b90d50aef39a0511508745e7c019f50a",
+   "sidecar_sha256": "4b7c337f67652b0b5041515b9f4a4b8dc5ed03b0aa5f6589ad2445889bb6f5f9",
+   "solve_sha256": "276e32bf168c86cb225568ffd84800e207dd69803d84e9d9800c1ccf713bbc9b",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.090520584885192
+  },
+  {
+   "name": "20261018-040701-DSC00631.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "90c9226369ac1bb1db0d4bbd4ced6ecd67325801ca73f336c24a017c15c69d1e",
+   "sidecar_sha256": "02c43046f8958f6012b4068c24f4ede9f5f447326ae5277f5f36bb86f1e4adbb",
+   "solve_sha256": "b944643ff116f24e722b0949f9b0593369b6c0466b582156089975f9fc453f79",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9533418282860584
+  },
+  {
+   "name": "20261018-040732-DSC00632.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "6eb3146ce7e7c06c7481041746fd4316396d2897d07885ed068e576a37171eb5",
+   "sidecar_sha256": "20b8aded8345091dc1e05cf517e69e3c27b77ea409d50d2ffa9d4a085228a236",
+   "solve_sha256": "b8223e78ad2c5fbd31aa57e0b26459edb08d97fb491b15bc00b7d202aae226a2",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9958344155494228
+  },
+  {
+   "name": "20261018-040803-DSC00633.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "8b4d46ca558028937ddd326a0d7c17e6c18cfebd05f8808d35655e889baa136f",
+   "sidecar_sha256": "236da8d4e42a8bade6eb5e90f62c7c3876af6d78ecce1d56e933bd9177aba250",
+   "solve_sha256": "c64c3652e81a403aa647476a68b584413435521c61741cc2946e5bf37cd9282c",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9893308473582323
+  },
+  {
+   "name": "20261018-040834-DSC00634.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "c8893cd90b717b2a31a11da8bd749fad77a3c119879d01cd04eb1626722eda00",
+   "sidecar_sha256": "e47aed164f781e4cbae773afebc390300053beb73f389c1d23cf7aaf937ef650",
+   "solve_sha256": "dc97c09f7309b03f2eb9de795a2f80b0da876a4444857de1788bc0d2aedc1dad",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0032747487906974
+  },
+  {
+   "name": "20261018-040905-DSC00635.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "86e5e9ee2ba3d59b6f8f43c150234ae772a86d72ed3d6eef6e9c8cf4e63864dc",
+   "sidecar_sha256": "0438d2620d14000293909eec5007ed2cb002c1af69c4bd26355c7c20566341d9",
+   "solve_sha256": "ebd323ba88561fed5a351626dc312a2225cec5aa635f0a46e77574e58fd5853a",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0627889247486824
+  },
+  {
+   "name": "20261018-040936-DSC00636.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "507f49d4a767dae17c6ab70157d96243cc2220ccb325f146165f5d8e56dff848",
+   "sidecar_sha256": "37abeafaa47fd09dd8e1cf6294dadd0781f546d0638deba52eb74a12c9e83585",
+   "solve_sha256": "eae6d7e4d37284b68ffb0b1fd26774e69dc9f5b20d2ce498d47ea7406475ff3e",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9992018856060289
+  },
+  {
+   "name": "20261018-041008-DSC00637.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "3aefa03f25f83ebe5ef801c3b33bb20a5b22b371d646e25d9c98571fa8f55e23",
+   "sidecar_sha256": "9f63d2cf5c786b71d67aa8c253342f4a56b0b4ab286cea9cf76bfb63874d8046",
+   "solve_sha256": "1eb604209fa21c84acb1685530b342ee8a12ee587b366fa9fa4d8284f45a132f",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0372864366044945
+  },
+  {
+   "name": "20261018-041039-DSC00638.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "d30bf33ca88d2bbb25deadc7185a74d9786ea1c9ece519971dd5d33c332ba4c2",
+   "sidecar_sha256": "085ee89b31829dc2db367e1462370519b67aefd15723c886623c294ccc7e4aeb",
+   "solve_sha256": "addf50d85d7dc750af44b3a1c524b9ac940b1e460c5a307c741483ea431f927e",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9909500759113342
+  },
+  {
+   "name": "20261018-041110-DSC00639.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "b77e5f114385b7ec5de94fcde7b80a546dd854276e87b153b74add10113c9ad7",
+   "sidecar_sha256": "1076f5932d7d0be2b576e1406a400859132374b2873e984e9c267c3fd22293ec",
+   "solve_sha256": "8ef6e19f1ae06c25660c89e61c2bf7d46dc0f3eb17c71673ec2881443fdd8902",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0154545930549874
+  },
+  {
+   "name": "20261018-041141-DSC00640.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "785d4ef6cf9266381b9b6d3515c1d0b6cb567fd0485b6de259956f7f9036bdf5",
+   "sidecar_sha256": "bd576d07cffdce32c001f08ef3e8294e2134b28d4be13357440764438a0691ed",
+   "solve_sha256": "ec859d04555cc2ed8e1ca26930313992311d81bd790be07daad262d7da85a2b3",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0750363046399587
+  },
+  {
+   "name": "20261018-041212-DSC00641.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "c16e7dac0567a32f811f619abecadb1de8aaa8e374c806e878bcdc81075973a5",
+   "sidecar_sha256": "6342cdfc26d99da989bba8ede961fc51dad1458e5fda5423facdb78d8ec30b7d",
+   "solve_sha256": "454a729a3ff8af241a5b97402a0658aad4b4345f0b6589a2d27c902aec4abbc3",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0260255271071324
+  },
+  {
+   "name": "20261018-041243-DSC00642.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "241a459d4fec24d30be374837937df1d8739b512afeb8bf8c7129840f91b41cb",
+   "sidecar_sha256": "47004ca506eb58e03ba36cbff9ceed565ee35475ff888c5fdb63fd24ff6b6b29",
+   "solve_sha256": "751f1aaf911588d511a3ce2b840ece8c48e2d63fcf109597baa5ef7bb68ef629",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0257332087873963
+  },
+  {
+   "name": "20261018-041314-DSC00643.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "50dad7197c951b9f92d408c49ad9b413f02bdf0c41c80442e9b8d27f7204f359",
+   "sidecar_sha256": "6a14b2f36327ab86303d309eeb705e95d61d2ec9448c17d67fa39452bde839e1",
+   "solve_sha256": "9478ab0ea7a29842c2681a9cb7930ccc7bc0a2a63b5f437266c6f1d92f43c95c",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.1001638030222596
+  },
+  {
+   "name": "20261018-041345-DSC00644.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "df8a187974054764993743e41d6d35b5f7b16f56a1025336f7a9f051d2b4a973",
+   "sidecar_sha256": "bf7f54d2f91403f369f68d6251f2b31c66851529fe4723bf89db34b02ab7ef27",
+   "solve_sha256": "a382b109b856a054442d01300bd5b7e098db5c3269ac595ede56b53dde9ca14d",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9809447853269021
+  },
+  {
+   "name": "20261018-041416-DSC00645.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "fb99cd6204405eb2abc4074ffa39dafb41f34f3b796d2a91d29039368f0ea86d",
+   "sidecar_sha256": "bb98b6a008cd99c2b0c56c8f2504e232cf6ad238459c89851b9ce93be10ef0a9",
+   "solve_sha256": "6f621c6ce388d3fa30f0635b5f0df361078a54726286ac3cbb0c0c90dc39de24",
+   "schema": "observatory.still/1",
+   "used": false,
+   "why": "smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32"
+  },
+  {
+   "name": "20261018-041447-DSC00646.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "ef274fa1c7830c874cc76819f07c47e2885402d5af53b7c2943a9122d0f8fa1f",
+   "sidecar_sha256": "4d4bf37d8289b0501ce46d5b43273538f6134acac26d54f8dcece87bf5444645",
+   "solve_sha256": "81bef6307b9f7b7efe478a2798add46f08428d35a7fe92a78dc3e762935d814b",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0575145537643593
+  },
+  {
+   "name": "20261018-041518-DSC00647.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "84f34e0631ae55321ff07e554a4625afbddb1248d440b17145c3c1fd1e2ab2e7",
+   "sidecar_sha256": "cd4b5431d82349dc75f6136f89ef393c2cfb109845eaf99263e85d250c56dec4",
+   "solve_sha256": "df93ccb895bd5f57b25812af49815070e2a96cb48ba8d541a715a125e2728424",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0945457016558273
+  },
+  {
+   "name": "20261018-041549-DSC00648.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "416f803c5ce03ab309c13130caac4bd0df8399815840633c2e1a2e6d508450ea",
+   "sidecar_sha256": "4ccd28cbb71c2a7444ae3ff2dfaffe37d60de3879b3c1fe747b191baa70efd6f",
+   "solve_sha256": "ee229b1f5aa2a3bb72d11288a780ddd0e54f09870352fa4ad898f1ce3c355488",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0321226373550114
+  },
+  {
+   "name": "20261018-041620-DSC00649.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "612412a3a28a081d007b569413b7b6bd4051858f8d1eff1748318a48862f9aaa",
+   "sidecar_sha256": "d49ee82e558cb7fa57c34a901047ba4a0df8a59715014316a7ae11ae0a4bfd24",
+   "solve_sha256": "3d744042c4147dec61c524c886831b8b0d6bfeeae4feea0ac60581b3cb380af1",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0732327146513807
+  },
+  {
+   "name": "20261018-041651-DSC00650.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "d2a1fd229f282ae1e08fbbd5f3a5055f2e69fa716a1f1685a7282bab890739ff",
+   "sidecar_sha256": "757e83a0268afb4f54c9c0f657ee6a17b2e55faf6e177882699365c12b221b44",
+   "solve_sha256": "2a149ac08037cdbf2978220777b549e79b0f4b68c02e5ce68cd6bb22155191d9",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.1138360891389147
+  },
+  {
+   "name": "20261018-041722-DSC00651.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "85bd81549df7f0fe8347627cc7474998d423dca43db8662dc3b6eedc404a83b3",
+   "sidecar_sha256": "bae080ccc3f676a28a27737f4097888198158d04fac40f30e76513c48d2bbd16",
+   "solve_sha256": "90b3c7c708a728801db96e6c431e286087d7c0ca860c6f69737cc7a3691cb4d0",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9940883560283901
+  },
+  {
+   "name": "20261018-041753-DSC00652.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "57237e22416502201f089d9f02e9b8ab852d30457d3a950c0f1a10af2b9745db",
+   "sidecar_sha256": "5891bfc8c81aba8c0974a0daf541b636852911694ee7bfefd7b6e6215176d5da",
+   "solve_sha256": "2b48420915b3086cd5174b8d5702dadbffbffa9c0a2b0c2c09a242f82948768c",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0126210643657019
+  },
+  {
+   "name": "20261018-041824-DSC00653.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "a778c83b3c5c5e54ff7839fe86eb99bc7fee57d155811a991196c5eeb290a2ae",
+   "sidecar_sha256": "31f3c3ef986eb1d7a57e58a0587c07d536b83da5ae442de187ea02e2c186c0aa",
+   "solve_sha256": "6eeb340371fb00b1b3b5aa889f97aaac015caa1dc5f9d4570747140b8ca8dfbf",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0112149895724099
+  },
+  {
+   "name": "20261018-041855-DSC00654.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "968b7180fdc4d45b3bd9600fe2386d651dd03dcc64c444293ccc1294bb57eefe",
+   "sidecar_sha256": "7630fe242cee1a768510730391bc82556890c7c6ea73b10261e3334ba8385e56",
+   "solve_sha256": "43455363c40d6b82b77250443cc298d5a34e4988fda501de73e7f46331eb880c",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0181561065824465
+  },
+  {
+   "name": "20261018-041926-DSC00655.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "913be8663f81b3b7c27fb0a2d23004fddef27cde874907aa93c59a9699599e0e",
+   "sidecar_sha256": "203bbfed3ed07459006f1839dc528e99f9ac5bdbb86a7cfa31b2cd78b300784f",
+   "solve_sha256": "7cd113dd3c3d0f766ccf7549ee9c97308ec0f0fbc333553765f1e4c21479acc4",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.0419898044434162
+  },
+  {
+   "name": "20261018-041957-DSC00656.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "37d98816f5158229627b53940faf46a877ab50a158f7e8b359e54766aaf162d8",
+   "sidecar_sha256": "ddcc754ca9bd01fcf418f656367e02af5b92eb1c4c444b5ddcf0a2898572031d",
+   "solve_sha256": "39f5eb12d4002168167254d62f4bed6b1596ad85186a9f4e9f1bd57f12d99387",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.058759080290527
+  },
+  {
+   "name": "20261018-042028-DSC00657.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "2ee3ad41ead94b629c146ad3d07dcab7300f93e04cb43fd1bacfe700089f1081",
+   "sidecar_sha256": "6e1c451da825d1df2400d24a42208e032f04d19b368e928959f2e007a7a27341",
+   "solve_sha256": "f840f4c1e324e14628d611fcc937d323b07234ebf829253d808e5b2f883cfcc8",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9640059927574067
+  },
+  {
+   "name": "20261018-042059-DSC00658.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "cd5a21fd4bdfa35a2948909b85c1441065574590d1c5f3dc3cc36275678dc92b",
+   "sidecar_sha256": "ce56d622872c83189f1a08caeb4d9a88c254f386f92e4cefb2cae10304b55a63",
+   "solve_sha256": "2248f0cd46749dabaadf108381b1d7132ceb868dcae54d18969d2a8349a79b6f",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.985160662879984
+  },
+  {
+   "name": "20261018-042130-DSC00659.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "98b1ff53b5db3b600db3539ff046dea39b9efe81e21f53306aaead21f468bab4",
+   "sidecar_sha256": "e5691168e76e9764f39eeb13e39fa692bd3ff596613d4356b0f692cf67aa330b",
+   "solve_sha256": "2e27c06fa3bd0e8545a3c81fb1e1f8bd388630b4ff86b018f4a232269fb07623",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 0.9952878868117054
+  },
+  {
+   "name": "20261018-042201-DSC00660.ARW",
+   "night": "2026-10-17",
+   "folder": "~/.observatory/stills/2026-10-18",
+   "sha256": "2ac24e2d0b72ddd579393b5bd7aaf971dbd884c9b3fb2f91648ed252ca204589",
+   "sidecar_sha256": "ccf9c80d30d67c2e11165fd9c800f606b6d331ca9ae5ff7377043068e03feef1",
+   "solve_sha256": "80d9ff90ee8694a1bbac96b066593bc17148e41776cb1d1bde8506ec9abcba36",
+   "schema": "observatory.still/1",
+   "used": true,
+   "weight": 1.05015353012702
+  }
+ ],
+ "calibration": {
+  "flat": {
+   "applied": true,
+   "file": "~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77/flat_planes.npz",
+   "sha256": "7f7c0238eabf358824433977e9f10bffd1db4ab5e66864f6abfbde34794adb00",
+   "made_utc": "2026-10-17T18:38:16+00:00",
+   "tool": ".claude/skills/stack-pictures/tools/skyflat.py",
+   "how": "divided out of every frame, times this run's own dust measure (step 7)",
+   "fits": {
+    "file": "~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77/flat_planes.fits",
+    "sha256": "387b2d3a3f40bc95f717d87c31646a9909351795e64e280770180cbb3ae0a7e5"
+   }
+  },
+  "dark": {
+   "applied": false,
+   "why": "none taken tonight: darks.subtract changed nothing and said so; hot pixels found from the run itself and repaired by the 3 x 3 median of their colour plane"
+  },
+  "bias": {
+   "applied": false,
+   "why": "none taken"
+  },
+  "hot_pixels": {
+   "applied": true,
+   "how": "found from the run itself; repaired by the 3 x 3 median of their colour plane"
+  },
+  "sensor_map": {
+   "applied": false,
+   "why": "not used by this pipeline: the dust is measured on the run's own sky (step 7)"
+  }
  },
  "steps": [
   {
@@ -81,7 +911,8 @@
      }
     ],
     "hot_from_frames": 35
-   }
+   },
+   "history": "70 taken in the run (15 s, ISO 3200 by the RAW's own EXIF; every one plate-solved on M27 by its sidecar); 66 used, 4 dropped. Darks: none taken tonight: darks.subtract changed nothing and said so; hot pixels found from the run itself and repaired by the 3 x 3 median of their colour plane"
   },
   {
    "step": "2-3 stars and registration (rotation + shift on the stars)",
@@ -92,7 +923,8 @@
      0.04662790042227538
     ],
     "wrms_px_max": 0.4870814708478738
-   }
+   },
+   "history": "rotation + shift on the stars onto 20261018-040355, weighted rms at most 0.49 px; the field turned -0.004 to 0.047 deg"
   },
   {
    "step": "4-5 quality and selection",
@@ -539,7 +1371,8 @@
       "step_from_previous_px": 7.567436969621651
      }
     ]
-   }
+   },
+   "history": "dropped: 20261018-034619 the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000; 20261018-035059 smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35; 20261018-035232 smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32; 20261018-041416 smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32. Transparency 0.980 to 1.009 of the run's typical star flux: no cloud. Weights (transparency / noise)^2"
   },
   {
    "step": "6 is it the thing (reference frame plate solve)",
@@ -591,7 +1424,8 @@
     "light_major_axis_angle_deg": -2.330243590415597,
     "catalogue_major_axis_angle_deg": -3.7980581802366005,
     "angle_difference_deg": 1.4678145898210033
-   }
+   },
+   "history": "yes: the reference frame and the stack plate-solved (astrometry.net); M27's central star's catalogue place falls 0.7 arcsec from the light's centroid in the stack"
   },
   {
    "step": "7a candidate flats on this run's own sky (flatcheck.py)",
@@ -739,19 +1573,20 @@
      }
     ]
    },
-   "said": "hybrid13 leaves the least on this sky after a plane (green 0.57%, against 0.80% for the M33 flat and 1.98% for the twilight flat as measured). M33 is bigger than the frame, so its run is not open sky; its flat is kept as a candidate only. Every flat leaves this run's dust about 70% as deep as it carries it (correlation 0.35): the dust moved since 13 October, so step 7 measures it here"
+   "said": "hybrid13 leaves the least on this sky after a plane (green 0.57%, against 0.80% for the M33 flat and 1.98% for the twilight flat as measured). M33 is bigger than the frame, so its run is not open sky; its flat is kept as a candidate only. Every flat leaves this run's dust about 70% as deep as it carries it (correlation 0.35): the dust moved since 13 October, so step 7 measures it here",
+   "history": "flat: the 13 October hybrid flat (~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77: large scale from that night's open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), chosen over two others on this run's own sky (step 7a), times this run's own measure of the dust that moved since (step 7)"
   },
   {
    "step": "7 flat check and this run's own dust",
    "numbers": {
     "flat_from": {
-     "dir": "/Users/bradgessler/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77",
+     "dir": "~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77",
      "files": [
       "flat_planes.npz",
       "flat.json",
       "README.txt"
      ],
-     "made_from": "the night's own open sky (ngc891, ngc2261, ngc2419, m1) for the large scale; twilight flats (/Users/bradgessler/.observatory/nights/2026-10-12-a6000/flat-twilight) for dust and pixel response",
+     "made_from": "the night's own open sky (ngc891, ngc2261, ngc2419, m1) for the large scale; twilight flats (~/.observatory/nights/2026-10-12-a6000/flat-twilight) for dust and pixel response",
      "their_sky_dn": {
       "R": 27.4,
       "G1": 94.0,
@@ -1974,7 +2809,8 @@
      0.5530718564987183,
      1.055965781211853
     ]
-   }
+   },
+   "history": "dust: three shadows named for tonight, their depth in this run's own sky before any flat / after the 13 October flat / after this run's own correction: crescent at sensor (3534, 824): 12.7% / 12.6% / 1.7%; spot_a at sensor (1356, 2400): 5.5% / 0.5% / 0.1%; spot_b at sensor (5352, 3456): 9.0% / 0.2% / 0.2%. The crescent is new since 13 October (the twilight flat has only a 3% shadow there) and is taken out by this run's own measure; the two spots were already in the 13 October flat. 11 shadows in all were measured on this run's sky (seen in the odd and in the even frames alone) and divided out, 0.73% of the sensor"
   },
   {
    "step": "8 combine (proper coadd) and air dispersion",
@@ -3305,7 +4141,8 @@
       }
      }
     }
-   }
+   },
+   "history": "proper coaddition (Zackay & Ofek 2017; tools/coadd.py, keep_phase=\"mean\"), 269 PSF stars per plane, one PSF per frame and plane; theory S/N gain over the old weighted mean 1.0100 (green). The old combine is made from the same cube as a control"
   },
   {
    "step": "9 plate solve of the stack and the crop",
@@ -3461,7 +4298,8 @@
      500.4
     ],
     "north_in_words": "north is 116.2 degrees clockwise from up (east 26.2): in the picture north points to the lower right; the sky as seen, not mirrored"
-   }
+   },
+   "history": "the stack plate-solved and cut to where every frame has data (origin on the reference grid in the recipe)"
   },
   {
    "step": "9b star colours (Gaia DR3)",
@@ -3560,7 +4398,7 @@
      "table": "I/355/gaiadr3 (VizieR, CDS)",
      "url": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=I%2F355%2Fgaiadr3&-c=299.894708+%2B22.753762&-c.rd=0.3880&-out=Source%2CRA_ICRS%2CDE_ICRS%2CpmRA%2CpmDE%2CGmag%2CBPmag%2CRPmag%2CBP-RP%2CE%28BP%2FRP%29&Gmag=%3C17.00&-out.max=unlimited",
      "fetched_utc": "2026-10-18T05:44:00+00:00",
-     "cache_file": "/Users/bradgessler/.observatory/catalogs/gaia-dr3/gaiadr3_ra299.8947_dec+22.7538_r0.388_G17.0.tsv",
+     "cache_file": "~/.observatory/catalogs/gaia-dr3/gaiadr3_ra299.8947_dec+22.7538_r0.388_G17.0.tsv",
      "rows": 7184,
      "columns": [
       "Source",
@@ -3639,7 +4477,8 @@
      "wcs": "work/solve/stack.wcs (step 9)",
      "nebula_left_out": "the catalogue ellipse of step 9 (the bright body, 8 x 5.6 arcmin), semi-axes x 1.3 (+30 px across)"
     }
-   }
+   },
+   "history": "colour: the camera's daylight white balance times Gaia DR3 star colours (kR 1.0128, kB 1.1530 from 93 stars), the camera's own colour matrix. The nebula's blue-green (doubly ionised oxygen, 501 nm) is outside sRGB; colour shown only above 8 DN, grey below. No saturation beyond x 1.2"
   },
   {
    "step": "10 deliver: TIF, stretch, sky plane in the picture only, measures",
@@ -4311,14 +5150,15 @@
       "rms_of_blocks_after": 0.5707067815967221
      }
     ]
-   }
+   },
+   "history": "the linear stack = camera RGB x the white balance above; the sky plane is in the picture only, not in this stack"
   },
   {
    "step": "11 picture: crop (crop.py) and finish (finish16.py)",
    "numbers": {
     "crop": {
      "what": "a crop, pixels untouched",
-     "source": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-stretched.png",
+     "source": "~/.observatory/nights/2026-10-17-a6000/m27/work/m27-stretched.png",
      "source_px": [
       2848,
       1878
@@ -4333,7 +5173,7 @@
     },
     "finish": {
      "what": "levels and colour",
-     "source": "/Users/bradgessler/.observatory/nights/2026-10-17-a6000/m27/work/m27-crop.png",
+     "source": "~/.observatory/nights/2026-10-17-a6000/m27/work/m27-crop.png",
      "steps": [
       {
        "step": "sky to neutral",
@@ -5430,5 +6270,281 @@
     "verdict": "the halo (4 to 5 arcmin from the star): seen in both halves in 0 of 12 sectors; 5 to 6.5 arcmin: 0 of 12."
    }
   }
- ]
+ ],
+ "outputs": [
+  {
+   "file": "hack/stacks/2026-10-17/m27/final/m27.png",
+   "root": "repo",
+   "kind": "picture_png",
+   "sha256": "ee3ed8240dab94a5ba125c169a6319a141c0fc0fc934dc8feb37422946c02a77",
+   "bytes": 1184947
+  },
+  {
+   "file": "hack/stacks/2026-10-17/m27/final/m27.jpg",
+   "root": "repo",
+   "kind": "picture_jpg",
+   "sha256": "5ba1fcc116786af326f038fd90022f18e4508d863e0473b31208fdf32638a285",
+   "bytes": 191448
+  },
+  {
+   "file": "hack/stacks/2026-10-17/m27/final/m27.json",
+   "root": "repo",
+   "kind": "finish_recipe",
+   "sha256": "b4fc3ffb4b0157efdd2ed1bb62b514cc63e6f13cff0cb3b34abdf61f12d8d17e",
+   "bytes": 1193
+  },
+  {
+   "file": "m27/m27-stack.tif",
+   "root": "night",
+   "kind": "stack_tif",
+   "sha256": "d5eecbdcb358882cbfdcc0319d1668209ab3995eb2584906159e23e9b8591915",
+   "bytes": 15874679
+  },
+  {
+   "file": "m27/m27-field.png",
+   "root": "night",
+   "kind": "field_png",
+   "sha256": "8810332cebe6f8713e4aac3f49eb43fffc68e70ad574bca9d26ac9874d63204a",
+   "bytes": 5386071
+  },
+  {
+   "file": "m27/m27-field.jpg",
+   "root": "night",
+   "kind": "field_jpg",
+   "sha256": "be78829c4ef7ee54256d4ef9979856f96261eeba9b0cb3bdd16ba0795d7462e8",
+   "bytes": 892853
+  },
+  {
+   "file": "hack/stacks/2026-10-17/m27/share/m27-annotated.jpg",
+   "root": "repo",
+   "kind": "share_jpg",
+   "sha256": "17350efc93450e2866f04aeaef374e900ce7dda7ade97b388c5aadf47e32ff1e",
+   "bytes": 356673
+  },
+  {
+   "file": "hack/stacks/2026-10-17/m27/share/m27-how.jpg",
+   "root": "repo",
+   "kind": "share_jpg",
+   "sha256": "58a651a199a9c99882c823f7adb7e25b23c6220c20c9d5b0d7e7cb47be2f2ebc",
+   "bytes": 481801
+  },
+  {
+   "file": "hack/stacks/2026-10-17/m27/share/m27.jpg",
+   "root": "repo",
+   "kind": "share_jpg",
+   "sha256": "6defd973c26f44bf29f67f4e0b59e75192fdaab37b3607b0a3c7b6396555f9f7",
+   "bytes": 206836
+  },
+  {
+   "file": "hack/stacks/2026-10-17/share/dumbbell-nebula.jpg",
+   "root": "repo",
+   "kind": "night_share_jpg",
+   "sha256": "6defd973c26f44bf29f67f4e0b59e75192fdaab37b3607b0a3c7b6396555f9f7",
+   "bytes": 206836
+  },
+  {
+   "file": "hack/stacks/2026-10-17/share/dumbbell-nebula-annotated.jpg",
+   "root": "repo",
+   "kind": "night_share_jpg",
+   "sha256": "17350efc93450e2866f04aeaef374e900ce7dda7ade97b388c5aadf47e32ff1e",
+   "bytes": 356673
+  },
+  {
+   "file": "hack/stacks/2026-10-17/share/dumbbell-nebula-how.jpg",
+   "root": "repo",
+   "kind": "night_share_jpg",
+   "sha256": "75dc8b4b1214b8210f83e768e4e670a052027442228afd18b60e3615f3c84ecb",
+   "bytes": 525038
+  },
+  {
+   "file": "m27/m27-stack.fits",
+   "root": "night",
+   "kind": "stack_fits",
+   "sha256": "bbad12ecd97c593263de5ef79f26c8dc086bfb62e91916e94cbbe1e36d06e6e0",
+   "bytes": 64200960,
+   "fits": {
+    "tif_check": {
+     "tif": "~/.observatory/nights/2026-10-17-a6000/m27/m27-stack.tif",
+     "tif_sha256": "d5eecbdcb358882cbfdcc0319d1668209ab3995eb2584906159e23e9b8591915",
+     "pedestal": 1000.0,
+     "equal": true,
+     "values_clipped_high": 0,
+     "values_clipped_low": 0
+    },
+    "float32_max_change": 0.001945570664247498,
+    "solve": {
+     "matched_stars": 20,
+     "match_rms_px": 0.9398332356657255,
+     "log_odds": 137.612,
+     "index": "index-4107",
+     "indexes_offered": "all in astrometry.cfg",
+     "command": "solve-field --config ~/.observatory/astrometry/astrometry.cfg --overwrite --no-plots --no-remove-lines --uniformize 0 --width 2848 --height 1878 --x-column X --y-column Y --sort-column FLUX --scale-units arcsecperpix --scale-low 0.72 --scale-high 0.84 --ra 299.9016 --dec 22.7211 --radius 1 --cpulimit 120 --tweak-order 2 -N none --rdls none --match none --solved none --index-xyls none --corr img.corr --wcs img.wcs img.xy",
+     "software": "0.97",
+     "sources": 2873
+    },
+    "wcs_check": {
+     "what": "\"within a pixel or two\": passes with at least 20 stars, median <= 1.5 px, 90th percentile <= 2.5 px, mean offset <= 1 px each way. Isolated Gaia DR3 stars (G < 16.0, proper motion to 2026.79) looked for at their places through the WCS: intensity-weighted 9 x 9 px centroid, three moves, peak above 15 x the noise, unsaturated, within 4 px",
+     "catalogue_in_field": 1027,
+     "measured": 639,
+     "lost": 5,
+     "arcsec_per_px": 0.77658,
+     "all": {
+      "n": 639,
+      "median_px": 0.394,
+      "rms_px": 0.56,
+      "p90_px": 0.883,
+      "max_px": 1.601,
+      "mean_dx_px": -0.093,
+      "mean_dy_px": 0.167
+     },
+     "regions": {
+      "centre": {
+       "n": 178,
+       "median_px": 0.194,
+       "rms_px": 0.269,
+       "p90_px": 0.408,
+       "max_px": 0.784,
+       "mean_dx_px": -0.107,
+       "mean_dy_px": 0.111
+      },
+      "top_left": {
+       "n": 61,
+       "median_px": 0.503,
+       "rms_px": 0.528,
+       "p90_px": 0.756,
+       "max_px": 0.888,
+       "mean_dx_px": -0.255,
+       "mean_dy_px": 0.394
+      },
+      "top_right": {
+       "n": 21,
+       "median_px": 0.626,
+       "rms_px": 0.685,
+       "p90_px": 0.908,
+       "max_px": 0.982,
+       "mean_dx_px": 0.094,
+       "mean_dy_px": 0.638
+      },
+      "bottom_left": {
+       "n": 37,
+       "median_px": 0.526,
+       "rms_px": 0.784,
+       "p90_px": 1.258,
+       "max_px": 1.564,
+       "mean_dx_px": 0.529,
+       "mean_dy_px": -0.385
+      },
+      "bottom_right": {
+       "n": 17,
+       "median_px": 1.178,
+       "rms_px": 1.212,
+       "p90_px": 1.545,
+       "max_px": 1.601,
+       "mean_dx_px": -1.187,
+       "mean_dy_px": -0.023
+      }
+     },
+     "catalogue": {
+      "table": "I/355/gaiadr3 (VizieR, CDS)",
+      "cache_file": "~/.observatory/catalogs/gaia-dr3/gaiadr3_ra299.8948_dec+22.7536_r0.378_G18.0.tsv",
+      "used_from_cache": true,
+      "rows_used": 14148
+     },
+     "passed": true
+    },
+    "against_the_pipelines_own_solve": {
+     "file": "/private/tmp/claude-501/-Users-bradgessler-Projects-bradgessler-observatory--claude-worktrees-beautiful-payne-df0a74/511d9e6e-a0e5-41bc-bc59-1468578bfcf5/scratchpad/rerun/m27/work/solve/stack.wcs",
+     "max_px": 0.0,
+     "median_px": 0.0,
+     "grid_px": 100
+    },
+    "arcsec_per_px": 0.77658,
+    "shape": [
+     3,
+     1878,
+     2848
+    ],
+    "dtype": "float32",
+    "planes": "R G B",
+    "wcs_header": {
+     "WCSAXES": 2,
+     "CTYPE1": "RA---TAN-SIP",
+     "CTYPE2": "DEC--TAN-SIP",
+     "EQUINOX": 2000.0,
+     "LONPOLE": 180.0,
+     "LATPOLE": 0.0,
+     "CRVAL1": 299.832788733,
+     "CRVAL2": 22.8168592372,
+     "CRPIX1": 1570.82582092,
+     "CRPIX2": 1306.55383301,
+     "CUNIT1": "deg",
+     "CUNIT2": "deg",
+     "CD1_1": 9.50827458794e-05,
+     "CD1_2": -0.000193688460638,
+     "CD2_1": 0.000193558552696,
+     "CD2_2": 9.51114638593e-05,
+     "IMAGEW": 2848,
+     "IMAGEH": 1878,
+     "A_ORDER": 2,
+     "A_0_0": 0,
+     "A_0_1": 0,
+     "A_0_2": -1.96497501154e-07,
+     "A_1_0": 0,
+     "A_1_1": -5.68621266109e-07,
+     "A_2_0": 3.17286762531e-07,
+     "B_ORDER": 2,
+     "B_0_0": 0,
+     "B_0_1": 0,
+     "B_0_2": 9.65448987406e-07,
+     "B_1_0": 0,
+     "B_1_1": 2.61061708337e-07,
+     "B_2_0": -2.40856122858e-07,
+     "AP_ORDER": 2,
+     "AP_0_0": -0.000144460072081,
+     "AP_0_1": -4.1083608573e-07,
+     "AP_0_2": 1.96860507217e-07,
+     "AP_1_0": 4.00550582072e-07,
+     "AP_1_1": 5.69129262812e-07,
+     "AP_2_0": -3.1721685391e-07,
+     "BP_ORDER": 2,
+     "BP_0_0": 0.000254176469632,
+     "BP_0_1": 1.86064069549e-07,
+     "BP_0_2": -9.67553616656e-07,
+     "BP_1_0": -1.36054147831e-07,
+     "BP_1_1": -2.61566843943e-07,
+     "BP_2_0": 2.409660576e-07
+    },
+    "cards": 123
+   }
+  }
+ ],
+ "software_note": "the versions in this environment when the recipe was brought to the schema; the packages were installed before the night and not changed since",
+ "template": "hack/stacks/2026-10-12/m77-calibrated (calibrated flat, Gaia star colours, darks.subtract) with the combine of hack/stacks/2026-10-12/ngc891-coadd (proper coaddition, keep_phase=\"mean\"; the old sigma-clipped weighted mean made from the same cube as a control, work/control_*.npy)",
+ "summary": {
+  "frames": "70 taken in the run (15 s, ISO 3200 by the RAW's own EXIF; every one plate-solved on M27 by its sidecar); 66 used, 4 dropped",
+  "dropped": {
+   "20261018-034619": "the first frame after the slew to the target (52 s after it): dropped by rule; it measured stars of 4.64 arcsec, smear 0.07, transparency 1.000",
+   "20261018-035059": "smeared: every star stretched the same way, common ellipticity 0.21 at 22 deg (limit 0.20); median elongation 1.35",
+   "20261018-035232": "smeared: every star stretched the same way, common ellipticity 0.20 at 10 deg (limit 0.20); median elongation 1.32",
+   "20261018-041416": "smeared: every star stretched the same way, common ellipticity 0.21 at -31 deg (limit 0.20); median elongation 1.32"
+  },
+  "not_in_the_run": "before 03:46 UTC: centring frames (2 s at ISO 6400, a 1/60 s frame) and the focusing frames on Vega (2 s, 03:06 to 03:25); from 04:23 UTC, M33 (another target, used only for a candidate flat). None of these is in the stack",
+  "integration_s": 990.0,
+  "integration": "66 x 15 s = 16.5 minutes",
+  "transparency": "0.980 to 1.009 of the run's typical star flux: no cloud",
+  "star_size": "half-flux diameter, green, 117 compact unsaturated stars: 4.47 arcsec in the stack, 4.94 in the reference frame alone; the run's frames 4.64 (median, step 4). The box's own figure (the 960 px JPEG preview) read 6.2 to 7.3 arcsec for the same frames: a coarser measure of the same stars",
+  "flat": "the 13 October hybrid flat (~/.observatory/nights/2026-10-12-a6000/flat-hybrid-m77: large scale from that night's open sky of NGC 891, NGC 2261, NGC 2419 and M1; dust from the 13 October twilight flats), chosen over two others on this run's own sky (step 7a), times this run's own measure of the dust that moved since (step 7)",
+  "dust": "three shadows named for tonight, their depth in this run's own sky before any flat / after the 13 October flat / after this run's own correction: crescent at sensor (3534, 824): 12.7% / 12.6% / 1.7%; spot_a at sensor (1356, 2400): 5.5% / 0.5% / 0.1%; spot_b at sensor (5352, 3456): 9.0% / 0.2% / 0.2%. The crescent is new since 13 October (the twilight flat has only a 3% shadow there) and is taken out by this run's own measure; the two spots were already in the 13 October flat. 11 shadows in all were measured on this run's sky (seen in the odd and in the even frames alone) and divided out, 0.73% of the sensor",
+  "darks": "none taken tonight: darks.subtract changed nothing and said so; hot pixels found from the run itself and repaired by the 3 x 3 median of their colour plane",
+  "combine": "proper coaddition (Zackay & Ofek 2017; tools/coadd.py, keep_phase=\"mean\"), 269 PSF stars per plane, one PSF per frame and plane; theory S/N gain over the old weighted mean 1.0100 (green). The old combine is made from the same cube as a control",
+  "noise": "sky noise per stack pixel 6.2 to 8.2 DN against 48.1 to 60.8 for one frame: 7.45 to 7.75 times lower (8.12 expected from the weights)",
+  "is_it_the_thing": "yes: the reference frame and the stack plate-solved (astrometry.net); M27's central star's catalogue place falls 0.7 arcsec from the light's centroid in the stack",
+  "ears": "the faint outer lobes (\"ears\", filling the nebula out along its long axis, position angle about 90 to 150 and 270 to 330 degrees) are real: 3 to 4 arcmin from the star they are 12/12, 11/11, 6/6, 4/4, 12/12, 12/12, 5/5 sigma above blank sky in the odd and in the even frames alone (step 12). Beyond 4 arcmin no sector passes in either half: the faint outer halo seen in deep pictures (out to about 7 arcmin) is NOT seen in 16.5 minutes from this sky",
+  "followed": "the nebula followed (ring median of green above 3 x the blank-sky spread, unbroken from the star) to 4.04 arcmin from the star, 8.1 arcmin across",
+  "colour": "the camera's daylight white balance times Gaia DR3 star colours (kR 1.0128, kB 1.1530 from 93 stars), the camera's own colour matrix. The nebula's blue-green (doubly ionised oxygen, 501 nm) is outside sRGB; colour shown only above 8 DN, grey below. No saturation beyond x 1.2",
+  "picture": "a 1200 x 1000 px cut at the stack's own pixels (0.777 arcsec per px, 15.5 x 12.9 arcmin), nothing resampled after the stack, never enlarged; north 116.2 degrees clockwise from up (the camera's orientation)",
+  "sky": "dark sky neutral: m27.png                      darkest  0-10%: R   1.0 G   1.0 B   1.0 (R-G  +0.0, B-G  +0.0) | darkest 10-40%: R   2.8 G   2.8 B   2.8 (R-G  +0.0, B-G  -0.0)",
+  "jpeg_metadata_free": true,
+  "altitude": "about 60 to 70 degrees up during the run (sidecars: 60 to 66); no clock time goes with it anywhere published"
+ }
 }

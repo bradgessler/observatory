@@ -90,6 +90,7 @@ if __name__ == '__main__':
     assert np.isfinite(stc).all()
     cam = np.dstack([stc[0] * wb[0], 0.5 * (stc[1] + stc[2]), stc[3] * wb[2]])
     t16 = np.clip(np.round(cam + TIF_PEDESTAL), 0, 65535).astype(np.uint16)
+    np.save(W('stack_linear_rgb.npy'), cam)      # the linear stack itself (float64 as made, no pedestal, unclipped): the stack FITS (float32) is written from it
     os.makedirs(OUT, exist_ok=True)
     tifffile.imwrite(os.path.join(OUT, 'm42-stack.tif'), t16, photometric='rgb', compression='zlib', metadata=None)
     flat1 = np.ones(stc.shape[1:], np.float32)        # the ceiling test: the frames were divided by a flat within 0.8..1.0 of 1 here

@@ -52,6 +52,7 @@ assert np.isfinite(st).all()
 # ---- the linear TIF
 cam = np.dstack([st[0] * wb[0], 0.5 * (st[1] + st[2]), st[3] * wb[2]])
 t16 = np.clip(np.round(cam + TIF_PEDESTAL), 0, 65535).astype(np.uint16)
+np.save(W('stack_linear_rgb.npy'), cam)      # the linear stack itself (float64 as made, no pedestal, unclipped): the stack FITS (float32) is written from it
 tifffile.imwrite(os.path.join(OUT, 'm27-stack.tif'), t16, photometric='rgb', compression='zlib', metadata=None)
 tif_info = dict(size_px=[int(t16.shape[1]), int(t16.shape[0])], pedestal=TIF_PEDESTAL, units='DN of the 14-bit raw scale, white-balanced (R x %.4f, B x %.4f), per 15 s frame at the sensor centre' % (wb[0], wb[2]),
                 clipped_low_px=int((cam + TIF_PEDESTAL < 0).sum()), clipped_high_px=int((cam + TIF_PEDESTAL > 65535).sum()), colour='camera RGB, daylight white balance, no colour matrix',

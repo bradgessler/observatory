@@ -66,7 +66,7 @@ the 17 October stacks (`hack/stacks/2026-10-17/*`), the stacking tools
 | 3 Sensor map | `sensor_map.json` on the card | `SensorMap.status/0` | `Controller.StillCamera.SensorMap` | ours; optional FITS image |
 | 4 Stack | `<target>-stack.tif` (linear, no tags), `recipe.json`, `work/solve/stack.wcs` | recipe (no schema) | `hack/stacks/<night>/<target>/step*.py` | `<target>-stack.fits` with WCS + HISTORY (to add) |
 | 5 Finished picture | `final/<target>.png`, `.jpg`, `final/<target>.json` (finish recipe) | finish recipe | `crop.py`, `finish16.py` | XMP with AVM (to add) |
-| 6 Published | `share/*.jpg`, `observations/<night>/images/*.jpg`, `objects.json` | `objects.json`, `plan.json`, `session.md` | `annotate.py`, `mix site.build` (strips all metadata) | whitelisted XMP (AVM + IPTC) re-injected after the strip (decision) |
+| 6 Published | `share/*.jpg`, `observations/<night>/images/*.jpg`, `objects.json` | `objects.json`, `plan.json`, `session.md` | `annotate.py`, `mix site.build` (strips all metadata) | none: scrubbed (decided 23 October 2026) |
 
 ---
 
@@ -367,10 +367,11 @@ percentages). Not science data: no FITS. Carry XMP inside the PNG (`iTXt`
 Today `annotate.py` saves with no metadata and `mix site.build` strips APP1
 to APP15 and COM from JPEGs (EXIF, GPS, XMP, ICC) and `tEXt`/`zTXt`/`iTXt`/
 `eXIf`/`tIME` from PNGs, and refuses posts naming the town or the site's
-coordinates to 1 to 3 decimals. Keep both. **Decision for Brad:** after the
-strip, inject one XMP packet built from a whitelist (the table below) and run
-the same `private_terms` check over the packet. The alternative is to
-publish nothing machine-readable and keep AVM in the internal copies only.
+coordinates to 1 to 3 decimals. Keep both.
+
+**Decided (Brad, 23 October 2026): published pictures carry no metadata at all.** The build keeps stripping
+everything, and nothing is injected afterwards. AVM and the rest live only in the internal copies (Stage 5);
+the table below is what those internal copies carry, not what is published.
 
 ### AVM 1.2 (+ Dublin Core, IPTC, Photoshop)
 
